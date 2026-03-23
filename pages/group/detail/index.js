@@ -25,6 +25,14 @@ const formatRemainingTime = totalSeconds => {
   return `${formatNumber(hours)}:${formatNumber(minutes)}:${formatNumber(seconds)}`
 }
 
+const handleShareSuccess = () => {
+  wx.showToast({
+    title: '分享成功',
+    icon: 'success',
+    duration: 2000
+  })
+}
+
 Page({
   data: {
     groupId: '',
@@ -123,13 +131,7 @@ Page({
       return {
         title: '邻动体适能拼团',
         path: '/pages/home/index',
-        success: () => {
-          wx.showToast({
-            title: '分享成功',
-            icon: 'success',
-            duration: 2000
-          })
-        }
+        success: handleShareSuccess
       }
     }
 
@@ -137,13 +139,7 @@ Page({
       title: `邀请你加入「${groupDetail.courseInfo.title}」拼团`,
       path: `/pages/group/detail/index?groupId=${groupDetail.groupId}`,
       imageUrl: groupDetail.courseInfo.cover,
-      success: () => {
-        wx.showToast({
-          title: '分享成功',
-          icon: 'success',
-          duration: 2000
-        })
-      }
+      success: handleShareSuccess
     }
   },
 
