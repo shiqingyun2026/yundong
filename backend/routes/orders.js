@@ -46,6 +46,7 @@ const markGroupOrdersSuccess = async groupId => {
 
 router.post('/', authenticate, async (req, res) => {
   const { courseId, groupId } = req.body || {}
+  const defaultTargetCount = 2
 
   if (!courseId) {
     return res.status(400).json({
@@ -56,11 +57,15 @@ router.post('/', authenticate, async (req, res) => {
   try {
     const { data: course, error: courseError } = await supabase
       .from('courses')
-      .select('id, target_count, group_price')
+      .select('id, group_price')
       .eq('id', courseId)
       .maybeSingle()
 
     if (courseError) {
+      console.error('[orders] course query failed', {
+        courseId,
+        error: courseError
+      })
       throw courseError
     }
 
@@ -81,6 +86,11 @@ router.post('/', authenticate, async (req, res) => {
         .maybeSingle()
 
       if (groupError) {
+        console.error('[orders] existing group query failed', {
+          courseId,
+          groupId,
+          error: groupError
+        })
         throw groupError
       }
 
@@ -111,6 +121,12 @@ router.post('/', authenticate, async (req, res) => {
         .maybeSingle()
 
       if (membershipError) {
+        console.error('[orders] membership query failed', {
+          courseId,
+          groupId,
+          userId: req.userId,
+          error: membershipError
+        })
         throw membershipError
       }
 
@@ -125,11 +141,17 @@ router.post('/', authenticate, async (req, res) => {
           })
 
         if (insertMemberError) {
+          console.error('[orders] insert group member failed', {
+            courseId,
+            groupId: existingGroup.id,
+            userId: req.userId,
+            error: insertMemberError
+          })
           throw insertMemberError
         }
 
         const nextCount = (Number(existingGroup.current_count) || 0) + 1
-        const shouldSuccess = nextCount >= (Number(existingGroup.target_count) || Number(course.target_count) || 2)
+        const shouldSuccess = nextCount >= (Number(existingGroup.target_count) || defaultTargetCount)
 
         const { data: updatedGroup, error: updateGroupError } = await supabase
           .from('groups')
@@ -142,6 +164,12 @@ router.post('/', authenticate, async (req, res) => {
           .single()
 
         if (updateGroupError) {
+          console.error('[orders] update group count failed', {
+            courseId,
+            groupId: existingGroup.id,
+            nextCount,
+            error: updateGroupError
+          })
           throw updateGroupError
         }
 
@@ -154,7 +182,7 @@ router.post('/', authenticate, async (req, res) => {
         finalGroup = existingGroup
       }
     } else {
-      const targetCount = Number(course.target_count) || 2
+      const targetCount = defaultTargetCount
 
       const { data: createdGroup, error: createGroupError } = await supabase
         .from('groups')
@@ -170,6 +198,11 @@ router.post('/', authenticate, async (req, res) => {
         .single()
 
       if (createGroupError) {
+        console.error('[orders] create group failed', {
+          courseId,
+          userId: req.userId,
+          error: createGroupError
+        })
         throw createGroupError
       }
 
@@ -181,6 +214,12 @@ router.post('/', authenticate, async (req, res) => {
         })
 
       if (insertMemberError) {
+        console.error('[orders] insert creator member failed', {
+          courseId,
+          groupId: createdGroup.id,
+          userId: req.userId,
+          error: insertMemberError
+        })
         throw insertMemberError
       }
 
@@ -199,6 +238,12 @@ router.post('/', authenticate, async (req, res) => {
       .single()
 
     if (orderError) {
+      console.error('[orders] create order record failed', {
+        courseId,
+        groupId: finalGroup && finalGroup.id,
+        userId: req.userId,
+        error: orderError
+      })
       throw orderError
     }
 
@@ -212,6 +257,12 @@ router.post('/', authenticate, async (req, res) => {
       groupStatus: normalizeGroupStatus(finalGroup.status)
     })
   } catch (error) {
+    console.error('[orders] failed to create order', {
+      userId: req.userId,
+      courseId,
+      groupId,
+      error
+    })
     return res.status(500).json({
       message: error.message || 'failed to create order'
     })

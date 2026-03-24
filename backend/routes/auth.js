@@ -6,7 +6,7 @@ const supabase = require('../utils/supabase')
 const router = express.Router()
 
 router.post('/login', async (req, res) => {
-  const { code } = req.body || {}
+  const { code, mockOpenId } = req.body || {}
 
   if (!code) {
     return res.status(400).json({
@@ -14,7 +14,7 @@ router.post('/login', async (req, res) => {
     })
   }
 
-  const openid = `mock_${code}`
+  const openid = mockOpenId || `mock_${code}`
 
   try {
     const { data: existingUser, error: queryError } = await supabase

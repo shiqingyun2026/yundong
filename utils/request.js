@@ -90,7 +90,9 @@ const request = options => {
     console.log('[request] start', {
       url: requestURL,
       method,
-      data
+      data,
+      hasToken: !!token,
+      tokenPreview: token ? `${token}`.slice(0, 16) : ''
     })
 
     wx.request({
@@ -111,6 +113,9 @@ const request = options => {
         } catch (error) {
           if (error && error.statusCode === 401) {
             wx.removeStorageSync('token')
+            if (app && app.globalData) {
+              app.globalData.token = ''
+            }
           }
 
           if (showErrorToast) {

@@ -112,18 +112,6 @@ const formatCourseTimeRange = (startTime, endTime = startTime) => {
   return `${pad(startDate.getMonth() + 1)}月${pad(startDate.getDate())}日 周${weekMap[startDate.getDay()]} ${pad(startDate.getHours())}:${pad(startDate.getMinutes())}-${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`
 }
 
-const formatCourseStartTime = startTime => {
-  const startDate = safeDate(startTime)
-
-  if (!startDate) {
-    return '时间待定'
-  }
-
-  const weekMap = ['日', '一', '二', '三', '四', '五', '六']
-
-  return `${pad(startDate.getMonth() + 1)}月${pad(startDate.getDate())}日 周${weekMap[startDate.getDay()]} ${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`
-}
-
 const getRemainingSeconds = expireTime => {
   const expireAt = safeDate(expireTime)
   if (!expireAt) {
@@ -145,6 +133,41 @@ const normalizeImages = value => {
   return []
 }
 
+const fetchGroupMembers = async groupId => {
+  const { data: memberRows, error: memberRowsError } = await supabase
+    .from('group_members')
+    .select('user_id')
+    .eq('group_id', groupId)
+
+  if (memberRowsError) {
+    throw memberRowsError
+  }
+
+  const userIds = (memberRows || []).map(item => item.user_id).filter(Boolean)
+  if (!userIds.length) {
+    return []
+  }
+
+  const { data: users, error: usersError } = await supabase
+    .from('users')
+    .select('id, nickname, avatar_url')
+    .in('id', userIds)
+
+  if (usersError) {
+    throw usersError
+  }
+
+  const usersById = (users || []).reduce((result, user) => {
+    result[user.id] = user
+    return result
+  }, {})
+
+  return (memberRows || []).map(item => ({
+    avatar: (usersById[item.user_id] && usersById[item.user_id].avatar_url) || '',
+    nickName: (usersById[item.user_id] && usersById[item.user_id].nickname) || '微信用户'
+  }))
+}
+
 const mapCourseDetail = (course, activeGroup) => ({
   id: course.id,
   title: course.name || '',
@@ -152,8 +175,8 @@ const mapCourseDetail = (course, activeGroup) => ({
   groupPriceFen: Number(course.group_price) || 0,
   groupPriceText: Number(course.group_price || 0).toFixed(2),
   originalPriceText: Number(course.original_price || 0).toFixed(2),
-  targetCount: Number(course.target_count) || 0,
-  joinedCount: Number((activeGroup && activeGroup.current_count) ?? course.joined_count) || 0,
+  targetCount: Number(activeGroup && activeGroup.target_count) || 0,
+  joinedCount: Number(activeGroup && activeGroup.current_count) || 0,
   timeText: formatCourseTimeRange(course.start_time),
   locationText: course.address || '',
   ageRange: course.age_limit || '',
@@ -178,10 +201,7 @@ const mapActiveGroup = (group, members) => ({
   targetCount: Number(group.target_count) || 0,
   expireTime: group.expire_time,
   remainingSeconds: getRemainingSeconds(group.expire_time),
-  members: (members || []).map(item => ({
-    avatar: (item.users && item.users.avatar_url) || '',
-    nickName: (item.users && item.users.nickname) || '微信用户'
-  }))
+  members: members || []
 })
 
 const mapActiveGroupSummary = group => {
@@ -191,9 +211,9 @@ const mapActiveGroupSummary = group => {
 
   return {
     groupId: group.id,
-    expire_time: group.expire_time,
-    current_count: Number(group.current_count) || 0,
-    target_count: Number(group.target_count) || 0
+    expireTime: group.expire_time,
+    currentCount: Number(group.current_count) || 0,
+    targetCount: Number(group.target_count) || 0
   }
 }
 
@@ -208,10 +228,10 @@ router.get('/', async (req, res) => {
     const { data: courses, count, error } = await supabase
       .from('courses')
       .select(
-        'id, cover, name, address, start_time, group_price, original_price, joined_count, target_count, created_at',
+        'id, cover, name, address, start_time, group_price, original_price',
         { count: 'exact' }
       )
-      .order(sort === 'time' ? 'start_time' : 'created_at', { ascending: true })
+      .order('start_time', { ascending: sort === 'time' })
       .range(from, to)
 
     if (error) {
@@ -224,11 +244,11 @@ router.get('/', async (req, res) => {
     if (courseIds.length) {
       const { data: groups, error: groupsError } = await supabase
         .from('groups')
-        .select('id, course_id, expire_time, current_count, target_count, created_at')
+        .select('id, course_id, expire_time, current_count, target_count')
         .in('course_id', courseIds)
         .eq('status', 'active')
         .gt('expire_time', new Date().toISOString())
-        .order('created_at', { ascending: true })
+        .order('expire_time', { ascending: true })
 
       if (groupsError) {
         throw groupsError
@@ -253,8 +273,6 @@ router.get('/', async (req, res) => {
         start_time: item.start_time,
         group_price: Number(item.group_price || 0),
         original_price: Number(item.original_price || 0),
-        joined_count: Number((activeGroup && activeGroup.current_count) ?? item.joined_count) || 0,
-        target_count: Number(item.target_count) || 0,
         activeGroup
       }
     })
@@ -279,7 +297,7 @@ router.get('/:id', async (req, res) => {
     const { data: course, error } = await supabase
       .from('courses')
       .select(
-        'id, name, cover, images, address, start_time, group_price, original_price, joined_count, target_count, age_limit, coach_name, coach_intro, coach_certificates, insurance_desc, service_qr_code'
+        'id, name, cover, images, address, start_time, group_price, original_price, age_limit, coach_name, coach_intro, coach_certificates, insurance_desc, service_qr_code'
       )
       .eq('id', req.params.id)
       .maybeSingle()
@@ -336,14 +354,7 @@ router.get('/:id/active-group', async (req, res) => {
       return res.json(null)
     }
 
-    const { data: members, error: membersError } = await supabase
-      .from('group_members')
-      .select('user_id, users(nickname, avatar_url)')
-      .eq('group_id', group.id)
-
-    if (membersError) {
-      throw membersError
-    }
+    const members = await fetchGroupMembers(group.id)
 
     return res.json(mapActiveGroup(group, members))
   } catch (error) {

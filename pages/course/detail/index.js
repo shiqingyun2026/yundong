@@ -137,8 +137,6 @@ const normalizeCourseDetail = detail => {
       detail.originalPriceText !== undefined
         ? `${detail.originalPriceText}`
         : Number(detail.original_price || detail.originalPrice || 0).toFixed(2),
-    targetCount: Number(detail.targetCount ?? detail.target_count) || 0,
-    joinedCount: Number(detail.current_count ?? detail.joinedCount ?? detail.joined_count) || 0,
     timeText: detail.timeText || detail.start_time || '',
     locationText: detail.locationText || detail.address || detail.location || '',
     ageRange: detail.ageRange || detail.age_range || detail.age_limit || '',
@@ -162,13 +160,19 @@ Page({
     courseId: '',
     courseDetail: null,
     activeGroup: null,
+    hasActiveGroup: false,
+    groupTargetCount: 0,
+    groupCurrentCount: 0,
     loading: true,
     showServiceModal: false,
-    creatingOrder: false
+    creatingOrder: false,
+    actionButtonText: '立即开团',
+    emptyGroupText: '暂无进行中的拼团，立即开团吧'
   },
 
   async onLoad(options) {
     this._expireTimer = null
+    this._expireStartTimer = null
     const courseId = options.id || ''
     this.setData({
       courseId
@@ -181,16 +185,65 @@ Page({
     this.clearExpireTimer()
   },
 
+  promptLogin() {
+    wx.showModal({
+      title: '请先登录',
+      content: '开团和参团需要先完成登录，是否前往“我的”页面登录？',
+      confirmText: '去登录',
+      cancelText: '稍后',
+      success: res => {
+        if (res.confirm) {
+          wx.switchTab({
+            url: '/pages/mine/index'
+          })
+        }
+      }
+    })
+  },
+
   clearExpireTimer() {
+    if (this._expireStartTimer) {
+      clearTimeout(this._expireStartTimer)
+      this._expireStartTimer = null
+    }
+
     if (this._expireTimer) {
       clearInterval(this._expireTimer)
       this._expireTimer = null
     }
   },
 
-  startExpireTimer() {
+  updateGroupPresentation(activeGroup) {
+    const hasJoinableGroup = !!(activeGroup && !activeGroup.isExpired)
+    const hasActiveGroup = !!activeGroup
+    const groupTargetCount = hasActiveGroup ? Number(activeGroup.targetCount) || 0 : 0
+    const groupCurrentCount = hasActiveGroup ? Number(activeGroup.currentCount) || 0 : 0
+
+    this.setData({
+      activeGroup,
+      hasActiveGroup,
+      groupTargetCount,
+      groupCurrentCount,
+      actionButtonText: hasJoinableGroup ? '去参团' : '立即开团',
+      emptyGroupText:
+        activeGroup && activeGroup.isExpired ? '当前拼团已结束，可重新开团' : '暂无进行中的拼团，立即开团吧'
+    })
+  },
+
+  scheduleExpireTimer() {
     this.clearExpireTimer()
 
+    if (this.data.loading || !this.data.activeGroup || !this.data.activeGroup.expireTime) {
+      return
+    }
+
+    this._expireStartTimer = setTimeout(() => {
+      this._expireStartTimer = null
+      this.startExpireTimer()
+    }, 300)
+  },
+
+  startExpireTimer() {
     if (!this.data.activeGroup || !this.data.activeGroup.expireTime) {
       return
     }
@@ -203,9 +256,7 @@ Page({
       }
 
       const nextActiveGroup = buildActiveGroupViewModel(activeGroup)
-      this.setData({
-        activeGroup: nextActiveGroup
-      })
+      this.updateGroupPresentation(nextActiveGroup)
 
       if (nextActiveGroup.expireTimeText === '已结束') {
         this.clearExpireTimer()
@@ -233,11 +284,10 @@ Page({
       ])
 
       this.setData({
-        courseDetail: normalizeCourseDetail(courseDetail),
-        activeGroup: buildActiveGroupViewModel(activeGroup)
+        courseDetail: normalizeCourseDetail(courseDetail)
       })
 
-      this.startExpireTimer()
+      this.updateGroupPresentation(buildActiveGroupViewModel(activeGroup))
     } catch (error) {
       wx.showToast({
         title: '课程详情加载失败',
@@ -251,6 +301,8 @@ Page({
       this.setData({
         loading: false
       })
+
+      this.scheduleExpireTimer()
     }
   },
 
@@ -301,6 +353,14 @@ Page({
       return
     }
 
+    const token = wx.getStorageSync('token')
+    console.log('token:', token)
+
+    if (!token) {
+      this.promptLogin()
+      return
+    }
+
     const joinableGroup = activeGroup && !activeGroup.isExpired ? activeGroup : null
     const groupId = joinableGroup ? joinableGroup.groupId : ''
 
@@ -324,6 +384,17 @@ Page({
         url: `/pages/payment/confirm/index?courseId=${courseId}&groupId=${nextGroupId}&orderId=${orderId}`
       })
     } catch (error) {
+      if (error && error.statusCode === 401) {
+        wx.removeStorageSync('token')
+        const app = getApp()
+        if (app && typeof app.setToken === 'function') {
+          app.setToken('')
+        }
+
+        this.promptLogin()
+        return
+      }
+
       wx.showToast({
         title: '下单失败，请稍后再试',
         icon: 'none'

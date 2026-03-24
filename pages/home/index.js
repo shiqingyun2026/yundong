@@ -94,11 +94,12 @@ Page({
 
   onLoad() {
     this._countdownTimer = null
+    this._countdownStartTimer = null
     this.initLocationAndCourses()
   },
 
   onShow() {
-    this.startCountdownTimer()
+    this.scheduleCountdownTimer()
   },
 
   onHide() {
@@ -202,7 +203,7 @@ Page({
         initialLoading: false
       })
 
-      this.startCountdownTimer()
+      this.scheduleCountdownTimer()
     } catch (error) {
       wx.showToast({
         title: '课程加载失败，请稍后再试',
@@ -219,15 +220,35 @@ Page({
   },
 
   clearCountdownTimer() {
+    if (this._countdownStartTimer) {
+      clearTimeout(this._countdownStartTimer)
+      this._countdownStartTimer = null
+    }
+
     if (this._countdownTimer) {
       clearInterval(this._countdownTimer)
       this._countdownTimer = null
     }
   },
 
-  startCountdownTimer() {
+  scheduleCountdownTimer() {
     this.clearCountdownTimer()
 
+    if (this.data.loading || this.data.initialLoading) {
+      return
+    }
+
+    if (!this.data.courseList.some(item => item.activeGroup && item.activeGroup.expireTime)) {
+      return
+    }
+
+    this._countdownStartTimer = setTimeout(() => {
+      this._countdownStartTimer = null
+      this.startCountdownTimer()
+    }, 300)
+  },
+
+  startCountdownTimer() {
     if (!this.data.courseList.some(item => item.activeGroup && item.activeGroup.expireTime)) {
       return
     }

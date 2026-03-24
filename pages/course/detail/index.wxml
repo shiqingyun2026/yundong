@@ -12,13 +12,13 @@
       <view class="page-section card-shadow">
         <view class="title-row">
           <view class="course-title">{{courseDetail.title}}</view>
-          <view class="group-chip">{{courseDetail.targetCount}}人成团</view>
+          <view wx:if="{{hasActiveGroup}}" class="group-chip">{{groupTargetCount}}人成团</view>
         </view>
 
         <view class="price-row">
           <view class="group-price">¥{{courseDetail.groupPriceText}}</view>
           <view class="original-price">¥{{courseDetail.originalPriceText}}</view>
-          <view class="joined-chip">已拼 {{courseDetail.joinedCount}} 人</view>
+          <view wx:if="{{hasActiveGroup}}" class="joined-chip">已拼 {{groupCurrentCount}} 人</view>
         </view>
 
         <view class="info-list">
@@ -102,7 +102,7 @@
         </view>
 
         <view wx:else class="group-empty">
-          <view class="section-desc">{{activeGroup && activeGroup.isExpired ? '当前拼团已结束，可重新开团' : '暂无进行中的拼团，立即开团吧'}}</view>
+          <view class="section-desc">{{emptyGroupText}}</view>
         </view>
       </view>
 
@@ -116,11 +116,12 @@
       <view class="service-text">客服</view>
     </view>
     <button class="primary-button bottom-action" bindtap="handleGoPayment" loading="{{creatingOrder}}" disabled="{{creatingOrder}}">
-      {{activeGroup && !activeGroup.isExpired ? '去参团' : '立即开团'}}
+      {{actionButtonText}}
     </button>
   </view>
 
   <base-modal
+    wx:if="{{courseDetail}}"
     visible="{{showServiceModal}}"
     title="联系客服"
     confirmText="我知道了"

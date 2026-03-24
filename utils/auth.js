@@ -41,10 +41,24 @@ const getLoginCode = () =>
     })
   })
 
+const getStableMockOpenId = () => {
+  const storageKey = 'mockOpenId'
+  const existing = wx.getStorageSync(storageKey)
+
+  if (existing) {
+    return existing
+  }
+
+  const mockOpenId = `mock_user_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+  wx.setStorageSync(storageKey, mockOpenId)
+  return mockOpenId
+}
+
 const login = async userInfo => {
   const loginCode = await getLoginCode()
   const payload = {
-    code: loginCode
+    code: loginCode,
+    mockOpenId: getStableMockOpenId()
   }
 
   try {

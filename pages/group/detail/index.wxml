@@ -76,7 +76,7 @@
 
     <block wx:else>
       <view class="bottom-status-text">
-        {{groupDetail.status === 'success' ? '已成团，等待上课' : '拼团失败，已退款'}}
+        {{bottomStatusText}}
       </view>
     </block>
   </view>

@@ -105,12 +105,14 @@ Page({
     loading: true,
     groupDetail: null,
     statusText: '',
-    statusClassName: ''
+    statusClassName: '',
+    bottomStatusText: '拼团失败，已退款'
   },
 
   async onLoad(options) {
     this._isAlive = true
     this._timers = []
+    this._expireStartTimer = null
 
     this.safeSetData({
       groupId: options.groupId || '',
@@ -134,13 +136,40 @@ Page({
   },
 
   clearTimers() {
+    if (this._expireStartTimer) {
+      clearTimeout(this._expireStartTimer)
+      this._expireStartTimer = null
+    }
+
     ;(this._timers || []).forEach(timerId => clearInterval(timerId))
     this._timers = []
   },
 
-  startExpireTimer() {
+  updateGroupPresentation(groupDetail) {
+    const statusInfo = STATUS_MAP[(groupDetail && groupDetail.status) || 'ongoing'] || STATUS_MAP.ongoing
+
+    this.safeSetData({
+      groupDetail,
+      statusText: statusInfo.text,
+      statusClassName: statusInfo.className,
+      bottomStatusText: groupDetail && groupDetail.status === 'success' ? '已成团，等待上课' : '拼团失败，已退款'
+    })
+  },
+
+  scheduleExpireTimer() {
     this.clearTimers()
 
+    if (this.data.loading || !this.data.groupDetail || !this.data.groupDetail.expireTime) {
+      return
+    }
+
+    this._expireStartTimer = setTimeout(() => {
+      this._expireStartTimer = null
+      this.startExpireTimer()
+    }, 300)
+  },
+
+  startExpireTimer() {
     if (!this.data.groupDetail || !this.data.groupDetail.expireTime) {
       return
     }
@@ -158,12 +187,7 @@ Page({
       }
 
       const nextGroupDetail = buildGroupDetailViewModel(groupDetail)
-      const statusInfo = STATUS_MAP[nextGroupDetail.status] || STATUS_MAP.ongoing
-      this.safeSetData({
-        groupDetail: nextGroupDetail,
-        statusText: statusInfo.text,
-        statusClassName: statusInfo.className
-      })
+      this.updateGroupPresentation(nextGroupDetail)
 
       if (nextGroupDetail.status !== 'ongoing') {
         this.clearTimers()
@@ -193,20 +217,16 @@ Page({
     try {
       const groupDetail = await fetchGroupDetail(groupId)
       const nextGroupDetail = buildGroupDetailViewModel(groupDetail)
-      const statusInfo = STATUS_MAP[nextGroupDetail.status] || STATUS_MAP.ongoing
 
       if (!this._isAlive) {
         return
       }
 
       this.safeSetData({
-        groupDetail: nextGroupDetail,
-        courseId: nextGroupDetail.courseId,
-        statusText: statusInfo.text,
-        statusClassName: statusInfo.className
+        courseId: nextGroupDetail.courseId
       })
 
-      this.startExpireTimer()
+      this.updateGroupPresentation(nextGroupDetail)
     } catch (error) {
       if (!this._isAlive) {
         return
@@ -224,6 +244,8 @@ Page({
       this.safeSetData({
         loading: false
       })
+
+      this.scheduleExpireTimer()
     }
   },
 

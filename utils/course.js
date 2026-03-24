@@ -631,7 +631,7 @@ const normalizeCourseListItem = item => {
         targetCount: Number(item.activeGroup.targetCount ?? item.activeGroup.target_count) || 0
       }
     : null
-  const joinedCount = Number(activeGroup ? activeGroup.currentCount : item.joinedCount ?? item.joined_count ?? item.current_count) || 0
+  const joinedCount = Number(activeGroup ? activeGroup.currentCount : item.joinedCount ?? item.current_count) || 0
   const targetCount = Number(activeGroup ? activeGroup.targetCount : item.targetCount ?? item.target_count) || 0
   const groupPrice =
     item.groupPriceText !== undefined
@@ -642,6 +642,7 @@ const normalizeCourseListItem = item => {
       ? item.originalPriceText
       : formatYuanPrice(item.originalPrice ?? item.original_price)
   const startTime = item.startTime || item.start_time || ''
+  const remainingCount = activeGroup ? Math.max(0, targetCount - joinedCount) : 0
 
   return {
     ...item,
@@ -659,7 +660,7 @@ const normalizeCourseListItem = item => {
     soonGroup:
       typeof item.soonGroup === 'boolean'
         ? item.soonGroup
-        : joinedCount > 0 && targetCount > 0 && joinedCount >= targetCount - 3
+        : !!(activeGroup && joinedCount > 0 && targetCount > 0 && joinedCount < targetCount && remainingCount <= 3)
   }
 }
 
@@ -676,7 +677,7 @@ const normalizeCourseDetail = payload => {
     payload.originalPriceText !== undefined
       ? payload.originalPriceText
       : formatYuanPrice(payload.originalPrice ?? payload.original_price)
-  const joinedCount = Number(payload.current_count ?? payload.joinedCount ?? payload.joined_count) || 0
+  const joinedCount = Number(payload.current_count ?? payload.joinedCount) || 0
   const targetCount = Number(payload.targetCount ?? payload.target_count) || 0
   const startTime = payload.startTime || payload.start_time || ''
 
@@ -756,7 +757,23 @@ const shouldForceMock = () => {
   }
 }
 
-const withMockFallback = async ({ label, request, mockFactory }) => {
+const shouldFallbackToMockByDefault = error => {
+  if (!error) {
+    return true
+  }
+
+  if (error.statusCode) {
+    return false
+  }
+
+  if (error.code) {
+    return false
+  }
+
+  return true
+}
+
+const withMockFallback = async ({ label, request, mockFactory, shouldFallback }) => {
   if (shouldForceMock()) {
     console.log(`[course] ${label} force mock enabled`)
     return mockFactory()
@@ -766,6 +783,13 @@ const withMockFallback = async ({ label, request, mockFactory }) => {
     console.log(`[course] ${label} requesting backend`)
     return await request()
   } catch (error) {
+    const allowFallback =
+      typeof shouldFallback === 'function' ? shouldFallback(error) : shouldFallbackToMockByDefault(error)
+
+    if (!allowFallback) {
+      throw error
+    }
+
     console.log(`[course] ${label} fallback to mock`, error)
     return mockFactory()
   }
@@ -934,7 +958,7 @@ const fetchGroupDetail = async groupId => {
               ...payload.courseInfo,
               title: payload.courseInfo.title || payload.courseInfo.name || '',
               locationText: payload.courseInfo.locationText || payload.courseInfo.location || payload.courseInfo.address || '',
-              joinedCount: Number(payload.courseInfo.joinedCount ?? payload.courseInfo.joined_count ?? payload.current_count) || 0,
+              joinedCount: Number(payload.courseInfo.joinedCount ?? payload.current_count) || 0,
               targetCount: Number(payload.courseInfo.targetCount ?? payload.courseInfo.target_count) || 0,
               groupPriceText:
                 payload.courseInfo.groupPriceText !== undefined
@@ -979,6 +1003,7 @@ const createOrder = async ({ courseId, groupId, totalFee }) =>
           showErrorToast: false
         }
       ),
+    shouldFallback: error => !(error && (error.statusCode === 401 || error.statusCode === 403)),
     mockFactory: () =>
       Promise.resolve(
         createMockOrder({
