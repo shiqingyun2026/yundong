@@ -90,8 +90,6 @@ const safeDate = value => {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-const formatPrice = value => (Number(value || 0) / 100).toFixed(2)
-
 const formatTime = value => {
   const date = safeDate(value)
   if (!date) {
@@ -101,7 +99,7 @@ const formatTime = value => {
   return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
-const formatCourseTimeRange = (startTime, endTime) => {
+const formatCourseTimeRange = (startTime, endTime = startTime) => {
   const startDate = safeDate(startTime)
   const endDate = safeDate(endTime)
 
@@ -114,17 +112,16 @@ const formatCourseTimeRange = (startTime, endTime) => {
   return `${pad(startDate.getMonth() + 1)}月${pad(startDate.getDate())}日 周${weekMap[startDate.getDay()]} ${pad(startDate.getHours())}:${pad(startDate.getMinutes())}-${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`
 }
 
-const formatDistance = distance => {
-  const numericDistance = Number(distance)
-  if (Number.isNaN(numericDistance)) {
-    return ''
+const formatCourseStartTime = startTime => {
+  const startDate = safeDate(startTime)
+
+  if (!startDate) {
+    return '时间待定'
   }
 
-  if (numericDistance < 1) {
-    return `${Math.round(numericDistance * 1000)}m`
-  }
+  const weekMap = ['日', '一', '二', '三', '四', '五', '六']
 
-  return `${numericDistance.toFixed(1)}km`
+  return `${pad(startDate.getMonth() + 1)}月${pad(startDate.getDate())}日 周${weekMap[startDate.getDay()]} ${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`
 }
 
 const getRemainingSeconds = expireTime => {
@@ -148,38 +145,19 @@ const normalizeImages = value => {
   return []
 }
 
-const mapCourseListItem = (course, activeGroup) => {
-  const joinedCount = Number(activeGroup && activeGroup.current_count) || 0
-  const targetCount = Number(course.target_count) || 0
-
-  return {
-    id: course.id,
-    cover: course.cover || '',
-    title: course.title || '',
-    timeText: formatCourseTimeRange(course.start_time, course.end_time),
-    locationText: course.location || '',
-    groupPriceText: formatPrice(course.group_price),
-    originalPriceText: formatPrice(course.original_price),
-    joinedCount,
-    distanceText: formatDistance(course.distance_km),
-    startTimestamp: safeDate(course.start_time) ? new Date(course.start_time).getTime() : 0,
-    soonGroup: joinedCount > 0 && targetCount > 0 && joinedCount >= targetCount - 1
-  }
-}
-
 const mapCourseDetail = (course, activeGroup) => ({
   id: course.id,
-  title: course.title || '',
+  title: course.name || '',
   images: normalizeImages(course.images).length ? normalizeImages(course.images) : [course.cover || ''],
   groupPriceFen: Number(course.group_price) || 0,
-  groupPriceText: formatPrice(course.group_price),
-  originalPriceText: formatPrice(course.original_price),
+  groupPriceText: Number(course.group_price || 0).toFixed(2),
+  originalPriceText: Number(course.original_price || 0).toFixed(2),
   targetCount: Number(course.target_count) || 0,
-  joinedCount: Number(activeGroup && activeGroup.current_count) || 0,
-  timeText: formatCourseTimeRange(course.start_time, course.end_time),
-  locationText: course.location || '',
-  ageRange: course.age_range || '',
-  descriptionNodes: buildDescriptionNodes(course.title),
+  joinedCount: Number((activeGroup && activeGroup.current_count) ?? course.joined_count) || 0,
+  timeText: formatCourseTimeRange(course.start_time),
+  locationText: course.address || '',
+  ageRange: course.age_limit || '',
+  descriptionNodes: buildDescriptionNodes(course.name),
   groupRuleNodes: GROUP_RULE_NODES,
   paymentGroupNoteNodes: PAYMENT_GROUP_NOTE_NODES,
   coach: {
@@ -188,7 +166,7 @@ const mapCourseDetail = (course, activeGroup) => ({
     certificates: normalizeImages(course.coach_certificates)
   },
   insuranceText:
-    course.insurance_text ||
+    course.insurance_desc ||
     '本课程赠送运动意外险，由平台统一购买，为孩子提供基础运动安全保障。',
   serviceQrCode: course.service_qr_code || SERVICE_QR_CODE
 })
@@ -206,6 +184,19 @@ const mapActiveGroup = (group, members) => ({
   }))
 })
 
+const mapActiveGroupSummary = group => {
+  if (!group) {
+    return null
+  }
+
+  return {
+    groupId: group.id,
+    expire_time: group.expire_time,
+    current_count: Number(group.current_count) || 0,
+    target_count: Number(group.target_count) || 0
+  }
+}
+
 router.get('/', async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1)
   const pageSize = Math.max(1, Number(req.query.pageSize) || 10)
@@ -217,7 +208,7 @@ router.get('/', async (req, res) => {
     const { data: courses, count, error } = await supabase
       .from('courses')
       .select(
-        'id, cover, title, start_time, end_time, location, group_price, original_price, target_count, distance_km, created_at',
+        'id, cover, name, address, start_time, group_price, original_price, joined_count, target_count, created_at',
         { count: 'exact' }
       )
       .order(sort === 'time' ? 'start_time' : 'created_at', { ascending: true })
@@ -227,28 +218,46 @@ router.get('/', async (req, res) => {
       throw error
     }
 
-    const courseIds = (courses || []).map(item => item.id)
+    const courseIds = (courses || []).map(item => item.id).filter(Boolean)
     let activeGroupMap = {}
 
     if (courseIds.length) {
-      const { data: activeGroups, error: activeGroupsError } = await supabase
+      const { data: groups, error: groupsError } = await supabase
         .from('groups')
-        .select('id, course_id, current_count, target_count, expire_time')
+        .select('id, course_id, expire_time, current_count, target_count, created_at')
         .in('course_id', courseIds)
         .eq('status', 'active')
         .gt('expire_time', new Date().toISOString())
+        .order('created_at', { ascending: true })
 
-      if (activeGroupsError) {
-        throw activeGroupsError
+      if (groupsError) {
+        throw groupsError
       }
 
-      activeGroupMap = (activeGroups || []).reduce((result, item) => {
-        result[item.course_id] = item
+      activeGroupMap = (groups || []).reduce((result, group) => {
+        if (!result[group.course_id]) {
+          result[group.course_id] = mapActiveGroupSummary(group)
+        }
         return result
       }, {})
     }
 
-    const list = (courses || []).map(item => mapCourseListItem(item, activeGroupMap[item.id]))
+    const list = (courses || []).map(item => {
+      const activeGroup = activeGroupMap[item.id] || null
+
+      return {
+        id: item.id,
+        cover: item.cover,
+        name: item.name,
+        address: item.address,
+        start_time: item.start_time,
+        group_price: Number(item.group_price || 0),
+        original_price: Number(item.original_price || 0),
+        joined_count: Number((activeGroup && activeGroup.current_count) ?? item.joined_count) || 0,
+        target_count: Number(item.target_count) || 0,
+        activeGroup
+      }
+    })
 
     return res.json({
       data: list,
@@ -270,7 +279,7 @@ router.get('/:id', async (req, res) => {
     const { data: course, error } = await supabase
       .from('courses')
       .select(
-        'id, title, cover, images, start_time, end_time, location, group_price, original_price, target_count, age_range, coach_name, coach_intro, coach_certificates, insurance_text, service_qr_code'
+        'id, name, cover, images, address, start_time, group_price, original_price, joined_count, target_count, age_limit, coach_name, coach_intro, coach_certificates, insurance_desc, service_qr_code'
       )
       .eq('id', req.params.id)
       .maybeSingle()

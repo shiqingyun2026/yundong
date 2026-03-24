@@ -1,5 +1,59 @@
 const { fetchCourseList } = require('../../utils/course')
 
+const safeDate = value => {
+  if (!value) {
+    return null
+  }
+
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+const formatExpireTime = expireTime => {
+  const expireDate = safeDate(expireTime)
+  if (!expireDate) {
+    return ''
+  }
+
+  const diff = expireDate.getTime() - Date.now()
+  if (diff <= 0) {
+    return '已结束'
+  }
+
+  const totalMinutes = Math.floor(diff / 60000)
+  const totalHours = Math.floor(diff / 3600000)
+  const days = Math.floor(totalHours / 24)
+
+  if (days >= 1) {
+    return `剩余 ${days} 天 ${totalHours % 24} 小时`
+  }
+
+  if (totalHours >= 1) {
+    return `剩余 ${totalHours} 小时`
+  }
+
+  if (totalMinutes >= 1) {
+    return `剩余 ${totalMinutes} 分钟`
+  }
+
+  return '已结束'
+}
+
+const buildCourseCard = item => {
+  const activeGroup = item && item.activeGroup
+    ? {
+        ...item.activeGroup,
+        expireTimeText: formatExpireTime(item.activeGroup.expireTime)
+      }
+    : null
+
+  return {
+    ...item,
+    activeGroup,
+    showActiveGroupCountdown: !!(activeGroup && activeGroup.expireTimeText && activeGroup.expireTimeText !== '已结束')
+  }
+}
+
 const HOME_TABS = [
   { key: 'all', label: '全部课程', sort: 'distance' },
   { key: 'recent', label: '最近开课', sort: 'time' }
@@ -39,7 +93,20 @@ Page({
   },
 
   onLoad() {
+    this._countdownTimer = null
     this.initLocationAndCourses()
+  },
+
+  onShow() {
+    this.startCountdownTimer()
+  },
+
+  onHide() {
+    this.clearCountdownTimer()
+  },
+
+  onUnload() {
+    this.clearCountdownTimer()
   },
 
   onReachBottom() {
@@ -126,12 +193,16 @@ Page({
         pageSize: this.data.pageSize
       })
 
+      const nextList = (page === 1 ? result.list : this.data.courseList.concat(result.list)).map(buildCourseCard)
+
       this.setData({
-        courseList: page === 1 ? result.list : this.data.courseList.concat(result.list),
+        courseList: nextList,
         page,
         hasMore: result.hasMore,
         initialLoading: false
       })
+
+      this.startCountdownTimer()
     } catch (error) {
       wx.showToast({
         title: '课程加载失败，请稍后再试',
@@ -145,6 +216,31 @@ Page({
         loading: false
       })
     }
+  },
+
+  clearCountdownTimer() {
+    if (this._countdownTimer) {
+      clearInterval(this._countdownTimer)
+      this._countdownTimer = null
+    }
+  },
+
+  startCountdownTimer() {
+    this.clearCountdownTimer()
+
+    if (!this.data.courseList.some(item => item.activeGroup && item.activeGroup.expireTime)) {
+      return
+    }
+
+    this._countdownTimer = setInterval(() => {
+      const nextList = this.data.courseList.map(buildCourseCard)
+      if (!nextList.some(item => item.showActiveGroupCountdown)) {
+        this.clearCountdownTimer()
+      }
+      this.setData({
+        courseList: nextList
+      })
+    }, 1000)
   },
 
   handleTabChange(event) {

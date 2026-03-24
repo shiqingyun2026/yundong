@@ -64,6 +64,16 @@ const formatCourseTimeRange = (startTime, endTime) => {
   return `${formatMonthDay(startDate)} 周${weekMap[startDate.getDay()]} ${formatHourMinute(startDate)}-${formatHourMinute(endDate)}`
 }
 
+const formatCourseStartTime = startTime => {
+  const startDate = safeDate(startTime)
+
+  if (!startDate) {
+    return '时间待定'
+  }
+
+  return `${formatMonthDay(startDate)} 周${weekMap[startDate.getDay()]} ${formatHourMinute(startDate)}`
+}
+
 const formatDistance = distance => {
   if (distance === undefined || distance === null || distance === '') {
     return ''
@@ -95,6 +105,7 @@ module.exports = {
   formatPrice,
   formatMonthDay,
   formatHourMinute,
+  formatCourseStartTime,
   formatCourseTimeRange,
   formatDistance,
   storageSet,

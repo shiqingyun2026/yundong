@@ -1,7 +1,5 @@
-const MOCK_ENABLED = true
-
-const { get } = require('./request')
-const { formatCourseTimeRange, formatPrice, formatDistance, formatTime } = require('./util')
+const { get, post } = require('./request')
+const { formatCourseStartTime, formatCourseTimeRange, formatPrice, formatDistance, formatTime } = require('./util')
 
 const SERVICE_QR_CODE = 'https://dummyimage.com/240x240/f3f8ff/1677ff.png&text=%E5%AE%A2%E6%9C%8D%E4%BA%8C%E7%BB%B4%E7%A0%81'
 
@@ -490,7 +488,7 @@ const mapCourseListItem = item => ({
   id: item.id,
   cover: item.cover,
   title: item.title,
-  timeText: formatCourseTimeRange(item.startTime, item.endTime),
+  timeText: formatCourseStartTime(item.startTime),
   locationText: item.location,
   groupPriceText: formatPrice(item.groupPrice),
   originalPriceText: formatPrice(item.originalPrice),
@@ -579,115 +577,383 @@ const getMockCourses = ({ sort = 'distance', page = 1, pageSize = 10 }) => {
   }
 }
 
-const fetchCourseList = async ({ lat, lng, sort = 'distance', page = 1, pageSize = 10 }) => {
-  if (MOCK_ENABLED) {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        resolve(getMockCourses({ lat, lng, sort, page, pageSize }))
-      }, 250)
-    })
+const formatYuanPrice = value => {
+  if (value === undefined || value === null || value === '') {
+    return '0.00'
   }
 
-  return get('/api/courses', {
-    lat,
-    lng,
-    sort,
-    page,
-    pageSize
+  return Number(value).toFixed(2)
+}
+
+const normalizeListPayload = payload => {
+  if (!payload) {
+    return {
+      list: [],
+      total: 0,
+      page: 1,
+      pageSize: 10,
+      hasMore: false
+    }
+  }
+
+  if (Array.isArray(payload)) {
+    return {
+      list: payload,
+      total: payload.length,
+      page: 1,
+      pageSize: payload.length,
+      hasMore: false
+    }
+  }
+
+  const list = payload.list || payload.data || []
+
+  return {
+    ...payload,
+    list,
+    total: Number(payload.total) || list.length || 0,
+    page: Number(payload.page) || 1,
+    pageSize: Number(payload.pageSize) || list.length || 10,
+    hasMore:
+      typeof payload.hasMore === 'boolean'
+        ? payload.hasMore
+        : (Number(payload.page) || 1) * (Number(payload.pageSize) || list.length || 10) < (Number(payload.total) || list.length || 0)
+  }
+}
+
+const normalizeCourseListItem = item => {
+  const activeGroup = item.activeGroup
+    ? {
+        ...item.activeGroup,
+        groupId: item.activeGroup.groupId || item.activeGroup.group_id || '',
+        expireTime: item.activeGroup.expireTime || item.activeGroup.expire_time || '',
+        currentCount: Number(item.activeGroup.currentCount ?? item.activeGroup.current_count) || 0,
+        targetCount: Number(item.activeGroup.targetCount ?? item.activeGroup.target_count) || 0
+      }
+    : null
+  const joinedCount = Number(activeGroup ? activeGroup.currentCount : item.joinedCount ?? item.joined_count ?? item.current_count) || 0
+  const targetCount = Number(activeGroup ? activeGroup.targetCount : item.targetCount ?? item.target_count) || 0
+  const groupPrice =
+    item.groupPriceText !== undefined
+      ? item.groupPriceText
+      : formatYuanPrice(item.groupPrice ?? item.group_price)
+  const originalPrice =
+    item.originalPriceText !== undefined
+      ? item.originalPriceText
+      : formatYuanPrice(item.originalPrice ?? item.original_price)
+  const startTime = item.startTime || item.start_time || ''
+
+  return {
+    ...item,
+    id: item.id,
+    title: item.title || item.name || '',
+    timeText: item.timeText || formatCourseStartTime(startTime),
+    locationText: item.locationText || item.location || item.address || '',
+    groupPriceText: `${groupPrice}`,
+    originalPriceText: `${originalPrice}`,
+    joinedCount,
+    targetCount,
+    activeGroup,
+    distanceText: item.distanceText || '',
+    startTimestamp: item.startTimestamp || (startTime ? new Date(startTime).getTime() : 0),
+    soonGroup:
+      typeof item.soonGroup === 'boolean'
+        ? item.soonGroup
+        : joinedCount > 0 && targetCount > 0 && joinedCount >= targetCount - 3
+  }
+}
+
+const normalizeCourseDetail = payload => {
+  if (!payload) {
+    return payload
+  }
+
+  const groupPriceText =
+    payload.groupPriceText !== undefined
+      ? payload.groupPriceText
+      : formatYuanPrice(payload.groupPrice ?? payload.group_price)
+  const originalPriceText =
+    payload.originalPriceText !== undefined
+      ? payload.originalPriceText
+      : formatYuanPrice(payload.originalPrice ?? payload.original_price)
+  const joinedCount = Number(payload.current_count ?? payload.joinedCount ?? payload.joined_count) || 0
+  const targetCount = Number(payload.targetCount ?? payload.target_count) || 0
+  const startTime = payload.startTime || payload.start_time || ''
+
+  return {
+    ...payload,
+    id: payload.id,
+    title: payload.title || payload.name || '',
+    images: payload.images || [],
+    groupPriceFen:
+      payload.groupPriceFen !== undefined
+        ? payload.groupPriceFen
+        : Number(payload.groupPrice ?? payload.group_price ?? 0),
+    groupPriceText: `${groupPriceText}`,
+    originalPriceText: `${originalPriceText}`,
+    targetCount,
+    joinedCount,
+    timeText: payload.timeText || formatCourseTimeRange(startTime, payload.endTime || payload.end_time || startTime),
+    locationText: payload.locationText || payload.location || payload.address || '',
+    ageRange: payload.ageRange || payload.age_range || payload.age_limit || '',
+    insuranceText: payload.insuranceText || payload.insurance_text || payload.insurance_desc || '',
+    coach: payload.coach || {
+      name: payload.coach_name || '教练待定',
+      intro: payload.coach_intro || '',
+      certificates: payload.coach_certificates || []
+    }
+  }
+}
+
+const normalizeActiveGroup = payload => {
+  if (!payload) {
+    return payload
+  }
+
+  return {
+    ...payload,
+    groupId: payload.groupId || payload.group_id || '',
+    courseId: payload.courseId || payload.course_id || '',
+    currentCount: Number(payload.currentCount ?? payload.current_count) || 0,
+    targetCount: Number(payload.targetCount ?? payload.target_count) || 0,
+    expireTime: payload.expireTime || payload.expire_time || '',
+    remainingSeconds:
+      Number(payload.remainingSeconds ?? payload.remaining_seconds) ||
+      (payload.expireTime || payload.expire_time
+        ? Math.max(0, Math.floor((new Date(payload.expireTime || payload.expire_time).getTime() - Date.now()) / 1000))
+        : 0),
+    members: payload.members || []
+  }
+}
+
+const normalizeUserGroupListItem = item => ({
+  ...item,
+  groupId: item.groupId || item.group_id || '',
+  courseId: item.courseId || item.course_id || '',
+  title: item.title || item.course_title || item.name || '',
+  locationText: item.locationText || item.location || item.address || '',
+  status: item.status || '',
+  statusText:
+    item.statusText ||
+    (item.status === 'ongoing'
+      ? '进行中'
+      : item.status === 'success'
+        ? '已成团'
+        : item.status === 'failed'
+          ? '已失败'
+          : ''),
+  currentCount: Number(item.currentCount ?? item.current_count) || 0,
+  targetCount: Number(item.targetCount ?? item.target_count) || 0,
+  expireTime: item.expireTime || item.expire_time || ''
+})
+
+const shouldForceMock = () => {
+  try {
+    const app = getApp()
+    return !!(app && app.globalData && app.globalData.forceMock)
+  } catch (error) {
+    return false
+  }
+}
+
+const withMockFallback = async ({ label, request, mockFactory }) => {
+  if (shouldForceMock()) {
+    console.log(`[course] ${label} force mock enabled`)
+    return mockFactory()
+  }
+
+  try {
+    console.log(`[course] ${label} requesting backend`)
+    return await request()
+  } catch (error) {
+    console.log(`[course] ${label} fallback to mock`, error)
+    return mockFactory()
+  }
+}
+
+const getMockCourseListAsync = ({ lat, lng, sort, page, pageSize }) =>
+  new Promise(resolve => {
+    setTimeout(() => {
+      resolve(getMockCourses({ lat, lng, sort, page, pageSize }))
+    }, 250)
   })
-}
 
-const fetchCourseDetail = async id => {
-  if (MOCK_ENABLED) {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        const target = MOCK_COURSES.find(item => item.id === id)
-        if (!target) {
-          reject(new Error('course not found'))
-          return
-        }
+const getMockCourseDetailAsync = id =>
+  new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const target = MOCK_COURSES.find(item => item.id === id)
+      if (!target) {
+        reject(new Error('course not found'))
+        return
+      }
 
-        resolve(mapCourseDetail(target))
-      }, 200)
-    })
-  }
+      resolve(mapCourseDetail(target))
+    }, 200)
+  })
 
-  return get(`/api/courses/${id}`)
-}
+const getMockActiveGroupAsync = id =>
+  new Promise(resolve => {
+    setTimeout(() => {
+      resolve(ACTIVE_GROUP_MAP[id] || null)
+    }, 180)
+  })
 
-const fetchActiveGroup = async id => {
-  if (MOCK_ENABLED) {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        resolve(ACTIVE_GROUP_MAP[id] || null)
-      }, 180)
-    })
-  }
+const getMockGroupDetailAsync = groupId =>
+  new Promise((resolve, reject) => {
+    setTimeout(() => {
+      if (groupId && groupId.indexOf('mock-group-') === 0) {
+        const courseId = groupId.replace('mock-group-', '')
+        const course = MOCK_COURSES.find(item => item.id === courseId)
 
-  return get(`/api/courses/${id}/active-group`)
-}
-
-const fetchGroupDetail = async groupId => {
-  if (MOCK_ENABLED) {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (groupId && groupId.indexOf('mock-group-') === 0) {
-          const courseId = groupId.replace('mock-group-', '')
-          const course = MOCK_COURSES.find(item => item.id === courseId)
-
-          if (!course) {
-            reject(new Error('group not found'))
-            return
-          }
-
-          resolve({
-            groupId,
-            courseId,
-            status: 'ongoing',
-            currentCount: 1,
-            targetCount: course.targetCount,
-            remainingSeconds: 24 * 3600,
-            refundDesc: '截止时间未成团将自动原路退款',
-            deadlineText: formatTime(new Date(new Date(course.startTime).getTime() - 12 * 3600 * 1000)),
-            userJoined: true,
-            members: [
-              {
-                avatar: 'https://dummyimage.com/96x96/e8f3ff/1677ff.png&text=ME',
-                nickName: '我'
-              }
-            ],
-            courseInfo: {
-              id: course.id,
-              title: course.title,
-              groupPriceText: formatPrice(course.groupPrice),
-              originalPriceText: formatPrice(course.originalPrice),
-              targetCount: course.targetCount,
-              joinedCount: 1,
-              timeText: formatCourseTimeRange(course.startTime, course.endTime),
-              locationText: course.location,
-              ageRange: course.ageRange,
-              cover: course.cover
-            }
-          })
-          return
-        }
-
-        const groupDetail = GROUP_DETAIL_MAP[groupId]
-        if (!groupDetail) {
+        if (!course) {
           reject(new Error('group not found'))
           return
         }
 
-        const course = MOCK_COURSES.find(item => item.id === groupDetail.courseId)
-        resolve(mapGroupDetail(groupId, course))
-      }, 180)
-    })
-  }
+        resolve({
+          groupId,
+          courseId,
+          status: 'ongoing',
+          currentCount: 1,
+          targetCount: course.targetCount,
+          remainingSeconds: 24 * 3600,
+          refundDesc: '截止时间未成团将自动原路退款',
+          deadlineText: formatTime(new Date(new Date(course.startTime).getTime() - 12 * 3600 * 1000)),
+          userJoined: true,
+          members: [
+            {
+              avatar: 'https://dummyimage.com/96x96/e8f3ff/1677ff.png&text=ME',
+              nickName: '我'
+            }
+          ],
+          courseInfo: {
+            id: course.id,
+            title: course.title,
+            groupPriceText: formatPrice(course.groupPrice),
+            originalPriceText: formatPrice(course.originalPrice),
+            targetCount: course.targetCount,
+            joinedCount: 1,
+            timeText: formatCourseTimeRange(course.startTime, course.endTime),
+            locationText: course.location,
+            ageRange: course.ageRange,
+            cover: course.cover
+          }
+        })
+        return
+      }
 
-  return get(`/api/groups/${groupId}`)
+      const groupDetail = GROUP_DETAIL_MAP[groupId]
+      if (!groupDetail) {
+        reject(new Error('group not found'))
+        return
+      }
+
+      const course = MOCK_COURSES.find(item => item.id === groupDetail.courseId)
+      resolve(mapGroupDetail(groupId, course))
+    }, 180)
+  })
+
+const getMockUserGroupListAsync = ({ status, page, pageSize }) =>
+  new Promise(resolve => {
+    setTimeout(() => {
+      const matchedStatus = USER_GROUP_STATUS_MAP[status] || ''
+      const rawList = Object.values(GROUP_DETAIL_MAP)
+        .filter(item => !matchedStatus || item.status === matchedStatus)
+        .map(mapUserGroupListItem)
+        .filter(Boolean)
+
+      const start = (page - 1) * pageSize
+      const list = rawList.slice(start, start + pageSize)
+
+      resolve({
+        list,
+        page,
+        pageSize,
+        total: rawList.length,
+        hasMore: start + pageSize < rawList.length
+      })
+    }, 180)
+  })
+
+const fetchCourseList = async ({ lat, lng, sort = 'distance', page = 1, pageSize = 10 }) => {
+  return withMockFallback({
+    label: 'fetchCourseList',
+    request: async () => {
+      const response = await get('/api/courses', {
+        lat,
+        lng,
+        sort,
+        page,
+        pageSize
+      })
+      const payload = normalizeListPayload(response)
+
+      return {
+        ...payload,
+        list: payload.list.map(normalizeCourseListItem)
+      }
+    },
+    mockFactory: () => getMockCourseListAsync({ lat, lng, sort, page, pageSize })
+  })
+}
+
+const fetchCourseDetail = async id => {
+  return withMockFallback({
+    label: 'fetchCourseDetail',
+    request: async () => normalizeCourseDetail(await get(`/api/courses/${id}`)),
+    mockFactory: () => getMockCourseDetailAsync(id)
+  })
+}
+
+const fetchActiveGroup = async id => {
+  return withMockFallback({
+    label: 'fetchActiveGroup',
+    request: async () => normalizeActiveGroup(await get(`/api/courses/${id}/active-group`)),
+    mockFactory: () => getMockActiveGroupAsync(id)
+  })
+}
+
+const fetchGroupDetail = async groupId => {
+  return withMockFallback({
+    label: 'fetchGroupDetail',
+    request: async () => {
+      const payload = await get(`/api/groups/${groupId}`, {}, { showErrorToast: false })
+      if (!payload) {
+        return payload
+      }
+
+      return {
+        ...payload,
+        groupId: payload.groupId || payload.group_id || '',
+        courseId: payload.courseId || payload.course_id || '',
+        currentCount: Number(payload.currentCount ?? payload.current_count) || 0,
+        targetCount: Number(payload.targetCount ?? payload.target_count) || 0,
+        members: payload.members || [],
+        courseInfo: payload.courseInfo
+          ? {
+              ...payload.courseInfo,
+              title: payload.courseInfo.title || payload.courseInfo.name || '',
+              locationText: payload.courseInfo.locationText || payload.courseInfo.location || payload.courseInfo.address || '',
+              joinedCount: Number(payload.courseInfo.joinedCount ?? payload.courseInfo.joined_count ?? payload.current_count) || 0,
+              targetCount: Number(payload.courseInfo.targetCount ?? payload.courseInfo.target_count) || 0,
+              groupPriceText:
+                payload.courseInfo.groupPriceText !== undefined
+                  ? `${payload.courseInfo.groupPriceText}`
+                  : formatYuanPrice(payload.courseInfo.groupPrice ?? payload.courseInfo.group_price),
+              originalPriceText:
+                payload.courseInfo.originalPriceText !== undefined
+                  ? `${payload.courseInfo.originalPriceText}`
+                  : formatYuanPrice(payload.courseInfo.originalPrice ?? payload.courseInfo.original_price)
+            }
+          : payload.courseInfo
+      }
+    },
+    mockFactory: () => getMockGroupDetailAsync(groupId)
+  })
 }
 
 const createMockOrder = ({ courseId, groupId, totalFee }) => ({
+  orderId: `mock-order-${Date.now()}`,
   courseId,
   groupId: groupId || `mock-group-${courseId}`,
   paymentParams: {
@@ -696,6 +962,32 @@ const createMockOrder = ({ courseId, groupId, totalFee }) => ({
     total_fee: Number(totalFee) || 0
   }
 })
+
+const createOrder = async ({ courseId, groupId, totalFee }) =>
+  withMockFallback({
+    label: 'createOrder',
+    request: () =>
+      post(
+        '/api/orders',
+        {
+          courseId,
+          groupId
+        },
+        {
+          showLoading: true,
+          loadingText: '提交中',
+          showErrorToast: false
+        }
+      ),
+    mockFactory: () =>
+      Promise.resolve(
+        createMockOrder({
+          courseId,
+          groupId,
+          totalFee
+        })
+      )
+  })
 
 const USER_GROUP_STATUS_MAP = {
   all: '',
@@ -728,33 +1020,28 @@ const mapUserGroupListItem = groupDetail => {
 }
 
 const fetchUserGroupList = async ({ status = 'all', page = 1, pageSize = 10 }) => {
-  if (MOCK_ENABLED) {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        const matchedStatus = USER_GROUP_STATUS_MAP[status] || ''
-        const rawList = Object.values(GROUP_DETAIL_MAP)
-          .filter(item => !matchedStatus || item.status === matchedStatus)
-          .map(mapUserGroupListItem)
-          .filter(Boolean)
-
-        const start = (page - 1) * pageSize
-        const list = rawList.slice(start, start + pageSize)
-
-        resolve({
-          list,
+  return withMockFallback({
+    label: 'fetchUserGroupList',
+    request: async () => {
+      const response = await get(
+        '/api/user/groups',
+        {
+          status,
           page,
-          pageSize,
-          total: rawList.length,
-          hasMore: start + pageSize < rawList.length
-        })
-      }, 180)
-    })
-  }
+          pageSize
+        },
+        {
+          showErrorToast: false
+        }
+      )
+      const payload = normalizeListPayload(response)
 
-  return get('/api/user/groups', {
-    status,
-    page,
-    pageSize
+      return {
+        ...payload,
+        list: payload.list.map(normalizeUserGroupListItem)
+      }
+    },
+    mockFactory: () => getMockUserGroupListAsync({ status, page, pageSize })
   })
 }
 
@@ -763,6 +1050,7 @@ module.exports = {
   fetchCourseDetail,
   fetchActiveGroup,
   fetchGroupDetail,
+  createOrder,
   createMockOrder,
   fetchUserGroupList
 }

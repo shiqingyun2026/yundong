@@ -85,12 +85,26 @@ const request = options => {
   }
 
   return new Promise((resolve, reject) => {
+    const requestURL = `${resolveBaseURL()}${url}`
+
+    console.log('[request] start', {
+      url: requestURL,
+      method,
+      data
+    })
+
     wx.request({
-      url: `${resolveBaseURL()}${url}`,
+      url: requestURL,
       method,
       data,
       header: requestHeader,
       success(response) {
+        console.log('[request] success', {
+          url: requestURL,
+          statusCode: response.statusCode,
+          data: response.data
+        })
+
         try {
           const result = normalizeResponse(response)
           resolve(result)
@@ -106,6 +120,11 @@ const request = options => {
         }
       },
       fail(error) {
+        console.log('[request] fail', {
+          url: requestURL,
+          error
+        })
+
         if (showErrorToast) {
           showToast(DEFAULT_ERROR_MESSAGE)
         }

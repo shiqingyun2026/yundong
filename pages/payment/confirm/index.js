@@ -1,11 +1,13 @@
-const { fetchCourseDetail, fetchGroupDetail, createMockOrder } = require('../../../utils/course')
+const { fetchCourseDetail, fetchGroupDetail, createOrder } = require('../../../utils/course')
 
 Page({
   data: {
     courseId: '',
     groupId: '',
+    orderId: '',
     courseDetail: null,
     groupDetail: null,
+    paymentParams: null,
     agreementChecked: true,
     loading: true,
     paying: false
@@ -17,10 +19,19 @@ Page({
 
     const courseId = options.courseId || ''
     const groupId = options.groupId || ''
+    const orderId = options.orderId || ''
+    const pendingOrder = getApp().globalData.pendingOrder || null
 
     this.safeSetData({
       courseId,
-      groupId
+      groupId,
+      orderId,
+      paymentParams:
+        pendingOrder &&
+        (!orderId || pendingOrder.orderId === orderId) &&
+        pendingOrder.courseId === courseId
+          ? pendingOrder.paymentParams || {}
+          : null
     })
 
     await this.loadPageData(courseId, groupId)
@@ -117,16 +128,39 @@ Page({
       paying: true
     })
 
-    const order = createMockOrder({
-      courseId: this.data.courseId,
-      groupId: this.data.groupId,
-      totalFee: this.data.courseDetail ? parseInt(this.data.courseDetail.groupPriceFen, 10) : 0
-    })
+    let order = null
+
+    if (this.data.orderId) {
+      order = {
+        orderId: this.data.orderId,
+        groupId: this.data.groupId,
+        paymentParams: this.data.paymentParams || {}
+      }
+    } else {
+      try {
+        order = await createOrder({
+          courseId: this.data.courseId,
+          groupId: this.data.groupId,
+          totalFee: this.data.courseDetail ? parseInt(this.data.courseDetail.groupPriceFen, 10) : 0
+        })
+      } catch (error) {
+        wx.showToast({
+          title: '下单失败，请稍后再试',
+          icon: 'none'
+        })
+
+        this.safeSetData({
+          paying: false
+        })
+        return
+      }
+    }
 
     if (!this._isAlive) {
       return
     }
 
+    getApp().globalData.pendingOrder = null
     this.navigateToPaymentResult('success', order.groupId)
 
     this.safeSetData({

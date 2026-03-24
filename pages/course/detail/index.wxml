@@ -71,10 +71,21 @@
 
       <view class="page-section card-shadow">
         <view class="section-title">当前拼团状态</view>
-        <view wx:if="{{activeGroup}}" class="group-panel">
+        <view wx:if="{{activeGroup && !activeGroup.isExpired}}" class="group-panel">
+          <view class="group-deadline-card group-deadline-{{activeGroup.expireTone}}">
+            <view class="group-deadline-main">
+              <view class="group-deadline-label">
+                <view class="group-deadline-dot"></view>
+                <view class="group-deadline-title">拼团截止</view>
+              </view>
+              <view class="group-deadline-text">{{activeGroup.expireTimeText}}</view>
+            </view>
+            <view class="group-deadline-hint">{{activeGroup.expireHint}}</view>
+          </view>
+
           <view class="group-progress-row">
-            <view class="group-progress-text">拼团进度 {{activeGroup.progressText}}</view>
-            <view class="group-remaining">剩余 {{activeGroup.remainingTimeText}}</view>
+            <view class="group-progress-text">当前进度 {{activeGroup.progressText}}</view>
+            <view class="group-progress-caption">还差 {{activeGroup.remainingCount}} 人成团</view>
           </view>
           <view class="progress-track">
             <view class="progress-bar" style="width: {{activeGroup.progressPercent}};"></view>
@@ -91,7 +102,7 @@
         </view>
 
         <view wx:else class="group-empty">
-          <view class="section-desc">暂无进行中的拼团，立即开团吧</view>
+          <view class="section-desc">{{activeGroup && activeGroup.isExpired ? '当前拼团已结束，可重新开团' : '暂无进行中的拼团，立即开团吧'}}</view>
         </view>
       </view>
 
@@ -104,8 +115,8 @@
       <view class="service-icon">客</view>
       <view class="service-text">客服</view>
     </view>
-    <button class="primary-button bottom-action" bindtap="handleGoPayment">
-      {{activeGroup ? '去参团' : '立即开团'}}
+    <button class="primary-button bottom-action" bindtap="handleGoPayment" loading="{{creatingOrder}}" disabled="{{creatingOrder}}">
+      {{activeGroup && !activeGroup.isExpired ? '去参团' : '立即开团'}}
     </button>
   </view>
 

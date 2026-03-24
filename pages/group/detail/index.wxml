@@ -38,7 +38,7 @@
         <view class="progress-header">
           <view class="progress-text">{{groupDetail.progressText}}</view>
           <view wx:if="{{groupDetail.status === 'ongoing'}}" class="remaining-text">
-            剩余 {{groupDetail.remainingTimeText}}
+            {{groupDetail.expireTimeText}}
           </view>
         </view>
         <view class="progress-track">

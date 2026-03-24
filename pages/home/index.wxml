@@ -54,6 +54,10 @@
 
         <view class="course-meta">{{item.timeText}}</view>
         <view class="course-meta">{{item.locationText}}</view>
+        <view wx:if="{{item.showActiveGroupCountdown}}" class="countdown-pill">
+          <view class="countdown-dot"></view>
+          <view class="countdown-text">{{item.activeGroup.expireTimeText}}</view>
+        </view>
 
         <view class="course-footer">
           <view class="price-group">

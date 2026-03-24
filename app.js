@@ -95,6 +95,7 @@ App({
     baseURL: 'http://127.0.0.1:8000',
     token: wx.getStorageSync('token') || '',
     userInfo: wx.getStorageSync('userInfo') || null,
+    pendingOrder: null,
     location: wx.getStorageSync('location') || null,
     agreementAccepted: !!wx.getStorageSync('agreementAccepted'),
     systemInfo: null,

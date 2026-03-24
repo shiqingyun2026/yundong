@@ -149,10 +149,82 @@
   margin-top: 20rpx;
 }
 
-.group-progress-text,
-.group-remaining {
+.group-deadline-card {
+  padding: 22rpx 24rpx;
+  border-radius: 24rpx;
+  border: 1rpx solid transparent;
+}
+
+.group-deadline-normal {
+  background: linear-gradient(180deg, #f6faff 0%, #eef5ff 100%);
+  border-color: rgba(22, 119, 255, 0.12);
+}
+
+.group-deadline-warning {
+  background: linear-gradient(180deg, #fff8ef 0%, #fff1df 100%);
+  border-color: rgba(255, 122, 0, 0.16);
+}
+
+.group-deadline-urgent {
+  background: linear-gradient(180deg, #fff4f0 0%, #ffe7df 100%);
+  border-color: rgba(255, 122, 0, 0.2);
+}
+
+.group-deadline-main,
+.group-progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.group-deadline-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10rpx;
+  min-width: 0;
+}
+
+.group-deadline-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: #ff7a00;
+  box-shadow: 0 0 0 6rpx rgba(255, 122, 0, 0.1);
+}
+
+.group-deadline-title {
   font-size: 24rpx;
-  color: #5f6b7a;
+  font-weight: 600;
+  color: #7c5b31;
+}
+
+.group-deadline-text {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #1f2329;
+}
+
+.group-deadline-hint {
+  margin-top: 12rpx;
+  font-size: 22rpx;
+  line-height: 1.6;
+  color: #8a6d46;
+}
+
+.group-progress-row {
+  margin-top: 24rpx;
+}
+
+.group-progress-text {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #1f2329;
+}
+
+.group-progress-caption {
+  font-size: 22rpx;
+  color: #8f96a3;
 }
 
 .progress-track {

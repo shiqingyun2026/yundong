@@ -15,14 +15,79 @@ const STATUS_MAP = {
   }
 }
 
-const formatRemainingTime = totalSeconds => {
-  const safeSeconds = Math.max(0, Number(totalSeconds) || 0)
-  const hours = Math.floor(safeSeconds / 3600)
-  const minutes = Math.floor((safeSeconds % 3600) / 60)
-  const seconds = safeSeconds % 60
+const safeDate = value => {
+  if (!value) {
+    return null
+  }
 
-  const formatNumber = value => `${value}`.padStart(2, '0')
-  return `${formatNumber(hours)}:${formatNumber(minutes)}:${formatNumber(seconds)}`
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+const formatExpireTime = expireTime => {
+  const expireDate = safeDate(expireTime)
+  if (!expireDate) {
+    return '已结束'
+  }
+
+  const diff = expireDate.getTime() - Date.now()
+  if (diff <= 0) {
+    return '已结束'
+  }
+
+  const totalMinutes = Math.floor(diff / 60000)
+  const totalHours = Math.floor(diff / 3600000)
+  const days = Math.floor(totalHours / 24)
+
+  if (days >= 1) {
+    const hours = totalHours % 24
+    return `剩余 ${days} 天 ${hours} 小时`
+  }
+
+  if (totalHours >= 1) {
+    return `剩余 ${totalHours} 小时`
+  }
+
+  if (totalMinutes >= 1) {
+    return `剩余 ${totalMinutes} 分钟`
+  }
+
+  return '已结束'
+}
+
+const resolveExpireTime = groupDetail => {
+  const expireDate = safeDate(groupDetail && groupDetail.expireTime)
+  if (expireDate) {
+    return expireDate.toISOString()
+  }
+
+  const remainingSeconds = Math.max(0, Number(groupDetail && groupDetail.remainingSeconds) || 0)
+  if (remainingSeconds > 0) {
+    return new Date(Date.now() + remainingSeconds * 1000).toISOString()
+  }
+
+  return ''
+}
+
+const buildGroupDetailViewModel = groupDetail => {
+  if (!groupDetail) {
+    return null
+  }
+
+  const currentCount = Number(groupDetail.currentCount) || 0
+  const targetCount = Number(groupDetail.targetCount) || 0
+  const expireTime = resolveExpireTime(groupDetail)
+  const expireTimeText = formatExpireTime(expireTime)
+  const effectiveStatus = groupDetail.status === 'ongoing' && expireTimeText === '已结束' ? 'failed' : groupDetail.status
+
+  return {
+    ...groupDetail,
+    status: effectiveStatus,
+    expireTime,
+    progressText: `${currentCount}/${targetCount}`,
+    progressPercent: targetCount > 0 ? `${(currentCount / targetCount) * 100}%` : '0%',
+    expireTimeText
+  }
 }
 
 const handleShareSuccess = () => {
@@ -69,8 +134,43 @@ Page({
   },
 
   clearTimers() {
-    ;(this._timers || []).forEach(timerId => clearTimeout(timerId))
+    ;(this._timers || []).forEach(timerId => clearInterval(timerId))
     this._timers = []
+  },
+
+  startExpireTimer() {
+    this.clearTimers()
+
+    if (!this.data.groupDetail || !this.data.groupDetail.expireTime) {
+      return
+    }
+
+    const timerId = setInterval(() => {
+      if (!this._isAlive) {
+        this.clearTimers()
+        return
+      }
+
+      const { groupDetail } = this.data
+      if (!groupDetail) {
+        this.clearTimers()
+        return
+      }
+
+      const nextGroupDetail = buildGroupDetailViewModel(groupDetail)
+      const statusInfo = STATUS_MAP[nextGroupDetail.status] || STATUS_MAP.ongoing
+      this.safeSetData({
+        groupDetail: nextGroupDetail,
+        statusText: statusInfo.text,
+        statusClassName: statusInfo.className
+      })
+
+      if (nextGroupDetail.status !== 'ongoing') {
+        this.clearTimers()
+      }
+    }, 1000)
+
+    this._timers.push(timerId)
   },
 
   async loadGroupDetail(groupId) {
@@ -92,23 +192,21 @@ Page({
 
     try {
       const groupDetail = await fetchGroupDetail(groupId)
-      const statusInfo = STATUS_MAP[groupDetail.status] || STATUS_MAP.ongoing
+      const nextGroupDetail = buildGroupDetailViewModel(groupDetail)
+      const statusInfo = STATUS_MAP[nextGroupDetail.status] || STATUS_MAP.ongoing
 
       if (!this._isAlive) {
         return
       }
 
       this.safeSetData({
-        groupDetail: {
-          ...groupDetail,
-          progressText: `${groupDetail.currentCount}/${groupDetail.targetCount}`,
-          progressPercent: `${(groupDetail.currentCount / groupDetail.targetCount) * 100}%`,
-          remainingTimeText: formatRemainingTime(groupDetail.remainingSeconds)
-        },
-        courseId: groupDetail.courseId,
+        groupDetail: nextGroupDetail,
+        courseId: nextGroupDetail.courseId,
         statusText: statusInfo.text,
         statusClassName: statusInfo.className
       })
+
+      this.startExpireTimer()
     } catch (error) {
       if (!this._isAlive) {
         return
@@ -119,6 +217,10 @@ Page({
         icon: 'none'
       })
     } finally {
+      if (!this.data.groupDetail) {
+        this.clearTimers()
+      }
+
       this.safeSetData({
         loading: false
       })
@@ -150,6 +252,14 @@ Page({
 
     const { groupDetail } = this.data
     if (!groupDetail) {
+      return
+    }
+
+    if (groupDetail.status !== 'ongoing') {
+      wx.showToast({
+        title: groupDetail.status === 'success' ? '该拼团已成团' : '该拼团已结束',
+        icon: 'none'
+      })
       return
     }
 
