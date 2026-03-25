@@ -151,6 +151,35 @@ const buildActiveGroupViewModel = activeGroup => {
   }
 }
 
+const buildCourseGroupList = groupList =>
+  (groupList || []).map((group, index) => {
+    const currentCount = Number(group.currentCount) || 0
+    const targetCount = Number(group.targetCount) || 0
+    const status = group.status || ''
+    const expireText = resolveExpireTime(group) ? formatExpireTime(resolveExpireTime(group)) : '已结束'
+
+    return {
+      ...group,
+      index: index + 1,
+      progressText: `${currentCount}/${targetCount}`,
+      statusText:
+        status === 'ongoing'
+          ? '进行中'
+          : status === 'success'
+            ? '已成团'
+            : '已结束',
+      statusClass:
+        status === 'ongoing' ? 'ongoing' : status === 'success' ? 'success' : 'failed',
+      caption:
+        status === 'ongoing'
+          ? `截止 ${expireText}`
+          : status === 'success'
+            ? '该团已拼团成功'
+            : '该团已结束',
+      progressPercent: targetCount > 0 ? `${(currentCount / targetCount) * 100}%` : '0%'
+    }
+  })
+
 const normalizeCourseDetail = detail => {
   if (!detail) {
     return null
@@ -174,6 +203,8 @@ const normalizeCourseDetail = detail => {
     descriptionHtml: detail.descriptionHtml || detail.description_html || '',
     maxGroups: Number(detail.maxGroups ?? detail.max_groups) || 0,
     completedGroupsCount: Number(detail.completedGroupsCount ?? detail.completed_groups_count) || 0,
+    successJoinedCount: Number(detail.successJoinedCount ?? detail.success_joined_count) || 0,
+    groupList: buildCourseGroupList(detail.groupList || detail.group_list || []),
     descriptionNodes: detail.descriptionNodes || [],
     groupRuleNodes: detail.groupRuleNodes || [],
     insuranceText: detail.insuranceText || detail.insurance_text || detail.insurance_desc || '',
@@ -206,6 +237,9 @@ Page({
     hasActiveGroup: false,
     groupTargetCount: 0,
     groupCurrentCount: 0,
+    displayJoinedCount: 0,
+    showJoinedCount: false,
+    courseGroupList: [],
     loading: true,
     showServiceModal: false,
     creatingOrder: false,
@@ -270,18 +304,21 @@ Page({
 
   updateGroupPresentation(courseDetail, activeGroup) {
     const hasJoinableGroup = !!(activeGroup && activeGroup.status === 'ongoing' && !activeGroup.isExpired)
-    const hasActiveGroup = !!activeGroup
+    const hasActiveGroup = !!(activeGroup && activeGroup.status === 'ongoing')
     const groupTargetCount = hasActiveGroup ? Number(activeGroup.targetCount) || 0 : 0
     const groupCurrentCount = hasActiveGroup ? Number(activeGroup.currentCount) || 0 : 0
     const isUserJoined = !!(hasJoinableGroup && activeGroup.userJoined)
     const completedGroupsCount = Number(courseDetail && courseDetail.completedGroupsCount) || 0
     const maxGroups = Number(courseDetail && courseDetail.maxGroups) || 0
+    const successJoinedCount = Number(courseDetail && courseDetail.successJoinedCount) || 0
     const canCreateGroup = maxGroups <= 0 || completedGroupsCount < maxGroups
+    const displayJoinedCount = successJoinedCount
+    const showJoinedCount = maxGroups <= 1 && displayJoinedCount > 0
     let actionButtonMode = 'create'
     let actionButtonText = '立即开团'
     let actionButtonDisabled = false
 
-    if (activeGroup && activeGroup.status === 'success') {
+    if (activeGroup && activeGroup.status === 'success' && !canCreateGroup) {
       actionButtonMode = 'completed'
       actionButtonText = '已成团'
       actionButtonDisabled = true
@@ -306,11 +343,14 @@ Page({
       hasActiveGroup,
       groupTargetCount,
       groupCurrentCount,
+      displayJoinedCount,
+      showJoinedCount,
+      courseGroupList: (courseDetail && courseDetail.groupList) || [],
       actionButtonMode,
       actionButtonText,
       actionButtonDisabled,
       emptyGroupText:
-        activeGroup && activeGroup.status === 'success'
+        activeGroup && activeGroup.status === 'success' && !canCreateGroup
           ? '当前拼团已成团'
           : activeGroup && activeGroup.status === 'failed'
             ? canCreateGroup

@@ -197,7 +197,7 @@ const fetchGroupMembers = async groupId => {
   }))
 }
 
-const mapCourseDetail = (course, activeGroup, completedGroupsCount) => ({
+const mapCourseDetail = (course, activeGroup, completedGroupsCount, successJoinedCount, groupList) => ({
   id: course.id,
   title: course.name || '',
   images: normalizeImages(course.images).length ? normalizeImages(course.images) : [course.cover || ''],
@@ -208,7 +208,9 @@ const mapCourseDetail = (course, activeGroup, completedGroupsCount) => ({
   joinedCount: Number(activeGroup && activeGroup.current_count) || 0,
   maxGroups: Number(course.max_groups) || 0,
   completedGroupsCount: Number(completedGroupsCount) || 0,
+  successJoinedCount: Number(successJoinedCount) || 0,
   activeGroup: mapActiveGroupSummary(activeGroup),
+  groupList: groupList || [],
   timeText: formatCourseTimeRange(course.start_time),
   locationText: course.address || '',
   ageRange: course.age_limit || '',
@@ -251,6 +253,14 @@ const mapActiveGroupSummary = group => {
   }
 }
 
+const mapCourseGroupSummary = group => ({
+  groupId: group.id,
+  status: normalizeGroupStatus(group.status),
+  currentCount: Number(group.current_count) || 0,
+  targetCount: Number(group.target_count) || 0,
+  expireTime: group.expire_time || ''
+})
+
 router.get('/', async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1)
   const pageSize = Math.max(1, Number(req.query.pageSize) || 10)
@@ -283,7 +293,7 @@ router.get('/', async (req, res) => {
         .in('course_id', courseIds)
         .eq('status', 'active')
         .gt('expire_time', new Date().toISOString())
-        .order('expire_time', { ascending: true })
+        .order('expire_time', { ascending: false })
 
       if (groupsError) {
         throw groupsError
@@ -388,17 +398,40 @@ router.get('/:id', async (req, res) => {
       throw activeGroupError
     }
 
-    const { count: completedGroupsCount, error: completedGroupsCountError } = await supabase
+    const { data: successGroups, error: successGroupsError } = await supabase
       .from('groups')
-      .select('id', { count: 'exact', head: true })
+      .select('id, current_count')
       .eq('course_id', course.id)
       .eq('status', 'success')
 
-    if (completedGroupsCountError) {
-      throw completedGroupsCountError
+    if (successGroupsError) {
+      throw successGroupsError
     }
 
-    return res.json(mapCourseDetail(course, activeGroup, completedGroupsCount))
+    const completedGroupsCount = (successGroups || []).length
+    const successJoinedCount = (successGroups || []).reduce((total, group) => {
+      return total + (Number(group.current_count) || 0)
+    }, 0)
+
+    const { data: groupList, error: groupListError } = await supabase
+      .from('groups')
+      .select('id, status, current_count, target_count, expire_time')
+      .eq('course_id', course.id)
+      .order('expire_time', { ascending: false })
+
+    if (groupListError) {
+      throw groupListError
+    }
+
+    return res.json(
+      mapCourseDetail(
+        course,
+        activeGroup,
+        completedGroupsCount,
+        successJoinedCount,
+        (groupList || []).map(mapCourseGroupSummary)
+      )
+    )
   } catch (error) {
     return res.status(500).json({
       message: error.message || 'failed to fetch course detail'

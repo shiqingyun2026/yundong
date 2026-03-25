@@ -18,7 +18,7 @@
         <view class="price-row">
           <view class="group-price">¥{{courseDetail.groupPriceText}}</view>
           <view class="original-price">¥{{courseDetail.originalPriceText}}</view>
-          <view wx:if="{{hasActiveGroup}}" class="joined-chip">已拼 {{groupCurrentCount}} 人</view>
+          <view wx:if="{{showJoinedCount}}" class="joined-chip">已拼 {{displayJoinedCount}} 人</view>
         </view>
 
         <view class="info-list">
@@ -71,26 +71,20 @@
 
       <view class="page-section card-shadow">
         <view class="section-title">当前拼团状态</view>
-        <view wx:if="{{activeGroup}}" class="group-panel">
-          <view class="group-deadline-card group-deadline-{{activeGroup.expireTone}}">
-            <view class="group-deadline-main">
-              <view class="group-deadline-label">
-                <view class="group-deadline-dot"></view>
-                <view class="group-deadline-title">{{activeGroup.status === 'ongoing' ? '拼团截止' : '当前状态'}}</view>
-              </view>
-              <view class="group-deadline-text">{{activeGroup.expireTimeText}}</view>
+        <view wx:if="{{courseGroupList.length}}" class="group-panel">
+          <view wx:for="{{courseGroupList}}" wx:key="groupId" class="group-item-card">
+            <view class="group-item-header">
+              <view class="group-item-title">第{{item.index}}个团</view>
+              <view class="group-item-status group-item-status-{{item.statusClass}}">{{item.statusText}}</view>
             </view>
-            <view class="group-deadline-hint">{{activeGroup.expireHint}}</view>
-          </view>
 
-          <view class="group-progress-row">
-            <view class="group-progress-text">当前进度 {{activeGroup.progressText}}</view>
-            <view class="group-progress-caption">
-              {{activeGroup.status === 'success' ? '拼团已完成' : activeGroup.status === 'failed' ? '拼团已结束' : '还差 ' + activeGroup.remainingCount + ' 人成团'}}
+            <view class="group-progress-row">
+              <view class="group-progress-text">当前进度 {{item.progressText}}</view>
+              <view class="group-progress-caption">{{item.caption}}</view>
             </view>
-          </view>
-          <view class="progress-track">
-            <view class="progress-bar" style="width: {{activeGroup.progressPercent}};"></view>
+            <view class="progress-track">
+              <view class="progress-bar" style="width: {{item.progressPercent}};"></view>
+            </view>
           </view>
         </view>
 

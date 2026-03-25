@@ -60,7 +60,7 @@ const buildCourseCard = item => {
     courseSoldOut,
     showSuccessBadge: courseSoldOut && completedGroupsCount > 0,
     displayJoinedCount,
-    showJoinedCount: displayJoinedCount > 0
+    showJoinedCount: !courseSoldOut && displayJoinedCount > 0
   }
 }
 

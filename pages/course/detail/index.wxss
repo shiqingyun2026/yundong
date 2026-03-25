@@ -149,6 +149,54 @@
   margin-top: 20rpx;
 }
 
+.group-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.group-item-card {
+  padding: 22rpx 24rpx;
+  border-radius: 24rpx;
+  background: #f8fafc;
+  border: 1rpx solid #e7ecf3;
+}
+
+.group-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.group-item-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1f2329;
+}
+
+.group-item-status {
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.group-item-status-ongoing {
+  background: #eef5ff;
+  color: #1677ff;
+}
+
+.group-item-status-success {
+  background: #ecfbf3;
+  color: #18a058;
+}
+
+.group-item-status-failed {
+  background: #f4f6f8;
+  color: #8f96a3;
+}
+
 .group-deadline-card {
   padding: 22rpx 24rpx;
   border-radius: 24rpx;

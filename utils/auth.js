@@ -2,7 +2,7 @@ const { post } = require('./request')
 
 // Development-only mock login switch. Keep disabled for production releases.
 const USE_MOCK_USER = true
-const MOCK_USER_ID = 'user3'
+const MOCK_USER_ID = 'user6'
 
 const createMockToken = () => `mock-token-${Date.now()}`
 

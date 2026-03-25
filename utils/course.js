@@ -700,12 +700,23 @@ const normalizeCourseDetail = payload => {
     joinedCount,
     maxGroups: Number(payload.maxGroups ?? payload.max_groups) || 0,
     completedGroupsCount: Number(payload.completedGroupsCount ?? payload.completed_groups_count) || 0,
+    successJoinedCount: Number(payload.successJoinedCount ?? payload.success_joined_count) || 0,
     activeGroup,
     timeText: payload.timeText || formatCourseTimeRange(startTime, payload.endTime || payload.end_time || startTime),
     locationText: payload.locationText || payload.location || payload.address || '',
     ageRange: payload.ageRange || payload.age_range || payload.age_limit || '',
     descriptionHtml: payload.descriptionHtml || payload.description_html || '',
     insuranceText: payload.insuranceText || payload.insurance_text || payload.insurance_desc || '',
+    groupList: Array.isArray(payload.groupList || payload.group_list)
+      ? (payload.groupList || payload.group_list).map(item => ({
+          ...item,
+          groupId: item.groupId || item.group_id || '',
+          status: item.status || '',
+          currentCount: Number(item.currentCount ?? item.current_count) || 0,
+          targetCount: Number(item.targetCount ?? item.target_count) || 0,
+          expireTime: item.expireTime || item.expire_time || ''
+        }))
+      : [],
     coach: payload.coach || {
       name: payload.coach_name || '教练待定',
       intro: payload.coach_intro || '',
@@ -927,7 +938,8 @@ const fetchCourseList = async ({ lat, lng, sort = 'distance', page = 1, pageSize
         list: payload.list.map(normalizeCourseListItem)
       }
     },
-    mockFactory: () => getMockCourseListAsync({ lat, lng, sort, page, pageSize })
+    mockFactory: () => getMockCourseListAsync({ lat, lng, sort, page, pageSize }),
+    shouldFallback: false
   })
 }
 
