@@ -1,4 +1,4 @@
-const { fetchCourseDetail, fetchGroupDetail, createOrder } = require('../../../utils/course')
+const { fetchCourseDetail, fetchGroupDetail, createOrder, mockPaymentSuccess } = require('../../../utils/course')
 
 Page({
   data: {
@@ -145,7 +145,7 @@ Page({
         })
       } catch (error) {
         wx.showToast({
-          title: '下单失败，请稍后再试',
+          title: (error && error.message) || '下单失败，请稍后再试',
           icon: 'none'
         })
 
@@ -160,12 +160,32 @@ Page({
       return
     }
 
-    getApp().globalData.pendingOrder = null
-    this.navigateToPaymentResult('success', order.groupId)
+    try {
+      const paymentResult = await mockPaymentSuccess({
+        orderId: order.orderId,
+        groupId: order.groupId || this.data.groupId
+      })
 
-    this.safeSetData({
-      paying: false
-    })
+      if (!this._isAlive) {
+        return
+      }
+
+      getApp().globalData.pendingOrder = null
+      this.navigateToPaymentResult('success', paymentResult.groupId || order.groupId || this.data.groupId)
+    } catch (error) {
+      if (!this._isAlive) {
+        return
+      }
+
+      wx.showToast({
+        title: '支付确认失败，请稍后重试',
+        icon: 'none'
+      })
+    } finally {
+      this.safeSetData({
+        paying: false
+      })
+    }
   },
 
   handleMockFail() {

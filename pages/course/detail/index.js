@@ -155,6 +155,14 @@ const normalizeCourseDetail = detail => {
   }
 }
 
+const handleShareSuccess = () => {
+  wx.showToast({
+    title: '分享成功',
+    icon: 'success',
+    duration: 2000
+  })
+}
+
 Page({
   data: {
     courseId: '',
@@ -166,6 +174,7 @@ Page({
     loading: true,
     showServiceModal: false,
     creatingOrder: false,
+    actionButtonMode: 'create',
     actionButtonText: '立即开团',
     emptyGroupText: '暂无进行中的拼团，立即开团吧'
   },
@@ -173,12 +182,21 @@ Page({
   async onLoad(options) {
     this._expireTimer = null
     this._expireStartTimer = null
+    this._hasLoadedOnce = false
     const courseId = options.id || ''
     this.setData({
       courseId
     })
 
     await this.loadPageData(courseId)
+  },
+
+  async onShow() {
+    if (!this._hasLoadedOnce || !this.data.courseId) {
+      return
+    }
+
+    await this.loadPageData(this.data.courseId)
   },
 
   onUnload() {
@@ -218,13 +236,17 @@ Page({
     const hasActiveGroup = !!activeGroup
     const groupTargetCount = hasActiveGroup ? Number(activeGroup.targetCount) || 0 : 0
     const groupCurrentCount = hasActiveGroup ? Number(activeGroup.currentCount) || 0 : 0
+    const isUserJoined = !!(hasJoinableGroup && activeGroup.userJoined)
+    const actionButtonMode = isUserJoined ? 'invite' : hasJoinableGroup ? 'join' : 'create'
+    const actionButtonText = isUserJoined ? '已参团，去邀请好友' : hasJoinableGroup ? '去参团' : '立即开团'
 
     this.setData({
       activeGroup,
       hasActiveGroup,
       groupTargetCount,
       groupCurrentCount,
-      actionButtonText: hasJoinableGroup ? '去参团' : '立即开团',
+      actionButtonMode,
+      actionButtonText,
       emptyGroupText:
         activeGroup && activeGroup.isExpired ? '当前拼团已结束，可重新开团' : '暂无进行中的拼团，立即开团吧'
     })
@@ -294,6 +316,8 @@ Page({
         icon: 'none'
       })
     } finally {
+      this._hasLoadedOnce = true
+
       if (!this.data.activeGroup) {
         this.clearExpireTimer()
       }
@@ -338,8 +362,27 @@ Page({
     })
   },
 
+  onShareAppMessage() {
+    const { activeGroup, courseDetail } = this.data
+
+    if (!activeGroup || !activeGroup.groupId || !courseDetail) {
+      return {
+        title: '邻动体适能拼团',
+        path: '/pages/home/index',
+        success: handleShareSuccess
+      }
+    }
+
+    return {
+      title: `邀请你加入「${courseDetail.title}」拼团`,
+      path: `/pages/group/detail/index?groupId=${activeGroup.groupId}`,
+      imageUrl: (courseDetail.images && courseDetail.images[0]) || '',
+      success: handleShareSuccess
+    }
+  },
+
   async handleGoPayment() {
-    const { courseId, courseDetail, activeGroup, creatingOrder } = this.data
+    const { courseId, courseDetail, activeGroup, creatingOrder, actionButtonMode } = this.data
 
     if (creatingOrder) {
       return
@@ -396,7 +439,7 @@ Page({
       }
 
       wx.showToast({
-        title: '下单失败，请稍后再试',
+        title: (error && error.message) || '下单失败，请稍后再试',
         icon: 'none'
       })
     } finally {

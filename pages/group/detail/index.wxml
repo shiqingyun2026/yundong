@@ -49,18 +49,6 @@
         </view>
       </view>
 
-      <view class="page-section card-shadow">
-        <view class="section-title">参团成员</view>
-        <scroll-view class="member-scroll" scroll-x enable-flex>
-          <view class="member-list">
-            <view wx:for="{{groupDetail.members}}" wx:key="nickName" class="member-item">
-              <image class="member-avatar" src="{{item.avatar}}" mode="aspectFill"></image>
-              <view class="member-name">{{item.nickName}}</view>
-            </view>
-          </view>
-        </scroll-view>
-      </view>
-
       <view class="bottom-space"></view>
     </view>
   </scroll-view>

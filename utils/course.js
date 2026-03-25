@@ -718,6 +718,7 @@ const normalizeActiveGroup = payload => {
     currentCount: Number(payload.currentCount ?? payload.current_count) || 0,
     targetCount: Number(payload.targetCount ?? payload.target_count) || 0,
     expireTime: payload.expireTime || payload.expire_time || '',
+    userJoined: !!payload.userJoined,
     remainingSeconds:
       Number(payload.remainingSeconds ?? payload.remaining_seconds) ||
       (payload.expireTime || payload.expire_time
@@ -1003,7 +1004,6 @@ const createOrder = async ({ courseId, groupId, totalFee }) =>
           showErrorToast: false
         }
       ),
-    shouldFallback: error => !(error && (error.statusCode === 401 || error.statusCode === 403)),
     mockFactory: () =>
       Promise.resolve(
         createMockOrder({
@@ -1013,6 +1013,20 @@ const createOrder = async ({ courseId, groupId, totalFee }) =>
         })
       )
   })
+
+const mockPaymentSuccess = async ({ orderId, groupId }) =>
+  post(
+    '/api/payments/mock-success',
+    {
+      orderId,
+      groupId
+    },
+    {
+      showLoading: true,
+      loadingText: '支付中',
+      showErrorToast: false
+    }
+  )
 
 const USER_GROUP_STATUS_MAP = {
   all: '',
@@ -1076,6 +1090,7 @@ module.exports = {
   fetchActiveGroup,
   fetchGroupDetail,
   createOrder,
+  mockPaymentSuccess,
   createMockOrder,
   fetchUserGroupList
 }

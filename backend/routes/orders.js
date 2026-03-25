@@ -31,6 +31,51 @@ const normalizeGroupStatus = status => {
   return 'failed'
 }
 
+const hasUserJoinedCourseGroup = async ({ userId, courseId }) => {
+  const { data: groups, error: groupsError } = await supabase
+    .from('groups')
+    .select('id')
+    .eq('course_id', courseId)
+
+  if (groupsError) {
+    throw groupsError
+  }
+
+  const groupIds = (groups || []).map(item => item.id).filter(Boolean)
+
+  if (groupIds.length) {
+    const { data: membership, error: membershipError } = await supabase
+      .from('group_members')
+      .select('group_id')
+      .eq('user_id', userId)
+      .in('group_id', groupIds)
+      .limit(1)
+      .maybeSingle()
+
+    if (membershipError) {
+      throw membershipError
+    }
+
+    if (membership) {
+      return true
+    }
+  }
+
+  const { data: order, error: orderError } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('course_id', courseId)
+    .limit(1)
+    .maybeSingle()
+
+  if (orderError) {
+    throw orderError
+  }
+
+  return !!order
+}
+
 const markGroupOrdersSuccess = async groupId => {
   try {
     await supabase
@@ -75,8 +120,18 @@ router.post('/', authenticate, async (req, res) => {
       })
     }
 
+    const userHasJoinedCourseGroup = await hasUserJoinedCourseGroup({
+      userId: req.userId,
+      courseId
+    })
+
+    if (userHasJoinedCourseGroup) {
+      return res.status(400).json({
+        message: '你已参加过该课程的拼团，不能重复参加'
+      })
+    }
+
     let finalGroup = null
-    let alreadyJoined = false
 
     if (groupId) {
       const { data: existingGroup, error: groupError } = await supabase
@@ -113,73 +168,50 @@ router.post('/', authenticate, async (req, res) => {
         })
       }
 
-      const { data: membership, error: membershipError } = await supabase
+      const { error: insertMemberError } = await supabase
         .from('group_members')
-        .select('group_id')
-        .eq('group_id', existingGroup.id)
-        .eq('user_id', req.userId)
-        .maybeSingle()
-
-      if (membershipError) {
-        console.error('[orders] membership query failed', {
-          courseId,
-          groupId,
-          userId: req.userId,
-          error: membershipError
+        .insert({
+          group_id: existingGroup.id,
+          user_id: req.userId
         })
-        throw membershipError
+
+      if (insertMemberError) {
+        console.error('[orders] insert group member failed', {
+          courseId,
+          groupId: existingGroup.id,
+          userId: req.userId,
+          error: insertMemberError
+        })
+        throw insertMemberError
       }
 
-      alreadyJoined = !!membership
+      const nextCount = (Number(existingGroup.current_count) || 0) + 1
+      const shouldSuccess = nextCount >= (Number(existingGroup.target_count) || defaultTargetCount)
 
-      if (!alreadyJoined) {
-        const { error: insertMemberError } = await supabase
-          .from('group_members')
-          .insert({
-            group_id: existingGroup.id,
-            user_id: req.userId
-          })
+      const { data: updatedGroup, error: updateGroupError } = await supabase
+        .from('groups')
+        .update({
+          current_count: nextCount,
+          status: shouldSuccess ? 'success' : existingGroup.status
+        })
+        .eq('id', existingGroup.id)
+        .select('id, course_id, status, current_count, target_count, expire_time')
+        .single()
 
-        if (insertMemberError) {
-          console.error('[orders] insert group member failed', {
-            courseId,
-            groupId: existingGroup.id,
-            userId: req.userId,
-            error: insertMemberError
-          })
-          throw insertMemberError
-        }
+      if (updateGroupError) {
+        console.error('[orders] update group count failed', {
+          courseId,
+          groupId: existingGroup.id,
+          nextCount,
+          error: updateGroupError
+        })
+        throw updateGroupError
+      }
 
-        const nextCount = (Number(existingGroup.current_count) || 0) + 1
-        const shouldSuccess = nextCount >= (Number(existingGroup.target_count) || defaultTargetCount)
+      finalGroup = updatedGroup
 
-        const { data: updatedGroup, error: updateGroupError } = await supabase
-          .from('groups')
-          .update({
-            current_count: nextCount,
-            status: shouldSuccess ? 'success' : existingGroup.status
-          })
-          .eq('id', existingGroup.id)
-          .select('id, course_id, status, current_count, target_count, expire_time')
-          .single()
-
-        if (updateGroupError) {
-          console.error('[orders] update group count failed', {
-            courseId,
-            groupId: existingGroup.id,
-            nextCount,
-            error: updateGroupError
-          })
-          throw updateGroupError
-        }
-
-        finalGroup = updatedGroup
-
-        if (shouldSuccess) {
-          await markGroupOrdersSuccess(existingGroup.id)
-        }
-      } else {
-        finalGroup = existingGroup
+      if (shouldSuccess) {
+        await markGroupOrdersSuccess(existingGroup.id)
       }
     } else {
       const targetCount = defaultTargetCount
@@ -253,7 +285,7 @@ router.post('/', authenticate, async (req, res) => {
       groupId: order.group_id,
       amount: Number(order.amount) || 0,
       paymentParams: {},
-      alreadyJoined,
+      alreadyJoined: false,
       groupStatus: normalizeGroupStatus(finalGroup.status)
     })
   } catch (error) {

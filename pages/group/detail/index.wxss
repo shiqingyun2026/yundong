@@ -141,38 +141,6 @@
   margin-top: 18rpx;
 }
 
-.member-scroll {
-  margin-top: 20rpx;
-  white-space: nowrap;
-}
-
-.member-list {
-  display: flex;
-  gap: 24rpx;
-}
-
-.member-item {
-  width: 110rpx;
-  text-align: center;
-}
-
-.member-avatar {
-  width: 88rpx;
-  height: 88rpx;
-  margin: 0 auto;
-  border-radius: 50%;
-  background: #eef2f7;
-}
-
-.member-name {
-  margin-top: 12rpx;
-  overflow: hidden;
-  font-size: 22rpx;
-  color: #5f6b7a;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
 .bottom-space {
   height: 160rpx;
 }

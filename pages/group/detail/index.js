@@ -113,6 +113,7 @@ Page({
     this._isAlive = true
     this._timers = []
     this._expireStartTimer = null
+    this._hasLoadedOnce = false
 
     this.safeSetData({
       groupId: options.groupId || '',
@@ -120,6 +121,14 @@ Page({
     })
 
     await this.loadGroupDetail(options.groupId || '')
+  },
+
+  async onShow() {
+    if (!this._hasLoadedOnce || !this.data.groupId) {
+      return
+    }
+
+    await this.loadGroupDetail(this.data.groupId)
   },
 
   onUnload() {
@@ -237,6 +246,8 @@ Page({
         icon: 'none'
       })
     } finally {
+      this._hasLoadedOnce = true
+
       if (!this.data.groupDetail) {
         this.clearTimers()
       }

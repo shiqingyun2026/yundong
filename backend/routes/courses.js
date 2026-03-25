@@ -1,4 +1,5 @@
 const express = require('express')
+const jwt = require('jsonwebtoken')
 
 const supabase = require('../utils/supabase')
 
@@ -119,6 +120,22 @@ const getRemainingSeconds = expireTime => {
   }
 
   return Math.max(0, Math.floor((expireAt.getTime() - Date.now()) / 1000))
+}
+
+const resolveUserIdFromRequest = req => {
+  const authorization = req.headers.authorization || ''
+  const [scheme, token] = authorization.split(' ')
+
+  if (scheme !== 'Bearer' || !token || !process.env.JWT_SECRET) {
+    return ''
+  }
+
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET)
+    return (payload && payload.userId) || ''
+  } catch (error) {
+    return ''
+  }
 }
 
 const normalizeImages = value => {
@@ -355,8 +372,28 @@ router.get('/:id/active-group', async (req, res) => {
     }
 
     const members = await fetchGroupMembers(group.id)
+    const userId = resolveUserIdFromRequest(req)
+    let userJoined = false
 
-    return res.json(mapActiveGroup(group, members))
+    if (userId) {
+      const { data: membership, error: membershipError } = await supabase
+        .from('group_members')
+        .select('group_id')
+        .eq('group_id', group.id)
+        .eq('user_id', userId)
+        .maybeSingle()
+
+      if (membershipError) {
+        throw membershipError
+      }
+
+      userJoined = !!membership
+    }
+
+    return res.json({
+      ...mapActiveGroup(group, members),
+      userJoined
+    })
   } catch (error) {
     return res.status(500).json({
       message: error.message || 'failed to fetch active group'

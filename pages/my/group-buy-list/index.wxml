@@ -42,7 +42,6 @@
   <empty-state
     wx:if="{{!loading && !groupList.length}}"
     title="暂无拼团记录"
-    desc="切换状态筛选或稍后下拉刷新再试。"
   />
 
   <view wx:if="{{groupList.length}}" class="list-footer">
