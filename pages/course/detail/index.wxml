@@ -39,7 +39,7 @@
 
       <view class="page-section card-shadow">
         <view class="section-title">课程介绍</view>
-        <rich-text class="rich-text" nodes="{{courseDetail.descriptionNodes}}"></rich-text>
+        <rich-text class="rich-text" nodes="{{courseDetail.descriptionHtml || courseDetail.descriptionNodes}}"></rich-text>
       </view>
 
       <view class="page-section card-shadow">

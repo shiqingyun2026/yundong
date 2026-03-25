@@ -153,7 +153,121 @@ const privacyPolicyNodes = [
   }
 ]
 
+const courseServiceAgreementNodes = [
+  {
+    name: 'div',
+    attrs: {
+      style: 'margin-bottom: 32rpx;'
+    },
+    children: [
+      {
+        name: 'h3',
+        attrs: {
+          style: 'margin-bottom: 16rpx; font-size: 32rpx; font-weight: 700; color: #1f2329;'
+        },
+        children: [{ type: 'text', text: '一、协议说明' }]
+      },
+      {
+        name: 'p',
+        attrs: {
+          style: 'margin-bottom: 16rpx; color: #3c4655; line-height: 1.8;'
+        },
+        children: [
+          {
+            type: 'text',
+            text: '当前《课程服务协议》为开发测试阶段的临时文本，用于支付确认页阅读与跳转验证。后续会替换为正式协议内容。'
+          }
+        ]
+      },
+      {
+        name: 'p',
+        attrs: {
+          style: 'margin-bottom: 16rpx; color: #3c4655; line-height: 1.8;'
+        },
+        children: [
+          {
+            type: 'text',
+            text: '用户在购买课程、参与拼团与发起支付前，应自行阅读课程说明、拼团规则、退款规则与服务约定；继续支付即视为理解并接受相关规则。'
+          }
+        ]
+      }
+    ]
+  },
+  {
+    name: 'div',
+    attrs: {
+      style: 'margin-bottom: 32rpx;'
+    },
+    children: [
+      {
+        name: 'h3',
+        attrs: {
+          style: 'margin-bottom: 16rpx; font-size: 32rpx; font-weight: 700; color: #1f2329;'
+        },
+        children: [{ type: 'text', text: '二、课程与拼团规则' }]
+      },
+      {
+        name: 'ul',
+        attrs: {
+          style: 'padding-left: 32rpx;'
+        },
+        children: [
+          {
+            name: 'li',
+            attrs: {
+              style: 'margin-bottom: 16rpx; color: #3c4655; line-height: 1.8;'
+            },
+            children: [{ type: 'text', text: '课程价格、上课时间、地点、适龄范围以页面实际展示为准。' }]
+          },
+          {
+            name: 'li',
+            attrs: {
+              style: 'margin-bottom: 16rpx; color: #3c4655; line-height: 1.8;'
+            },
+            children: [{ type: 'text', text: '拼团是否成团、截止时间及成团人数以订单与拼团页实时状态为准。' }]
+          },
+          {
+            name: 'li',
+            attrs: {
+              style: 'margin-bottom: 16rpx; color: #3c4655; line-height: 1.8;'
+            },
+            children: [{ type: 'text', text: '未成团订单的退款方式、退款时效以后续正式协议及平台规则为准。' }]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    name: 'div',
+    attrs: {
+      style: 'margin-bottom: 0;'
+    },
+    children: [
+      {
+        name: 'h3',
+        attrs: {
+          style: 'margin-bottom: 16rpx; font-size: 32rpx; font-weight: 700; color: #1f2329;'
+        },
+        children: [{ type: 'text', text: '三、特别提示' }]
+      },
+      {
+        name: 'p',
+        attrs: {
+          style: 'margin-bottom: 16rpx; color: #3c4655; line-height: 1.8;'
+        },
+        children: [
+          {
+            type: 'text',
+            text: '本页内容仅为临时占位文本，方便当前开发联调与测试使用。后续如你提供正式条款，我可以直接替换成正式版服务协议。'
+          }
+        ]
+      }
+    ]
+  }
+]
+
 module.exports = {
   userAgreementNodes,
-  privacyPolicyNodes
+  privacyPolicyNodes,
+  courseServiceAgreementNodes
 }

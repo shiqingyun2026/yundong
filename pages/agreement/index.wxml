@@ -34,7 +34,7 @@
     ></rich-text>
   </scroll-view>
 
-  <view class="agreement-footer">
+  <view wx:if="{{!readonly}}" class="agreement-footer">
     <checkbox-group bindchange="handleAgreementChange">
       <label class="agreement-checkbox">
         <checkbox value="agreed" color="#1677ff" checked="{{agreed}}" />

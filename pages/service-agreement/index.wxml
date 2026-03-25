@@ -1,0 +1,10 @@
+<view class="service-agreement-page">
+  <view class="service-agreement-header">
+    <view class="service-agreement-title">课程服务协议</view>
+    <view class="service-agreement-subtitle">当前为临时占位文本，后续可替换为正式服务协议。</view>
+  </view>
+
+  <scroll-view class="service-agreement-content" scroll-y>
+    <rich-text class="service-agreement-rich-text" nodes="{{contentNodes}}"></rich-text>
+  </scroll-view>
+</view>

@@ -171,6 +171,7 @@ const normalizeCourseDetail = detail => {
     timeText: detail.timeText || detail.start_time || '',
     locationText: detail.locationText || detail.address || detail.location || '',
     ageRange: detail.ageRange || detail.age_range || detail.age_limit || '',
+    descriptionHtml: detail.descriptionHtml || detail.description_html || '',
     maxGroups: Number(detail.maxGroups ?? detail.max_groups) || 0,
     completedGroupsCount: Number(detail.completedGroupsCount ?? detail.completed_groups_count) || 0,
     descriptionNodes: detail.descriptionNodes || [],

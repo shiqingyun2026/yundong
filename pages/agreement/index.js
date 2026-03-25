@@ -4,14 +4,23 @@ Page({
   data: {
     activeTab: 'user',
     agreed: false,
+    readonly: false,
     userAgreementNodes,
     privacyPolicyNodes
   },
 
-  onLoad() {
+  onLoad(options) {
+    const activeTab = options && (options.tab === 'privacy' ? 'privacy' : 'user')
+    const readonly = !!(options && options.readonly === '1')
+
+    this.setData({
+      activeTab,
+      readonly
+    })
+
     const app = getApp()
 
-    if (app.hasAgreedAgreement()) {
+    if (!readonly && app.hasAgreedAgreement()) {
       wx.switchTab({
         url: '/pages/home/index'
       })

@@ -36,7 +36,10 @@
         <checkbox-group bindchange="handleAgreementChange">
           <label class="agreement-row">
             <checkbox value="agree" checked="{{agreementChecked}}" color="#1677ff" />
-            <view class="agreement-text">我已阅读并同意《课程服务协议》</view>
+            <view class="agreement-text">
+              我已阅读并同意
+              <text class="agreement-link" bindtap="handleOpenAgreement">《课程服务协议》</text>
+            </view>
           </label>
         </checkbox-group>
       </view>

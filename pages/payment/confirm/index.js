@@ -115,6 +115,12 @@ Page({
     })
   },
 
+  handleOpenAgreement() {
+    wx.navigateTo({
+      url: '/pages/service-agreement/index'
+    })
+  },
+
   async handleConfirmPay() {
     if (!this.data.agreementChecked) {
       wx.showToast({

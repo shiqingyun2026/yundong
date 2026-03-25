@@ -90,7 +90,7 @@ router.post('/', authenticate, async (req, res) => {
   try {
     const { data: course, error: courseError } = await supabase
       .from('courses')
-      .select('id, group_price, max_groups')
+      .select('*')
       .eq('id', courseId)
       .maybeSingle()
 

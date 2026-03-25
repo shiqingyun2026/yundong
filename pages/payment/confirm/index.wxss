@@ -67,6 +67,10 @@
   color: #3c4655;
 }
 
+.agreement-link {
+  color: #1677ff;
+}
+
 .bottom-placeholder {
   height: 160rpx;
 }

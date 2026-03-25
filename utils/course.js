@@ -701,6 +701,7 @@ const normalizeCourseDetail = payload => {
     timeText: payload.timeText || formatCourseTimeRange(startTime, payload.endTime || payload.end_time || startTime),
     locationText: payload.locationText || payload.location || payload.address || '',
     ageRange: payload.ageRange || payload.age_range || payload.age_limit || '',
+    descriptionHtml: payload.descriptionHtml || payload.description_html || '',
     insuranceText: payload.insuranceText || payload.insurance_text || payload.insurance_desc || '',
     coach: payload.coach || {
       name: payload.coach_name || '教练待定',

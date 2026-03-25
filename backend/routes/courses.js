@@ -212,6 +212,7 @@ const mapCourseDetail = (course, activeGroup, completedGroupsCount) => ({
   timeText: formatCourseTimeRange(course.start_time),
   locationText: course.address || '',
   ageRange: course.age_limit || '',
+  descriptionHtml: course.description || '',
   descriptionNodes: buildDescriptionNodes(course.name),
   groupRuleNodes: GROUP_RULE_NODES,
   paymentGroupNoteNodes: PAYMENT_GROUP_NOTE_NODES,
@@ -329,9 +330,7 @@ router.get('/:id', async (req, res) => {
   try {
     const { data: course, error } = await supabase
       .from('courses')
-      .select(
-        'id, name, cover, images, address, start_time, group_price, original_price, age_limit, coach_name, coach_intro, coach_certificates, insurance_desc, service_qr_code, max_groups'
-      )
+      .select('*')
       .eq('id', req.params.id)
       .maybeSingle()
 
