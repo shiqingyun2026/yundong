@@ -9,6 +9,7 @@ const groupsRoutes = require('./routes/groups')
 const ordersRoutes = require('./routes/orders')
 const paymentsRoutes = require('./routes/payments')
 const userRoutes = require('./routes/user')
+const adminRoutes = require('./routes/admin')
 
 const app = express()
 const port = Number(process.env.PORT) || 8000
@@ -28,6 +29,7 @@ app.use('/api/groups', groupsRoutes)
 app.use('/api/orders', ordersRoutes)
 app.use('/api/payments', paymentsRoutes)
 app.use('/api/user', userRoutes)
+app.use('/api/admin', adminRoutes)
 
 app.listen(port, () => {
   console.log(`Backend server listening on port ${port}`)

@@ -1,0 +1,5 @@
+{
+  "name": "邻动体适能运营后台",
+  "description": "Lindong Fitness Operations Backend system for managing courses, orders, and accounts.",
+  "requestFramePermissions": []
+}

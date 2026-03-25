@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "seed:regression-course": "node scripts/create-test-course.js"
+    "seed:regression-course": "node scripts/create-test-course.js",
+    "ensure:bootstrap-admin": "node scripts/ensure-bootstrap-admin.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
