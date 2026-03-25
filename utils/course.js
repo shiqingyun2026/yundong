@@ -680,6 +680,7 @@ const normalizeCourseDetail = payload => {
   const joinedCount = Number(payload.current_count ?? payload.joinedCount) || 0
   const targetCount = Number(payload.targetCount ?? payload.target_count) || 0
   const startTime = payload.startTime || payload.start_time || ''
+  const activeGroup = normalizeActiveGroup(payload.activeGroup || payload.active_group || null)
 
   return {
     ...payload,
@@ -694,6 +695,9 @@ const normalizeCourseDetail = payload => {
     originalPriceText: `${originalPriceText}`,
     targetCount,
     joinedCount,
+    maxGroups: Number(payload.maxGroups ?? payload.max_groups) || 0,
+    completedGroupsCount: Number(payload.completedGroupsCount ?? payload.completed_groups_count) || 0,
+    activeGroup,
     timeText: payload.timeText || formatCourseTimeRange(startTime, payload.endTime || payload.end_time || startTime),
     locationText: payload.locationText || payload.location || payload.address || '',
     ageRange: payload.ageRange || payload.age_range || payload.age_limit || '',

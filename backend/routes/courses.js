@@ -197,7 +197,7 @@ const fetchGroupMembers = async groupId => {
   }))
 }
 
-const mapCourseDetail = (course, activeGroup) => ({
+const mapCourseDetail = (course, activeGroup, completedGroupsCount) => ({
   id: course.id,
   title: course.name || '',
   images: normalizeImages(course.images).length ? normalizeImages(course.images) : [course.cover || ''],
@@ -206,6 +206,9 @@ const mapCourseDetail = (course, activeGroup) => ({
   originalPriceText: Number(course.original_price || 0).toFixed(2),
   targetCount: Number(activeGroup && activeGroup.target_count) || 0,
   joinedCount: Number(activeGroup && activeGroup.current_count) || 0,
+  maxGroups: Number(course.max_groups) || 0,
+  completedGroupsCount: Number(completedGroupsCount) || 0,
+  activeGroup: mapActiveGroupSummary(activeGroup),
   timeText: formatCourseTimeRange(course.start_time),
   locationText: course.address || '',
   ageRange: course.age_limit || '',
@@ -327,7 +330,7 @@ router.get('/:id', async (req, res) => {
     const { data: course, error } = await supabase
       .from('courses')
       .select(
-        'id, name, cover, images, address, start_time, group_price, original_price, age_limit, coach_name, coach_intro, coach_certificates, insurance_desc, service_qr_code'
+        'id, name, cover, images, address, start_time, group_price, original_price, age_limit, coach_name, coach_intro, coach_certificates, insurance_desc, service_qr_code, max_groups'
       )
       .eq('id', req.params.id)
       .maybeSingle()
@@ -356,7 +359,17 @@ router.get('/:id', async (req, res) => {
       throw activeGroupError
     }
 
-    return res.json(mapCourseDetail(course, activeGroup))
+    const { count: completedGroupsCount, error: completedGroupsCountError } = await supabase
+      .from('groups')
+      .select('id', { count: 'exact', head: true })
+      .eq('course_id', course.id)
+      .eq('status', 'success')
+
+    if (completedGroupsCountError) {
+      throw completedGroupsCountError
+    }
+
+    return res.json(mapCourseDetail(course, activeGroup, completedGroupsCount))
   } catch (error) {
     return res.status(500).json({
       message: error.message || 'failed to fetch course detail'

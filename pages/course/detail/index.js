@@ -171,6 +171,8 @@ const normalizeCourseDetail = detail => {
     timeText: detail.timeText || detail.start_time || '',
     locationText: detail.locationText || detail.address || detail.location || '',
     ageRange: detail.ageRange || detail.age_range || detail.age_limit || '',
+    maxGroups: Number(detail.maxGroups ?? detail.max_groups) || 0,
+    completedGroupsCount: Number(detail.completedGroupsCount ?? detail.completed_groups_count) || 0,
     descriptionNodes: detail.descriptionNodes || [],
     groupRuleNodes: detail.groupRuleNodes || [],
     insuranceText: detail.insuranceText || detail.insurance_text || detail.insurance_desc || '',
@@ -208,6 +210,7 @@ Page({
     creatingOrder: false,
     actionButtonMode: 'create',
     actionButtonText: '立即开团',
+    actionButtonDisabled: false,
     emptyGroupText: '暂无进行中的拼团，立即开团吧'
   },
 
@@ -264,27 +267,37 @@ Page({
     }
   },
 
-  updateGroupPresentation(activeGroup) {
+  updateGroupPresentation(courseDetail, activeGroup) {
     const hasJoinableGroup = !!(activeGroup && activeGroup.status === 'ongoing' && !activeGroup.isExpired)
     const hasActiveGroup = !!activeGroup
     const groupTargetCount = hasActiveGroup ? Number(activeGroup.targetCount) || 0 : 0
     const groupCurrentCount = hasActiveGroup ? Number(activeGroup.currentCount) || 0 : 0
     const isUserJoined = !!(hasJoinableGroup && activeGroup.userJoined)
+    const completedGroupsCount = Number(courseDetail && courseDetail.completedGroupsCount) || 0
+    const maxGroups = Number(courseDetail && courseDetail.maxGroups) || 0
+    const canCreateGroup = maxGroups <= 0 || completedGroupsCount < maxGroups
     let actionButtonMode = 'create'
     let actionButtonText = '立即开团'
+    let actionButtonDisabled = false
 
     if (activeGroup && activeGroup.status === 'success') {
       actionButtonMode = 'completed'
       actionButtonText = '已成团'
+      actionButtonDisabled = true
     } else if (isUserJoined) {
-      actionButtonMode = 'invite'
-      actionButtonText = '已参团，去邀请好友'
+      actionButtonMode = 'joined'
+      actionButtonText = '已参团，等待成团'
+      actionButtonDisabled = true
     } else if (hasJoinableGroup) {
       actionButtonMode = 'join'
       actionButtonText = '去参团'
-    } else if (activeGroup && activeGroup.status === 'failed') {
+    } else if (canCreateGroup) {
       actionButtonMode = 'create'
-      actionButtonText = '重新开团'
+      actionButtonText = '立即开团'
+    } else {
+      actionButtonMode = 'full'
+      actionButtonText = '课程已满员，暂不可开团'
+      actionButtonDisabled = true
     }
 
     this.setData({
@@ -294,12 +307,17 @@ Page({
       groupCurrentCount,
       actionButtonMode,
       actionButtonText,
+      actionButtonDisabled,
       emptyGroupText:
         activeGroup && activeGroup.status === 'success'
           ? '当前拼团已成团'
           : activeGroup && activeGroup.status === 'failed'
-            ? '当前拼团已结束，可重新开团'
-            : '暂无进行中的拼团，立即开团吧'
+            ? canCreateGroup
+              ? '当前拼团已结束，可重新开团'
+              : '该课程已达开团上限'
+            : canCreateGroup
+              ? '暂无进行中的拼团，立即开团吧'
+              : '该课程已达开团上限'
     })
   },
 
@@ -329,7 +347,7 @@ Page({
       }
 
       const nextActiveGroup = buildActiveGroupViewModel(activeGroup)
-      this.updateGroupPresentation(nextActiveGroup)
+      this.updateGroupPresentation(this.data.courseDetail, nextActiveGroup)
 
       if (nextActiveGroup.expireTimeText === '已结束') {
         this.clearExpireTimer()
@@ -356,11 +374,13 @@ Page({
         fetchActiveGroup(courseId)
       ])
 
+      const normalizedCourseDetail = normalizeCourseDetail(courseDetail)
+
       this.setData({
-        courseDetail: normalizeCourseDetail(courseDetail)
+        courseDetail: normalizedCourseDetail
       })
 
-      this.updateGroupPresentation(buildActiveGroupViewModel(activeGroup))
+      this.updateGroupPresentation(normalizedCourseDetail, buildActiveGroupViewModel(activeGroup))
     } catch (error) {
       wx.showToast({
         title: '课程详情加载失败',
@@ -463,6 +483,22 @@ Page({
     if (actionButtonMode === 'completed') {
       wx.showToast({
         title: '当前拼团已成团',
+        icon: 'none'
+      })
+      return
+    }
+
+    if (actionButtonMode === 'joined') {
+      wx.showToast({
+        title: '你已参团，请等待成团',
+        icon: 'none'
+      })
+      return
+    }
+
+    if (actionButtonMode === 'full') {
+      wx.showToast({
+        title: '课程已满员，暂不可开团',
         icon: 'none'
       })
       return

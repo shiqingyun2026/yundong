@@ -109,18 +109,10 @@
       <view class="service-text">客服</view>
     </view>
     <button
-      wx:if="{{actionButtonMode === 'invite'}}"
-      class="primary-button bottom-action"
-      open-type="share"
-    >
-      {{actionButtonText}}
-    </button>
-    <button
-      wx:else
       class="primary-button bottom-action"
       bindtap="handleGoPayment"
       loading="{{creatingOrder}}"
-      disabled="{{creatingOrder || actionButtonMode === 'completed'}}"
+      disabled="{{creatingOrder || actionButtonDisabled}}"
     >
       {{actionButtonText}}
     </button>

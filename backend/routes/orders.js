@@ -90,7 +90,7 @@ router.post('/', authenticate, async (req, res) => {
   try {
     const { data: course, error: courseError } = await supabase
       .from('courses')
-      .select('id, group_price')
+      .select('id, group_price, max_groups')
       .eq('id', courseId)
       .maybeSingle()
 
@@ -159,6 +159,50 @@ router.post('/', authenticate, async (req, res) => {
       finalGroup = existingGroup
     } else {
       const targetCount = defaultTargetCount
+
+      const { data: activeGroup, error: activeGroupError } = await supabase
+        .from('groups')
+        .select('id')
+        .eq('course_id', courseId)
+        .eq('status', 'active')
+        .limit(1)
+        .maybeSingle()
+
+      if (activeGroupError) {
+        console.error('[orders] active group query failed', {
+          courseId,
+          userId: req.userId,
+          error: activeGroupError
+        })
+        throw activeGroupError
+      }
+
+      if (activeGroup) {
+        return res.status(400).json({
+          message: '当前课程还有进行中的拼团，请先完成'
+        })
+      }
+
+      const { count: completedGroupsCount, error: completedGroupsCountError } = await supabase
+        .from('groups')
+        .select('id', { count: 'exact', head: true })
+        .eq('course_id', courseId)
+        .eq('status', 'success')
+
+      if (completedGroupsCountError) {
+        console.error('[orders] completed groups count query failed', {
+          courseId,
+          userId: req.userId,
+          error: completedGroupsCountError
+        })
+        throw completedGroupsCountError
+      }
+
+      if ((Number(completedGroupsCount) || 0) >= (Number(course.max_groups) || 0)) {
+        return res.status(400).json({
+          message: '该课程已达开团上限'
+        })
+      }
 
       const { data: createdGroup, error: createGroupError } = await supabase
         .from('groups')
