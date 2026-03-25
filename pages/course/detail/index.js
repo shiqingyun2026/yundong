@@ -83,6 +83,37 @@ const getExpireMeta = expireTime => {
   }
 }
 
+const getGroupPresentationMeta = activeGroup => {
+  const status = (activeGroup && activeGroup.status) || 'ongoing'
+
+  if (status === 'success') {
+    return {
+      text: '已成团',
+      tone: 'success',
+      hint: '当前课程拼团已完成，请等待上课安排。',
+      isExpired: false
+    }
+  }
+
+  if (status === 'failed') {
+    return {
+      text: '已失败',
+      tone: 'ended',
+      hint: '当前拼团已结束，可重新开团。',
+      isExpired: true
+    }
+  }
+
+  const expireTime = resolveExpireTime(activeGroup)
+  const expireMeta = getExpireMeta(expireTime)
+
+  return {
+    ...expireMeta,
+    expireTime,
+    isExpired: expireMeta.text === '已结束'
+  }
+}
+
 const resolveExpireTime = activeGroup => {
   const expireDate = safeDate(activeGroup && activeGroup.expireTime)
   if (expireDate) {
@@ -104,16 +135,16 @@ const buildActiveGroupViewModel = activeGroup => {
 
   const currentCount = Number(activeGroup.currentCount) || 0
   const targetCount = Number(activeGroup.targetCount) || 0
-  const expireTime = resolveExpireTime(activeGroup)
-  const expireMeta = getExpireMeta(expireTime)
+  const presentationMeta = getGroupPresentationMeta(activeGroup)
+  const expireTime = presentationMeta.expireTime || resolveExpireTime(activeGroup)
 
   return {
     ...activeGroup,
     expireTime,
-    expireTimeText: expireMeta.text,
-    expireTone: expireMeta.tone,
-    expireHint: expireMeta.hint,
-    isExpired: expireMeta.text === '已结束',
+    expireTimeText: presentationMeta.text,
+    expireTone: presentationMeta.tone,
+    expireHint: presentationMeta.hint,
+    isExpired: presentationMeta.isExpired,
     remainingCount: Math.max(0, targetCount - currentCount),
     progressText: `${currentCount}/${targetCount}`,
     progressPercent: targetCount > 0 ? `${(currentCount / targetCount) * 100}%` : '0%'
@@ -166,6 +197,7 @@ const handleShareSuccess = () => {
 Page({
   data: {
     courseId: '',
+    sharedGroupId: '',
     courseDetail: null,
     activeGroup: null,
     hasActiveGroup: false,
@@ -185,7 +217,8 @@ Page({
     this._hasLoadedOnce = false
     const courseId = options.id || ''
     this.setData({
-      courseId
+      courseId,
+      sharedGroupId: options.groupId || ''
     })
 
     await this.loadPageData(courseId)
@@ -232,13 +265,27 @@ Page({
   },
 
   updateGroupPresentation(activeGroup) {
-    const hasJoinableGroup = !!(activeGroup && !activeGroup.isExpired)
+    const hasJoinableGroup = !!(activeGroup && activeGroup.status === 'ongoing' && !activeGroup.isExpired)
     const hasActiveGroup = !!activeGroup
     const groupTargetCount = hasActiveGroup ? Number(activeGroup.targetCount) || 0 : 0
     const groupCurrentCount = hasActiveGroup ? Number(activeGroup.currentCount) || 0 : 0
     const isUserJoined = !!(hasJoinableGroup && activeGroup.userJoined)
-    const actionButtonMode = isUserJoined ? 'invite' : hasJoinableGroup ? 'join' : 'create'
-    const actionButtonText = isUserJoined ? '已参团，去邀请好友' : hasJoinableGroup ? '去参团' : '立即开团'
+    let actionButtonMode = 'create'
+    let actionButtonText = '立即开团'
+
+    if (activeGroup && activeGroup.status === 'success') {
+      actionButtonMode = 'completed'
+      actionButtonText = '已成团'
+    } else if (isUserJoined) {
+      actionButtonMode = 'invite'
+      actionButtonText = '已参团，去邀请好友'
+    } else if (hasJoinableGroup) {
+      actionButtonMode = 'join'
+      actionButtonText = '去参团'
+    } else if (activeGroup && activeGroup.status === 'failed') {
+      actionButtonMode = 'create'
+      actionButtonText = '重新开团'
+    }
 
     this.setData({
       activeGroup,
@@ -248,7 +295,11 @@ Page({
       actionButtonMode,
       actionButtonText,
       emptyGroupText:
-        activeGroup && activeGroup.isExpired ? '当前拼团已结束，可重新开团' : '暂无进行中的拼团，立即开团吧'
+        activeGroup && activeGroup.status === 'success'
+          ? '当前拼团已成团'
+          : activeGroup && activeGroup.status === 'failed'
+            ? '当前拼团已结束，可重新开团'
+            : '暂无进行中的拼团，立即开团吧'
     })
   },
 
@@ -363,9 +414,14 @@ Page({
   },
 
   onShareAppMessage() {
-    const { activeGroup, courseDetail } = this.data
+    const { activeGroup, courseDetail, courseId, sharedGroupId } = this.data
 
-    if (!activeGroup || !activeGroup.groupId || !courseDetail) {
+    const targetGroupId =
+      (activeGroup && activeGroup.groupId) ||
+      sharedGroupId ||
+      ''
+
+    if (!targetGroupId || !courseDetail || !courseId) {
       return {
         title: '邻动体适能拼团',
         path: '/pages/home/index',
@@ -375,14 +431,14 @@ Page({
 
     return {
       title: `邀请你加入「${courseDetail.title}」拼团`,
-      path: `/pages/group/detail/index?groupId=${activeGroup.groupId}`,
+      path: `/pages/course/detail/index?id=${courseId}&groupId=${targetGroupId}`,
       imageUrl: (courseDetail.images && courseDetail.images[0]) || '',
       success: handleShareSuccess
     }
   },
 
   async handleGoPayment() {
-    const { courseId, courseDetail, activeGroup, creatingOrder, actionButtonMode } = this.data
+    const { courseId, courseDetail, activeGroup, creatingOrder, sharedGroupId, actionButtonMode } = this.data
 
     if (creatingOrder) {
       return
@@ -404,8 +460,21 @@ Page({
       return
     }
 
+    if (actionButtonMode === 'completed') {
+      wx.showToast({
+        title: '当前拼团已成团',
+        icon: 'none'
+      })
+      return
+    }
+
     const joinableGroup = activeGroup && !activeGroup.isExpired ? activeGroup : null
-    const groupId = joinableGroup ? joinableGroup.groupId : ''
+    const groupId =
+      joinableGroup && sharedGroupId && sharedGroupId === joinableGroup.groupId
+        ? sharedGroupId
+        : joinableGroup
+          ? joinableGroup.groupId
+          : ''
 
     this.setData({
       creatingOrder: true

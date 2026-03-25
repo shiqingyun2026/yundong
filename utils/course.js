@@ -715,6 +715,7 @@ const normalizeActiveGroup = payload => {
     ...payload,
     groupId: payload.groupId || payload.group_id || '',
     courseId: payload.courseId || payload.course_id || '',
+    status: payload.status || '',
     currentCount: Number(payload.currentCount ?? payload.current_count) || 0,
     targetCount: Number(payload.targetCount ?? payload.target_count) || 0,
     expireTime: payload.expireTime || payload.expire_time || '',

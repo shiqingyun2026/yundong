@@ -24,10 +24,10 @@
         <view class="section-title">拼团说明</view>
         <view class="section-desc">满 {{courseDetail.targetCount}} 人成团</view>
         <view class="section-desc">
-          拼团截止时间：{{groupDetail ? groupDetail.deadlineText : '开课前 12 小时'}}
+          拼团截止时间：{{groupDetail && groupDetail.deadlineText ? groupDetail.deadlineText : '开课前 12 小时'}}
         </view>
         <view class="section-desc">
-          未成团退款规则：{{groupDetail ? groupDetail.refundDesc : '未成团将自动原路退款'}}
+          未成团退款规则：{{groupDetail && groupDetail.refundDesc ? groupDetail.refundDesc : '未成团将自动原路退款'}}
         </view>
         <rich-text class="rich-text" nodes="{{courseDetail.paymentGroupNoteNodes}}"></rich-text>
       </view>

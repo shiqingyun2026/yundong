@@ -66,6 +66,7 @@ const hasUserJoinedCourseGroup = async ({ userId, courseId }) => {
     .select('id')
     .eq('user_id', userId)
     .eq('course_id', courseId)
+    .eq('status', 'success')
     .limit(1)
     .maybeSingle()
 
@@ -74,19 +75,6 @@ const hasUserJoinedCourseGroup = async ({ userId, courseId }) => {
   }
 
   return !!order
-}
-
-const markGroupOrdersSuccess = async groupId => {
-  try {
-    await supabase
-      .from('orders')
-      .update({
-        status: 'success'
-      })
-      .eq('group_id', groupId)
-  } catch (error) {
-    // Ignore optional order status synchronization failures for now.
-  }
 }
 
 router.post('/', authenticate, async (req, res) => {
@@ -168,51 +156,7 @@ router.post('/', authenticate, async (req, res) => {
         })
       }
 
-      const { error: insertMemberError } = await supabase
-        .from('group_members')
-        .insert({
-          group_id: existingGroup.id,
-          user_id: req.userId
-        })
-
-      if (insertMemberError) {
-        console.error('[orders] insert group member failed', {
-          courseId,
-          groupId: existingGroup.id,
-          userId: req.userId,
-          error: insertMemberError
-        })
-        throw insertMemberError
-      }
-
-      const nextCount = (Number(existingGroup.current_count) || 0) + 1
-      const shouldSuccess = nextCount >= (Number(existingGroup.target_count) || defaultTargetCount)
-
-      const { data: updatedGroup, error: updateGroupError } = await supabase
-        .from('groups')
-        .update({
-          current_count: nextCount,
-          status: shouldSuccess ? 'success' : existingGroup.status
-        })
-        .eq('id', existingGroup.id)
-        .select('id, course_id, status, current_count, target_count, expire_time')
-        .single()
-
-      if (updateGroupError) {
-        console.error('[orders] update group count failed', {
-          courseId,
-          groupId: existingGroup.id,
-          nextCount,
-          error: updateGroupError
-        })
-        throw updateGroupError
-      }
-
-      finalGroup = updatedGroup
-
-      if (shouldSuccess) {
-        await markGroupOrdersSuccess(existingGroup.id)
-      }
+      finalGroup = existingGroup
     } else {
       const targetCount = defaultTargetCount
 
@@ -222,7 +166,7 @@ router.post('/', authenticate, async (req, res) => {
           course_id: courseId,
           creator_id: req.userId,
           status: 'active',
-          current_count: 1,
+          current_count: 0,
           target_count: targetCount,
           expire_time: getExpireTimeAfterHours(24)
         })
@@ -236,23 +180,6 @@ router.post('/', authenticate, async (req, res) => {
           error: createGroupError
         })
         throw createGroupError
-      }
-
-      const { error: insertMemberError } = await supabase
-        .from('group_members')
-        .insert({
-          group_id: createdGroup.id,
-          user_id: req.userId
-        })
-
-      if (insertMemberError) {
-        console.error('[orders] insert creator member failed', {
-          courseId,
-          groupId: createdGroup.id,
-          userId: req.userId,
-          error: insertMemberError
-        })
-        throw insertMemberError
       }
 
       finalGroup = createdGroup

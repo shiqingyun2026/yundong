@@ -1,4 +1,4 @@
-const { fetchCourseDetail, fetchGroupDetail, createOrder, mockPaymentSuccess } = require('../../../utils/course')
+const { fetchCourseDetail, fetchActiveGroup, createOrder, mockPaymentSuccess } = require('../../../utils/course')
 
 Page({
   data: {
@@ -75,10 +75,14 @@ Page({
     try {
       const tasks = [fetchCourseDetail(courseId)]
       if (groupId) {
-        tasks.push(fetchGroupDetail(groupId))
+        tasks.push(fetchActiveGroup(courseId))
       }
 
-      const [courseDetail, groupDetail] = await Promise.all(tasks)
+      const [courseDetail, activeGroup] = await Promise.all(tasks)
+      const groupDetail =
+        groupId && activeGroup && activeGroup.groupId === groupId
+          ? activeGroup
+          : null
 
       if (!this._isAlive) {
         return

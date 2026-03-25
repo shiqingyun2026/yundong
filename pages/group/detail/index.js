@@ -272,7 +272,7 @@ Page({
 
     return {
       title: `邀请你加入「${groupDetail.courseInfo.title}」拼团`,
-      path: `/pages/group/detail/index?groupId=${groupDetail.groupId}`,
+      path: `/pages/course/detail/index?id=${groupDetail.courseId}&groupId=${groupDetail.groupId}`,
       imageUrl: groupDetail.courseInfo.cover,
       success: handleShareSuccess
     }

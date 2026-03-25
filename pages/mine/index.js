@@ -1,4 +1,4 @@
-const { login } = require('../../utils/auth')
+const { login, authDebugConfig } = require('../../utils/auth')
 
 const SERVICE_QR_CODE = 'https://dummyimage.com/240x240/f3f8ff/1677ff.png&text=%E5%AE%A2%E6%9C%8D%E4%BA%8C%E7%BB%B4%E7%A0%81'
 
@@ -32,6 +32,14 @@ Page({
   handleMenuTap(event) {
     const { key } = event.currentTarget.dataset
     if (key === 'group-buy') {
+      if (!this.data.userInfo) {
+        wx.showToast({
+          title: '请先登录',
+          icon: 'none'
+        })
+        return
+      }
+
       wx.navigateTo({
         url: '/pages/my/group-buy-list/index'
       })
@@ -74,7 +82,12 @@ Page({
       })
 
       wx.showToast({
-        title: result.mock ? '已登录，当前为 mock 模式' : '登录成功',
+        title:
+          authDebugConfig.USE_MOCK_USER && !result.mock
+            ? `登录成功(${authDebugConfig.MOCK_USER_ID})`
+            : result.mock
+              ? '已登录，当前为 mock 模式'
+              : '登录成功',
         icon: 'success'
       })
     } catch (error) {

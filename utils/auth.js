@@ -1,5 +1,9 @@
 const { post } = require('./request')
 
+// Development-only mock login switch. Keep disabled for production releases.
+const USE_MOCK_USER = true
+const MOCK_USER_ID = 'user3'
+
 const createMockToken = () => `mock-token-${Date.now()}`
 
 const pickUserInfo = (payload, fallbackUserInfo) => {
@@ -24,8 +28,23 @@ const pickUserInfo = (payload, fallbackUserInfo) => {
   }
 }
 
-const getLoginCode = () =>
-  new Promise((resolve, reject) => {
+const isReleaseEnv = () => {
+  try {
+    const accountInfo = wx.getAccountInfoSync && wx.getAccountInfoSync()
+    return accountInfo && accountInfo.miniProgram && accountInfo.miniProgram.envVersion === 'release'
+  } catch (error) {
+    return false
+  }
+}
+
+const isMockUserEnabled = () => USE_MOCK_USER && !isReleaseEnv()
+
+const getLoginCode = () => {
+  if (isMockUserEnabled()) {
+    return Promise.resolve(MOCK_USER_ID)
+  }
+
+  return new Promise((resolve, reject) => {
     wx.login({
       success(res) {
         if (res.code) {
@@ -40,6 +59,7 @@ const getLoginCode = () =>
       }
     })
   })
+}
 
 const getStableMockOpenId = () => {
   const storageKey = 'mockOpenId'
@@ -58,7 +78,7 @@ const login = async userInfo => {
   const loginCode = await getLoginCode()
   const payload = {
     code: loginCode,
-    mockOpenId: getStableMockOpenId()
+    mockOpenId: isMockUserEnabled() ? `mock_user_${MOCK_USER_ID}` : getStableMockOpenId()
   }
 
   try {
@@ -82,5 +102,9 @@ const login = async userInfo => {
 }
 
 module.exports = {
-  login
+  login,
+  authDebugConfig: {
+    USE_MOCK_USER,
+    MOCK_USER_ID
+  }
 }

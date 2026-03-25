@@ -95,10 +95,19 @@ Page({
   onLoad() {
     this._countdownTimer = null
     this._countdownStartTimer = null
+    this._hasLoadedOnce = false
     this.initLocationAndCourses()
   },
 
   onShow() {
+    if (this._hasLoadedOnce) {
+      this.loadCourseList({
+        page: 1,
+        showLoading: false
+      })
+      return
+    }
+
     this.scheduleCountdownTimer()
   },
 
@@ -133,6 +142,7 @@ Page({
     await this.loadCourseList({
       page: 1
     })
+    this._hasLoadedOnce = true
   },
 
   tryGetLocation() {

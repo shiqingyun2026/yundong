@@ -2,22 +2,26 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  padding: 32rpx 24rpx 40rpx;
-  background: #f7f8fa;
+  padding: 36rpx 24rpx 44rpx;
+  background:
+    radial-gradient(circle at top left, rgba(22, 119, 255, 0.12), transparent 36%),
+    linear-gradient(180deg, #f5f9ff 0%, #f7f8fa 38%, #f3f5f8 100%);
 }
 
 .agreement-header {
-  padding: 8rpx 8rpx 24rpx;
+  padding: 12rpx 8rpx 28rpx;
 }
 
 .agreement-title {
   font-size: 40rpx;
   font-weight: 700;
   color: #1f2329;
+  letter-spacing: 1rpx;
 }
 
 .agreement-subtitle {
-  margin-top: 16rpx;
+  max-width: 640rpx;
+  margin-top: 18rpx;
   font-size: 26rpx;
   line-height: 1.7;
   color: #5f6b7a;
@@ -25,25 +29,30 @@
 
 .agreement-tabs {
   display: flex;
-  gap: 16rpx;
+  gap: 10rpx;
+  padding: 10rpx;
   margin-bottom: 24rpx;
+  border-radius: 28rpx;
+  background: rgba(223, 232, 243, 0.72);
 }
 
 .agreement-tab {
   flex: 1;
   padding: 20rpx 24rpx;
-  border-radius: 999rpx;
-  background: #ffffff;
-  color: #5f6b7a;
+  border-radius: 20rpx;
+  background: transparent;
+  color: #6a7787;
   text-align: center;
-  font-size: 28rpx;
-  box-shadow: 0 8rpx 24rpx rgba(31, 35, 41, 0.04);
+  font-size: 26rpx;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .agreement-tab-active {
-  background: #1677ff;
-  color: #ffffff;
+  background: #ffffff;
+  color: #1677ff;
   font-weight: 600;
+  box-shadow: inset 0 0 0 2rpx rgba(22, 119, 255, 0.14), 0 8rpx 18rpx rgba(31, 35, 41, 0.06);
 }
 
 .agreement-content {
@@ -51,8 +60,11 @@
   min-height: 0;
   padding: 32rpx;
   border-radius: 32rpx;
-  background: #ffffff;
-  box-shadow: 0 12rpx 36rpx rgba(31, 35, 41, 0.06);
+  box-sizing: border-box;
+  border: 2rpx solid rgba(207, 217, 230, 0.9);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 16rpx 40rpx rgba(31, 35, 41, 0.08);
+  overflow: hidden;
 }
 
 .agreement-rich-text {
@@ -95,9 +107,9 @@
   align-items: flex-start;
   gap: 16rpx;
   padding: 24rpx;
-  border-radius: 24rpx;
-  background: #ffffff;
-  box-shadow: 0 8rpx 24rpx rgba(31, 35, 41, 0.04);
+  border-radius: 28rpx;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 12rpx 28rpx rgba(31, 35, 41, 0.06);
 }
 
 .agreement-checkbox checkbox {
@@ -105,11 +117,22 @@
   transform-origin: left top;
 }
 
-.agreement-checkbox-text {
+.agreement-checkbox-content {
   flex: 1;
+}
+
+.agreement-checkbox-text {
   font-size: 26rpx;
+  line-height: 1.6;
+  color: #1f2329;
+  font-weight: 600;
+}
+
+.agreement-checkbox-tip {
+  margin-top: 8rpx;
+  font-size: 22rpx;
   line-height: 1.7;
-  color: #3c4655;
+  color: #7b8694;
 }
 
 .agreement-actions {
@@ -121,10 +144,16 @@
 .footer-button {
   flex: 1;
   height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   border-radius: 999rpx;
   border: none;
   font-size: 30rpx;
-  line-height: 88rpx;
+  line-height: 1;
+  font-weight: 600;
+  box-shadow: 0 12rpx 28rpx rgba(31, 35, 41, 0.08);
 }
 
 .footer-button::after {
@@ -132,11 +161,11 @@
 }
 
 .reject-button {
-  background: #edf1f5;
+  background: #eef2f6;
   color: #5f6b7a;
 }
 
 .agree-button {
-  background: #1677ff;
+  background: linear-gradient(135deg, #1677ff 0%, #3a95ff 100%);
   color: #ffffff;
 }

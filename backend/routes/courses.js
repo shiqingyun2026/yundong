@@ -122,6 +122,18 @@ const getRemainingSeconds = expireTime => {
   return Math.max(0, Math.floor((expireAt.getTime() - Date.now()) / 1000))
 }
 
+const normalizeGroupStatus = status => {
+  if (status === 'active') {
+    return 'ongoing'
+  }
+
+  if (status === 'success') {
+    return 'success'
+  }
+
+  return 'failed'
+}
+
 const resolveUserIdFromRequest = req => {
   const authorization = req.headers.authorization || ''
   const [scheme, token] = authorization.split(' ')
@@ -214,6 +226,7 @@ const mapCourseDetail = (course, activeGroup) => ({
 const mapActiveGroup = (group, members) => ({
   groupId: group.id,
   courseId: group.course_id,
+  status: normalizeGroupStatus(group.status),
   currentCount: Number(group.current_count) || 0,
   targetCount: Number(group.target_count) || 0,
   expireTime: group.expire_time,
@@ -353,7 +366,7 @@ router.get('/:id', async (req, res) => {
 
 router.get('/:id/active-group', async (req, res) => {
   try {
-    const { data: group, error } = await supabase
+    let { data: group, error } = await supabase
       .from('groups')
       .select('id, course_id, current_count, target_count, expire_time, status')
       .eq('course_id', req.params.id)
@@ -365,6 +378,23 @@ router.get('/:id/active-group', async (req, res) => {
 
     if (error) {
       throw error
+    }
+
+    if (!group) {
+      const { data: latestGroup, error: latestGroupError } = await supabase
+        .from('groups')
+        .select('id, course_id, current_count, target_count, expire_time, status')
+        .eq('course_id', req.params.id)
+        .in('status', ['success', 'failed'])
+        .order('expire_time', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (latestGroupError) {
+        throw latestGroupError
+      }
+
+      group = latestGroup
     }
 
     if (!group) {

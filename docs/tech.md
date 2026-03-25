@@ -1,682 +1,498 @@
-
-
 # 邻动体适能小程序 技术设计文档
 
-
-
-| 文档版本 | 修改日期       | 修改人   | 修改内容                     |
-| ---- | ---------- | ----- | ------------------------ |
-| V1.0 | 2026-03-20 | 技术负责人 | 基于PRD V1.6创建，适配微信小程序技术框架 |
-
-
+| 文档版本 | 修改日期 | 修改人 | 修改内容 |
+| ---- | ---------- | ----- | ---- |
+| V1.0 | 2026-03-20 | 技术负责人 | 初版创建 |
+| V1.1 | 2026-03-25 | 技术负责人 | 根据当前小程序实现同步更新：新增协议页、支付结果页、我的拼团页；移除手机号授权；支付改为模拟支付；补充 mock 降级策略与本地后端结构 |
+| V1.2 | 2026-03-25 | 技术负责人 | 同步当前真实联调状态：后端改为 Express + Supabase；新增 mock 支付成功接口；统一课程/拼团字段口径与活跃拼团模型 |
 
 ## 1. 技术架构概述
 
-
-
-### 1.1 整体架构
-
-本系统采用微信小程序 + 自建后端RESTful API架构，主要组件如下：
-
-
-
-* **前端**：微信小程序（原生开发），负责用户交互、页面渲染、调用微信原生能力（登录、支付、分享、定位）。
-
-* **后端**：Node.js + Express（推荐）或Java Spring Boot，提供业务API接口，处理业务逻辑、数据持久化、与微信服务器交互。
-
-* **数据库**：MySQL 8.0+，存储用户、课程、拼团、订单、公告等业务数据。
-
-* **缓存**：Redis 6.0+，用于存储热点数据（如课程列表、拼团状态）、实现分布式锁（防止并发开团）。
-
-* **对象存储**：腾讯云COS/阿里云OSS，存储课程图片、教练证书等静态资源。
-
-* **部署环境**：腾讯云/阿里云云服务器，配置HTTPS证书，保证接口安全。
-
-
-
-### 1.2 技术选型建议
-
-| 组件   | 推荐技术栈             | 说明              |
-| ---- | ----------------- | --------------- |
-| 前端   | 微信小程序原生框架         | 性能最佳，直接调用微信API  |
-| 后端   | Node.js + Express | 轻量、开发效率高，便于快速迭代 |
-| 数据库  | MySQL 8.0+        | 关系型数据，支持事务      |
-| 缓存   | Redis 6.0+        | 支持分布式锁、缓存热点数据   |
-| 对象存储 | 腾讯云COS            | 与微信生态集成度高       |
-| 部署   | 腾讯云CVM + Nginx    | HTTPS代理，负载均衡    |
-
-
-
-### 1.3 核心业务流程
-
-1. **课程配置**：运营后台录入课程，写入 `course` 表。
-
-2. **用户登录**：小程序调用 `wx.login` 获取code，后端换取openid，生成token返回。
-
-3) **开团**：用户发起开团，后端检查课程是否已有进行中拼团（`group` 表 `course_id` 且 `status=0`），若无则创建拼团和订单，返回支付参数；若有则返回错误。
-
-4) **参团**：用户加入已有拼团，创建订单并返回支付参数。
-
-5. **支付**：用户调起微信支付，支付结果通过回调通知后端，更新订单状态和拼团人数，若达到成团人数则更新拼团状态为已成团。
-
-6. **拼团状态检查**：定时任务扫描进行中的拼团，若超过截止时间未成团则自动退款。
-
-7) **我的拼团**：用户查看参与的拼团列表及详情。
-
-
-
-## 2. 数据库设计
-
-
-
-### 2.1 数据表清单
-
-| 表名             | 说明        |
-| -------------- | --------- |
-| `user`         | 用户表       |
-| `course`       | 课程表       |
-| `group`        | 拼团表（拼团实例） |
-| `order`        | 订单表       |
-| `banner`       | 首页Banner表 |
-| `announcement` | 公告表       |
-| `admin`        | 后台管理员表    |
-
-
-
-### 2.2 表结构详情
-
-
-
-#### 2.2.1 `user`（用户表）
-
-| 字段名          | 类型           | 约束                          | 说明                      |
-| ------------ | ------------ | --------------------------- | ----------------------- |
-| id           | bigint       | PRIMARY KEY AUTO\_INCREMENT | 用户ID                    |
-| openid       | varchar(64)  | UNIQUE NOT NULL             | 微信openid                |
-| unionid      | varchar(64)  |                             | 微信unionid（可选）           |
-| nick\_name   | varchar(64)  |                             | 微信昵称                    |
-| avatar\_url  | varchar(255) |                             | 头像URL                   |
-| phone        | varchar(20)  |                             | 手机号（授权后获取）              |
-| session\_key | varchar(64)  |                             | 微信session\_key（用于解密手机号） |
-| create\_time | datetime     | NOT NULL                    | 注册时间                    |
-| update\_time | datetime     | NOT NULL                    | 更新时间                    |
-
-
-
-#### 2.2.2 `course`（课程表）
-
-| 字段名                 | 类型            | 约束                          | 说明                |
-| ------------------- | ------------- | --------------------------- | ----------------- |
-| id                  | bigint        | PRIMARY KEY AUTO\_INCREMENT | 课程ID              |
-| title               | varchar(100)  | NOT NULL                    | 课程名称              |
-| cover               | varchar(255)  |                             | 封面图URL            |
-| images              | text          |                             | 轮播图JSON数组         |
-| description         | text          |                             | 课程介绍（富文本）         |
-| age\_range          | varchar(20)   |                             | 适用年龄，如“3-6岁”      |
-| original\_price     | int           | NOT NULL                    | 原价（分）             |
-| group\_price        | int           | NOT NULL                    | 拼团价（分）            |
-| target\_count       | int           | NOT NULL                    | 成团人数              |
-| start\_time         | datetime      | NOT NULL                    | 上课开始时间            |
-| end\_time           | datetime      | NOT NULL                    | 上课结束时间            |
-| location\_district  | varchar(50)   |                             | 所在区域（如“南山区”）      |
-| location\_community | varchar(50)   |                             | 小区名称              |
-| location\_detail    | varchar(100)  |                             | 详细地点              |
-| longitude           | decimal(10,7) |                             | 经度（用于距离计算）        |
-| latitude            | decimal(10,7) |                             | 纬度                |
-| deadline            | datetime      | NOT NULL                    | 报名截止时间            |
-| coach\_name         | varchar(50)   |                             | 教练姓名              |
-| coach\_intro        | text          |                             | 教练简介              |
-| coach\_cert         | text          |                             | 教练证书图片JSON数组      |
-| status              | tinyint       | NOT NULL DEFAULT 0          | 0-待开始,1-进行中,2-已结束 |
-| create\_time        | datetime      | NOT NULL                    | 创建时间              |
-| update\_time        | datetime      | NOT NULL                    | 更新时间              |
-
-
-
-#### 2.2.3 `group`（拼团表）
-
-| 字段名            | 类型       | 约束                          | 说明                           |
-| -------------- | -------- | --------------------------- | ---------------------------- |
-| id             | bigint   | PRIMARY KEY AUTO\_INCREMENT | 拼团ID                         |
-| course\_id     | bigint   | FOREIGN KEY (course.id)     | 关联课程ID                       |
-| current\_count | int      | NOT NULL DEFAULT 1          | 当前参团人数（包含第一个支付用户）            |
-| target\_count  | int      | NOT NULL                    | 成团人数（冗余course.target\_count） |
-| status         | tinyint  | NOT NULL DEFAULT 0          | 0-进行中,1-已成团,2-已失败            |
-| deadline       | datetime | NOT NULL                    | 报名截止时间（冗余course.deadline）    |
-| create\_time   | datetime | NOT NULL                    | 创建时间                         |
-| update\_time   | datetime | NOT NULL                    | 更新时间                         |
-
-
-
-**索引**：`(course_id, status)` 联合索引，用于快速查询课程是否有进行中拼团。
-
-
-
-#### 2.2.4 `order`（订单表）
-
-| 字段名             | 类型           | 约束                          | 说明                       |
-| --------------- | ------------ | --------------------------- | ------------------------ |
-| id              | bigint       | PRIMARY KEY AUTO\_INCREMENT | 订单ID                     |
-| order\_no       | varchar(32)  | UNIQUE NOT NULL             | 订单号（业务生成，如时间戳+随机数）       |
-| user\_id        | bigint       | FOREIGN KEY (user.id)       | 用户ID                     |
-| course\_id      | bigint       | FOREIGN KEY (course.id)     | 课程ID                     |
-| group\_id       | bigint       | FOREIGN KEY (group.id)      | 拼团ID                     |
-| amount          | int          | NOT NULL                    | 支付金额（分）                  |
-| status          | tinyint      | NOT NULL DEFAULT 0          | 0-待支付,1-已支付,2-已退款,3-支付失败 |
-| pay\_time       | datetime     |                             | 支付时间                     |
-| refund\_time    | datetime     |                             | 退款时间                     |
-| refund\_reason  | varchar(255) |                             | 退款原因                     |
-| out\_trade\_no  | varchar(64)  |                             | 微信支付商户订单号（微信侧生成）         |
-| transaction\_id | varchar(64)  |                             | 微信支付交易号                  |
-| create\_time    | datetime     | NOT NULL                    | 创建时间                     |
-| update\_time    | datetime     | NOT NULL                    | 更新时间                     |
-
-
-
-**索引**：`order_no` 唯一索引；`user_id`；`group_id`。
-
-
-
-#### 2.2.5 `banner`（Banner表）
-
-| 字段名          | 类型           | 约束                          | 说明                  |
-| ------------ | ------------ | --------------------------- | ------------------- |
-| id           | int          | PRIMARY KEY AUTO\_INCREMENT |                     |
-| image\_url   | varchar(255) | NOT NULL                    | 图片URL               |
-| link\_type   | tinyint      |                             | 0-无链接,1-课程详情,2-页面路径 |
-| link\_value  | varchar(255) |                             | 课程ID或页面路径           |
-| sort         | int          | NOT NULL DEFAULT 0          | 排序                  |
-| status       | tinyint      | NOT NULL DEFAULT 1          | 0-隐藏,1-显示           |
-| create\_time | datetime     | NOT NULL                    |                     |
-
-
-
-#### 2.2.6 `announcement`（公告表）
-
-| 字段名          | 类型           | 约束                          | 说明        |
-| ------------ | ------------ | --------------------------- | --------- |
-| id           | int          | PRIMARY KEY AUTO\_INCREMENT |           |
-| title        | varchar(100) | NOT NULL                    | 标题        |
-| content      | text         | NOT NULL                    | 内容        |
-| status       | tinyint      | NOT NULL DEFAULT 1          | 0-隐藏,1-显示 |
-| create\_time | datetime     | NOT NULL                    |           |
-
-
-
-#### 2.2.7 `admin`（管理员表）
-
-| 字段名          | 类型           | 约束                          | 说明           |
-| ------------ | ------------ | --------------------------- | ------------ |
-| id           | int          | PRIMARY KEY AUTO\_INCREMENT |              |
-| username     | varchar(50)  | UNIQUE NOT NULL             | 用户名          |
-| password     | varchar(255) | NOT NULL                    | 加密密码（bcrypt） |
-| last\_login  | datetime     |                             | 最后登录时间       |
-| create\_time | datetime     | NOT NULL                    |              |
-
-
-
-## 3. 接口设计
-
-
-
-### 3.1 接口规范
-
-* **基础路径**：`https://api.example.com/api/v1`（需配置HTTPS）
-
-* **请求方式**：GET/POST/PUT/DELETE
-
-* **数据格式**：JSON
-
-* **认证方式**：JWT token，在请求头 `Authorization: Bearer <token>` 中传递；token从登录接口获取。
-
-* **响应格式**：
-
-
-
-### 3.2 家长端接口
-
-
-
-#### 3.2.1 用户登录
-
-* **URL**：`/user/login`
-
-* **Method**：POST
-
+### 1.1 当前整体架构
+
+当前系统采用“微信原生小程序前端 + 本地 Node.js/Express 后端 + Supabase(PostgreSQL)”的开发架构：
+
+* **前端**：微信小程序原生框架，负责页面渲染、用户交互、调用微信原生能力（登录、定位、分享、图片预览）。
+* **后端**：Node.js + Express，提供 RESTful API，处理登录、课程、拼团、订单、模拟支付等业务逻辑。
+* **数据库**：Supabase（PostgreSQL），后端通过 `@supabase/supabase-js` 访问。
+* **本地开发地址**：`http://127.0.0.1:8000`
+* **降级策略**：前端采用“真实接口优先，网络不可用时自动回退 mock 数据”的机制；若后端已明确返回 `401/403/500` 等错误，则不再静默回退 mock，便于联调排查。
+
+### 1.2 前端技术选型
+
+| 组件 | 当前方案 | 说明 |
+| ---- | ---- | ---- |
+| 前端框架 | 微信小程序原生框架 | 满足性能与原生能力调用需求 |
+| 样式方案 | `wxss` + 全局基础样式 | 结合页面级样式与通用卡片能力 |
+| 请求层 | `utils/request.js` | 统一封装 `baseURL`、token 注入、错误处理 |
+| 登录封装 | `utils/auth.js` | 统一处理 `wx.login`、`wx.getUserProfile`、稳定 `mockOpenId` |
+| 业务数据封装 | `utils/course.js` | 封装课程、拼团、订单、支付相关真实接口与 mock 兜底 |
+| 组件 | 原生自定义组件 | 当前包含 `loading-view`、`empty-state`、`base-modal` |
+
+### 1.3 后端技术选型
+
+| 组件 | 当前方案 | 说明 |
+| ---- | ---- | ---- |
+| 运行时 | Node.js | 本地轻量开发 |
+| Web 框架 | Express | 路由清晰，便于快速联调 |
+| 数据库 | Supabase (PostgreSQL) | 通过 `@supabase/supabase-js` 访问 |
+| 鉴权 | JWT Bearer Token | `jsonwebtoken` 签发，`Authorization: Bearer <token>` |
+| 环境变量 | dotenv | 管理 `PORT / SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / JWT_SECRET` |
+
+### 1.4 当前核心业务流程
+
+1. 小程序启动后先检查协议同意状态，未同意则强制进入协议页。
+2. 用户可未登录浏览首页和课程详情。
+3. 用户在“我的”页点击登录，前端通过 `wx.getUserProfile + wx.login` 获取头像昵称和 `code`，请求后端 `/api/auth/login`。
+4. 为避免本地联调时每次登录生成新用户，前端会额外带上稳定 `mockOpenId`。
+5. 首页获取定位并请求课程列表；若网络不可用则回退默认坐标和 mock 数据。
+6. 课程详情页请求课程详情和当前进行中的拼团信息。
+7. 用户从详情页点击“立即开团/去参团”时，先调用 `POST /api/orders` 创建订单。
+8. 支付确认页请求课程信息和可选的拼团信息；当前仍使用模拟支付，不调起真实微信支付。
+9. 用户点击确认支付后，前端调用 `POST /api/payments/mock-success` 更新订单状态与拼团状态。
+10. 支付结果页再进入拼团详情页，查看实时拼团状态。
+11. “我的拼团”列表页展示当前用户参与的拼团，并支持状态筛选、倒计时、下拉刷新、上拉加载更多。
+
+## 2. 小程序目录与页面结构
+
+### 2.1 页面路由
+
+当前 `app.json` 已注册的页面如下：
+
+| 页面路径 | 说明 |
+| ---- | ---- |
+| `pages/agreement/index` | 启动协议页 |
+| `pages/home/index` | 首页课程列表 |
+| `pages/course/detail/index` | 课程详情页 |
+| `pages/payment/confirm/index` | 支付确认页 |
+| `pages/payment/result/index` | 支付结果页 |
+| `pages/group/detail/index` | 拼团详情页 |
+| `pages/my/group-buy-list/index` | 我的拼团列表页 |
+| `pages/mine/index` | 我的页面 |
+
+### 2.2 TabBar
+
+当前底部 TabBar 仅保留两个入口：
+
+* 首页：`pages/home/index`
+* 我的：`pages/mine/index`
+
+### 2.3 公共组件
+
+| 组件路径 | 说明 |
+| ---- | ---- |
+| `components/loading/index` | 通用加载态 |
+| `components/empty-state/index` | 通用空状态 |
+| `components/base-modal/index` | 通用弹窗，用于客服二维码等场景 |
+
+## 3. 前端全局状态与公共能力
+
+### 3.1 `app.js` 全局状态
+
+当前 `app.js` 中的 `globalData` 主要包括：
+
+| 字段 | 说明 |
+| ---- | ---- |
+| `baseURL` | 接口基础地址，当前为 `http://127.0.0.1:8000` |
+| `token` | 登录 token |
+| `userInfo` | 用户基础信息，仅包含头像、昵称等 |
+| `location` | 当前定位信息 |
+| `agreementAccepted` | 协议是否已同意 |
+| `pendingOrder` | 当前待处理订单上下文 |
+| `forceMock` | 可选 mock 强制开关，默认不启用 |
+| `systemInfo` | 小程序设备信息 |
+| `navbarHeight` | 自定义导航相关高度 |
+
+### 3.2 当前全局方法
+
+| 方法 | 说明 |
+| ---- | ---- |
+| `setAgreementAccepted` | 写入协议同意状态并持久化 |
+| `ensureAgreementAccepted` | 启动时守卫协议页 |
+| `setUserInfo` | 同步用户信息到全局和本地缓存 |
+| `setToken` | 同步 token 到全局和本地缓存 |
+| `setLocation` | 同步定位到全局和本地缓存 |
+
+### 3.3 请求封装 `utils/request.js`
+
+请求层统一实现了：
+
+* 从 `app.globalData.baseURL` 读取基础地址
+* 自动拼接完整 URL
+* 自动读取 `wx.getStorageSync('token')`，追加 `Authorization: Bearer <token>`
+* 对真实后端错误保留原始状态码与 `message`
+* HTTP 401 时自动清理本地 token，并同步清空 `app.globalData.token`
+* 默认错误 toast 提示
+* 控制台输出请求开始、成功、失败日志，便于联调排查
+
+当前导出方法：
+
+* `request`
+* `get`
+* `post`
+* `put`
+* `del`
+
+## 4. 当前业务模块实现
+
+### 4.1 协议页
+
+* 页面：`pages/agreement/index`
+* 数据来源：本地静态富文本
+* 逻辑：
+  * 首次启动强制展示
+  * 用户勾选“我已阅读并同意”后才可进入首页
+  * 拒绝时提示“您需要同意协议才能使用本小程序”
+  * 支持环境下调用 `wx.exitMiniProgram`，不支持时停留在协议页
+
+### 4.2 登录
+
+* 页面入口：`pages/mine/index`
+* 当前登录方式：
+  * `wx.getUserProfile`
+  * `wx.login`
+  * `POST /api/auth/login`
+* 当前只保留：
+  * `nickName`
+  * `avatarUrl`
+  * `token`
+* 已明确移除：
+  * 手机号授权
+  * `wx.getPhoneNumber`
+  * 手机号本地存储和绑定流程
+
+### 4.3 首页课程列表
+
+* 页面：`pages/home/index`
+* 核心能力：
+  * 自动定位
+  * 顶部定位栏可重新定位
+  * Tab 切换：全部课程 / 最近开课
+  * 下拉刷新
+  * 上拉加载更多
+  * 首页卡片倒计时展示
+* 当前产品口径：
+  * 课程名称使用 `name`
+  * 上课时间仅展示 `start_time`
+  * 价格按“元”展示，不做分转元
+  * “已拼人数”“即将成团”“倒计时”统一基于 `activeGroup`
+  * 若无 `activeGroup`，则不展示人数和倒计时
+
+### 4.4 课程详情
+
+* 页面：`pages/course/detail/index`
+* 展示内容：
+  * 轮播图
+  * 课程信息卡片
+  * 课程介绍
+  * 拼团规则
+  * 教练信息
+  * 保险说明
+  * 当前拼团状态展示
+* 当前产品口径：
+  * `x人成团`、`已拼x人`、倒计时都基于 `activeGroup`
+  * 无活跃拼团时隐藏人数并显示“立即开团”
+  * 拼团模块不展示成员头像
+  * 主操作统一保留在底部固定栏
+
+### 4.5 支付确认与支付结果
+
+* 支付确认页：`pages/payment/confirm/index`
+* 支付结果页：`pages/payment/result/index`
+* 当前实现：
+  * 订单信息展示来自课程与拼团数据
+  * 必须勾选课程协议才能继续
+  * 当前支付为模拟支付，不调用 `wx.requestPayment`
+  * 若未创建订单，则点击确认支付时先调用 `POST /api/orders`
+  * 模拟支付成功后再调用 `POST /api/payments/mock-success`
+  * 成功跳转支付结果页 `status=success`
+  * 失败跳转支付结果页 `status=fail`
+
+### 4.6 拼团详情
+
+* 页面：`pages/group/detail/index`
+* 展示内容：
+  * 状态标签
+  * 完整课程信息
+  * 拼团进度
+  * 成员列表
+  * 底部操作区
+* 分享逻辑：
+  * 使用微信原生分享
+  * 分享成功后仅 `wx.showToast({ title: '分享成功', icon: 'success', duration: 2000 })`
+  * 不弹额外模态框，不跳转
+* 访问控制：
+  * 仅拼团成员允许访问详情页
+
+### 4.7 我的页面与我的拼团
+
+* “我的”页面：`pages/mine/index`
+  * 未登录显示“点击登录”
+  * 已登录显示头像昵称
+  * 支持退出登录
+  * 当前只保留“我的拼团”“联系客服”核心入口
+* 我的拼团列表：`pages/my/group-buy-list/index`
+  * 状态筛选：全部、进行中、已成团、已失败
+  * 进行中支持倒计时
+  * 支持下拉刷新和上拉加载更多
+
+## 5. 当前后端结构
+
+### 5.1 后端目录
+
+当前项目根目录下已生成 `backend/` 本地后端，主要结构如下：
+
+| 路径 | 说明 |
+| ---- | ---- |
+| `backend/server.js` | 服务入口 |
+| `backend/middleware/auth.js` | JWT 鉴权中间件 |
+| `backend/utils/supabase.js` | Supabase 客户端初始化 |
+| `backend/routes/auth.js` | 登录接口 |
+| `backend/routes/courses.js` | 课程列表 / 课程详情 / 当前拼团 |
+| `backend/routes/groups.js` | 拼团详情 |
+| `backend/routes/user.js` | 用户拼团列表 |
+| `backend/routes/orders.js` | 创建订单（开团/参团） |
+| `backend/routes/payments.js` | mock 支付成功回调 |
+
+### 5.2 当前数据表
+
+当前 Supabase 后端已联调的数据表：
+
+| 表名 | 说明 |
+| ---- | ---- |
+| `users` | 用户表 |
+| `courses` | 课程表 |
+| `groups` | 拼团表 |
+| `group_members` | 拼团成员表 |
+| `orders` | 订单表 |
+
+### 5.3 当前字段与状态口径
+
+当前拼团状态使用字符串：
+
+| 状态值 | 说明 |
+| ---- | ---- |
+| `active` | 进行中 |
+| `success` | 已成团 |
+| `failed` | 已失败 |
+
+前端展示层当前会把 `active` 映射为 `ongoing`。
+
+订单当前主要状态：
+
+| 状态值 | 说明 |
+| ---- | ---- |
+| `created` | 已创建，待支付确认 |
+| `success` | 已支付成功 |
+
+关键字段口径：
+
+* 课程名称：`courses.name`
+* 课程地址：`courses.address`
+* 适用年龄：`courses.age_limit`
+* 保险说明：`courses.insurance_desc`
+* 客服二维码：`courses.service_qr_code`
+* 当前人数：`groups.current_count`
+* 成团人数：`groups.target_count`
+* 拼团截止时间：`groups.expire_time`
+* 课程表不再维护 `joined_count` / `target_count`
+
+## 6. 接口设计
+
+### 6.1 当前接口基础信息
+
+* **基础地址**：`http://127.0.0.1:8000`
+* **认证方式**：Bearer Token
+* **返回风格**：当前后端以直接返回业务 JSON 为主，错误时返回标准 HTTP 状态码与 `{ message }`
+
+### 6.2 已落地接口
+
+#### 6.2.1 登录
+
+* **URL**：`POST /api/auth/login`
 * **请求参数**：
 
-* **响应**：
+```json
+{
+  "code": "wx_login_code",
+  "mockOpenId": "mock_user_xxx"
+}
+```
 
-* **说明**：后端通过code调用微信接口 `jscode2session` 获取openid和session\_key，生成JWT token返回。首次登录自动创建用户记录。
+说明：
 
+* 前端当前会传 `code`
+* 也会附带 `mockOpenId` 作为本地稳定身份辅助字段
 
+#### 6.2.2 首页课程列表
 
-#### 3.2.2 绑定手机号
+* **URL**：`GET /api/courses`
+* **Query 参数**：
+  * `lat`
+  * `lng`
+  * `sort`：`distance` / `time`
+  * `page`
+  * `pageSize`
+* **当前返回重点**：
+  * 课程基础信息
+  * `activeGroup`
+    * `groupId`
+    * `currentCount`
+    * `targetCount`
+    * `expireTime`
 
-* **URL**：`/user/bind-phone`
+#### 6.2.3 课程详情
 
-* **Method**：POST
+* **URL**：`GET /api/courses/:id`
 
+#### 6.2.4 当前进行中的拼团
+
+* **URL**：`GET /api/courses/:id/active-group`
+
+#### 6.2.5 拼团详情
+
+* **URL**：`GET /api/groups/:id`
+* **认证**：需要 token
+* **访问控制**：仅拼团成员允许访问
+
+#### 6.2.6 用户拼团列表
+
+* **URL**：`GET /api/user/groups`
+* **认证**：需要 token
+* **Query 参数**：
+  * `status`
+  * `page`
+  * `pageSize`
+
+#### 6.2.7 创建订单
+
+* **URL**：`POST /api/orders`
+* **认证**：需要 token
 * **请求参数**：
 
-* **响应**：标准返回
+```json
+{
+  "courseId": "course-101",
+  "groupId": "group-101"
+}
+```
 
-* **说明**：使用session\_key解密获取手机号，更新用户表phone字段。可跳过。
+说明：
 
+* 开团时 `groupId` 可为空
+* 参团时传入当前进行中的拼团 `groupId`
 
+#### 6.2.8 mock 支付成功
 
-#### 3.2.3 获取首页课程列表
-
-* **URL**：`/course/list`
-
-* **Method**：GET
-
-* **请求参数**（Query String）：
-
-  * `tab`：string，`all`（全部课程，默认）或 `recent`（最近开课）
-
-  * `latitude`：number，用户纬度（用于距离计算，全部课程时需要）
-
-  * `longitude`：number，用户经度
-
-  * `page`：int，页码，默认1
-
-  * `size`：int，每页条数，默认10
-
-* **响应**：
-
-* **说明**：只返回报名截止时间未过的课程（`deadline > now`）。`current_count` 通过关联 `group` 表（`course_id` 且 `status=0`）获取，若无则为0。
-
-
-
-#### 3.2.4 获取课程详情
-
-* **URL**：`/course/{courseId}`
-
-* **Method**：GET
-
-* **响应**：
-
-
-
-#### 3.2.5 开团（创建拼团并下单）
-
-* **URL**：`/group/create`
-
-* **Method**：POST
-
+* **URL**：`POST /api/payments/mock-success`
+* **认证**：需要 token
 * **请求参数**：
 
-* **响应**：
+```json
+{
+  "orderId": "order-xxx",
+  "groupId": "group-xxx"
+}
+```
 
-* **错误码**：
+* **当前行为**：
+  * 更新 `orders.status = 'success'`
+  * 若订单关联拼团，则校验成员关系
+  * 必要时补写 `group_members`
+  * 必要时更新 `groups.current_count`
+  * 达到成团人数后更新 `groups.status = 'success'`
 
-  * 1001：课程不存在
+## 7. mock 降级策略
 
-  * 1002：课程已截止报名
+### 7.1 原则
 
-  * 1003：该课程已有进行中拼团，请直接加入
+前端当前采用“真实接口优先，网络不可用时降级 mock”的策略，保证本地无后端、网络异常等情况下仍能演示完整流程。
 
-* **说明**：
+### 7.2 已覆盖的接口降级
 
-  * 需检查课程是否存在且 `deadline > now`。
+| 接口 | 降级情况 |
+| ---- | ---- |
+| `POST /api/auth/login` | 已支持 mock token 和 mock 用户信息 |
+| `GET /api/courses` | 已支持 mock 课程列表 |
+| `GET /api/courses/:id` | 已支持 mock 课程详情 |
+| `GET /api/courses/:id/active-group` | 已支持 mock 进行中拼团 |
+| `GET /api/groups/:id` | 已支持 mock 拼团详情 |
+| `GET /api/user/groups` | 已支持 mock 我的拼团列表 |
+| `POST /api/orders` | 已支持 mock 创建订单 |
 
-  * 使用Redis分布式锁（key=`course:lock:{courseId}`）防止并发开团。若获取锁失败，重试或返回错误。
+补充说明：
 
-  * 检查 `group` 表中是否有该课程 `status=0` 的拼团，若有则返回错误码1003。
+* `POST /api/payments/mock-success` 当前要求真实后端可用，不提供前端 mock 回退
+* 对 `401/403` 等鉴权错误，前端不再自动切 mock，而是引导用户重新登录
 
-  * 若无，则开启数据库事务：
+### 7.3 mock 数据统一位置
 
-    * 创建拼团记录（`status=0`, `current_count=0`）。
+当前 mock 业务数据主要集中在：
 
-    * 创建订单记录（`status=0`待支付）。
+* `utils/course.js`
+* `utils/auth.js`
 
-    * 调用微信统一下单接口，获取prepay\_id。
+## 8. 页面稳定性处理
 
-    * 更新订单的 `out_trade_no`。
+以下页面已补充“页面卸载后不再执行 UI 更新”的保护：
 
-    * 提交事务。
+| 页面 | 处理 |
+| ---- | ---- |
+| `pages/home/index` | 页面级倒计时定时器延迟启动与清理 |
+| `pages/course/detail/index` | `_isAlive` + 倒计时延迟启动 + `safeSetData` |
+| `pages/payment/confirm/index` | `_isAlive` + 定时器清理 + `safeSetData` |
+| `pages/payment/result/index` | `_isAlive` + 定时器清理 + `safeSetData` |
+| `pages/group/detail/index` | `_isAlive` + 定时器清理 + `safeSetData` |
 
-  * 返回支付参数。
+统一约束：
 
+* `onUnload` 中清理所有 `setTimeout / setInterval`
+* 异步回调中先判断 `_isAlive`
+* 避免页面销毁后继续 `setData`、toast 或跳转
 
+## 9. 本地开发说明
 
-#### 3.2.6 参团（加入已有拼团并下单）
+### 9.1 前端
 
-* **URL**：`/group/join`
+* 使用微信开发者工具打开项目根目录
+* 已开启开发环境“不校验合法域名”
+* `baseURL` 当前配置为 `http://127.0.0.1:8000`
 
-* **Method**：POST
+### 9.2 后端
 
-* **请求参数**：
+启动方式：
 
-* **响应**：同开团接口
+```bash
+cd /Users/yun/lindong/backend
+npm install
+node server.js
+```
 
-* **错误码**：
+启动后可通过以下接口验证：
 
-  * 1004：拼团不存在
+* `GET /health`
+* `POST /api/auth/login`
+* `GET /api/courses`
 
-  * 1005：拼团已结束（已成团或已失败）
+### 9.3 当前联调建议
 
-  * 1006：拼团已满员（`current_count >= target_count`）
+建议按以下顺序验证：
 
-  * 1007：课程已截止报名
+1. 启动后端，确认 `/health` 可访问
+2. 在“我的”页完成登录，确认 token 写入本地
+3. 打开首页验证课程列表、活跃拼团信息和倒计时
+4. 进入课程详情验证详情与当前拼团
+5. 进入支付确认页验证订单信息、创建订单和 mock 支付成功回写
+6. 进入支付结果页和拼团详情页验证跳转链路与人数刷新
+7. 在“我的拼团”验证状态筛选、刷新与分页
 
-* **说明**：
+## 10. 后续技术演进建议
 
-  * 检查拼团是否存在且 `status=0`，且 `deadline > now`。
-
-  * 若 `current_count >= target_count` 返回错误。
-
-  * 创建订单（待支付），调用统一下单，返回支付参数。
-
-  * 注意：支付成功前，拼团人数未增加，因此无需更新拼团。
-
-
-
-#### 3.2.7 支付结果通知（微信服务器回调）
-
-* **URL**：`/pay/notify`（需公网可访问，且为POST）
-
-* **说明**：微信支付结果回调接口，处理支付成功/失败。需验证签名。
-
-* **处理逻辑**：
-
-  * 验证签名，解析通知数据。
-
-  * 根据 `out_trade_no` 查询订单。
-
-  * 若支付成功：
-
-    * 更新订单状态为已支付（`status=1`），记录 `transaction_id` 和支付时间。
-
-    * 更新对应拼团的 `current_count` 加1（使用乐观锁或行锁，防止并发）。
-
-    * 判断更新后的 `current_count` 是否等于 `target_count`，若是则更新拼团状态为已成团（`status=1`），并发送模板消息通知所有团员。
-
-    * 若拼团已是已成团状态（可能因并发导致），则忽略。
-
-  * 若支付失败，更新订单状态为支付失败（`status=3`）。
-
-  * 返回 `SUCCESS` 给微信服务器。
-
-
-
-#### 3.2.8 获取拼团详情
-
-* **URL**：`/group/{groupId}`
-
-* **Method**：GET
-
-* **响应**：
-
-* **说明**：返回完整的课程信息（用于拼团详情页展示）和拼团信息。
-
-
-
-#### 3.2.9 分享拼团（获取小程序码）
-
-* **URL**：`/group/share/{groupId}`
-
-* **Method**：GET
-
-* **响应**：
-
-* **说明**：后端调用微信接口生成小程序码，并返回URL（可缓存到CDN）。
-
-
-
-#### 3.2.10 获取我的拼团列表
-
-* **URL**：`/user/groups`
-
-* **Method**：GET
-
-* **请求参数**（Query）：
-
-  * `status`：string，可选 `all`（默认）、`ongoing`（进行中）、`success`（已成团）、`finished`（已完成）、`failed`（已失败）
-
-  * `page`、`size`
-
-* **响应**：
-
-
-
-### 3.3 后台管理接口
-
-（需管理员权限验证，使用独立token）
-
-
-
-#### 3.3.1 管理员登录
-
-* **URL**：`/admin/login`
-
-* **Method**：POST
-
-* **请求参数**：`username`, `password`
-
-* **响应**：返回token
-
-
-
-#### 3.3.2 课程管理
-
-* **列表**：GET `/admin/courses`（分页、搜索）
-
-* **创建**：POST `/admin/course`（表单数据）
-
-* **编辑**：PUT `/admin/course/{id}`
-
-* **删除/下架**：DELETE `/admin/course/{id}`（软删除或修改状态）
-
-
-
-#### 3.3.3 订单管理
-
-* **列表**：GET `/admin/orders`（分页、搜索）
-
-* **详情**：GET `/admin/order/{orderId}`
-
-* **手动退款**：POST `/admin/order/refund`（参数 orderId, reason）
-
-
-
-#### 3.3.4 CMS管理
-
-* Banner增删改查
-
-* 公告增删改查
-
-
-
-### 3.4 定时任务/内部接口
-
-#### 3.4.1 拼团状态检查任务
-
-* **触发**：每分钟执行一次（cron）
-
-* **逻辑**：
-
-  * 查询 `group` 表 `status=0` 且 `deadline < NOW()` 的拼团。
-
-  * 对每个拼团：
-
-    * 若 `current_count >= target_count`，则更新 `status=1`（已成团），并发送模板消息。
-
-    * 否则，更新 `status=2`（已失败），然后：
-
-      * 查询该拼团下所有 `status=1`（已支付）的订单。
-
-      * 对每个订单调用微信退款接口，更新订单状态为已退款，记录退款时间。
-
-      * 发送模板消息通知用户退款成功。
-
-* **注意**：需处理退款失败情况（重试机制）。
-
-
-
-## 4. 关键业务流程实现
-
-
-
-### 4.1 开团并发控制
-
-**问题**：多个用户同时为同一课程开团，可能导致创建多个进行中拼团，违反业务规则。
-
-**解决方案**：使用Redis分布式锁 + 数据库唯一约束。
-
-* 伪代码：
-
-
-
-### 4.2 支付回调处理并发
-
-支付回调可能同时到达，需保证拼团人数更新的原子性。
-
-* 使用数据库行锁：`SELECT ... FOR UPDATE` 锁定拼团记录，然后更新 `current_count`。
-
-示例（行锁）：
-
-
-
-### 4.3 退款流程
-
-* 在定时任务中，对每个失败的拼团，循环其订单列表。
-
-* 调用微信退款接口（需双向证书），记录退款结果。
-
-* 若退款失败（如余额不足），记录错误并人工介入。
-
-
-
-### 4.4 用户定位处理
-
-* 前端通过 `wx.getLocation` 获取用户经纬度，传递给后端接口用于距离排序。
-
-* 后端预存课程经纬度（`course.longitude`, `course.latitude`），计算距离时使用 Haversine 公式或数据库内置函数。
-
-
-
-## 5. 第三方服务集成
-
-
-
-### 5.1 微信小程序
-
-* **登录**：`https://api.weixin.qq.com/sns/jscode2session`
-
-* **获取手机号**：使用 session\_key 解密 `encryptedData`。
-
-* **模板消息**：通过 `https://api.weixin.qq.com/cgi-bin/message/subscribe/send` 发送，需用户订阅。
-
-* **小程序码**：通过 `https://api.weixin.qq.com/wxa/getwxacodeunlimit` 生成。
-
-* **定位**：前端调用 `wx.getLocation`，需用户授权。
-
-
-
-### 5.2 微信支付
-
-* **统一下单**：`https://api.mch.weixin.qq.com/pay/unifiedorder`（V2）或V3接口。
-
-* **支付回调**：配置回调URL为 `/pay/notify`。
-
-* **退款**：`https://api.mch.weixin.qq.com/secapi/pay/refund`，需双向证书。
-
-
-
-### 5.3 对象存储
-
-* 使用腾讯云COS SDK，前端直接上传图片（需后端生成临时密钥）。
-
-
-
-### 5.4 企业微信二维码
-
-* 客服二维码为静态图片，直接放置在小程序代码中（如 `images/kefu.png`），无需后端接口。弹窗使用原生 `wx.showModal` 或自定义弹窗展示图片。
-
-
-
-## 6. 部署与安全要求
-
-
-
-### 6.1 部署架构
-
-* 前端：微信小程序代码上传至微信平台。
-
-* 后端：部署在云服务器，使用PM2或Docker运行，Nginx反向代理，配置HTTPS。
-
-* 数据库：使用云数据库RDS，定期备份。
-
-* Redis：使用云Redis或自建。
-
-* 文件存储：使用云对象存储。
-
-
-
-### 6.2 安全要求
-
-* 所有API必须使用HTTPS。
-
-* 用户敏感数据加密存储（如openid，手机号）。
-
-* 防止SQL注入：使用ORM或参数化查询。
-
-* 防止XSS：对用户输入进行过滤。
-
-* 接口限流：对敏感接口（如开团、支付）进行频率限制。
-
-* JWT token设置合理过期时间（如7天），并提供刷新机制。
-
-
-
-### 6.3 环境配置
-
-* 开发环境、测试环境、生产环境分离。
-
-* 微信小程序配置：AppID、AppSecret。
-
-* 微信支付配置：商户号、API密钥、证书路径。
-
-
-
-## 7. 错误码定义
-
-| 错误码  | 说明               |
-| ---- | ---------------- |
-| 1001 | 课程不存在            |
-| 1002 | 课程已截止报名          |
-| 1003 | 该课程已有进行中拼团，请直接加入 |
-| 1004 | 拼团不存在            |
-| 1005 | 拼团已结束            |
-| 1006 | 拼团已满员            |
-| 1007 | 课程已截止报名          |
-| 2001 | 订单不存在            |
-| 2002 | 订单状态异常           |
-| 3001 | 微信支付调用失败         |
-| 4001 | 用户未登录            |
-| 4002 | token无效或过期       |
-| 5000 | 系统内部错误           |
-
-
-
-## 8. 附录
-
-
-
-### 8.1 数据字典
-
-详见数据库设计部分。
-
-
-
-### 8.2 接口示例（略）
-
-
-
-***
-
-
-
-**文档结束**
+当前技术文档记录的是“已实现 / 正在联调”的实际状态，后续建议再按正式上线版本逐步补齐：
+
+* 真实微信支付接入
+* 支付回调与订单状态闭环
+* 拼团失败自动退款任务
+* 后台课程管理 / 订单管理 / CMS
+* 订单与拼团更新的一致性事务化
+* 生产环境 HTTPS 与对象存储接入

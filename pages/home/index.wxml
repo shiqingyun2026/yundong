@@ -3,7 +3,6 @@
     <view class="hero-top">
       <view>
         <view class="hero-title">邻动体适能</view>
-        <view class="hero-subtitle">附近课程按距离或开课时间快速查看</view>
       </view>
       <view class="location-pill" bindtap="handleLocationTap">
         <text class="location-dot"></text>

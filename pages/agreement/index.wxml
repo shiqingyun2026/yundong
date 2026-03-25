@@ -1,7 +1,7 @@
 <view class="agreement-page">
   <view class="agreement-header">
     <view class="agreement-title">欢迎使用邻动体适能</view>
-    <view class="agreement-subtitle">首次使用前，请先阅读并同意《用户协议》和《隐私政策》</view>
+    <view class="agreement-subtitle">为保障你的账户与隐私权益，请先阅读并同意《用户协议》和《隐私政策》后再继续使用。</view>
   </view>
 
   <view class="agreement-tabs">
@@ -38,8 +38,9 @@
     <checkbox-group bindchange="handleAgreementChange">
       <label class="agreement-checkbox">
         <checkbox value="agreed" color="#1677ff" checked="{{agreed}}" />
-        <view class="agreement-checkbox-text">
-          我已阅读并同意《用户协议》和《隐私政策》
+        <view class="agreement-checkbox-content">
+          <view class="agreement-checkbox-text">我已阅读并同意《用户协议》和《隐私政策》</view>
+          <view class="agreement-checkbox-tip">继续进入即表示你接受平台服务规则与隐私说明。</view>
         </view>
       </label>
     </checkbox-group>

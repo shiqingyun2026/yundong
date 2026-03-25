@@ -22,12 +22,6 @@
   color: #1f2329;
 }
 
-.hero-subtitle {
-  margin-top: 12rpx;
-  font-size: 24rpx;
-  color: #5f6b7a;
-}
-
 .location-pill {
   display: flex;
   align-items: center;
