@@ -46,11 +46,21 @@ const buildCourseCard = item => {
         expireTimeText: formatExpireTime(item.activeGroup.expireTime)
       }
     : null
+  const completedGroupsCount = Number(item && item.completedGroupsCount) || 0
+  const maxGroups = Number(item && item.maxGroups) || 0
+  const successJoinedCount = Number(item && item.successJoinedCount) || 0
+  const canCreateGroup = maxGroups <= 0 || completedGroupsCount < maxGroups
+  const courseSoldOut = !activeGroup && !canCreateGroup
+  const displayJoinedCount = activeGroup ? Number(item.joinedCount) || 0 : successJoinedCount
 
   return {
     ...item,
     activeGroup,
-    showActiveGroupCountdown: !!(activeGroup && activeGroup.expireTimeText && activeGroup.expireTimeText !== '已结束')
+    showActiveGroupCountdown: !!(activeGroup && activeGroup.expireTimeText && activeGroup.expireTimeText !== '已结束'),
+    courseSoldOut,
+    showSuccessBadge: courseSoldOut && completedGroupsCount > 0,
+    displayJoinedCount,
+    showJoinedCount: displayJoinedCount > 0
   }
 }
 

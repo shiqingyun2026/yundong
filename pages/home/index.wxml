@@ -63,7 +63,10 @@
             <view class="group-price">¥{{item.groupPriceText}}</view>
             <view class="original-price">¥{{item.originalPriceText}}</view>
           </view>
-          <view wx:if="{{item.activeGroup}}" class="joined-text">已拼 {{item.joinedCount}} 人</view>
+          <view class="footer-status">
+            <view wx:if="{{item.showSuccessBadge}}" class="success-text">已拼团成功</view>
+            <view wx:if="{{item.showJoinedCount}}" class="joined-text">已拼 {{item.displayJoinedCount}} 人</view>
+          </view>
         </view>
       </view>
     </view>

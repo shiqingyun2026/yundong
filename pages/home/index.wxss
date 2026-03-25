@@ -222,6 +222,19 @@
   font-weight: 600;
 }
 
+.footer-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8rpx;
+}
+
+.success-text {
+  color: #18a058;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
 .list-footer {
   padding: 28rpx 0 16rpx;
   text-align: center;

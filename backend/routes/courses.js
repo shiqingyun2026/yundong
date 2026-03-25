@@ -262,7 +262,7 @@ router.get('/', async (req, res) => {
     const { data: courses, count, error } = await supabase
       .from('courses')
       .select(
-        'id, cover, name, address, start_time, group_price, original_price',
+        'id, cover, name, address, start_time, group_price, original_price, max_groups',
         { count: 'exact' }
       )
       .order('start_time', { ascending: sort === 'time' })
@@ -274,6 +274,7 @@ router.get('/', async (req, res) => {
 
     const courseIds = (courses || []).map(item => item.id).filter(Boolean)
     let activeGroupMap = {}
+    let successStatsMap = {}
 
     if (courseIds.length) {
       const { data: groups, error: groupsError } = await supabase
@@ -294,10 +295,36 @@ router.get('/', async (req, res) => {
         }
         return result
       }, {})
+
+      const { data: successGroups, error: successGroupsError } = await supabase
+        .from('groups')
+        .select('course_id, current_count')
+        .in('course_id', courseIds)
+        .eq('status', 'success')
+
+      if (successGroupsError) {
+        throw successGroupsError
+      }
+
+      successStatsMap = (successGroups || []).reduce((result, group) => {
+        const current = result[group.course_id] || {
+          completedGroupsCount: 0,
+          successJoinedCount: 0
+        }
+
+        current.completedGroupsCount += 1
+        current.successJoinedCount += Number(group.current_count) || 0
+        result[group.course_id] = current
+        return result
+      }, {})
     }
 
     const list = (courses || []).map(item => {
       const activeGroup = activeGroupMap[item.id] || null
+      const successStats = successStatsMap[item.id] || {
+        completedGroupsCount: 0,
+        successJoinedCount: 0
+      }
 
       return {
         id: item.id,
@@ -307,6 +334,9 @@ router.get('/', async (req, res) => {
         start_time: item.start_time,
         group_price: Number(item.group_price || 0),
         original_price: Number(item.original_price || 0),
+        maxGroups: Number(item.max_groups) || 0,
+        completedGroupsCount: Number(successStats.completedGroupsCount) || 0,
+        successJoinedCount: Number(successStats.successJoinedCount) || 0,
         activeGroup
       }
     })
