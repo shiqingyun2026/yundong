@@ -11,6 +11,7 @@ type EditorState = {
   id?: string
   username: string
   password: string
+  confirmPassword: string
   role: 'super_admin' | 'admin'
   status: 'active' | 'disabled'
 }
@@ -19,6 +20,7 @@ const emptyEditor: EditorState = {
   mode: 'create',
   username: '',
   password: '',
+  confirmPassword: '',
   role: 'admin',
   status: 'active'
 }
@@ -34,6 +36,7 @@ export function AccountListPage() {
   const [pagination, setPagination] = useState({ total: 0, total_pages: 1, page: 1, size: 10 })
   const [editor, setEditor] = useState<EditorState | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const fetchAccounts = async (nextKeyword = keyword, nextRole = role, nextStatus = status, nextPage = page) => {
     setLoading(true)
@@ -84,6 +87,31 @@ export function AccountListPage() {
       return
     }
 
+    if (editor.mode === 'create' && editor.password.length < 6) {
+      setError('密码至少 6 位')
+      return
+    }
+
+    if (editor.mode === 'create' && !editor.confirmPassword) {
+      setError('请确认密码')
+      return
+    }
+
+    if (editor.mode === 'edit' && editor.password && editor.password.length < 6) {
+      setError('密码至少 6 位')
+      return
+    }
+
+    if (editor.mode === 'edit' && editor.password && !editor.confirmPassword) {
+      setError('修改密码时请确认密码')
+      return
+    }
+
+    if (editor.password !== editor.confirmPassword && (editor.mode === 'create' || editor.password)) {
+      setError('两次输入的密码不一致')
+      return
+    }
+
     setSubmitting(true)
     setError('')
 
@@ -103,6 +131,7 @@ export function AccountListPage() {
       }
 
       setEditor(null)
+      setShowPassword(false)
       await fetchAccounts(keyword, role, status, page)
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : '保存账号失败')
@@ -227,19 +256,54 @@ export function AccountListPage() {
 
           <label>
             {editor.mode === 'create' ? '密码' : '新密码（留空则不修改）'}
-            <input
-              type="password"
-              value={editor.password}
-              placeholder={editor.mode === 'create' ? '至少 6 位' : '不修改可留空'}
-              onChange={event => setEditor(current => current && { ...current, password: event.target.value })}
-            />
+            <div className="input-with-action">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={editor.password}
+                placeholder={editor.mode === 'create' ? '至少 6 位' : '不修改可留空'}
+                onChange={event => setEditor(current => current && { ...current, password: event.target.value })}
+              />
+              <button
+                className="ghost-button inline-action-button"
+                type="button"
+                onClick={() => setShowPassword(current => !current)}
+              >
+                {showPassword ? '隐藏' : '明文'}
+              </button>
+            </div>
+          </label>
+
+          <label>
+            {editor.mode === 'create' ? '确认密码' : '确认新密码'}
+            <div className="input-with-action">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={editor.confirmPassword}
+                placeholder={editor.mode === 'create' ? '再次输入密码' : '修改密码时需再次输入'}
+                onChange={event => setEditor(current => current && { ...current, confirmPassword: event.target.value })}
+              />
+              <button
+                className="ghost-button inline-action-button"
+                type="button"
+                onClick={() => setShowPassword(current => !current)}
+              >
+                {showPassword ? '隐藏' : '明文'}
+              </button>
+            </div>
           </label>
 
           <div className="button-row">
             <button className="primary-button" type="submit" disabled={submitting}>
               {submitting ? '保存中...' : '保存'}
             </button>
-            <button className="ghost-button" type="button" onClick={() => setEditor(null)}>
+            <button
+              className="ghost-button"
+              type="button"
+              onClick={() => {
+                setEditor(null)
+                setShowPassword(false)
+              }}
+            >
               取消
             </button>
           </div>
@@ -280,6 +344,7 @@ export function AccountListPage() {
                             id: item.id,
                             username: item.username,
                             password: '',
+                            confirmPassword: '',
                             role: item.role as 'super_admin' | 'admin',
                             status: item.status as 'active' | 'disabled'
                           })

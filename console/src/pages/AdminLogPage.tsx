@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 
+import { PaginationBar } from '../components/PaginationBar'
 import { api } from '../lib/api'
-import type { AdminLogItem } from '../types'
+import type { AdminLogItem, AdminLogListResponse } from '../types'
 
 const ACTION_OPTIONS = [
   { value: '', label: '全部动作' },
@@ -36,6 +38,7 @@ const formatDetail = (detail: AdminLogItem['detail']) => {
 }
 
 export function AdminLogPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [items, setItems] = useState<AdminLogItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -43,12 +46,31 @@ export function AdminLogPage() {
   const [action, setAction] = useState('')
   const [targetType, setTargetType] = useState('')
   const [targetId, setTargetId] = useState('')
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState({ total: 0, total_pages: 1, page: 1, size: 50 })
+
+  const applySearch = (
+    nextAdminUsername = adminUsername,
+    nextAction = action,
+    nextTargetType = targetType,
+    nextTargetId = targetId,
+    nextPage = 1
+  ) => {
+    const params = new URLSearchParams()
+    if (nextAdminUsername) params.set('admin_username', nextAdminUsername)
+    if (nextAction) params.set('action', nextAction)
+    if (nextTargetType) params.set('target_type', nextTargetType)
+    if (nextTargetId) params.set('target_id', nextTargetId)
+    if (nextPage > 1) params.set('page', `${nextPage}`)
+    setSearchParams(params)
+  }
 
   const fetchLogs = async (
     nextAdminUsername = adminUsername,
     nextAction = action,
     nextTargetType = targetType,
-    nextTargetId = targetId
+    nextTargetId = targetId,
+    nextPage = page
   ) => {
     setLoading(true)
     setError('')
@@ -59,11 +81,18 @@ export function AdminLogPage() {
       if (nextAction) params.set('action', nextAction)
       if (nextTargetType) params.set('target_type', nextTargetType)
       if (nextTargetId) params.set('target_id', nextTargetId)
-      params.set('page', '1')
+      params.set('page', `${nextPage}`)
       params.set('size', '50')
 
-      const data = await api.get<{ list: AdminLogItem[] }>(`/logs?${params.toString()}`)
+      const data = await api.get<AdminLogListResponse>(`/logs?${params.toString()}`)
       setItems(data.list || [])
+      setPagination({
+        total: data.total || 0,
+        total_pages: data.total_pages || 1,
+        page: data.page || nextPage,
+        size: data.size || 50
+      })
+      setPage(data.page || nextPage)
     } catch (fetchError) {
       setError(fetchError instanceof Error ? fetchError.message : '获取操作日志失败')
     } finally {
@@ -72,8 +101,18 @@ export function AdminLogPage() {
   }
 
   useEffect(() => {
-    void fetchLogs()
-  }, [])
+    const nextAdminUsername = searchParams.get('admin_username') || ''
+    const nextAction = searchParams.get('action') || ''
+    const nextTargetType = searchParams.get('target_type') || ''
+    const nextTargetId = searchParams.get('target_id') || ''
+    const nextPage = Number(searchParams.get('page') || '1') || 1
+
+    setAdminUsername(nextAdminUsername)
+    setAction(nextAction)
+    setTargetType(nextTargetType)
+    setTargetId(nextTargetId)
+    void fetchLogs(nextAdminUsername, nextAction, nextTargetType, nextTargetId, nextPage)
+  }, [searchParams])
 
   return (
     <section className="stack">
@@ -121,7 +160,7 @@ export function AdminLogPage() {
           <button
             className="secondary-button compact-action-button query-button"
             type="button"
-            onClick={() => void fetchLogs(adminUsername, action, targetType, targetId)}
+            onClick={() => applySearch(adminUsername, action, targetType, targetId, 1)}
           >
             查询
           </button>
@@ -133,34 +172,43 @@ export function AdminLogPage() {
         {error ? <p className="error-text">{error}</p> : null}
 
         {!loading && !error ? (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>时间</th>
-                <th>管理员</th>
-                <th>动作</th>
-                <th>对象类型</th>
-                <th>对象ID</th>
-                <th>详情</th>
-                <th>IP</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map(item => (
-                <tr key={item.id}>
-                  <td>{item.created_at || '-'}</td>
-                  <td>{item.admin_username ? `${item.admin_username} / ${item.admin_role || '-'}` : item.admin_id || '-'}</td>
-                  <td>{item.action || '-'}</td>
-                  <td>{item.target_type || '-'}</td>
-                  <td>{item.target_id || '-'}</td>
-                  <td>
-                    <pre className="log-detail">{formatDetail(item.detail)}</pre>
-                  </td>
-                  <td>{item.ip || '-'}</td>
+          <>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>时间</th>
+                  <th>管理员</th>
+                  <th>动作</th>
+                  <th>对象类型</th>
+                  <th>对象ID</th>
+                  <th>详情</th>
+                  <th>IP</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {items.map(item => (
+                  <tr key={item.id}>
+                    <td>{item.created_at || '-'}</td>
+                    <td>{item.admin_username ? `${item.admin_username} / ${item.admin_role || '-'}` : item.admin_id || '-'}</td>
+                    <td>{item.action || '-'}</td>
+                    <td>{item.target_type || '-'}</td>
+                    <td>{item.target_id || '-'}</td>
+                    <td>
+                      <pre className="log-detail">{formatDetail(item.detail)}</pre>
+                    </td>
+                    <td>{item.ip || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <PaginationBar
+              total={pagination.total}
+              page={pagination.page}
+              totalPages={pagination.total_pages}
+              onPrev={() => applySearch(adminUsername, action, targetType, targetId, pagination.page - 1)}
+              onNext={() => applySearch(adminUsername, action, targetType, targetId, pagination.page + 1)}
+            />
+          </>
         ) : null}
       </section>
     </section>

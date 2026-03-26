@@ -31,7 +31,7 @@ router.get('/', async (req, res) => {
 
       adminIds = (admins || []).map(item => item.id).filter(Boolean)
       if (!adminIds.length) {
-        return ok(res, { total: 0, list: [], page, size })
+        return ok(res, { total: 0, list: [], page, size, total_pages: 1 })
       }
     }
 
@@ -71,6 +71,7 @@ router.get('/', async (req, res) => {
 
     return ok(res, {
       total: Number(count || 0),
+      total_pages: Math.max(1, Math.ceil(Number(count || 0) / size)),
       list: (data || []).map(item => ({
         id: item.id,
         admin_id: item.admin_id || '',

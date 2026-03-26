@@ -121,6 +121,14 @@ export interface AdminLogItem {
   created_at: string
 }
 
+export interface AdminLogListResponse {
+  total: number
+  total_pages: number
+  page: number
+  size: number
+  list: AdminLogItem[]
+}
+
 export interface GroupListItem {
   id: string
   course_id: string

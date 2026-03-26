@@ -7,7 +7,7 @@ const navItems = [
   { to: '/courses', label: '课程管理' },
   { to: '/groups', label: '拼团管理' },
   { to: '/orders', label: '订单管理' },
-  { to: '/accounts', label: '账号管理' },
+  { to: '/accounts', label: '账号管理', roles: ['super_admin'] as const },
   { to: '/logs', label: '操作日志' }
 ]
 
@@ -15,8 +15,10 @@ export function AdminLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const user = authStore.getUser()
+  const visibleNavItems = navItems.filter(item => !item.roles || (user && item.roles.includes(user.role)))
   const currentNavItem =
-    navItems.find(item => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)) ||
+    visibleNavItems.find(item => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)) ||
+    visibleNavItems[0] ||
     navItems[0]
 
   return (
@@ -28,7 +30,7 @@ export function AdminLayout() {
           <p className="brand-subtitle">运营后台骨架</p>
         </div>
         <nav className="nav">
-          {navItems.map(item => (
+          {visibleNavItems.map(item => (
             <NavLink
               key={item.to}
               to={item.to}
