@@ -2,7 +2,7 @@ const express = require('express')
 const jwt = require('jsonwebtoken')
 
 const supabase = require('../utils/supabase')
-const { getCourseLifecycleMap, getSingleCourseLifecycle } = require('../utils/courseLifecycle')
+const { COURSE_STATUS, getCourseLifecycleMap, getSingleCourseLifecycle } = require('../utils/courseLifecycle')
 
 const router = express.Router()
 
@@ -262,6 +262,14 @@ const mapCourseGroupSummary = group => ({
   expireTime: group.expire_time || ''
 })
 
+const MINI_PROGRAM_VISIBLE_STATUSES = new Set([
+  COURSE_STATUS.GROUPING,
+  COURSE_STATUS.WAITING_CLASS,
+  COURSE_STATUS.IN_CLASS
+])
+
+const canDisplayInMiniProgram = status => MINI_PROGRAM_VISIBLE_STATUSES.has(Number(status))
+
 router.get('/', async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1)
   const pageSize = Math.max(1, Number(req.query.pageSize) || 10)
@@ -270,28 +278,34 @@ router.get('/', async (req, res) => {
   const to = from + pageSize - 1
 
   try {
-    const { data: courses, count, error } = await supabase
+    const { data: courses, error } = await supabase
       .from('courses')
       .select(
-        'id, cover, name, address, start_time, group_price, original_price, max_groups',
-        { count: 'exact' }
+        'id, cover, name, address, start_time, end_time, publish_time, unpublish_time, deadline, group_price, original_price, max_groups, status'
       )
       .order('start_time', { ascending: sort === 'time' })
-      .range(from, to)
 
     if (error) {
       throw error
     }
 
     const courseIds = (courses || []).map(item => item.id).filter(Boolean)
+    const lifecycleMap = await getCourseLifecycleMap(courseIds, {})
+    const visibleCourses = (courses || []).filter(item => {
+      const lifecycle = lifecycleMap[item.id]
+      return lifecycle && canDisplayInMiniProgram(lifecycle.status)
+    })
+    const pagedCourses = visibleCourses.slice(from, to + 1)
+
     let activeGroupMap = {}
     let successStatsMap = {}
 
-    if (courseIds.length) {
+    if (pagedCourses.length) {
+      const pagedCourseIds = pagedCourses.map(item => item.id).filter(Boolean)
       const { data: groups, error: groupsError } = await supabase
         .from('groups')
         .select('id, course_id, expire_time, current_count, target_count')
-        .in('course_id', courseIds)
+        .in('course_id', pagedCourseIds)
         .eq('status', 'active')
         .gt('expire_time', new Date().toISOString())
         .order('expire_time', { ascending: false })
@@ -310,7 +324,7 @@ router.get('/', async (req, res) => {
       const { data: successGroups, error: successGroupsError } = await supabase
         .from('groups')
         .select('course_id, current_count')
-        .in('course_id', courseIds)
+        .in('course_id', pagedCourseIds)
         .eq('status', 'success')
 
       if (successGroupsError) {
@@ -330,7 +344,7 @@ router.get('/', async (req, res) => {
       }, {})
     }
 
-    const list = (courses || []).map(item => {
+    const list = pagedCourses.map(item => {
       const activeGroup = activeGroupMap[item.id] || null
       const successStats = successStatsMap[item.id] || {
         completedGroupsCount: 0,
@@ -352,18 +366,13 @@ router.get('/', async (req, res) => {
       }
     })
 
-    await getCourseLifecycleMap(
-      list.map(item => item.id),
-      {}
-    )
-
     return res.json({
       data: list,
       list,
-      total: count || 0,
+      total: visibleCourses.length,
       page,
       pageSize,
-      hasMore: from + list.length < (count || 0)
+      hasMore: from + list.length < visibleCourses.length
     })
   } catch (error) {
     return res.status(500).json({
@@ -391,6 +400,11 @@ router.get('/:id', async (req, res) => {
     }
 
     const lifecycle = await getSingleCourseLifecycle(course.id)
+    if (!canDisplayInMiniProgram(lifecycle.status)) {
+      return res.status(404).json({
+        message: 'course not found'
+      })
+    }
 
     const { data: activeGroup, error: activeGroupError } = await supabase
       .from('groups')
@@ -450,6 +464,25 @@ router.get('/:id', async (req, res) => {
 
 router.get('/:id/active-group', async (req, res) => {
   try {
+    const { data: course, error: courseError } = await supabase
+      .from('courses')
+      .select('id')
+      .eq('id', req.params.id)
+      .maybeSingle()
+
+    if (courseError) {
+      throw courseError
+    }
+
+    if (!course) {
+      return res.json(null)
+    }
+
+    const lifecycle = await getSingleCourseLifecycle(course.id)
+    if (!canDisplayInMiniProgram(lifecycle.status)) {
+      return res.json(null)
+    }
+
     let { data: group, error } = await supabase
       .from('groups')
       .select('id, course_id, current_count, target_count, expire_time, status')

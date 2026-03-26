@@ -26,10 +26,15 @@
       <view class="group-content">
         <view class="group-title-row">
           <view class="group-title">{{item.title}}</view>
-          <view
-            class="status-tag {{item.status === 'ongoing' ? 'status-ongoing' : item.status === 'success' ? 'status-success' : 'status-failed'}}"
-          >
-            {{item.statusText}}
+          <view class="status-group">
+            <view
+              class="status-tag {{item.status === 'ongoing' ? 'status-ongoing' : item.status === 'success' ? 'status-success' : 'status-failed'}}"
+            >
+              {{item.statusText}}
+            </view>
+            <view wx:if="{{item.courseStatusText}}" class="status-tag status-stage">
+              {{item.courseStatusText}}
+            </view>
           </view>
         </view>
 

@@ -233,7 +233,7 @@ export function CourseListPage() {
                           查看拼团
                         </Link>
                         {item.status === 0 || item.status === 2 || item.status === 5 ? (
-                          <button className="ghost-button compact-button" onClick={() => void offlineCourse(item.id)}>
+                          <button className="table-link danger-link-button" onClick={() => void offlineCourse(item.id)}>
                             下架
                           </button>
                         ) : null}

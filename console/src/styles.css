@@ -401,6 +401,13 @@ button {
   color: #d9652b;
 }
 
+.danger-link-button {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #b12d1f;
+}
+
 .log-detail {
   margin: 0;
   white-space: pre-wrap;

@@ -755,6 +755,7 @@ const normalizeUserGroupListItem = item => ({
   title: item.title || item.course_title || item.name || '',
   locationText: item.locationText || item.location || item.address || '',
   status: item.status || '',
+  courseStatusText: item.courseStatusText || item.course_status_text || '',
   statusText:
     item.statusText ||
     (item.status === 'ongoing'
@@ -972,6 +973,7 @@ const fetchGroupDetail = async groupId => {
         ...payload,
         groupId: payload.groupId || payload.group_id || '',
         courseId: payload.courseId || payload.course_id || '',
+        courseStatusText: payload.courseStatusText || payload.course_status_text || '',
         currentCount: Number(payload.currentCount ?? payload.current_count) || 0,
         targetCount: Number(payload.targetCount ?? payload.target_count) || 0,
         members: payload.members || [],
@@ -1070,6 +1072,7 @@ const mapUserGroupListItem = groupDetail => {
     timeText: formatCourseTimeRange(course.startTime, course.endTime),
     locationText: course.location,
     status: groupDetail.status,
+    courseStatusText: groupDetail.courseStatusText || '',
     statusText:
       groupDetail.status === 'ongoing'
         ? '进行中'

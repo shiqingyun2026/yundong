@@ -3,7 +3,10 @@
 
   <scroll-view wx:if="{{!loading && groupDetail}}" class="group-scroll" scroll-y>
     <view class="app-page detail-content">
-      <view class="status-tag {{statusClassName}}">{{statusText}}</view>
+      <view class="status-header">
+        <view class="status-tag {{statusClassName}}">{{statusText}}</view>
+        <view wx:if="{{courseStatusText}}" class="status-tag status-stage">{{courseStatusText}}</view>
+      </view>
 
       <view class="page-section card-shadow">
         <view class="title-row">
@@ -45,7 +48,7 @@
           <view class="progress-bar" style="width: {{groupDetail.progressPercent}};"></view>
         </view>
         <view wx:if="{{groupDetail.status !== 'ongoing'}}" class="section-desc progress-desc">
-          {{groupDetail.refundDesc}}
+          {{progressStatusText}}
         </view>
       </view>
 

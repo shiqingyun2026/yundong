@@ -2,6 +2,7 @@ const express = require('express')
 
 const authenticate = require('../middleware/auth')
 const supabase = require('../utils/supabase')
+const { COURSE_STATUS, getCourseLifecycleMap } = require('../utils/courseLifecycle')
 
 const router = express.Router()
 
@@ -65,6 +66,14 @@ const getStatusText = status => {
   return '已失败'
 }
 
+const getCourseStageText = (groupStatus, courseLifecycleStatus) => {
+  if (groupStatus !== 'success') {
+    return ''
+  }
+
+  return Number(courseLifecycleStatus) === COURSE_STATUS.FINISHED ? '已结课' : '等待上课'
+}
+
 router.get('/groups', authenticate, async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1)
   const pageSize = Math.max(1, Number(req.query.pageSize) || 10)
@@ -93,6 +102,20 @@ router.get('/groups', authenticate, async (req, res) => {
       throw error
     }
 
+    const courseIds = (data || [])
+      .map(item => {
+        const group = Array.isArray(item.groups) ? item.groups[0] : item.groups
+        const course = group && group.courses
+          ? Array.isArray(group.courses)
+            ? group.courses[0]
+            : group.courses
+          : null
+
+        return course && course.id
+      })
+      .filter(Boolean)
+    const lifecycleMap = await getCourseLifecycleMap(courseIds, {})
+
     const list = (data || [])
       .map(item => {
         const group = Array.isArray(item.groups) ? item.groups[0] : item.groups
@@ -106,6 +129,7 @@ router.get('/groups', authenticate, async (req, res) => {
           return null
         }
 
+        const lifecycle = lifecycleMap[course.id]
         const normalizedStatus = normalizeStatus(group.status)
 
         return {
@@ -117,6 +141,7 @@ router.get('/groups', authenticate, async (req, res) => {
           locationText: course.address || '',
           status: normalizedStatus,
           statusText: getStatusText(normalizedStatus),
+          courseStatusText: getCourseStageText(group.status, lifecycle && lifecycle.status),
           currentCount: Number(group.current_count) || 0,
           targetCount: Number(group.target_count) || 0,
           expireTime: group.expire_time || ''

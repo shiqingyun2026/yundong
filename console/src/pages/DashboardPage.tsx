@@ -12,7 +12,7 @@ const rangeOptions = [
 
 const formatTrend = (delta: number | null) => {
   if (delta === null) return '实时'
-  if (delta === 0) return '与上一周期持平'
+  if (delta === 0) return '持平'
   return `${delta > 0 ? '+' : ''}${delta}`
 }
 

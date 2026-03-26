@@ -2,6 +2,7 @@ const express = require('express')
 
 const authenticate = require('../middleware/auth')
 const supabase = require('../utils/supabase')
+const { COURSE_STATUS, getSingleCourseLifecycle } = require('../utils/courseLifecycle')
 
 const router = express.Router()
 
@@ -59,6 +60,14 @@ const normalizeGroupStatus = status => {
   }
 
   return 'failed'
+}
+
+const getCourseStageText = (groupStatus, courseLifecycleStatus) => {
+  if (groupStatus !== 'success') {
+    return ''
+  }
+
+  return Number(courseLifecycleStatus) === COURSE_STATUS.FINISHED ? '已结课' : '等待上课'
 }
 
 router.get('/:id', authenticate, async (req, res) => {
@@ -162,12 +171,15 @@ router.get('/:id', authenticate, async (req, res) => {
       })
     }
 
+    const lifecycle = await getSingleCourseLifecycle(course.id)
+
     const deadlineTime = safeDate(group.expire_time)
 
     return res.json({
       groupId: group.id,
       courseId: group.course_id,
       status: normalizeGroupStatus(group.status),
+      courseStatusText: getCourseStageText(group.status, lifecycle.status),
       currentCount: Number(group.current_count) || 0,
       targetCount: Number(group.target_count) || 0,
       remainingSeconds: getRemainingSeconds(group.expire_time),

@@ -106,6 +106,8 @@ Page({
     groupDetail: null,
     statusText: '',
     statusClassName: '',
+    courseStatusText: '',
+    progressStatusText: '',
     bottomStatusText: '拼团失败，已退款'
   },
 
@@ -161,7 +163,15 @@ Page({
       groupDetail,
       statusText: statusInfo.text,
       statusClassName: statusInfo.className,
-      bottomStatusText: groupDetail && groupDetail.status === 'success' ? '已成团，等待上课' : '拼团失败，已退款'
+      courseStatusText: (groupDetail && groupDetail.courseStatusText) || '',
+      progressStatusText:
+        groupDetail && groupDetail.status === 'success'
+            ? '拼团已成功'
+            : '拼团失败，已退款',
+      bottomStatusText:
+        groupDetail && groupDetail.status === 'success'
+            ? (groupDetail.courseStatusText || '等待上课')
+            : '拼团失败，已退款'
     })
   },
 
@@ -290,7 +300,10 @@ Page({
 
     if (groupDetail.status !== 'ongoing') {
       wx.showToast({
-        title: groupDetail.status === 'success' ? '该拼团已成团' : '该拼团已结束',
+        title:
+          groupDetail.status === 'success'
+              ? '该拼团已成团'
+              : '该拼团已结束',
         icon: 'none'
       })
       return

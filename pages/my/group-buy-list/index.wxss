@@ -60,6 +60,13 @@
   gap: 16rpx;
 }
 
+.status-group {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10rpx;
+}
+
 .group-title {
   flex: 1;
   font-size: 30rpx;
@@ -96,6 +103,11 @@
 .status-failed {
   background: #f1f2f5;
   color: #8f96a3;
+}
+
+.status-stage {
+  background: #fff3e8;
+  color: #ff7a00;
 }
 
 .list-footer {

@@ -11,6 +11,12 @@
   padding-bottom: 0;
 }
 
+.status-header {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
 .status-tag {
   display: inline-flex;
   align-items: center;
@@ -34,6 +40,11 @@
 .status-failed {
   background: #f1f2f5;
   color: #8f96a3;
+}
+
+.status-stage {
+  background: #fff3e8;
+  color: #ff7a00;
 }
 
 .title-row,
