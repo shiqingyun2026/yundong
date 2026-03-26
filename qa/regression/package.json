@@ -1,0 +1,14 @@
+{
+  "name": "lindong-regression",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:update": "playwright test --update-snapshots",
+    "codegen": "playwright codegen http://127.0.0.1:3000"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.2"
+  }
+}

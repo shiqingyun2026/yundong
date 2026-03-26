@@ -2,7 +2,7 @@ const { post } = require('./request')
 
 // Development-only mock login switch. Keep disabled for production releases.
 const USE_MOCK_USER = true
-const MOCK_USER_ID = 'user6'
+const MOCK_OPEN_ID = 'seed0326_u02'
 
 const createMockToken = () => `mock-token-${Date.now()}`
 
@@ -41,7 +41,7 @@ const isMockUserEnabled = () => USE_MOCK_USER && !isReleaseEnv()
 
 const getLoginCode = () => {
   if (isMockUserEnabled()) {
-    return Promise.resolve(MOCK_USER_ID)
+    return Promise.resolve('mock-login-code')
   }
 
   return new Promise((resolve, reject) => {
@@ -78,7 +78,7 @@ const login = async userInfo => {
   const loginCode = await getLoginCode()
   const payload = {
     code: loginCode,
-    mockOpenId: isMockUserEnabled() ? `mock_user_${MOCK_USER_ID}` : getStableMockOpenId()
+    mockOpenId: isMockUserEnabled() ? MOCK_OPEN_ID : getStableMockOpenId()
   }
 
   try {
@@ -105,6 +105,6 @@ module.exports = {
   login,
   authDebugConfig: {
     USE_MOCK_USER,
-    MOCK_USER_ID
+    MOCK_OPEN_ID
   }
 }

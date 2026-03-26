@@ -84,7 +84,7 @@ Page({
       wx.showToast({
         title:
           authDebugConfig.USE_MOCK_USER && !result.mock
-            ? `登录成功(${authDebugConfig.MOCK_USER_ID})`
+            ? `登录成功(${authDebugConfig.MOCK_OPEN_ID || 'mock'})`
             : result.mock
               ? '已登录，当前为 mock 模式'
               : '登录成功',

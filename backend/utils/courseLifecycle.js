@@ -90,21 +90,26 @@ const summarizeGroupsByCourse = groups => {
 
 const markFailedCourseRefunds = async ({ course, groupIds = [], operatorId = null, now = new Date() }) => {
   const timestamp = now.toISOString()
+  let failedGroupCount = 0
+  let refundedOrderCount = 0
 
   if (groupIds.length) {
-    const { error: groupError } = await supabase
+    const { data: updatedGroups, error: groupError } = await supabase
       .from('groups')
       .update({
         status: 'failed'
       })
       .in('id', groupIds)
+      .select('id')
 
     if (groupError) {
       throw groupError
     }
+
+    failedGroupCount = (updatedGroups || []).length
   }
 
-  const { error: refundError } = await supabase
+  const { data: refundedOrders, error: refundError } = await supabase
     .from('orders')
     .update({
       status: 'refunded',
@@ -114,9 +119,17 @@ const markFailedCourseRefunds = async ({ course, groupIds = [], operatorId = nul
     })
     .eq('course_id', course.id)
     .in('status', ['pending', 'success'])
+    .select('id')
 
   if (refundError) {
     throw refundError
+  }
+
+  refundedOrderCount = (refundedOrders || []).length
+
+  return {
+    failedGroupCount,
+    refundedOrderCount
   }
 }
 
@@ -158,14 +171,17 @@ const syncCourseLifecycle = async (courseIds = [], options = {}) => {
     const shouldAutoRefund = nextStatus === COURSE_STATUS.GROUP_FAILED && stats.successGroupCount === 0
 
     if (shouldAutoRefund) {
-      await markFailedCourseRefunds({
+      const refundResult = await markFailedCourseRefunds({
         course,
         groupIds: stats.activeGroupIds,
         operatorId: options.operatorId || null,
         now
       })
 
-      if (options.operatorId) {
+      const didMutateRefundState =
+        Number(refundResult && refundResult.failedGroupCount) > 0 || Number(refundResult && refundResult.refundedOrderCount) > 0
+
+      if (options.operatorId && didMutateRefundState) {
         await safeWriteAdminLog({
           adminId: options.operatorId,
           action: 'course_auto_refund',
@@ -175,7 +191,9 @@ const syncCourseLifecycle = async (courseIds = [], options = {}) => {
             next_status: nextStatus,
             active_group_ids: stats.activeGroupIds,
             success_group_count: stats.successGroupCount,
-            refund_reason: '报名截止前未成团，系统自动退款'
+            refund_reason: '报名截止前未成团，系统自动退款',
+            failed_group_count: Number(refundResult.failedGroupCount) || 0,
+            refunded_order_count: Number(refundResult.refundedOrderCount) || 0
           },
           ip: null
         })

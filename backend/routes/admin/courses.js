@@ -117,11 +117,11 @@ const validateCoursePayload = (payload, options = {}) => {
   }
 
   if (targetCount <= 0) {
-    return '成团人数必须大于 0'
+    return '成团人数要求必须大于 0'
   }
 
   if (maxGroups <= 0) {
-    return '最大成团次数必须大于 0'
+    return '最大成团数量必须大于 0'
   }
 
   if (!payload.start_time || !parseShanghaiDateTimeInput(payload.start_time)) {
@@ -129,7 +129,7 @@ const validateCoursePayload = (payload, options = {}) => {
   }
 
   if (!payload.end_time || !parseShanghaiDateTimeInput(payload.end_time)) {
-    return '结束时间不能为空'
+    return '下课时间不能为空'
   }
 
   if (!payload.deadline || !parseShanghaiDateTimeInput(payload.deadline)) {
