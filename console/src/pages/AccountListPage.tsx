@@ -9,7 +9,6 @@ type EditorState = {
   mode: EditorMode
   id?: string
   username: string
-  email: string
   password: string
   role: 'super_admin' | 'admin'
   status: 'active' | 'disabled'
@@ -18,7 +17,6 @@ type EditorState = {
 const emptyEditor: EditorState = {
   mode: 'create',
   username: '',
-  email: '',
   password: '',
   role: 'admin',
   status: 'active'
@@ -67,7 +65,6 @@ export function AccountListPage() {
       if (editor.mode === 'create') {
         await api.post('/accounts', {
           username: editor.username,
-          email: editor.email,
           password: editor.password,
           role: editor.role
         })
@@ -155,15 +152,6 @@ export function AccountListPage() {
               </label>
 
               <label>
-                邮箱
-                <input
-                  value={editor.email}
-                  disabled={editor.mode === 'edit'}
-                  onChange={event => setEditor(current => current && { ...current, email: event.target.value })}
-                />
-              </label>
-
-              <label>
                 角色
                 <select
                   value={editor.role}
@@ -220,7 +208,6 @@ export function AccountListPage() {
             <thead>
               <tr>
                 <th>用户名</th>
-                <th>邮箱</th>
                 <th>角色</th>
                 <th>状态</th>
                 <th>最后登录时间</th>
@@ -232,7 +219,6 @@ export function AccountListPage() {
               {items.map(item => (
                 <tr key={item.id}>
                   <td>{item.username}</td>
-                  <td>{item.email || '-'}</td>
                   <td>{item.role}</td>
                   <td>{item.status === 'active' ? '启用' : '停用'}</td>
                   <td>{item.last_login_time || '-'}</td>
@@ -245,7 +231,6 @@ export function AccountListPage() {
                           mode: 'edit',
                           id: item.id,
                           username: item.username,
-                          email: item.email,
                           password: '',
                           role: item.role as 'super_admin' | 'admin',
                           status: item.status as 'active' | 'disabled'

@@ -8,12 +8,13 @@ let adminPasswordColumnState = null
 
 const getBootstrapAdmin = () => ({
   id: process.env.ADMIN_BOOTSTRAP_ID || '00000000-0000-0000-0000-000000000001',
-  email: process.env.ADMIN_BOOTSTRAP_EMAIL || 'admin@example.com',
   username: process.env.ADMIN_BOOTSTRAP_USERNAME || 'admin',
   password: process.env.ADMIN_BOOTSTRAP_PASSWORD || 'admin123456',
   role: process.env.ADMIN_BOOTSTRAP_ROLE || 'super_admin',
   status: 'active'
 })
+
+const buildInternalAdminEmail = username => `${username}@admin.local`
 
 const isTableMissingError = error => error && error.code === 'PGRST205'
 const isColumnMissingError = error => error && (error.code === 'PGRST204' || error.code === '42703')
@@ -107,7 +108,6 @@ const listAdmins = async ({ keyword = '', from = 0, to = 9 } = {}) => {
                 username: fallbackAdmin.username,
                 role: fallbackAdmin.role,
                 status: fallbackAdmin.status,
-                email: fallbackAdmin.email,
                 last_login: null,
                 created_at: null
               }
@@ -117,7 +117,7 @@ const listAdmins = async ({ keyword = '', from = 0, to = 9 } = {}) => {
 
   let query = supabase
     .from('admin_users')
-    .select('id, username, role, status, email, last_login, created_at', { count: 'exact' })
+    .select('id, username, role, status, last_login, created_at', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(from, to)
 
@@ -163,11 +163,11 @@ const findAdminByUsername = async username => {
   }
 }
 
-const createAdmin = async ({ username, email, password, role = 'admin' }) => {
+const createAdmin = async ({ username, password, role = 'admin' }) => {
   const { data: existing, error: existingError } = await supabase
     .from('admin_users')
     .select('id')
-    .or(`username.eq.${username},email.eq.${email}`)
+    .eq('username', username)
     .limit(1)
     .maybeSingle()
 
@@ -184,7 +184,7 @@ const createAdmin = async ({ username, email, password, role = 'admin' }) => {
   const payload = {
     id: crypto.randomUUID(),
     username,
-    email,
+    email: buildInternalAdminEmail(username),
     role,
     status: 'active',
     created_at: new Date().toISOString(),
@@ -199,7 +199,7 @@ const createAdmin = async ({ username, email, password, role = 'admin' }) => {
   const { data, error } = await supabase
     .from('admin_users')
     .insert(payload)
-    .select('id, username, role, status, email, last_login, created_at')
+    .select('id, username, role, status, last_login, created_at')
     .single()
 
   if (error) {
@@ -273,7 +273,7 @@ const updateAdmin = async (id, { password, role, status }) => {
     .from('admin_users')
     .update(payload)
     .eq('id', id)
-    .select('id, username, role, status, email, last_login, created_at')
+    .select('id, username, role, status, last_login, created_at')
     .single()
 
   if (error) {
@@ -366,7 +366,7 @@ const ensureBootstrapAdmin = async () => {
 
   const payload = {
     id: candidateId,
-    email: fallbackAdmin.email,
+    email: buildInternalAdminEmail(fallbackAdmin.username),
     username: fallbackAdmin.username,
     role: fallbackAdmin.role,
     status: 'active',

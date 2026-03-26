@@ -30,7 +30,6 @@ router.get('/', requireSuperAdmin, async (req, res) => {
       list: result.list.map(item => ({
         id: item.id,
         username: item.username,
-        email: item.email || '',
         role: item.role,
         status: item.status || 'active',
         last_login_time: formatDateTime(item.last_login),
@@ -51,10 +50,10 @@ router.post('/', requireSuperAdmin, async (req, res) => {
     return fail(res, 5000, '请先执行最新 admin_users 密码迁移脚本，再创建账号', 501)
   }
 
-  const { username, email, password, role } = req.body || {}
+  const { username, password, role } = req.body || {}
 
-  if (!username || !email || !password || !role) {
-    return fail(res, 4001, '用户名、邮箱、密码、角色不能为空')
+  if (!username || !password || !role) {
+    return fail(res, 4001, '用户名、密码、角色不能为空')
   }
 
   if (password.length < 6) {
@@ -62,7 +61,7 @@ router.post('/', requireSuperAdmin, async (req, res) => {
   }
 
   try {
-    const admin = await createAdmin({ username, email, password, role })
+    const admin = await createAdmin({ username, password, role })
     await writeAdminLog({
       adminId: req.admin.id,
       action: 'account_create',

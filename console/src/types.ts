@@ -65,7 +65,6 @@ export interface OrderListItem {
 export interface AccountListItem {
   id: string
   username: string
-  email: string
   role: string
   status: string
   last_login_time: string
