@@ -49,3 +49,34 @@ export const api = {
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' })
 }
+
+type UploadFolder = 'course-cover' | 'course-gallery' | 'course-detail' | 'coach-cert'
+
+type UploadSignResponse = {
+  upload_url: string
+  public_url: string
+}
+
+export async function uploadImage(file: File, folder: UploadFolder) {
+  const signed = await api.post<UploadSignResponse>('/upload/sign', {
+    filename: file.name,
+    contentType: file.type || 'application/octet-stream',
+    folder
+  })
+
+  const uploadResponse = await fetch(signed.upload_url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': file.type || 'application/octet-stream',
+      'x-upsert': 'false'
+    },
+    body: file
+  })
+
+  if (!uploadResponse.ok) {
+    const text = await uploadResponse.text()
+    throw new Error(text || '上传文件失败')
+  }
+
+  return signed.public_url
+}

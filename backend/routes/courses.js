@@ -2,6 +2,7 @@ const express = require('express')
 const jwt = require('jsonwebtoken')
 
 const supabase = require('../utils/supabase')
+const { getCourseLifecycleMap, getSingleCourseLifecycle } = require('../utils/courseLifecycle')
 
 const router = express.Router()
 
@@ -351,6 +352,11 @@ router.get('/', async (req, res) => {
       }
     })
 
+    await getCourseLifecycleMap(
+      list.map(item => item.id),
+      {}
+    )
+
     return res.json({
       data: list,
       list,
@@ -383,6 +389,8 @@ router.get('/:id', async (req, res) => {
         message: 'course not found'
       })
     }
+
+    const lifecycle = await getSingleCourseLifecycle(course.id)
 
     const { data: activeGroup, error: activeGroupError } = await supabase
       .from('groups')
@@ -423,15 +431,16 @@ router.get('/:id', async (req, res) => {
       throw groupListError
     }
 
-    return res.json(
-      mapCourseDetail(
+    return res.json({
+      ...mapCourseDetail(
         course,
         activeGroup,
         completedGroupsCount,
         successJoinedCount,
         (groupList || []).map(mapCourseGroupSummary)
-      )
-    )
+      ),
+      status: lifecycle.status
+    })
   } catch (error) {
     return res.status(500).json({
       message: error.message || 'failed to fetch course detail'

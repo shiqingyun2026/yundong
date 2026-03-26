@@ -5,6 +5,7 @@ import { authStore } from '../lib/auth'
 const navItems = [
   { to: '/dashboard', label: '概览' },
   { to: '/courses', label: '课程管理' },
+  { to: '/groups', label: '拼团管理' },
   { to: '/orders', label: '订单管理' },
   { to: '/accounts', label: '账号管理' }
 ]

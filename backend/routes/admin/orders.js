@@ -2,8 +2,10 @@ const express = require('express')
 
 const supabase = require('../../utils/supabase')
 const { ok, fail, getPagination, formatDateTime } = require('./_helpers')
+const { syncAllCourseLifecycles } = require('../../utils/courseLifecycle')
 
 const router = express.Router()
+const AUTO_REFUND_REASON = '报名截止前未成团，系统自动退款'
 
 const mapStatus = status => {
   if (status === 'success') {
@@ -17,6 +19,14 @@ const mapStatus = status => {
   return 0
 }
 
+const mapRefundType = reason => {
+  if (!reason) {
+    return ''
+  }
+
+  return reason === AUTO_REFUND_REASON ? 'system' : 'manual'
+}
+
 router.get('/', async (req, res) => {
   const { page, size, from, to } = getPagination(req.query || {})
   const orderNo = `${req.query.order_no || ''}`.trim()
@@ -25,9 +35,15 @@ router.get('/', async (req, res) => {
   const status = `${req.query.status || ''}`.trim()
 
   try {
+    await syncAllCourseLifecycles({
+      operatorId: req.admin && req.admin.id
+    })
+
     const { data, count, error } = await supabase
       .from('orders')
-      .select('id, user_id, course_id, group_id, amount, status, created_at', { count: 'exact' })
+      .select('id, order_no, user_id, course_id, group_id, amount, status, created_at, pay_time, refund_time, refund_reason', {
+        count: 'exact'
+      })
       .order('created_at', { ascending: false })
       .range(from, to)
 
@@ -64,14 +80,17 @@ router.get('/', async (req, res) => {
 
         return {
           id: item.id,
-          order_no: item.id,
+          order_no: item.order_no || item.id,
           user_nick_name: user.nickname || '',
           user_phone: '',
           course_title: course.name || '',
           amount: Number(item.amount || 0),
           status: mapStatus(item.status),
           create_time: formatDateTime(item.created_at),
-          pay_time: item.status === 'success' ? formatDateTime(item.created_at) : ''
+          pay_time: formatDateTime(item.pay_time || (item.status === 'success' ? item.created_at : '')),
+          refund_time: formatDateTime(item.refund_time),
+          refund_reason: item.refund_reason || '',
+          refund_type: mapRefundType(item.refund_reason)
         }
       })
       .filter(item => !orderNo || item.order_no.includes(orderNo))
@@ -90,9 +109,13 @@ router.get('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
+    await syncAllCourseLifecycles({
+      operatorId: req.admin && req.admin.id
+    })
+
     const { data, error } = await supabase
       .from('orders')
-      .select('id, user_id, course_id, group_id, amount, status, created_at')
+      .select('id, order_no, user_id, course_id, group_id, amount, status, created_at, pay_time, refund_time, refund_reason')
       .eq('id', req.params.id)
       .maybeSingle()
 
@@ -120,7 +143,7 @@ router.get('/:id', async (req, res) => {
 
     return ok(res, {
       id: data.id,
-      order_no: data.id,
+      order_no: data.order_no || data.id,
       user: {
         id: user && user.id,
         nick_name: (user && user.nickname) || '',
@@ -143,9 +166,10 @@ router.get('/:id', async (req, res) => {
       },
       amount: Number(data.amount || 0),
       status: mapStatus(data.status),
-      pay_time: data.status === 'success' ? formatDateTime(data.created_at) : '',
-      refund_time: null,
-      refund_reason: null,
+      pay_time: formatDateTime(data.pay_time || (data.status === 'success' ? data.created_at : '')),
+      refund_time: formatDateTime(data.refund_time),
+      refund_reason: data.refund_reason || '',
+      refund_type: mapRefundType(data.refund_reason),
       create_time: formatDateTime(data.created_at)
     })
   } catch (error) {

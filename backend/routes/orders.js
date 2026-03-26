@@ -2,22 +2,9 @@ const express = require('express')
 
 const authenticate = require('../middleware/auth')
 const supabase = require('../utils/supabase')
+const { COURSE_STATUS, getSingleCourseLifecycle, safeDate } = require('../utils/courseLifecycle')
 
 const router = express.Router()
-
-const safeDate = value => {
-  if (!value) {
-    return null
-  }
-
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? null : date
-}
-
-const getExpireTimeAfterHours = hours => {
-  const expireAt = new Date(Date.now() + hours * 3600 * 1000)
-  return expireAt.toISOString()
-}
 
 const normalizeGroupStatus = status => {
   if (status === 'active') {
@@ -32,16 +19,17 @@ const normalizeGroupStatus = status => {
 }
 
 const hasUserJoinedCourseGroup = async ({ userId, courseId }) => {
-  const { data: groups, error: groupsError } = await supabase
+  const { data: successGroups, error: groupsError } = await supabase
     .from('groups')
     .select('id')
     .eq('course_id', courseId)
+    .eq('status', 'success')
 
   if (groupsError) {
     throw groupsError
   }
 
-  const groupIds = (groups || []).map(item => item.id).filter(Boolean)
+  const groupIds = (successGroups || []).map(item => item.id).filter(Boolean)
 
   if (groupIds.length) {
     const { data: membership, error: membershipError } = await supabase
@@ -79,7 +67,6 @@ const hasUserJoinedCourseGroup = async ({ userId, courseId }) => {
 
 router.post('/', authenticate, async (req, res) => {
   const { courseId, groupId } = req.body || {}
-  const defaultTargetCount = 2
 
   if (!courseId) {
     return res.status(400).json({
@@ -105,6 +92,20 @@ router.post('/', authenticate, async (req, res) => {
     if (!course) {
       return res.status(404).json({
         message: 'course not found'
+      })
+    }
+
+    const lifecycle = await getSingleCourseLifecycle(courseId)
+    if (lifecycle.status !== COURSE_STATUS.GROUPING) {
+      return res.status(400).json({
+        message: '当前课程不在可拼团状态'
+      })
+    }
+
+    const unpublishAt = safeDate(course.unpublish_time)
+    if (unpublishAt && unpublishAt.getTime() <= Date.now()) {
+      return res.status(400).json({
+        message: '当前课程已下架'
       })
     }
 
@@ -158,7 +159,7 @@ router.post('/', authenticate, async (req, res) => {
 
       finalGroup = existingGroup
     } else {
-      const targetCount = defaultTargetCount
+      const targetCount = Number(course.default_target_count) || 2
 
       const { data: activeGroup, error: activeGroupError } = await supabase
         .from('groups')
@@ -204,6 +205,12 @@ router.post('/', authenticate, async (req, res) => {
         })
       }
 
+      if (!course.deadline) {
+        return res.status(400).json({
+          message: '当前课程未配置报名截止时间，无法创建拼团'
+        })
+      }
+
       const { data: createdGroup, error: createGroupError } = await supabase
         .from('groups')
         .insert({
@@ -212,7 +219,7 @@ router.post('/', authenticate, async (req, res) => {
           status: 'active',
           current_count: 0,
           target_count: targetCount,
-          expire_time: getExpireTimeAfterHours(24)
+          expire_time: course.deadline
         })
         .select('id, course_id, status, current_count, target_count, expire_time')
         .single()

@@ -6,6 +6,8 @@ import { AccountListPage } from './pages/AccountListPage'
 import { CourseFormPage } from './pages/CourseFormPage'
 import { CourseListPage } from './pages/CourseListPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { GroupDetailPage } from './pages/GroupDetailPage'
+import { GroupListPage } from './pages/GroupListPage'
 import { LoginPage } from './pages/LoginPage'
 import { OrderListPage } from './pages/OrderListPage'
 
@@ -26,6 +28,8 @@ export default function App() {
         <Route path="courses" element={<CourseListPage />} />
         <Route path="courses/new" element={<CourseFormPage mode="create" />} />
         <Route path="courses/:id/edit" element={<CourseFormPage mode="edit" />} />
+        <Route path="groups" element={<GroupListPage />} />
+        <Route path="groups/:id" element={<GroupDetailPage />} />
         <Route path="orders" element={<OrderListPage />} />
         <Route path="accounts" element={<AccountListPage />} />
       </Route>

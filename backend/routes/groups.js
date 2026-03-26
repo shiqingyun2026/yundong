@@ -162,9 +162,7 @@ router.get('/:id', authenticate, async (req, res) => {
       })
     }
 
-    const deadlineTime = safeDate(course.start_time)
-      ? new Date(new Date(course.start_time).getTime() - 12 * 3600 * 1000)
-      : null
+    const deadlineTime = safeDate(group.expire_time)
 
     return res.json({
       groupId: group.id,
@@ -174,7 +172,7 @@ router.get('/:id', authenticate, async (req, res) => {
       targetCount: Number(group.target_count) || 0,
       remainingSeconds: getRemainingSeconds(group.expire_time),
       expireTime: group.expire_time,
-      refundDesc: '截止时间未成团将自动原路退款',
+      refundDesc: '报名截止时间未成团将自动原路退款',
       deadlineText: deadlineTime ? formatTime(deadlineTime) : '',
       userJoined: true,
       members: (memberRows || []).map(item => ({
