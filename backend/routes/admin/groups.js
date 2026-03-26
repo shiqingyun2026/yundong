@@ -2,9 +2,19 @@ const express = require('express')
 
 const supabase = require('../../utils/supabase')
 const { ok, fail, getPagination, formatDateTime } = require('./_helpers')
+const { COURSE_STATUS, getSingleCourseLifecycle } = require('../../utils/courseLifecycle')
 
 const router = express.Router()
 const AUTO_REFUND_REASON = '报名截止前未成团，系统自动退款'
+const COURSE_STATUS_TEXT = {
+  [COURSE_STATUS.PENDING_PUBLISH]: '待上架',
+  [COURSE_STATUS.GROUPING]: '拼团中',
+  [COURSE_STATUS.GROUP_FAILED]: '拼团失败',
+  [COURSE_STATUS.WAITING_CLASS]: '等待上课',
+  [COURSE_STATUS.IN_CLASS]: '上课中',
+  [COURSE_STATUS.FINISHED]: '已结课',
+  [COURSE_STATUS.UNPUBLISHED]: '已下架'
+}
 
 const mapGroupStatus = status => {
   if (status === 'success') {
@@ -32,6 +42,181 @@ const toMap = (list = [], key = 'id') =>
     return result
   }, {})
 
+const applyGroupFilters = (query, { status = '', courseId = '', startDate = '', endDate = '', dateField = 'created_at' }) => {
+  if (status) {
+    query = query.eq('status', status)
+  }
+
+  if (courseId) {
+    query = query.eq('course_id', courseId)
+  }
+
+  if (dateField !== 'success_time' && dateField !== 'joined_at') {
+    if (startDate) {
+      query = query.gte(dateField, `${startDate}T00:00:00+08:00`)
+    }
+
+    if (endDate) {
+      query = query.lte(dateField, `${endDate}T23:59:59+08:00`)
+    }
+  }
+
+  return query
+}
+
+const buildDateRange = (startDate = '', endDate = '') => ({
+  start: startDate ? `${startDate}T00:00:00+08:00` : '',
+  end: endDate ? `${endDate}T23:59:59+08:00` : ''
+})
+
+const buildSuccessTimeMap = async (groupIds = [], { startDate = '', endDate = '' } = {}) => {
+  if (!groupIds.length) {
+    return {}
+  }
+
+  let query = supabase
+    .from('orders')
+    .select('group_id, pay_time, created_at, status')
+    .in('group_id', groupIds)
+    .eq('status', 'success')
+
+  const range = buildDateRange(startDate, endDate)
+  if (range.start) {
+    query = query.gte('pay_time', range.start)
+  }
+  if (range.end) {
+    query = query.lte('pay_time', range.end)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    throw error
+  }
+
+  return (data || []).reduce((result, item) => {
+    const candidate = item.pay_time || item.created_at || ''
+    if (!item.group_id) {
+      return result
+    }
+
+    if (!result[item.group_id] || candidate > result[item.group_id]) {
+      result[item.group_id] = candidate
+    }
+    return result
+  }, {})
+}
+
+const buildJoinedGroupIdSet = async ({ startDate = '', endDate = '' } = {}) => {
+  let query = supabase.from('group_members').select('group_id')
+
+  const range = buildDateRange(startDate, endDate)
+  if (range.start) {
+    query = query.gte('joined_at', range.start)
+  }
+  if (range.end) {
+    query = query.lte('joined_at', range.end)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    throw error
+  }
+
+  return new Set((data || []).map(item => item.group_id).filter(Boolean))
+}
+
+const buildKeywordOrClause = (keyword, courseIds = []) => {
+  const clauses = []
+
+  if (keyword) {
+    clauses.push(`id.ilike.%${keyword}%`)
+  }
+
+  if (courseIds.length) {
+    clauses.push(`course_id.in.(${courseIds.join(',')})`)
+  }
+
+  return clauses.join(',')
+}
+
+const getListSummary = async (filters, matchedCourseIds = []) => {
+  const statuses = ['active', 'success', 'failed']
+  const results = await Promise.all(
+    statuses.map(async status => {
+      const keyword = filters.keyword || ''
+      let countQuery = supabase.from('groups').select('id', { count: 'exact', head: true })
+      countQuery = applyGroupFilters(countQuery, { ...filters, status })
+
+      if (keyword) {
+        const keywordOrClause = buildKeywordOrClause(keyword, matchedCourseIds)
+
+        if (keywordOrClause) {
+          countQuery = countQuery.or(keywordOrClause)
+        }
+      }
+
+      if (filters.dateField === 'success_time') {
+        const { data: groups, error: groupsError } = await supabase
+          .from('groups')
+          .select('id')
+          .eq('status', status)
+
+        if (groupsError) {
+          throw groupsError
+        }
+
+        const successTimeMap = await buildSuccessTimeMap(
+          (groups || []).map(item => item.id).filter(Boolean),
+          filters
+        )
+
+        return [status, Object.keys(successTimeMap).length]
+      }
+
+      if (filters.dateField === 'joined_at') {
+        let joinedGroupIds = await buildJoinedGroupIdSet(filters)
+
+        if (status) {
+          const { data: groups, error: groupsError } = await supabase
+            .from('groups')
+            .select('id')
+            .eq('status', status)
+
+          if (groupsError) {
+            throw groupsError
+          }
+
+          const allowedGroupIds = new Set((groups || []).map(item => item.id).filter(Boolean))
+          joinedGroupIds = new Set([...joinedGroupIds].filter(groupId => allowedGroupIds.has(groupId)))
+        }
+
+        return [status, joinedGroupIds.size]
+      }
+
+      const { count, error } = await countQuery
+
+      if (error) {
+        throw error
+      }
+
+      return [status, Number(count || 0)]
+    })
+  )
+
+  const summary = results.reduce(
+    (result, [status, count]) => {
+      result.total += count
+      result[status] = count
+      return result
+    },
+    { total: 0, active: 0, success: 0, failed: 0 }
+  )
+
+  return summary
+}
+
 router.get('/', async (req, res) => {
   const { page, size, from, to } = getPagination(req.query || {})
   const keyword = `${req.query.keyword || ''}`.trim()
@@ -39,37 +224,65 @@ router.get('/', async (req, res) => {
   const courseId = `${req.query.course_id || ''}`.trim()
   const startDate = `${req.query.start_date || ''}`.trim()
   const endDate = `${req.query.end_date || ''}`.trim()
+  const dateField = ['created_at', 'expire_time', 'success_time', 'joined_at'].includes(`${req.query.date_field || ''}`)
+    ? `${req.query.date_field}`
+    : 'created_at'
 
   try {
-    let query = supabase
+    let matchedCourseIds = []
+    if (keyword) {
+      const { data: matchedCourses, error: courseKeywordError } = await supabase
+        .from('courses')
+        .select('id')
+        .ilike('name', `%${keyword}%`)
+
+      if (courseKeywordError) {
+        throw courseKeywordError
+      }
+
+      matchedCourseIds = (matchedCourses || []).map(item => item.id).filter(Boolean)
+    }
+
+    let listQuery = supabase
       .from('groups')
-      .select('id, course_id, creator_id, status, current_count, target_count, expire_time, created_at')
+      .select('id, course_id, creator_id, status, current_count, target_count, expire_time, created_at', {
+        count: 'exact'
+      })
       .order('created_at', { ascending: false })
+    listQuery = applyGroupFilters(listQuery, { status, courseId, startDate, endDate, dateField })
 
-    if (status) {
-      query = query.eq('status', status)
+    const keywordOrClause = buildKeywordOrClause(keyword, matchedCourseIds)
+    if (keywordOrClause) {
+      listQuery = listQuery.or(keywordOrClause)
     }
 
-    if (courseId) {
-      query = query.eq('course_id', courseId)
-    }
-
-    if (startDate) {
-      query = query.gte('created_at', `${startDate}T00:00:00+08:00`)
-    }
-
-    if (endDate) {
-      query = query.lte('expire_time', `${endDate}T23:59:59+08:00`)
-    }
-
-    const { data, error } = await query
+    const { data, error } = await listQuery
 
     if (error) {
       throw error
     }
 
-    const courseIds = [...new Set((data || []).map(item => item.course_id).filter(Boolean))]
-    const creatorIds = [...new Set((data || []).map(item => item.creator_id).filter(Boolean))]
+    let filteredData = data || []
+
+    if (dateField === 'success_time') {
+      const successTimeMap = await buildSuccessTimeMap(
+        filteredData.map(item => item.id).filter(Boolean),
+        { startDate, endDate }
+      )
+
+      filteredData = filteredData.filter(item => successTimeMap[item.id])
+    }
+
+    if (dateField === 'joined_at') {
+      const joinedGroupIds = await buildJoinedGroupIdSet({ startDate, endDate })
+      filteredData = filteredData.filter(item => joinedGroupIds.has(item.id))
+    }
+
+    const count = filteredData.length
+    const pagedData = filteredData.slice(from, to + 1)
+
+    const courseIds = [...new Set(pagedData.map(item => item.course_id).filter(Boolean))]
+    const creatorIds = [...new Set(pagedData.map(item => item.creator_id).filter(Boolean))]
 
     const [{ data: courses }, { data: creators }] = await Promise.all([
       courseIds.length
@@ -83,8 +296,7 @@ router.get('/', async (req, res) => {
     const coursesById = toMap(courses || [])
     const creatorsById = toMap(creators || [])
 
-    const filtered = (data || [])
-      .map(item => ({
+    const list = pagedData.map(item => ({
         id: item.id,
         course_id: item.course_id || '',
         course_title: (coursesById[item.course_id] && coursesById[item.course_id].name) || '',
@@ -95,13 +307,25 @@ router.get('/', async (req, res) => {
         expire_time: formatDateTime(item.expire_time),
         create_time: formatDateTime(item.created_at)
       }))
-      .filter(item => !keyword || item.course_title.includes(keyword) || item.id.includes(keyword))
+
+    const summary = await getListSummary(
+      {
+        keyword,
+        courseId,
+        startDate,
+        endDate,
+        dateField
+      },
+      matchedCourseIds
+    )
 
     return ok(res, {
-      total: filtered.length,
-      list: filtered.slice(from, to + 1),
+      total: Number(count || 0),
+      list,
       page,
-      size
+      size,
+      total_pages: Math.max(1, Math.ceil(Number(count || 0) / size)),
+      summary
     })
   } catch (error) {
     return fail(res, 5000, error.message || '获取拼团列表失败', 500)
@@ -166,7 +390,7 @@ router.get('/:id', async (req, res) => {
     const [{ data: course }, { data: creator }, { data: members }, { data: orders }] = await Promise.all([
       supabase
         .from('courses')
-        .select('id, name, deadline, start_time, end_time')
+        .select('id, name, publish_time, unpublish_time, deadline, start_time, end_time, status')
         .eq('id', group.course_id)
         .maybeSingle(),
       group.creator_id
@@ -222,12 +446,32 @@ router.get('/:id', async (req, res) => {
       refund_type: mapRefundType(item.refund_reason)
     }))
 
+    const lifecycle = course ? await getSingleCourseLifecycle(course.id) : null
+    const courseStatus = lifecycle ? lifecycle.status : Number((course && course.status) || COURSE_STATUS.PENDING_PUBLISH)
     const anomalies = []
+
     if (group.status === 'failed' && orderList.some(item => item.status !== 'refunded')) {
       anomalies.push('失败团存在未退款订单')
     }
     if (Number(group.current_count || 0) !== memberList.length) {
       anomalies.push('团人数与成员数不一致')
+    }
+    if (group.status === 'success' && Number(group.current_count || 0) < Number(group.target_count || 0)) {
+      anomalies.push('已成团状态但当前人数未达到成团门槛')
+    }
+    if (group.status === 'active' && courseStatus === COURSE_STATUS.GROUP_FAILED) {
+      anomalies.push('课程已进入拼团失败，但当前团仍显示进行中')
+    }
+    if (group.status === 'success' && courseStatus === COURSE_STATUS.GROUP_FAILED) {
+      anomalies.push('课程状态为拼团失败，但当前团已标记成功，请核对课程状态同步')
+    }
+    if (
+      course &&
+      group.expire_time &&
+      course.deadline &&
+      new Date(group.expire_time).getTime() !== new Date(course.deadline).getTime()
+    ) {
+      anomalies.push('团截止时间与课程报名截止时间不一致')
     }
 
     return ok(res, {
@@ -240,9 +484,15 @@ router.get('/:id', async (req, res) => {
       target_count: Number(group.target_count || 0),
       expire_time: formatDateTime(group.expire_time),
       create_time: formatDateTime(group.created_at),
+      course_status: courseStatus,
+      course_status_text: COURSE_STATUS_TEXT[courseStatus] || '未知',
+      publish_time: formatDateTime(course && course.publish_time),
+      unpublish_time: formatDateTime(course && course.unpublish_time),
       deadline: formatDateTime(course && course.deadline),
       start_time: formatDateTime(course && course.start_time),
       end_time: formatDateTime(course && course.end_time),
+      refund_order_count: orderList.filter(item => item.status === 'refunded').length,
+      paid_order_count: orderList.filter(item => item.status === 'success').length,
       rules: [
         '团截止时间等于课程报名截止时间',
         '课程成功定义为报名截止前至少一个团成功',

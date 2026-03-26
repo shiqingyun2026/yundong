@@ -9,6 +9,7 @@ const {
   parseShanghaiDateTimeInput
 } = require('./_helpers')
 const { COURSE_STATUS, getCourseLifecycleMap, getSingleCourseLifecycle } = require('../../utils/courseLifecycle')
+const { writeAdminLog } = require('../../utils/adminStore')
 
 const router = express.Router()
 const GEOCODE_API_BASE_URL = process.env.GEOCODE_API_BASE_URL || 'https://nominatim.openstreetmap.org/search'
@@ -36,6 +37,7 @@ const mapCourseListItem = (item, lifecycle = {}) => ({
   deadline: formatDateTime(item.deadline),
   start_time: formatDateTime(item.start_time),
   end_time: formatDateTime(item.end_time),
+  location_district: item.location_district || '',
   location_detail: item.location_detail || item.address || '',
   group_price: Number(item.group_price || 0),
   original_price: Number(item.original_price || 0),
@@ -80,6 +82,14 @@ const normalizeMinuteTimestamp = value => {
   }
 
   return Math.floor(value / 60000)
+}
+
+const safeWriteAdminLog = async payload => {
+  try {
+    await writeAdminLog(payload)
+  } catch (error) {
+    console.error('[admin/courses] write admin log failed', error)
+  }
 }
 
 const validateCoursePayload = (payload, options = {}) => {
@@ -257,12 +267,15 @@ router.get('/', async (req, res) => {
   const startDate = `${req.query.start_date || ''}`.trim()
   const endDate = `${req.query.end_date || ''}`.trim()
   const status = `${req.query.status || ''}`.trim()
+  const dateField = ['publish_time', 'start_time', 'deadline', 'unpublish_time'].includes(`${req.query.date_field || ''}`)
+    ? `${req.query.date_field}`
+    : 'start_time'
 
   try {
     let query = supabase
       .from('courses')
       .select(
-        'id, name, cover, address, location_detail, publish_time, unpublish_time, deadline, start_time, end_time, group_price, original_price, max_groups, default_target_count, status'
+        'id, name, cover, address, location_district, location_detail, publish_time, unpublish_time, deadline, start_time, end_time, group_price, original_price, max_groups, default_target_count, status'
       )
       .order('start_time', { ascending: true })
 
@@ -271,11 +284,11 @@ router.get('/', async (req, res) => {
     }
 
     if (startDate) {
-      query = query.gte('start_time', parseShanghaiDateTimeInput(`${startDate} 00:00:00`))
+      query = query.gte(dateField, parseShanghaiDateTimeInput(`${startDate} 00:00:00`))
     }
 
     if (endDate) {
-      query = query.lte('start_time', parseShanghaiDateTimeInput(`${endDate} 23:59:59`))
+      query = query.lte(dateField, parseShanghaiDateTimeInput(`${endDate} 23:59:59`))
     }
 
     const { data, error } = await query
@@ -299,7 +312,8 @@ router.get('/', async (req, res) => {
       total: filteredList.length,
       list: pagedList,
       page,
-      size
+      size,
+      total_pages: Math.max(1, Math.ceil(filteredList.length / size))
     })
   } catch (error) {
     return fail(res, 5000, error.message || '获取课程列表失败', 500)
@@ -393,6 +407,20 @@ router.post('/', async (req, res) => {
       throw error
     }
 
+    await safeWriteAdminLog({
+      adminId: req.admin.id,
+      action: 'course_create',
+      targetType: 'course',
+      targetId: data.id,
+      detail: {
+        title: `${payload.title || ''}`.trim(),
+        publish_time: parseShanghaiDateTimeInput(payload.publish_time),
+        deadline: parseShanghaiDateTimeInput(payload.deadline),
+        start_time: parseShanghaiDateTimeInput(payload.start_time)
+      },
+      ip: req.ip || null
+    })
+
     return ok(res, { id: data.id })
   } catch (error) {
     return fail(res, 5000, error.message || '创建课程失败', 500)
@@ -444,6 +472,21 @@ router.put('/:id', async (req, res) => {
       throw error
     }
 
+    await safeWriteAdminLog({
+      adminId: req.admin.id,
+      action: 'course_update',
+      targetType: 'course',
+      targetId: data.id,
+      detail: {
+        title: `${payload.title || ''}`.trim(),
+        publish_time: parseShanghaiDateTimeInput(payload.publish_time),
+        deadline: parseShanghaiDateTimeInput(payload.deadline),
+        start_time: parseShanghaiDateTimeInput(payload.start_time),
+        end_time: parseShanghaiDateTimeInput(payload.end_time)
+      },
+      ip: req.ip || null
+    })
+
     return ok(res, { id: data.id })
   } catch (error) {
     return fail(res, 5000, error.message || '更新课程失败', 500)
@@ -452,6 +495,28 @@ router.put('/:id', async (req, res) => {
 
 router.put('/:id/offline', async (req, res) => {
   try {
+    const { data: existing, error: existingError } = await supabase
+      .from('courses')
+      .select('id')
+      .eq('id', req.params.id)
+      .maybeSingle()
+
+    if (existingError) {
+      throw existingError
+    }
+
+    if (!existing) {
+      return fail(res, 2001, '课程不存在', 404)
+    }
+
+    const lifecycle = await getSingleCourseLifecycle(req.params.id, {
+      operatorId: req.admin && req.admin.id
+    })
+
+    if (![COURSE_STATUS.PENDING_PUBLISH, COURSE_STATUS.GROUP_FAILED, COURSE_STATUS.FINISHED].includes(lifecycle.status)) {
+      return fail(res, 2001, '只有待上架、拼团失败或已结课的课程才允许下架')
+    }
+
     const { data, error } = await supabase
       .from('courses')
       .update({
@@ -466,9 +531,17 @@ router.put('/:id/offline', async (req, res) => {
       throw error
     }
 
-    if (!data) {
-      return fail(res, 2001, '课程不存在', 404)
-    }
+    await safeWriteAdminLog({
+      adminId: req.admin.id,
+      action: 'course_offline',
+      targetType: 'course',
+      targetId: data.id,
+      detail: {
+        previous_status: lifecycle.status,
+        offline_at: new Date().toISOString()
+      },
+      ip: req.ip || null
+    })
 
     return ok(res, { id: data.id })
   } catch (error) {

@@ -9,7 +9,8 @@
     "seed:regression-course": "node scripts/create-test-course.js",
     "ensure:bootstrap-admin": "node scripts/ensure-bootstrap-admin.js",
     "verify:course-lifecycle": "node scripts/verify-course-lifecycle.js",
-    "verify:group-rules": "node scripts/verify-group-rules.js"
+    "verify:group-rules": "node scripts/verify-group-rules.js",
+    "verify:admin-seed": "node scripts/verify-admin-seed.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",

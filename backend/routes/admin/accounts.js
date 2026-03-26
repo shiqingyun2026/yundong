@@ -17,16 +17,23 @@ const router = express.Router()
 router.get('/', requireSuperAdmin, async (req, res) => {
   const { page, size } = getPagination(req.query || {})
   const keyword = `${req.query.keyword || ''}`.trim()
+  const role = `${req.query.role || ''}`.trim()
+  const status = `${req.query.status || ''}`.trim()
 
   try {
     const result = await listAdmins({
       keyword,
+      role,
+      status,
       from: (page - 1) * size,
       to: page * size - 1
     })
 
     return ok(res, {
       total: result.total,
+      page,
+      size,
+      total_pages: Math.max(1, Math.ceil(result.total / size)),
       list: result.list.map(item => ({
         id: item.id,
         username: item.username,

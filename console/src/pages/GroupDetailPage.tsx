@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
+import { PageBackButton } from '../components/PageBackButton'
 import { api } from '../lib/api'
 import type { GroupDetail } from '../types'
 
@@ -42,9 +43,12 @@ export function GroupDetailPage() {
 
   return (
     <section className="stack">
-      <div>
-        <p className="section-kicker">Group Detail</p>
-        <h3>拼团详情</h3>
+      <div className="stack compact-stack">
+        <PageBackButton fallback="/groups" />
+        <div>
+          <p className="section-kicker">Group Detail</p>
+          <h3>拼团详情</h3>
+        </div>
       </div>
 
       <section className="panel">
@@ -58,8 +62,9 @@ export function GroupDetailPage() {
               <p>拼团 ID：{detail.id}</p>
               <p>所属课程：{detail.course_title || '-'}</p>
               <p>状态：{getStatusText(detail.status)}</p>
+              <p>课程当前状态：{detail.course_status_text || '-'}</p>
               <p>当前人数：{detail.current_count}</p>
-              <p>成团人数：{detail.target_count}</p>
+              <p>成团人数要求：{detail.target_count}</p>
               <p>开团人：{detail.creator_name || '-'}</p>
               <p>团截止时间：{detail.expire_time || '-'}</p>
               <p>创建时间：{detail.create_time || '-'}</p>
@@ -67,13 +72,17 @@ export function GroupDetailPage() {
 
             <div className="detail-card">
               <strong>课程时间</strong>
+              <p>上架时间：{detail.publish_time || '-'}</p>
+              <p>下架时间：{detail.unpublish_time || '-'}</p>
               <p>报名截止：{detail.deadline || '-'}</p>
               <p>开课时间：{detail.start_time || '-'}</p>
               <p>结束时间：{detail.end_time || '-'}</p>
             </div>
 
             <div className="detail-card">
-              <strong>规则说明</strong>
+              <strong>规则与订单概况</strong>
+              <p>已支付订单：{detail.paid_order_count}</p>
+              <p>已退款订单：{detail.refund_order_count}</p>
               {detail.rules.map(item => (
                 <p key={item}>{item}</p>
               ))}
@@ -114,7 +123,7 @@ export function GroupDetailPage() {
             <thead>
               <tr>
                 <th>昵称</th>
-                <th>加入时间</th>
+                <th>入团时间</th>
                 <th>关联订单号</th>
                 <th>订单状态</th>
               </tr>
@@ -139,6 +148,10 @@ export function GroupDetailPage() {
             </tbody>
           </table>
         </section>
+      ) : null}
+
+      {detail ? (
+        <p className="muted-text">入团时间表示该成员支付成功后被写入拼团成员记录的时间。</p>
       ) : null}
 
       {detail ? (

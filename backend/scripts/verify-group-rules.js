@@ -44,6 +44,35 @@ const buildFailedRefundResult = ({ group, orders, groupMembers }) => ({
   groupMembers
 })
 
+const buildManualRefundRollbackResult = ({ group, order, groupMembers, now }) => {
+  const membershipExists = groupMembers.some(
+    item => item.group_id === group.id && item.user_id === order.user_id
+  )
+
+  const nextGroupMembers = membershipExists
+    ? groupMembers.filter(item => !(item.group_id === group.id && item.user_id === order.user_id))
+    : groupMembers
+
+  const nextCount = membershipExists ? Math.max(0, Number(group.current_count || 0) - 1) : Number(group.current_count || 0)
+  const expireAt = new Date(group.expire_time).getTime()
+
+  let nextStatus = 'active'
+  if (nextCount >= Number(group.target_count || 0)) {
+    nextStatus = 'success'
+  } else if (expireAt <= now.getTime()) {
+    nextStatus = 'failed'
+  }
+
+  return {
+    group: {
+      ...group,
+      current_count: nextCount,
+      status: nextStatus
+    },
+    groupMembers: nextGroupMembers
+  }
+}
+
 const hasSuccessfulParticipation = ({ userId, successGroupIds, orders }) => {
   const hasSuccessOrder = orders.some(
     item => item.user_id === userId && item.status === 'success'
@@ -120,6 +149,44 @@ const scenarios = [
 
       const blocked = hasSuccessfulParticipation({ userId, successGroupIds, orders })
       expect(blocked === true, '成功参团记录没有拦截重复成功参团')
+    }
+  },
+  {
+    name: '手动退款后会回滚 group_members、团人数和团状态',
+    run: () => {
+      const group = {
+        id: 'group_success',
+        status: 'success',
+        current_count: 3,
+        target_count: 3,
+        expire_time: '2026-03-28T18:00:00+08:00'
+      }
+      const order = {
+        id: 'order_1',
+        group_id: 'group_success',
+        user_id: 'user_1',
+        status: 'success'
+      }
+      const groupMembers = [
+        { group_id: 'group_success', user_id: 'user_1' },
+        { group_id: 'group_success', user_id: 'user_2' },
+        { group_id: 'group_success', user_id: 'user_3' }
+      ]
+
+      const result = buildManualRefundRollbackResult({
+        group,
+        order,
+        groupMembers,
+        now: new Date('2026-03-27T12:00:00+08:00')
+      })
+
+      expect(result.group.current_count === 2, '退款后团人数没有回滚')
+      expect(result.group.status === 'active', '退款后团状态没有从 success 回滚为 active')
+      expect(result.groupMembers.length === 2, '退款后 group_members 没有删除对应成员')
+      expect(
+        result.groupMembers.every(item => item.user_id !== 'user_1'),
+        '退款后用户成员关系没有被移除'
+      )
     }
   }
 ]

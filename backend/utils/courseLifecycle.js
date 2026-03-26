@@ -1,4 +1,5 @@
 const supabase = require('./supabase')
+const { writeAdminLog } = require('./adminStore')
 
 const COURSE_STATUS = {
   PENDING_PUBLISH: 0,
@@ -6,7 +7,8 @@ const COURSE_STATUS = {
   GROUP_FAILED: 2,
   WAITING_CLASS: 3,
   IN_CLASS: 4,
-  FINISHED: 5
+  FINISHED: 5,
+  UNPUBLISHED: 6
 }
 
 const safeDate = value => {
@@ -23,6 +25,14 @@ const toISOString = value => {
   return date ? date.toISOString() : null
 }
 
+const safeWriteAdminLog = async payload => {
+  try {
+    await writeAdminLog(payload)
+  } catch (error) {
+    console.error('[courseLifecycle] write admin log failed', error)
+  }
+}
+
 const computeCourseLifecycleStatus = (course, stats = {}, now = new Date()) => {
   const publishTime = safeDate(course.publish_time)
   const deadline = safeDate(course.deadline)
@@ -30,6 +40,10 @@ const computeCourseLifecycleStatus = (course, stats = {}, now = new Date()) => {
   const endTime = safeDate(course.end_time)
   const unpublishTime = safeDate(course.unpublish_time)
   const successGroupCount = Number(stats.successGroupCount) || 0
+
+  if (unpublishTime && now.getTime() >= unpublishTime.getTime()) {
+    return COURSE_STATUS.UNPUBLISHED
+  }
 
   if (endTime && now.getTime() >= endTime.getTime()) {
     return COURSE_STATUS.FINISHED
@@ -48,10 +62,6 @@ const computeCourseLifecycleStatus = (course, stats = {}, now = new Date()) => {
   }
 
   if (publishTime && now.getTime() < publishTime.getTime()) {
-    return COURSE_STATUS.PENDING_PUBLISH
-  }
-
-  if (unpublishTime && now.getTime() >= unpublishTime.getTime()) {
     return COURSE_STATUS.PENDING_PUBLISH
   }
 
@@ -154,6 +164,22 @@ const syncCourseLifecycle = async (courseIds = [], options = {}) => {
         operatorId: options.operatorId || null,
         now
       })
+
+      if (options.operatorId) {
+        await safeWriteAdminLog({
+          adminId: options.operatorId,
+          action: 'course_auto_refund',
+          targetType: 'course',
+          targetId: course.id,
+          detail: {
+            next_status: nextStatus,
+            active_group_ids: stats.activeGroupIds,
+            success_group_count: stats.successGroupCount,
+            refund_reason: '报名截止前未成团，系统自动退款'
+          },
+          ip: null
+        })
+      }
     }
 
     if (course.status !== nextStatus) {
@@ -167,6 +193,22 @@ const syncCourseLifecycle = async (courseIds = [], options = {}) => {
 
       if (updateCourseError) {
         throw updateCourseError
+      }
+
+      if (options.operatorId) {
+        await safeWriteAdminLog({
+          adminId: options.operatorId,
+          action: 'course_status_sync',
+          targetType: 'course',
+          targetId: course.id,
+          detail: {
+            previous_status: course.status,
+            next_status: nextStatus,
+            success_group_count: stats.successGroupCount,
+            active_group_ids: stats.activeGroupIds
+          },
+          ip: null
+        })
       }
     }
 

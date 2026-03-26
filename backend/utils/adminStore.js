@@ -93,25 +93,28 @@ const hasAdminPasswordColumn = async () => {
   return adminPasswordColumnState
 }
 
-const listAdmins = async ({ keyword = '', from = 0, to = 9 } = {}) => {
+const listAdmins = async ({ keyword = '', role = '', status = '', from = 0, to = 9 } = {}) => {
   const fallbackAdmin = getBootstrapAdmin()
+  const matchedFallback =
+    (!keyword || fallbackAdmin.username.includes(keyword)) &&
+    (!role || fallbackAdmin.role === role) &&
+    (!status || fallbackAdmin.status === status)
 
   if (!(await hasAdminUsersTable())) {
     return {
-      total: keyword && !fallbackAdmin.username.includes(keyword) ? 0 : 1,
-      list:
-        keyword && !fallbackAdmin.username.includes(keyword)
-          ? []
-          : [
-              {
-                id: fallbackAdmin.id,
-                username: fallbackAdmin.username,
-                role: fallbackAdmin.role,
-                status: fallbackAdmin.status,
-                last_login: null,
-                created_at: null
-              }
-            ]
+      total: matchedFallback ? 1 : 0,
+      list: matchedFallback
+        ? [
+            {
+              id: fallbackAdmin.id,
+              username: fallbackAdmin.username,
+              role: fallbackAdmin.role,
+              status: fallbackAdmin.status,
+              last_login: null,
+              created_at: null
+            }
+          ]
+        : []
     }
   }
 
@@ -123,6 +126,14 @@ const listAdmins = async ({ keyword = '', from = 0, to = 9 } = {}) => {
 
   if (keyword) {
     query = query.ilike('username', `%${keyword}%`)
+  }
+
+  if (role) {
+    query = query.eq('role', role)
+  }
+
+  if (status) {
+    query = query.eq('status', status)
   }
 
   const { data, count, error } = await query

@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react'
 
+import { PaginationBar } from '../components/PaginationBar'
 import { api } from '../lib/api'
 import type { AccountListItem } from '../types'
 
@@ -27,10 +28,14 @@ export function AccountListPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  const [role, setRole] = useState('')
+  const [status, setStatus] = useState('')
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState({ total: 0, total_pages: 1, page: 1, size: 10 })
   const [editor, setEditor] = useState<EditorState | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  const fetchAccounts = async (nextKeyword = '') => {
+  const fetchAccounts = async (nextKeyword = keyword, nextRole = role, nextStatus = status, nextPage = page) => {
     setLoading(true)
     setError('')
 
@@ -39,8 +44,29 @@ export function AccountListPage() {
       if (nextKeyword) {
         params.set('keyword', nextKeyword)
       }
-      const data = await api.get<{ list: AccountListItem[] }>(`/accounts?${params.toString()}`)
+      if (nextRole) {
+        params.set('role', nextRole)
+      }
+      if (nextStatus) {
+        params.set('status', nextStatus)
+      }
+      params.set('page', `${nextPage}`)
+      params.set('size', '10')
+      const data = await api.get<{
+        list: AccountListItem[]
+        total: number
+        total_pages: number
+        page: number
+        size: number
+      }>(`/accounts?${params.toString()}`)
       setItems(data.list || [])
+      setPagination({
+        total: data.total || 0,
+        total_pages: data.total_pages || 1,
+        page: data.page || nextPage,
+        size: data.size || 10
+      })
+      setPage(data.page || nextPage)
     } catch (fetchError) {
       setError(fetchError instanceof Error ? fetchError.message : '获取账号失败')
     } finally {
@@ -77,7 +103,7 @@ export function AccountListPage() {
       }
 
       setEditor(null)
-      await fetchAccounts(keyword)
+      await fetchAccounts(keyword, role, status, page)
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : '保存账号失败')
     } finally {
@@ -104,7 +130,7 @@ export function AccountListPage() {
 
     try {
       await api.delete(`/accounts/${id}`)
-      await fetchAccounts(keyword)
+      await fetchAccounts(keyword, role, status, page)
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : '删除账号失败')
     }
@@ -112,144 +138,174 @@ export function AccountListPage() {
 
   return (
     <section className="stack">
-      <div className="page-actions">
-        <div>
-          <p className="section-kicker">Accounts</p>
-          <h3>账号管理</h3>
+      <section className="panel search-panel">
+        <div className="filter-grid">
+          <label className="filter-field">
+            <span>用户名</span>
+            <input
+              placeholder="按用户名搜索"
+              value={keyword}
+              onChange={event => setKeyword(event.target.value)}
+            />
+          </label>
+          <label className="filter-field">
+            <span>角色</span>
+            <select value={role} onChange={event => setRole(event.target.value)}>
+              <option value="">全部角色</option>
+              <option value="admin">管理员</option>
+              <option value="super_admin">超级管理员</option>
+            </select>
+          </label>
+          <label className="filter-field">
+            <span>状态</span>
+            <select value={status} onChange={event => setStatus(event.target.value)}>
+              <option value="">全部状态</option>
+              <option value="active">启用</option>
+              <option value="disabled">停用</option>
+            </select>
+          </label>
         </div>
-        <button className="primary-button" onClick={() => setEditor({ ...emptyEditor })}>
-          新增账号
-        </button>
-      </div>
 
-      <section className="panel stack">
-        <div className="filter-bar">
-          <input
-            placeholder="按用户名搜索"
-            value={keyword}
-            onChange={event => setKeyword(event.target.value)}
-          />
-          <button className="secondary-button" onClick={() => void fetchAccounts(keyword)}>
-            搜索
+        <div className="filter-actions filter-actions-end">
+          <button
+            className="secondary-button compact-action-button query-button"
+            type="button"
+            onClick={() => void fetchAccounts(keyword, role, status, 1)}
+          >
+            查询
+          </button>
+          <button className="primary-button compact-action-button" type="button" onClick={() => setEditor({ ...emptyEditor })}>
+            新增账号
           </button>
         </div>
+      </section>
 
-        {editor ? (
-          <form className="panel stack subtle-panel" onSubmit={handleSubmit}>
-            <div>
-              <p className="section-kicker">Account Editor</p>
-              <h4>{editor.mode === 'create' ? '新增管理员' : '编辑管理员'}</h4>
-            </div>
+      {editor ? (
+        <form className="panel stack subtle-panel" onSubmit={handleSubmit}>
+          <div>
+            <p className="section-kicker">Account Editor</p>
+            <h4>{editor.mode === 'create' ? '新增管理员' : '编辑管理员'}</h4>
+          </div>
 
-            <div className="form-grid">
-              <label>
-                用户名
-                <input
-                  value={editor.username}
-                  disabled={editor.mode === 'edit'}
-                  onChange={event => setEditor(current => current && { ...current, username: event.target.value })}
-                />
-              </label>
-
-              <label>
-                角色
-                <select
-                  value={editor.role}
-                  onChange={event =>
-                    setEditor(current => current && { ...current, role: event.target.value as 'super_admin' | 'admin' })
-                  }
-                >
-                  <option value="admin">管理员</option>
-                  <option value="super_admin">超级管理员</option>
-                </select>
-              </label>
-
-              <label>
-                状态
-                <select
-                  value={editor.status}
-                  disabled={editor.mode === 'create'}
-                  onChange={event =>
-                    setEditor(current => current && { ...current, status: event.target.value as 'active' | 'disabled' })
-                  }
-                >
-                  <option value="active">启用</option>
-                  <option value="disabled">停用</option>
-                </select>
-              </label>
-            </div>
-
+          <div className="form-grid">
             <label>
-              {editor.mode === 'create' ? '密码' : '新密码（留空则不修改）'}
+              用户名
               <input
-                type="password"
-                value={editor.password}
-                placeholder={editor.mode === 'create' ? '至少 6 位' : '不修改可留空'}
-                onChange={event => setEditor(current => current && { ...current, password: event.target.value })}
+                value={editor.username}
+                disabled={editor.mode === 'edit'}
+                onChange={event => setEditor(current => current && { ...current, username: event.target.value })}
               />
             </label>
 
-            <div className="button-row">
-              <button className="primary-button" type="submit" disabled={submitting}>
-                {submitting ? '保存中...' : '保存'}
-              </button>
-              <button className="ghost-button" type="button" onClick={() => setEditor(null)}>
-                取消
-              </button>
-            </div>
-          </form>
-        ) : null}
+            <label>
+              角色
+              <select
+                value={editor.role}
+                onChange={event =>
+                  setEditor(current => current && { ...current, role: event.target.value as 'super_admin' | 'admin' })
+                }
+              >
+                <option value="admin">管理员</option>
+                <option value="super_admin">超级管理员</option>
+              </select>
+            </label>
 
+            <label>
+              状态
+              <select
+                value={editor.status}
+                disabled={editor.mode === 'create'}
+                onChange={event =>
+                  setEditor(current => current && { ...current, status: event.target.value as 'active' | 'disabled' })
+                }
+              >
+                <option value="active">启用</option>
+                <option value="disabled">停用</option>
+              </select>
+            </label>
+          </div>
+
+          <label>
+            {editor.mode === 'create' ? '密码' : '新密码（留空则不修改）'}
+            <input
+              type="password"
+              value={editor.password}
+              placeholder={editor.mode === 'create' ? '至少 6 位' : '不修改可留空'}
+              onChange={event => setEditor(current => current && { ...current, password: event.target.value })}
+            />
+          </label>
+
+          <div className="button-row">
+            <button className="primary-button" type="submit" disabled={submitting}>
+              {submitting ? '保存中...' : '保存'}
+            </button>
+            <button className="ghost-button" type="button" onClick={() => setEditor(null)}>
+              取消
+            </button>
+          </div>
+        </form>
+      ) : null}
+
+      <section className="panel stack">
         {loading ? <p className="muted-text">加载中...</p> : null}
         {error ? <p className="error-text">{error}</p> : null}
 
         {!loading ? (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>用户名</th>
-                <th>角色</th>
-                <th>状态</th>
-                <th>最后登录时间</th>
-                <th>创建时间</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map(item => (
-                <tr key={item.id}>
-                  <td>{item.username}</td>
-                  <td>{item.role}</td>
-                  <td>{item.status === 'active' ? '启用' : '停用'}</td>
-                  <td>{item.last_login_time || '-'}</td>
-                  <td>{item.create_time || '-'}</td>
-                  <td className="button-row">
-                    <button
-                      className="secondary-button compact-button"
-                      onClick={() =>
-                        setEditor({
-                          mode: 'edit',
-                          id: item.id,
-                          username: item.username,
-                          password: '',
-                          role: item.role as 'super_admin' | 'admin',
-                          status: item.status as 'active' | 'disabled'
-                        })
-                      }
-                    >
-                      编辑
-                    </button>
-                    <button
-                      className="ghost-button compact-button"
-                      onClick={() => void handleDelete(item.id)}
-                    >
-                      删除
-                    </button>
-                  </td>
+          <>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>用户名</th>
+                  <th>角色</th>
+                  <th>状态</th>
+                  <th>最后登录时间</th>
+                  <th>创建时间</th>
+                  <th>操作</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {items.map(item => (
+                  <tr key={item.id}>
+                    <td>{item.username}</td>
+                    <td>{item.role}</td>
+                    <td>{item.status === 'active' ? '启用' : '停用'}</td>
+                    <td>{item.last_login_time || '-'}</td>
+                    <td>{item.create_time || '-'}</td>
+                    <td className="button-row">
+                      <button
+                        className="secondary-button compact-button"
+                        onClick={() =>
+                          setEditor({
+                            mode: 'edit',
+                            id: item.id,
+                            username: item.username,
+                            password: '',
+                            role: item.role as 'super_admin' | 'admin',
+                            status: item.status as 'active' | 'disabled'
+                          })
+                        }
+                      >
+                        编辑
+                      </button>
+                      <button
+                        className="ghost-button compact-button"
+                        onClick={() => void handleDelete(item.id)}
+                      >
+                        删除
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <PaginationBar
+              total={pagination.total}
+              page={pagination.page}
+              totalPages={pagination.total_pages}
+              onPrev={() => void fetchAccounts(keyword, role, status, pagination.page - 1)}
+              onNext={() => void fetchAccounts(keyword, role, status, pagination.page + 1)}
+            />
+          </>
         ) : null}
       </section>
     </section>

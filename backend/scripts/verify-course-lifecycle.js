@@ -6,7 +6,8 @@ const STATUS_TEXT = {
   [COURSE_STATUS.GROUP_FAILED]: '拼团失败',
   [COURSE_STATUS.WAITING_CLASS]: '等待上课',
   [COURSE_STATUS.IN_CLASS]: '上课中',
-  [COURSE_STATUS.FINISHED]: '已结课'
+  [COURSE_STATUS.FINISHED]: '已结课',
+  [COURSE_STATUS.UNPUBLISHED]: '已下架'
 }
 
 const assertScenario = ({ name, course, stats, now, expectedStatus }) => {
@@ -64,6 +65,16 @@ const scenarios = [
     stats: { successGroupCount: 0 },
     now: new Date('2026-03-28T18:00:00+08:00'),
     expectedStatus: COURSE_STATUS.GROUP_FAILED
+  },
+  {
+    name: '到下架时间后进入已下架',
+    course: {
+      ...baseCourse,
+      unpublish_time: '2026-03-27T08:00:00+08:00'
+    },
+    stats: { successGroupCount: 0 },
+    now: new Date('2026-03-27T12:00:00+08:00'),
+    expectedStatus: COURSE_STATUS.UNPUBLISHED
   }
 ]
 

@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
 import { authStore } from '../lib/auth'
 
@@ -7,12 +7,17 @@ const navItems = [
   { to: '/courses', label: '课程管理' },
   { to: '/groups', label: '拼团管理' },
   { to: '/orders', label: '订单管理' },
-  { to: '/accounts', label: '账号管理' }
+  { to: '/accounts', label: '账号管理' },
+  { to: '/logs', label: '操作日志' }
 ]
 
 export function AdminLayout() {
   const navigate = useNavigate()
+  const location = useLocation()
   const user = authStore.getUser()
+  const currentNavItem =
+    navItems.find(item => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)) ||
+    navItems[0]
 
   return (
     <div className="app-shell">
@@ -38,8 +43,7 @@ export function AdminLayout() {
       <div className="content-shell">
         <header className="topbar">
           <div>
-            <p className="page-caption">运营工作台</p>
-            <h2>管理端开发骨架</h2>
+            <h2>{currentNavItem.label}</h2>
           </div>
 
           <div className="topbar-actions">

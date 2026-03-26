@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AdminLayout } from './components/AdminLayout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AccountListPage } from './pages/AccountListPage'
+import { AdminLogPage } from './pages/AdminLogPage'
 import { CourseFormPage } from './pages/CourseFormPage'
 import { CourseListPage } from './pages/CourseListPage'
 import { DashboardPage } from './pages/DashboardPage'
@@ -27,11 +28,13 @@ export default function App() {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="courses" element={<CourseListPage />} />
         <Route path="courses/new" element={<CourseFormPage mode="create" />} />
+        <Route path="courses/:id" element={<CourseFormPage mode="view" />} />
         <Route path="courses/:id/edit" element={<CourseFormPage mode="edit" />} />
         <Route path="groups" element={<GroupListPage />} />
         <Route path="groups/:id" element={<GroupDetailPage />} />
         <Route path="orders" element={<OrderListPage />} />
         <Route path="accounts" element={<AccountListPage />} />
+        <Route path="logs" element={<AdminLogPage />} />
       </Route>
     </Routes>
   )
