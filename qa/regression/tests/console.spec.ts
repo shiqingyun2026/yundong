@@ -377,3 +377,112 @@ test('console account page can create update and delete an account', async ({ pa
   await targetRow.getByRole('button', { name: '删除' }).click()
   await expect(page.getByText('page_reg_admin')).toHaveCount(0)
 })
+
+test('console order page can refund a paid order and refresh list/detail state', async ({ page }) => {
+  const orderState = {
+    id: 'order-paid-1',
+    order_no: 'ORD-20260327-0001',
+    user_nick_name: '测试家长02',
+    course_title: '[测试] 深圳宝安体能进阶·等待上课',
+    amount: 199,
+    status: 1,
+    create_time: '2026-03-27 09:00:00',
+    pay_time: '2026-03-27 09:05:00',
+    refund_time: '',
+    refund_reason: '',
+    refund_type: ''
+  }
+
+  await page.route('http://127.0.0.1:8000/api/admin/orders?*', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        code: 0,
+        message: 'ok',
+        data: {
+          list: [orderState],
+          total: 1,
+          total_pages: 1,
+          page: 1,
+          size: 10
+        }
+      })
+    })
+  })
+
+  await page.route('http://127.0.0.1:8000/api/admin/orders/order-paid-1', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        code: 0,
+        message: 'ok',
+        data: {
+          id: orderState.id,
+          order_no: orderState.order_no,
+          user: {
+            id: 'user-1',
+            nick_name: orderState.user_nick_name,
+            phone: '',
+            avatar_url: ''
+          },
+          course: {
+            id: 'course-1',
+            title: orderState.course_title,
+            start_time: '2026-04-20 10:00:00',
+            end_time: '',
+            location_community: '',
+            location_detail: '深圳市宝安区体育中心'
+          },
+          group: {
+            id: 'group-1',
+            current_count: 3,
+            target_count: 3,
+            status: 1
+          },
+          amount: orderState.amount,
+          status: orderState.status,
+          pay_time: orderState.pay_time,
+          refund_time: orderState.refund_time,
+          refund_reason: orderState.refund_reason,
+          refund_type: orderState.refund_type,
+          create_time: orderState.create_time
+        }
+      })
+    })
+  })
+
+  await page.route('http://127.0.0.1:8000/api/admin/orders/order-paid-1/refund', async route => {
+    const payload = route.request().postDataJSON() as { reason: string }
+    orderState.status = 2
+    orderState.refund_time = '2026-03-27 10:00:00'
+    orderState.refund_reason = payload.reason
+    orderState.refund_type = 'manual'
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        code: 0,
+        message: 'ok',
+        data: { id: orderState.id }
+      })
+    })
+  })
+
+  await page.goto('/orders')
+
+  await expect(page.getByText('ORD-20260327-0001')).toBeVisible()
+  await page.getByRole('button', { name: '退款' }).click()
+  await expect(page.getByText('订单详情')).toBeVisible()
+  await page.getByPlaceholder('请输入本次手动退款原因').fill('页面回归手动退款')
+  page.once('dialog', dialog => dialog.accept())
+  await page.getByRole('button', { name: '确认退款' }).click()
+
+  const targetRow = page.locator('tr', { hasText: 'ORD-20260327-0001' })
+  await expect(targetRow.getByText('已退款')).toBeVisible()
+  await expect(targetRow.getByRole('cell', { name: '手动退款', exact: true })).toBeVisible()
+  await expect(page.getByText('退款原因：页面回归手动退款')).toBeVisible()
+  await expect(page.getByText('状态：已退款')).toBeVisible()
+})

@@ -5,7 +5,7 @@ This workspace keeps Playwright-based regression assets for the current reposito
 ## What is covered now
 
 - `tests/frontend.spec.ts`: user-facing course list to course detail smoke flow
-- `tests/console.spec.ts`: admin dashboard smoke flow with mocked auth and overview API
+- `tests/console.spec.ts`: admin dashboard smoke flow, course create/edit/offline, account create/edit/delete, and order manual refund flow
 
 ## Commands
 

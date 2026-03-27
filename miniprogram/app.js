@@ -1,5 +1,8 @@
+const { getMiniProgramEnvVersion, resolveBaseURLByEnv } = require('./config/env')
+
 App({
   onLaunch() {
+    this.initRuntimeEnv()
     this.initSystemInfo()
     this.syncAgreementState()
     wx.removeStorageSync('phoneNumber')
@@ -7,6 +10,12 @@ App({
 
   onShow() {
     this.ensureAgreementAccepted()
+  },
+
+  initRuntimeEnv() {
+    const envVersion = getMiniProgramEnvVersion()
+    this.globalData.envVersion = envVersion
+    this.globalData.baseURL = resolveBaseURLByEnv(envVersion)
   },
 
   initSystemInfo() {
@@ -92,7 +101,8 @@ App({
   },
 
   globalData: {
-    baseURL: 'http://127.0.0.1:8000',
+    envVersion: 'develop',
+    baseURL: resolveBaseURLByEnv('develop'),
     token: wx.getStorageSync('token') || '',
     userInfo: wx.getStorageSync('userInfo') || null,
     pendingOrder: null,
