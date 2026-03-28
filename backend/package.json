@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
+    "cf:dev": "wrangler dev",
+    "cf:deploy": "wrangler deploy",
     "seed:regression-course": "node scripts/create-test-course.js",
     "ensure:bootstrap-admin": "node scripts/ensure-bootstrap-admin.js",
     "verify:course-lifecycle": "node scripts/verify-course-lifecycle.js",
@@ -17,6 +19,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "wrangler": "^4.44.0"
   }
 }

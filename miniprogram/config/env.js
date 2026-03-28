@@ -1,7 +1,7 @@
 const ENV_API_BASE_URLS = {
-  develop: 'http://127.0.0.1:8000',
-  trial: 'https://api.example.com',
-  release: 'https://api.example.com'
+  develop: 'https://lindongyun.vercel.app',
+  trial: 'https://lindongyun.vercel.app',
+  release: 'https://lindongyun.vercel.app'
 }
 
 const getMiniProgramEnvVersion = () => {

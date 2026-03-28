@@ -54,13 +54,13 @@ Vercel Cron 触发的是 HTTP `GET` 请求，所以内部同步接口已兼容 `
 * Root Directory: `console`
 * Build Command: `npm run build`
 * Output Directory: `dist`
-* 环境变量：`VITE_API_BASE_URL=https://你的后端域名/api/admin`
+* 环境变量：`VITE_API_BASE_URL=https://lindongyun.vercel.app/api/admin`
 
 如果部署到 Vercel：
 
 * Root Directory: `console`
 * Framework Preset: `Vite`
-* 环境变量：`VITE_API_BASE_URL=https://你的后端域名/api/admin`
+* 环境变量：`VITE_API_BASE_URL=https://lindongyun.vercel.app/api/admin`
 
 ## 4. 小程序体验版配置
 
@@ -71,8 +71,8 @@ Vercel Cron 触发的是 HTTP `GET` 请求，所以内部同步接口已兼容 `
 当前默认值：
 
 * `develop` -> `http://127.0.0.1:8000`
-* `trial` -> `https://api.example.com`
-* `release` -> `https://api.example.com`
+* `trial` -> `https://lindongyun.vercel.app`
+* `release` -> `https://lindongyun.vercel.app`
 
 实际部署后，需要把 `trial` 和 `release` 改成真实 API 域名。
 
