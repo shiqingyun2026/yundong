@@ -1,4 +1,4 @@
-const express = require('express')
+const express = require('../lib/mini-express')
 
 const { syncAllCourseLifecycles } = require('../utils/courseLifecycle')
 const { ok, fail } = require('./admin/_helpers')

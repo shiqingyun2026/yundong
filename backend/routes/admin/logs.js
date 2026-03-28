@@ -1,4 +1,4 @@
-const express = require('express')
+const express = require('../../lib/mini-express')
 
 const { ok, fail, getPagination, formatDateTime } = require('./_helpers')
 const { hasAdminLogTable } = require('../../utils/adminStore')

@@ -1,4 +1,4 @@
-const express = require('express')
+const express = require('../../lib/mini-express')
 
 const { requireSuperAdmin } = require('../../middleware/adminAuth')
 const { ok, fail, getPagination, formatDateTime } = require('./_helpers')

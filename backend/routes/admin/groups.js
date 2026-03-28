@@ -1,4 +1,4 @@
-const express = require('express')
+const express = require('../../lib/mini-express')
 
 const supabase = require('../../utils/supabase')
 const { ok, fail, getPagination, formatDateTime } = require('./_helpers')

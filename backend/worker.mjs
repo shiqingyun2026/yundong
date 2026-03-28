@@ -1,16 +1,24 @@
-import { httpServerHandler } from 'cloudflare:node'
-
 import app from './app.js'
 import courseLifecycleModule from './utils/courseLifecycle.js'
 
 const { syncAllCourseLifecycles } = courseLifecycleModule
 
-app.listen(3000)
+const bindEnv = env => {
+  if (!env || typeof process === 'undefined' || !process.env) {
+    return
+  }
+
+  Object.assign(process.env, env)
+}
 
 export default {
-  ...httpServerHandler({ port: 3000 }),
+  async fetch(request, env, ctx) {
+    bindEnv(env)
+    return app.fetch(request, env, ctx)
+  },
 
   async scheduled(controller, env, ctx) {
+    bindEnv(env)
     ctx.waitUntil(
       syncAllCourseLifecycles({
         now: new Date(controller.scheduledTime).toISOString()

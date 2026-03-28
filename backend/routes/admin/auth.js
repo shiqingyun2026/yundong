@@ -1,4 +1,4 @@
-const express = require('express')
+const express = require('../../lib/mini-express')
 const jwt = require('jsonwebtoken')
 
 const { ok, fail } = require('./_helpers')

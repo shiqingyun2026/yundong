@@ -1,7 +1,6 @@
 require('dotenv').config()
 
-const express = require('express')
-const cors = require('cors')
+const express = require('./lib/mini-express')
 
 const authRoutes = require('./routes/auth')
 const coursesRoutes = require('./routes/courses')
@@ -14,7 +13,7 @@ const internalRoutes = require('./routes/internal')
 
 const app = express()
 
-app.use(cors())
+app.use(express.cors())
 app.use(express.json())
 
 app.get('/health', (req, res) => {

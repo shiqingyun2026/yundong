@@ -1,4 +1,4 @@
-const express = require('express')
+const express = require('../../lib/mini-express')
 
 const authRoutes = require('./auth')
 const coursesRoutes = require('./courses')
