@@ -1,7 +1,7 @@
 const ENV_API_BASE_URLS = {
-  develop: 'https://lindongyun.vercel.app',
-  trial: 'https://lindongyun.vercel.app',
-  release: 'https://lindongyun.vercel.app'
+  develop: 'https://lindong-backend.shiqingyun2026.workers.dev',
+  trial: 'https://lindong-backend.shiqingyun2026.workers.dev',
+  release: 'https://lindong-backend.shiqingyun2026.workers.dev'
 }
 
 const getMiniProgramEnvVersion = () => {

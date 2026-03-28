@@ -74,6 +74,16 @@ const DEFAULT_LOCATION = {
   longitude: 116.4074,
   name: '北京市 · 默认位置'
 }
+const LOCATION_TIMEOUT_MS = 3000
+
+const shouldUseDefaultLocationInDev = () => {
+  try {
+    const app = getApp()
+    return app && app.globalData && app.globalData.envVersion === 'develop'
+  } catch (error) {
+    return false
+  }
+}
 
 const resolveLocationLabel = (latitude, longitude) => {
   if (latitude > 22 && latitude < 23 && longitude > 113 && longitude < 115) {
@@ -157,39 +167,67 @@ Page({
 
   tryGetLocation() {
     return new Promise(resolve => {
+      if (shouldUseDefaultLocationInDev()) {
+        getApp().setLocation(DEFAULT_LOCATION)
+        this.setData({
+          locationText: DEFAULT_LOCATION.name,
+          locationDenied: false,
+          locationTip: '开发环境默认使用北京位置，真机体验版再验证真实定位。'
+        })
+        resolve(DEFAULT_LOCATION)
+        return
+      }
+
+      let settled = false
+      const finishWithLocation = (location, { denied = false, tip = '', toast } = {}) => {
+        if (settled) {
+          return
+        }
+
+        settled = true
+        clearTimeout(timeoutId)
+        getApp().setLocation(location)
+        this.setData({
+          locationText: location.name,
+          locationDenied: denied,
+          locationTip: tip
+        })
+
+        if (toast) {
+          wx.showToast({
+            title: toast,
+            icon: 'none'
+          })
+        }
+
+        resolve(location)
+      }
+
+      const timeoutId = setTimeout(() => {
+        finishWithLocation(DEFAULT_LOCATION, {
+          tip: '定位超时，已按默认位置展示课程。',
+          toast: '定位超时，已切换默认位置'
+        })
+      }, LOCATION_TIMEOUT_MS)
+
       wx.getLocation({
         type: 'gcj02',
         success: res => {
-          const location = {
+          finishWithLocation({
             latitude: res.latitude,
             longitude: res.longitude,
             name: resolveLocationLabel(res.latitude, res.longitude)
-          }
-
-          getApp().setLocation(location)
-          this.setData({
-            locationText: location.name,
-            locationDenied: false,
-            locationTip: ''
           })
-          resolve(location)
         },
         fail: error => {
           const denied = /auth deny|auth denied|authorize no response|permission/i.test(error.errMsg || '')
-          getApp().setLocation(DEFAULT_LOCATION)
-          this.setData({
-            locationText: DEFAULT_LOCATION.name,
-            locationDenied: denied,
-            locationTip: denied
+          finishWithLocation(DEFAULT_LOCATION, {
+            denied,
+            tip: denied
               ? '定位未授权，已按默认位置展示课程，可点击顶部定位栏重新定位或手动选择位置。'
-              : '定位获取失败，已按默认位置展示课程。'
+              : '定位获取失败，已按默认位置展示课程。',
+            toast: denied ? '未开启定位，已按默认位置展示' : '定位失败，已切换默认位置'
           })
-
-          wx.showToast({
-            title: denied ? '未开启定位，已按默认位置展示' : '定位失败，已切换默认位置',
-            icon: 'none'
-          })
-          resolve(DEFAULT_LOCATION)
         }
       })
     })
