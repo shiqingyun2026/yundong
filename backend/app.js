@@ -22,6 +22,22 @@ app.get('/health', (req, res) => {
   })
 })
 
+app.get('/', (req, res) => {
+  res.json({
+    ok: true,
+    service: 'lindong-backend',
+    endpoints: {
+      health: '/health',
+      miniProgram: '/api/*',
+      admin: '/api/admin/*'
+    }
+  })
+})
+
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end()
+})
+
 app.use('/api/auth', authRoutes)
 app.use('/api/courses', coursesRoutes)
 app.use('/api/groups', groupsRoutes)

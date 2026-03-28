@@ -144,7 +144,9 @@ const createResponseToolkit = () => {
       return this.send(payload)
     },
     toResponse() {
-      return new Response(this.body, {
+      const bodylessStatus = new Set([101, 103, 204, 205, 304])
+      const payload = bodylessStatus.has(this.statusCode) ? null : this.body
+      return new Response(payload, {
         status: this.statusCode,
         headers
       })
