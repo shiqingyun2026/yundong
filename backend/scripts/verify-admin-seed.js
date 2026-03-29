@@ -2,6 +2,7 @@ require('dotenv').config()
 
 const supabase = require('../utils/supabase')
 const { COURSE_STATUS, getCourseLifecycleMap } = require('../utils/courseLifecycle')
+const { AUTO_REFUND_REASON } = require('../shared/constants/refunds')
 
 const EXPECTED_COURSES = {
   '[测试] 深圳南山周末体适能·待上架': COURSE_STATUS.PENDING_PUBLISH,
@@ -117,7 +118,7 @@ async function main() {
   assert(failedCourse.groups[0].status === 'failed', '拼团失败课程的团状态应为 failed')
   assert(failedCourse.orders.every(item => item.status === 'refunded'), '拼团失败课程的订单应全部为 refunded')
   assert(
-    failedCourse.orders.every(item => item.refund_reason === '报名截止前未成团，系统自动退款'),
+    failedCourse.orders.every(item => item.refund_reason === AUTO_REFUND_REASON),
     '拼团失败课程的退款原因应为系统自动退款口径'
   )
   assert(

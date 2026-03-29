@@ -1,5 +1,6 @@
 const supabase = require('./supabase')
 const { writeAdminLog } = require('./adminStore')
+const { AUTO_REFUND_REASON } = require('../shared/constants/refunds')
 
 const COURSE_STATUS = {
   PENDING_PUBLISH: 0,
@@ -111,12 +112,12 @@ const markFailedCourseRefunds = async ({ course, groupIds = [], operatorId = nul
 
   const { data: refundedOrders, error: refundError } = await supabase
     .from('orders')
-    .update({
-      status: 'refunded',
-      refund_time: timestamp,
-      refund_reason: '报名截止前未成团，系统自动退款',
-      refund_operator_id: operatorId
-    })
+      .update({
+        status: 'refunded',
+        refund_time: timestamp,
+        refund_reason: AUTO_REFUND_REASON,
+        refund_operator_id: operatorId
+      })
     .eq('course_id', course.id)
     .in('status', ['pending', 'success'])
     .select('id')
@@ -191,7 +192,7 @@ const syncCourseLifecycle = async (courseIds = [], options = {}) => {
             next_status: nextStatus,
             active_group_ids: stats.activeGroupIds,
             success_group_count: stats.successGroupCount,
-            refund_reason: '报名截止前未成团，系统自动退款',
+            refund_reason: AUTO_REFUND_REASON,
             failed_group_count: Number(refundResult.failedGroupCount) || 0,
             refunded_order_count: Number(refundResult.refundedOrderCount) || 0
           },

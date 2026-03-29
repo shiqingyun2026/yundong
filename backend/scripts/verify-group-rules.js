@@ -1,4 +1,11 @@
-const AUTO_REFUND_REASON = '报名截止前未成团，系统自动退款'
+const { AUTO_REFUND_REASON } = require('../shared/constants/refunds')
+const {
+  applyPaymentToGroup,
+  applyRefundToGroup,
+  buildGroupCreationPayload,
+  canApplyPaymentToGroup,
+  hasSuccessfulParticipation
+} = require('../shared/domain/groupRules')
 
 const assertScenario = ({ name, run }) => {
   try {
@@ -19,14 +26,6 @@ const expect = (condition, message) => {
   }
 }
 
-const createGroupPayload = course => ({
-  course_id: course.id,
-  status: 'active',
-  current_count: 0,
-  target_count: course.default_target_count,
-  expire_time: course.deadline
-})
-
 const buildFailedRefundResult = ({ group, orders, groupMembers }) => ({
   group: {
     ...group,
@@ -44,50 +43,6 @@ const buildFailedRefundResult = ({ group, orders, groupMembers }) => ({
   groupMembers
 })
 
-const buildManualRefundRollbackResult = ({ group, order, groupMembers, now }) => {
-  const membershipExists = groupMembers.some(
-    item => item.group_id === group.id && item.user_id === order.user_id
-  )
-
-  const nextGroupMembers = membershipExists
-    ? groupMembers.filter(item => !(item.group_id === group.id && item.user_id === order.user_id))
-    : groupMembers
-
-  const nextCount = membershipExists ? Math.max(0, Number(group.current_count || 0) - 1) : Number(group.current_count || 0)
-  const expireAt = new Date(group.expire_time).getTime()
-
-  let nextStatus = 'active'
-  if (nextCount >= Number(group.target_count || 0)) {
-    nextStatus = 'success'
-  } else if (expireAt <= now.getTime()) {
-    nextStatus = 'failed'
-  }
-
-  return {
-    group: {
-      ...group,
-      current_count: nextCount,
-      status: nextStatus
-    },
-    groupMembers: nextGroupMembers
-  }
-}
-
-const hasSuccessfulParticipation = ({ userId, successGroupIds, orders }) => {
-  const hasSuccessOrder = orders.some(
-    item => item.user_id === userId && item.status === 'success'
-  )
-
-  const hasSuccessGroupMembership = successGroupIds.length > 0 && orders.some(
-    item =>
-      item.user_id === userId &&
-      successGroupIds.includes(item.group_id) &&
-      item.status === 'success'
-  )
-
-  return hasSuccessOrder || hasSuccessGroupMembership
-}
-
 const scenarios = [
   {
     name: '新拼团截止时间统一等于课程报名截止时间',
@@ -97,7 +52,12 @@ const scenarios = [
         deadline: '2026-03-28T18:00:00+08:00',
         default_target_count: 3
       }
-      const payload = createGroupPayload(course)
+      const payload = buildGroupCreationPayload({
+        courseId: course.id,
+        creatorId: 'user_1',
+        deadline: course.deadline,
+        targetCount: course.default_target_count
+      })
       expect(payload.expire_time === course.deadline, 'group expire_time 没有等于课程 deadline')
     }
   },
@@ -129,12 +89,14 @@ const scenarios = [
     name: '失败团成员记录不会拦截未来再次参团',
     run: () => {
       const userId = 'user_1'
-      const successGroupIds = []
       const orders = [
         { id: 'order_1', group_id: 'group_1', user_id: 'user_1', status: 'refunded' }
       ]
 
-      const blocked = hasSuccessfulParticipation({ userId, successGroupIds, orders })
+      const blocked = hasSuccessfulParticipation({
+        successMembershipExists: false,
+        successOrderExists: orders.some(item => item.user_id === userId && item.status === 'success')
+      })
       expect(blocked === false, '失败团或退款订单错误地拦截了再次参团')
     }
   },
@@ -147,7 +109,15 @@ const scenarios = [
         { id: 'order_1', group_id: 'group_success', user_id: 'user_1', status: 'success' }
       ]
 
-      const blocked = hasSuccessfulParticipation({ userId, successGroupIds, orders })
+      const blocked = hasSuccessfulParticipation({
+        successMembershipExists: orders.some(
+          item =>
+            item.user_id === userId &&
+            successGroupIds.includes(item.group_id) &&
+            item.status === 'success'
+        ),
+        successOrderExists: orders.some(item => item.user_id === userId && item.status === 'success')
+      })
       expect(blocked === true, '成功参团记录没有拦截重复成功参团')
     }
   },
@@ -173,12 +143,19 @@ const scenarios = [
         { group_id: 'group_success', user_id: 'user_3' }
       ]
 
-      const result = buildManualRefundRollbackResult({
+      const rollback = applyRefundToGroup({
         group,
-        order,
-        groupMembers,
+        membershipExists: true,
         now: new Date('2026-03-27T12:00:00+08:00')
       })
+      const result = {
+        group: {
+          ...group,
+          current_count: rollback.nextCount,
+          status: rollback.nextStatus
+        },
+        groupMembers: groupMembers.filter(item => !(item.group_id === group.id && item.user_id === order.user_id))
+      }
 
       expect(result.group.current_count === 2, '退款后团人数没有回滚')
       expect(result.group.status === 'active', '退款后团状态没有从 success 回滚为 active')
@@ -187,6 +164,76 @@ const scenarios = [
         result.groupMembers.every(item => item.user_id !== 'user_1'),
         '退款后用户成员关系没有被移除'
       )
+    }
+  },
+  {
+    name: '支付成功时仅首次入团会增加人数',
+    run: () => {
+      const group = {
+        id: 'group_active',
+        status: 'active',
+        current_count: 1,
+        target_count: 3,
+        expire_time: '2026-03-28T18:00:00+08:00'
+      }
+
+      const firstPayment = applyPaymentToGroup({
+        group,
+        membershipExists: false,
+        now: new Date('2026-03-27T12:00:00+08:00')
+      })
+      const repeatedCallback = applyPaymentToGroup({
+        group: {
+          ...group,
+          current_count: firstPayment.nextCount
+        },
+        membershipExists: true,
+        now: new Date('2026-03-27T12:05:00+08:00')
+      })
+
+      expect(firstPayment.nextCount === 2, '首次支付成功后团人数没有增加')
+      expect(repeatedCallback.nextCount === 2, '重复支付回调错误地重复增加了团人数')
+    }
+  },
+  {
+    name: '支付成功达到人数门槛后团状态改为 success',
+    run: () => {
+      const group = {
+        id: 'group_almost_done',
+        status: 'active',
+        current_count: 2,
+        target_count: 3,
+        expire_time: '2026-03-28T18:00:00+08:00'
+      }
+
+      const result = applyPaymentToGroup({
+        group,
+        membershipExists: false,
+        now: new Date('2026-03-27T12:00:00+08:00')
+      })
+
+      expect(result.nextCount === 3, '支付成功后团人数没有达到预期')
+      expect(result.nextStatus === 'success', '达到成团门槛后团状态没有变为 success')
+    }
+  },
+  {
+    name: '已成团后未占位用户不能继续补支付',
+    run: () => {
+      const group = {
+        id: 'group_success',
+        status: 'success',
+        current_count: 3,
+        target_count: 3,
+        expire_time: '2026-03-28T18:00:00+08:00'
+      }
+
+      const canPay = canApplyPaymentToGroup({
+        group,
+        membershipExists: false,
+        now: new Date('2026-03-27T12:00:00+08:00')
+      })
+
+      expect(canPay === false, '已成团后未占位用户仍被允许补支付')
     }
   }
 ]

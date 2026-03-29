@@ -8,7 +8,7 @@ const groupsRoutes = require('./routes/groups')
 const ordersRoutes = require('./routes/orders')
 const paymentsRoutes = require('./routes/payments')
 const userRoutes = require('./routes/user')
-const adminRoutes = require('./routes/admin')
+const consoleApiRoutes = require('./console-api/routes')
 const internalRoutes = require('./routes/internal')
 
 const app = express()
@@ -44,7 +44,7 @@ app.use('/api/groups', groupsRoutes)
 app.use('/api/orders', ordersRoutes)
 app.use('/api/payments', paymentsRoutes)
 app.use('/api/user', userRoutes)
-app.use('/api/admin', adminRoutes)
+app.use('/api/admin', consoleApiRoutes)
 app.use('/api/internal', internalRoutes)
 
 module.exports = app

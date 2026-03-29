@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
+    "console:start": "node console-api/server.js",
+    "console:dev": "node console-api/server.js",
     "cf:dev": "wrangler dev",
     "cf:deploy": "wrangler deploy",
     "seed:regression-course": "node scripts/create-test-course.js",

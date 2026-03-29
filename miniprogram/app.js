@@ -1,8 +1,15 @@
-const { getMiniProgramEnvVersion, resolveBaseURLByEnv } = require('./config/env')
+const {
+  getMiniProgramEnvVersion,
+  resolveApiTransportByEnv,
+  resolveBaseURLByEnv,
+  resolveCloudEnvByEnv,
+  resolveCloudFunctionNameByEnv
+} = require('./config/env')
 
 App({
   onLaunch() {
     this.initRuntimeEnv()
+    this.initCloud()
     this.initSystemInfo()
     this.syncAgreementState()
     wx.removeStorageSync('phoneNumber')
@@ -15,7 +22,36 @@ App({
   initRuntimeEnv() {
     const envVersion = getMiniProgramEnvVersion()
     this.globalData.envVersion = envVersion
+    this.globalData.apiTransport = resolveApiTransportByEnv(envVersion)
     this.globalData.baseURL = resolveBaseURLByEnv(envVersion)
+    this.globalData.cloudEnv = resolveCloudEnvByEnv(envVersion)
+    this.globalData.cloudFunctionName = resolveCloudFunctionNameByEnv(envVersion)
+  },
+
+  initCloud() {
+    if (this.globalData.apiTransport !== 'cloud') {
+      this.globalData.cloudReady = false
+      return
+    }
+
+    if (!wx.cloud || typeof wx.cloud.init !== 'function') {
+      console.warn('[app] wx.cloud is not available, fallback is required before enabling cloud transport')
+      this.globalData.cloudReady = false
+      return
+    }
+
+    try {
+      const initOptions = {}
+      if (this.globalData.cloudEnv) {
+        initOptions.env = this.globalData.cloudEnv
+      }
+
+      wx.cloud.init(initOptions)
+      this.globalData.cloudReady = true
+    } catch (error) {
+      console.warn('[app] wx.cloud.init failed', error)
+      this.globalData.cloudReady = false
+    }
   },
 
   initSystemInfo() {
@@ -102,7 +138,11 @@ App({
 
   globalData: {
     envVersion: 'develop',
+    apiTransport: resolveApiTransportByEnv('develop'),
     baseURL: resolveBaseURLByEnv('develop'),
+    cloudEnv: resolveCloudEnvByEnv('develop'),
+    cloudFunctionName: resolveCloudFunctionNameByEnv('develop'),
+    cloudReady: false,
     token: wx.getStorageSync('token') || '',
     userInfo: wx.getStorageSync('userInfo') || null,
     pendingOrder: null,
