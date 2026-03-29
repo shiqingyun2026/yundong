@@ -35,6 +35,11 @@
 
 接下来落真实实现时，建议顺序：
 
-1. 先把 `backend/routes/courses.js` 与 `backend/routes/groups.js` 中仍在入口层的查询逻辑继续下沉到共享读服务
-2. 再让云函数入口直接调用共享读服务，而不是去转调 HTTP
-3. 读链路稳定后，再迁登录、下单、支付等写链路
+1. 当前这 8 条已接入路由已经直接调用 `backend/shared/*`，不再转调 HTTP
+2. 后续新增小程序云函数能力时，继续优先复用 `backend/shared/*`，不要把规则写回接入层
+3. 真实切流前，先补齐云环境参数、部署云函数，再让小程序开发环境切到 `cloud`
+
+当前本地验证：
+
+- `cd /Users/yun/lindong/backend && npm run verify:miniprogram-cloud-smoke`
+  - 当前覆盖 `miniProgramGateway` 的路由匹配、请求归一化、上下文透传、404 包裹、以及服务错误包裹

@@ -20,7 +20,7 @@ const authenticate = (req, res, next) => {
     }
 
     req.userId = payload.userId
-    next()
+    return next()
   } catch (error) {
     return res.status(401).json({
       message: 'Unauthorized'

@@ -182,17 +182,18 @@ backend/
 已完成的验证：
 
 - `npm run verify:group-rules` 通过
+- `npm run verify:console-api-smoke` 通过
+- `npm run verify:miniprogram-cloud-smoke` 通过
+- `npm run verify:admin-seed` 通过
+- 独立 `console-api@8100` + console 前端真实登录与 dashboard 本地联调通过
+- `cd qa/regression && npm run test:console-live` 通过
+- `test:console-live` 当前已覆盖真实登录、dashboard、courses、orders(含详情)、accounts、logs、课程/账号筛选，以及可回滚的账号状态编辑与 `account_update` 日志校验
 - 小程序云函数读接口真连库 smoke test 通过
 - 云函数登录入口可返回 token
 - 云函数未授权访问写接口会返回 `401`
 - `console-api` 独立 app、综合后端 app、admin 兼容壳均可正常加载
 - `backend/migrations/20260329_pending_order_guard.sql` 已确认落库
-
-当前未作为通过项的一个已知问题：
-
-- `npm run verify:admin-seed` 仍失败
-- 失败原因是现有数据状态不符合脚本预期，不是这轮入口拆分引起
-- 当前观察到的具体报错是：`深圳南山周末体适能·待上架` 期望“待上架”，实际是“拼团中”
+- `docs/sql/reset_test_seed_0326.sql` 已重新导入，当前测试库已回到 0326 seed 基线
 
 
 ## 7. 当前仍未完成的部分
@@ -204,13 +205,14 @@ backend/
 - 没有填真实 `ENV_CLOUD_ENVS`
 - 没有部署真实微信云函数环境
 - 小程序默认 transport 仍是 `http`
+- 但本地已新增 `verify:miniprogram-cloud-smoke`，可以先验证云函数网关骨架与路由包裹
+- 已新增 [cloud-cutover-checklist.md](/Users/yun/lindong/docs/miniprogram/cloud-cutover-checklist.md) 用于整理开发环境切到 `cloud` 前的执行步骤
 
 ### 7.2 Console 还没有完成第二阶段拆分
 
-当前只是完成了“入口层独立化”，还没完成：
+当前已经从“只有独立入口”推进到“现有 console-api 路由均已做第二阶段拆分”，但还没完成：
 
-- `controllers/` 拆分
-- `services/` 拆分
+- `auth`、`accounts`、`logs`、`upload`、`courses`、`groups`、`orders`、`dashboard` 已拆成 `routes -> controllers -> services`
 - `middleware/` 拆分
 - 删除 `backend/routes/admin/*` 兼容壳
 
@@ -219,7 +221,7 @@ backend/
 当前仓库里已经能分别运行综合后端和独立 console 服务，但还没完成：
 
 - 真实部署环境拆分
-- console 前端与独立 console-api 服务的正式联调
+- console 前端与独立 console-api 服务更大范围的正式联调
 - 小程序切到云开发后的正式联调
 
 
@@ -256,7 +258,7 @@ backend/
 1. 先把微信云环境参数补齐，并部署 `backend/miniprogram-cloud/functions/miniProgramGateway`
 2. 小程序端先在开发环境把 transport 切到 `cloud`，完成读链路联调
 3. 再联调小程序登录、下单、模拟支付成功
-4. console 侧继续把 `console-api` 往 `controllers/`、`services/`、`middleware/` 形态细拆
+4. console 侧继续把通用校验、表能力检查、异常处理往 `middleware/` 和公共模块收口
 5. 等 console 前端稳定后，再删除 `backend/routes/admin/*` 兼容壳
 
 

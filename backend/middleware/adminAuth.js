@@ -26,7 +26,7 @@ const adminAuthenticate = (req, res, next) => {
       username: payload.username || '',
       role: payload.role || 'admin'
     }
-    next()
+    return next()
   } catch (error) {
     return res.status(401).json({
       code: 1002,
@@ -43,7 +43,7 @@ const requireSuperAdmin = (req, res, next) => {
     })
   }
 
-  next()
+  return next()
 }
 
 module.exports = {
