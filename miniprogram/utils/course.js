@@ -948,7 +948,8 @@ const fetchCourseDetail = async id => {
   return withMockFallback({
     label: 'fetchCourseDetail',
     request: async () => normalizeCourseDetail(await get(`/api/courses/${id}`)),
-    mockFactory: () => getMockCourseDetailAsync(id)
+    mockFactory: () => getMockCourseDetailAsync(id),
+    shouldFallback: false
   })
 }
 
@@ -956,7 +957,8 @@ const fetchActiveGroup = async id => {
   return withMockFallback({
     label: 'fetchActiveGroup',
     request: async () => normalizeActiveGroup(await get(`/api/courses/${id}/active-group`)),
-    mockFactory: () => getMockActiveGroupAsync(id)
+    mockFactory: () => getMockActiveGroupAsync(id),
+    shouldFallback: false
   })
 }
 
@@ -996,7 +998,8 @@ const fetchGroupDetail = async groupId => {
           : payload.courseInfo
       }
     },
-    mockFactory: () => getMockGroupDetailAsync(groupId)
+    mockFactory: () => getMockGroupDetailAsync(groupId),
+    shouldFallback: false
   })
 }
 
@@ -1034,7 +1037,8 @@ const createOrder = async ({ courseId, groupId, totalFee }) =>
           groupId,
           totalFee
         })
-      )
+      ),
+    shouldFallback: false
   })
 
 const mockPaymentSuccess = async ({ orderId, groupId }) =>
@@ -1104,7 +1108,8 @@ const fetchUserGroupList = async ({ status = 'all', page = 1, pageSize = 10 }) =
         list: payload.list.map(normalizeUserGroupListItem)
       }
     },
-    mockFactory: () => getMockUserGroupListAsync({ status, page, pageSize })
+    mockFactory: () => getMockUserGroupListAsync({ status, page, pageSize }),
+    shouldFallback: false
   })
 }
 

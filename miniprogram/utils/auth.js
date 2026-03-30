@@ -4,8 +4,6 @@ const { post } = require('./request')
 const USE_MOCK_USER = true
 const MOCK_OPEN_ID = 'seed0326_u02'
 
-const createMockToken = () => `mock-token-${Date.now()}`
-
 const pickUserInfo = (payload, fallbackUserInfo) => {
   const source =
     (payload && (payload.userInfo || payload.user || payload.profile)) ||
@@ -81,23 +79,19 @@ const login = async userInfo => {
     mockOpenId: isMockUserEnabled() ? MOCK_OPEN_ID : getStableMockOpenId()
   }
 
-  try {
-    const result = await post('/api/auth/login', payload, {
-      showLoading: true,
-      loadingText: '登录中',
-      showErrorToast: false
-    })
+  const result = await post('/api/auth/login', payload, {
+    showLoading: true,
+    loadingText: '登录中',
+    showErrorToast: false
+  })
 
-    return {
-      token: result.token || createMockToken(),
-      userInfo: pickUserInfo(result, userInfo)
-    }
-  } catch (error) {
-    return {
-      token: createMockToken(),
-      userInfo,
-      mock: true
-    }
+  if (!result || !result.token) {
+    throw new Error('登录接口未返回有效 token')
+  }
+
+  return {
+    token: result.token,
+    userInfo: pickUserInfo(result, userInfo)
   }
 }
 

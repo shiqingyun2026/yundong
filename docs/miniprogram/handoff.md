@@ -328,18 +328,16 @@
 
 ### 7.2 单团课程样本
 
-课程：
+当前更推荐直接执行：
 
-* `5c65088d-9a6e-4f33-a191-e6c7b4de13ac`
-  `[回归测试] 无活跃拼团课程`
+* `cd /Users/yun/lindong/backend && npm run seed:regression-course`
 
-当前接口侧观察到：
+该脚本会重置两门用于页面主链路回归的课程：
 
-* `maxGroups: 1`
-* `completedGroupsCount: 1`
-* `successJoinedCount: 2`
-* `activeGroup: null`
-* `groupList` 中有 1 个成功团
+* `"[回归测试] 无活跃拼团课程"`：用于验证“立即开团 -> 确认支付 -> mock success”
+* `"[回归测试] 可直接参团课程"`：用于验证“去参团 -> 确认支付 -> mock success”
+
+当前固定 mock 用户 `seed0326_u02` 可直接使用这两门课完成主链路验证。
 
 
 ## 8. 当前文档状态

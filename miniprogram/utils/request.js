@@ -1,6 +1,6 @@
 const DEFAULT_ERROR_MESSAGE = '网络开小差了，请稍后再试'
 const DEFAULT_BASE_URL = 'http://127.0.0.1:8000'
-const DEFAULT_CLOUD_FUNCTION_NAME = 'miniProgramGateway'
+const CLOUD_CONTAINER_SERVICE_MISSING_MESSAGE = '请先配置云托管服务名'
 
 const getRuntimeApp = () => {
   try {
@@ -30,14 +30,14 @@ const resolveApiTransport = () => {
   return 'http'
 }
 
-const resolveCloudFunctionName = () => {
+const resolveCloudContainerServiceName = () => {
   const app = getRuntimeApp()
 
-  if (app && app.globalData && app.globalData.cloudFunctionName) {
-    return app.globalData.cloudFunctionName
+  if (app && app.globalData && app.globalData.cloudContainerServiceName) {
+    return app.globalData.cloudContainerServiceName
   }
 
-  return DEFAULT_CLOUD_FUNCTION_NAME
+  return ''
 }
 
 const isCloudReady = () => {
@@ -91,20 +91,20 @@ const normalizeHttpResponse = response => {
   return normalizeBusinessPayload(data)
 }
 
-const normalizeCloudResponse = response => {
+const normalizeContainerResponse = response => {
   const payload =
-    response && typeof response === 'object' && Object.prototype.hasOwnProperty.call(response, 'result')
-      ? response.result
+    response && typeof response === 'object' && Object.prototype.hasOwnProperty.call(response, 'data')
+      ? response.data
       : response
+  const statusCode =
+    response && typeof response === 'object' && Object.prototype.hasOwnProperty.call(response, 'statusCode')
+      ? response.statusCode
+      : 200
 
-  if (payload && payload.errorMessage && !Object.prototype.hasOwnProperty.call(payload, 'code')) {
-    throw {
-      message: payload.errorMessage || DEFAULT_ERROR_MESSAGE,
-      data: payload
-    }
-  }
-
-  return normalizeBusinessPayload(payload)
+  return normalizeHttpResponse({
+    statusCode,
+    data: payload
+  })
 }
 
 const resetToken = () => {
@@ -166,10 +166,10 @@ const httpRequest = ({ url, method, data, header, token }) =>
     })
   })
 
-const cloudRequest = ({ url, method, data, header, token }) =>
+const containerRequest = ({ url, method, data, header, token }) =>
   new Promise((resolve, reject) => {
-    if (!wx.cloud || typeof wx.cloud.callFunction !== 'function') {
-      reject(new Error('当前基础库不支持云开发调用'))
+    if (!wx.cloud || typeof wx.cloud.callContainer !== 'function') {
+      reject(new Error('当前基础库不支持云托管调用'))
       return
     }
 
@@ -178,41 +178,55 @@ const cloudRequest = ({ url, method, data, header, token }) =>
       return
     }
 
-    const functionName = resolveCloudFunctionName()
+    const serviceName = resolveCloudContainerServiceName()
 
-    console.log('[request:cloud] start', {
-      functionName,
+    if (!serviceName) {
+      reject(new Error(CLOUD_CONTAINER_SERVICE_MISSING_MESSAGE))
+      return
+    }
+
+    const app = getRuntimeApp()
+    const cloudEnv = app && app.globalData ? app.globalData.cloudEnv : ''
+
+    console.log('[request:container] start', {
+      serviceName,
+      cloudEnv,
       path: url,
       method,
       data,
       hasToken: !!token
     })
 
-    wx.cloud.callFunction({
-      name: functionName,
-      data: {
-        path: url,
-        method,
-        data,
-        header,
-        authToken: token
+    wx.cloud.callContainer({
+      config: cloudEnv
+        ? {
+            env: cloudEnv
+          }
+        : undefined,
+      path: url,
+      method,
+      header: {
+        ...header,
+        'X-WX-SERVICE': serviceName
       },
+      data,
       success(response) {
-        console.log('[request:cloud] success', {
-          functionName,
+        console.log('[request:container] success', {
+          serviceName,
           path: url,
-          result: response && response.result
+          statusCode: response && response.statusCode,
+          data: response && response.data
         })
 
         try {
-          resolve(normalizeCloudResponse(response))
+          resolve(normalizeContainerResponse(response))
         } catch (error) {
           reject(error)
         }
       },
       fail(error) {
-        console.log('[request:cloud] fail', {
-          functionName,
+        console.log('[request:container] fail', {
+          serviceName,
           path: url,
           error
         })
@@ -254,7 +268,7 @@ const request = options => {
     requestHeader.Authorization = `Bearer ${token}`
   }
 
-  const transportRequest = transport === 'cloud' ? cloudRequest : httpRequest
+  const transportRequest = transport === 'container' ? containerRequest : httpRequest
 
   return transportRequest({
     url,

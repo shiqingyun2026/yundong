@@ -3,7 +3,7 @@ const {
   resolveApiTransportByEnv,
   resolveBaseURLByEnv,
   resolveCloudEnvByEnv,
-  resolveCloudFunctionNameByEnv
+  resolveCloudContainerServiceNameByEnv
 } = require('./config/env')
 
 App({
@@ -25,11 +25,13 @@ App({
     this.globalData.apiTransport = resolveApiTransportByEnv(envVersion)
     this.globalData.baseURL = resolveBaseURLByEnv(envVersion)
     this.globalData.cloudEnv = resolveCloudEnvByEnv(envVersion)
-    this.globalData.cloudFunctionName = resolveCloudFunctionNameByEnv(envVersion)
+    this.globalData.cloudContainerServiceName = resolveCloudContainerServiceNameByEnv(envVersion)
   },
 
   initCloud() {
-    if (this.globalData.apiTransport !== 'cloud') {
+    const requiresCloudRuntime = this.globalData.apiTransport === 'container'
+
+    if (!requiresCloudRuntime) {
       this.globalData.cloudReady = false
       return
     }
@@ -141,7 +143,7 @@ App({
     apiTransport: resolveApiTransportByEnv('develop'),
     baseURL: resolveBaseURLByEnv('develop'),
     cloudEnv: resolveCloudEnvByEnv('develop'),
-    cloudFunctionName: resolveCloudFunctionNameByEnv('develop'),
+    cloudContainerServiceName: resolveCloudContainerServiceNameByEnv('develop'),
     cloudReady: false,
     token: wx.getStorageSync('token') || '',
     userInfo: wx.getStorageSync('userInfo') || null,

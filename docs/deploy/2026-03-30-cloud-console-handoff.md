@@ -1,96 +1,104 @@
-# 2026-03-30 Console / 微信云开发 交接补充
+# 2026-03-30 Console / 微信云托管 交接补充
 
-## 1. 这轮实际推进了什么
+## 1. 今天实际收口到哪里
 
-这轮不是只停在“结构已经拆了”，而是把第二阶段和第三阶段前半段都补到了可重复验证的状态。
+这轮已经不再是“云开发骨架准备完成”，而是已经收口到可直接继续开发和回归的状态：
 
-### 1.1 Console 第二阶段
+- 小程序开发环境已切到 `wx.cloud.callContainer`
+- 云托管服务已部署为 `lindong-api`
+- 小程序 `develop` 环境已使用云环境 `cloud1-4glzoev0baf7b187`
+- console 继续保持标准 HTTP 形态，不依赖微信专用链路
 
-- `backend/console-api` 现有后台路由已经全部拆成 `routes -> controllers -> services`
-- `backend/middleware/adminAuth.js` 与 `backend/middleware/auth.js` 已修复 `next()` 未返回导致的异步链路问题
-- `backend/tests/console-api.smoke.test.js` 已覆盖后台入口的 Node 级 smoke
-- `qa/regression/tests/console.live.spec.ts` 已覆盖独立 `console-api` 的浏览器级真实联调
+## 2. 当前验证结论
 
-### 1.2 小程序云开发第三阶段准备
-
-- `backend/miniprogram-cloud/functions/miniProgramGateway/index.js` 对当前 8 条小程序相关路由已接真实实现
-- `backend/tests/miniprogram-cloud.smoke.test.js` 已新增，用于本地验证云函数网关骨架
-- `miniprogram/config/env.js` 已改成显式云环境占位，不再是空字符串
-- `docs/miniprogram/cloud-cutover-checklist.md` 已新增，用于整理切到 `cloud` 前的执行步骤
-
-## 2. 当前验证基线
-
-截至 2026-03-30，下列验证都已通过：
+截至 2026-03-30，下面这些都已经验证通过：
 
 - `cd /Users/yun/lindong/backend && npm run verify:console-api-smoke`
-- `cd /Users/yun/lindong/backend && npm run verify:miniprogram-cloud-smoke`
+- `cd /Users/yun/lindong/backend && npm run verify:group-rules`
 - `cd /Users/yun/lindong/backend && npm run verify:admin-seed`
 - `cd /Users/yun/lindong/qa/regression && npm run test:console-live`
-
-其中 `test:console-live` 当前覆盖：
-
-- 真实登录
-- `dashboard`
-- `courses`
-- `orders`（含详情）
-- `accounts`
-- `logs`
-- 课程/账号筛选
-- 可回滚的账号状态编辑
-- `account_update` 日志落库校验
+- 小程序真实服务级链路：
+  - `GET /api/courses`
+  - `GET /api/courses/:id`
+  - `GET /api/courses/:id/active-group`
+  - `POST /api/auth/login`
+  - `POST /api/orders`
+  - `POST /api/payments/mock-success`
+  - `GET /api/user/groups`
+  - `GET /api/groups/:id`
+- 小程序页面级链路：
+  - 首页读链路通过
+  - 课程详情读链路通过
+  - 登录通过
+  - `create order -> mock success` 通过
+  - “我的拼团”与详情页状态同步通过
 
 ## 3. 当前关键文件
 
-### 3.1 Console
+### 3.1 小程序云托管入口
 
-- [app.js](/Users/yun/lindong/backend/console-api/app.js)
-- [server.js](/Users/yun/lindong/backend/console-api/server.js)
-- [controllers](/Users/yun/lindong/backend/console-api/controllers)
-- [services](/Users/yun/lindong/backend/console-api/services)
-- [console.live.spec.ts](/Users/yun/lindong/qa/regression/tests/console.live.spec.ts)
-- [console-api.smoke.test.js](/Users/yun/lindong/backend/tests/console-api.smoke.test.js)
-
-### 3.2 小程序云开发
-
-- [miniProgramGateway/index.js](/Users/yun/lindong/backend/miniprogram-cloud/functions/miniProgramGateway/index.js)
-- [routeRegistry.js](/Users/yun/lindong/backend/miniprogram-cloud/app/routeRegistry.js)
-- [miniprogram-cloud.smoke.test.js](/Users/yun/lindong/backend/tests/miniprogram-cloud.smoke.test.js)
 - [env.js](/Users/yun/lindong/miniprogram/config/env.js)
-- [cloud-cutover-checklist.md](/Users/yun/lindong/docs/miniprogram/cloud-cutover-checklist.md)
+- [app.js](/Users/yun/lindong/miniprogram/app.js)
+- [request.js](/Users/yun/lindong/miniprogram/utils/request.js)
+- [auth.js](/Users/yun/lindong/miniprogram/utils/auth.js)
+- [course.js](/Users/yun/lindong/miniprogram/utils/course.js)
 
-## 4. 当前仍未完成的事
+### 3.2 小程序专用后端入口
 
-### 4.1 Console
+- [app.js](/Users/yun/lindong/backend/miniprogram-container/app.js)
+- [server.js](/Users/yun/lindong/backend/miniprogram-container/server.js)
+- [Dockerfile](/Users/yun/lindong/backend/Dockerfile)
+- [.dockerignore](/Users/yun/lindong/backend/.dockerignore)
 
-- `backend/routes/admin/*` 兼容壳还没删除
-- `middleware/` 还可以继续往公共校验和异常处理收口
+### 3.3 回归与交接文档
+
+- [create-test-course.js](/Users/yun/lindong/backend/scripts/create-test-course.js)
+- [regression-checklist.md](/Users/yun/lindong/docs/miniprogram/regression-checklist.md)
+- [handoff.md](/Users/yun/lindong/docs/miniprogram/handoff.md)
+- [miniprogram-cloud-run-lessons.md](/Users/yun/lindong/docs/deploy/miniprogram-cloud-run-lessons.md)
+
+## 4. 今天顺手完成的收尾
+
+### 4.1 页面回归数据已收成可重复脚本
+
+`npm run seed:regression-course` 现在会稳定准备两门课：
+
+- `"[回归测试] 无活跃拼团课程"`：用于验证“立即开团 -> 确认支付 -> mock success”
+- `"[回归测试] 可直接参团课程"`：用于验证“去参团 -> 确认支付 -> mock success”
+
+默认 mock 用户 `seed0326_u02` 可以直接使用这两门课完成主链路回归。
+
+### 4.2 旧云函数试错路径已移除
+
+本轮已经把未继续采用的旧路径清理掉，避免后续接手时误判当前真实方案：
+
+- 删除仓库根目录 `cloudfunctions/` 中的 `miniProgramGateway`
+- 删除 `backend/miniprogram-cloud/` 接入层骨架
+- 删除 `docs/miniprogram/cloud-cutover-checklist.md`
+- 删除 `verify:miniprogram-cloud-smoke`
+- 移除小程序请求层中的 `callFunction` 旧 transport
+- 移除微信开发者工具项目配置中的 `cloudfunctionRoot`
+
+## 5. 当前还没做的事
+
+### 5.1 Console
+
 - 还没有补课程或订单的真实写链路 live smoke
+- `backend/routes/admin/*` 兼容壳仍可继续评估删除条件
 
-### 4.2 小程序云开发
+### 5.2 小程序
 
-- 还没有填真实 `ENV_CLOUD_ENVS`
-- 还没有把 `develop` 的 transport 从 `http` 切到 `cloud`
-- 还没有部署真实微信云函数环境
-- 还没有做小程序开发环境的读链路、登录、下单、模拟支付联调
+- `trial / release` 还没有同步到云托管
+- 还没有决定线上环境是否也完全切到云托管
 
-## 5. 接手顺序建议
+## 6. 接手顺序建议
 
-### 5.1 如果继续做第三阶段
+1. 先补 console 一条可回滚真实写链路 live smoke
+2. 再评估 `backend/routes/admin/*` 兼容壳是否可以删除
+3. 最后再决定 `trial / release` 是否继续切到云托管
 
-1. 拿到微信云环境 ID
-2. 填 [env.js](/Users/yun/lindong/miniprogram/config/env.js) 的 `ENV_CLOUD_ENVS.develop`
-3. 把 `ENV_API_TRANSPORTS.develop` 从 `http` 改成 `cloud`
-4. 按 [cloud-cutover-checklist.md](/Users/yun/lindong/docs/miniprogram/cloud-cutover-checklist.md) 先跑读链路联调
-5. 读链路稳定后再测 `login -> create order -> mock success`
+## 7. 重要提醒
 
-### 5.2 如果继续收 Console
-
-1. 补一条课程或订单的可回滚真实写链路 live smoke
-2. 评估 `backend/routes/admin/*` 兼容壳删除条件
-3. 在确认前端引用已稳定后再清理兼容入口
-
-## 6. 重要提醒
-
-- 主数据仍然只认现有主库，不要在微信云开发侧另起主数据
-- 云函数接入层只负责 transport / auth / request / response 适配，不要把业务规则写回接入层
-- 当前 `docs/sql/reset_test_seed_0326.sql` 已重新导入，`verify:admin-seed` 是绿的；如果后续联调改脏了测试数据，先恢复 seed 再判断是不是代码问题
+- 小程序当前真实方案是 `callContainer -> lindong-api`，不要再按 `miniProgramGateway` 的旧路线排障
+- 主数据仍然只认现有主库，不要在微信云侧另起一套业务数据
+- 如果页面回归数据被联调污染，先运行 `cd /Users/yun/lindong/backend && npm run seed:regression-course`
