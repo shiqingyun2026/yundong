@@ -1,6 +1,7 @@
 {
   "compileType": "miniprogram",
   "miniprogramRoot": "./miniprogram",
+  "cloudfunctionRoot": "cloudfunctions/",
   "libVersion": "3.15.0",
   "packOptions": {
     "ignore": [],
@@ -30,7 +31,8 @@
     "swc": false,
     "disableSWC": true,
     "disableUseStrict": false,
-    "useCompilerPlugins": false
+    "useCompilerPlugins": false,
+    "cloudfunctionRoot": "cloudfunctions/"
   },
   "condition": {},
   "editorSetting": {
@@ -38,5 +40,6 @@
     "tabSize": 2
   },
   "appid": "wx1ffae387078936ff",
-  "simulatorPluginLibVersion": {}
+  "simulatorPluginLibVersion": {},
+  "cloudfunctionTemplateRoot": "cloudfunctionTemplate/"
 }

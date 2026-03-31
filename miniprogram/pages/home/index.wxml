@@ -26,7 +26,7 @@
   <view wx:if="{{locationTip}}" class="notice-card card-shadow">
     <view class="notice-text">{{locationTip}}</view>
     <view wx:if="{{locationDenied}}" class="notice-action" bindtap="handleManualLocationTip">
-      手动选择位置
+      开启定位
     </view>
   </view>
 

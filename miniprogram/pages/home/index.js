@@ -1,4 +1,5 @@
 const { fetchCourseList } = require('../../utils/course')
+const { DEFAULT_LOCATION_NAME, resolveLocationDetails } = require('../../utils/location')
 
 const safeDate = value => {
   if (!value) {
@@ -74,28 +75,7 @@ const DEFAULT_LOCATION = {
   longitude: 116.4074,
   name: '北京市 · 默认位置'
 }
-const LOCATION_TIMEOUT_MS = 3000
-
-const shouldUseDefaultLocationInDev = () => {
-  try {
-    const app = getApp()
-    return app && app.globalData && app.globalData.envVersion === 'develop'
-  } catch (error) {
-    return false
-  }
-}
-
-const resolveLocationLabel = (latitude, longitude) => {
-  if (latitude > 22 && latitude < 23 && longitude > 113 && longitude < 115) {
-    return '深圳市 · 南山区'
-  }
-
-  if (latitude > 39 && latitude < 41 && longitude > 115 && longitude < 117) {
-    return '北京市 · 当前定位'
-  }
-
-  return '当前位置'
-}
+const LOCATION_TIMEOUT_MS = 5000
 
 Page({
   data: {
@@ -167,17 +147,6 @@ Page({
 
   tryGetLocation() {
     return new Promise(resolve => {
-      if (shouldUseDefaultLocationInDev()) {
-        getApp().setLocation(DEFAULT_LOCATION)
-        this.setData({
-          locationText: DEFAULT_LOCATION.name,
-          locationDenied: false,
-          locationTip: '开发环境默认使用北京位置，真机体验版再验证真实定位。'
-        })
-        resolve(DEFAULT_LOCATION)
-        return
-      }
-
       let settled = false
       const finishWithLocation = (location, { denied = false, tip = '', toast } = {}) => {
         if (settled) {
@@ -212,11 +181,17 @@ Page({
 
       wx.getLocation({
         type: 'gcj02',
-        success: res => {
-          finishWithLocation({
+        success: async res => {
+          const location = await resolveLocationDetails({
             latitude: res.latitude,
-            longitude: res.longitude,
-            name: resolveLocationLabel(res.latitude, res.longitude)
+            longitude: res.longitude
+          })
+
+          finishWithLocation(location, {
+            tip:
+              location.source === 'cloud-function'
+                ? ''
+                : '已获取真实经纬度，但云函数地址解析未返回，先按当前位置展示课程。'
           })
         },
         fail: error => {
@@ -339,13 +314,10 @@ Page({
 
   async handleLocationTap() {
     if (this.data.locationDenied) {
-      wx.showModal({
-        title: '定位未授权',
-        content: '当前已按默认位置展示课程。你可以在系统设置中开启定位，或后续使用手动选择位置功能。',
-        confirmText: '重新定位',
-        cancelText: '手动选择',
+      wx.openSetting({
         success: async res => {
-          if (res.confirm) {
+          const authSetting = (res && res.authSetting) || {}
+          if (authSetting['scope.userLocation']) {
             await this.tryGetLocation()
             await this.loadCourseList({
               page: 1
@@ -354,7 +326,7 @@ Page({
           }
 
           wx.showToast({
-            title: '手动选择位置功能即将上线',
+            title: '仍未开启定位权限',
             icon: 'none'
           })
         }
@@ -369,9 +341,30 @@ Page({
   },
 
   handleManualLocationTip() {
-    wx.showToast({
-      title: '手动选择位置功能即将上线',
-      icon: 'none'
+    if (!this.data.locationDenied) {
+      wx.showToast({
+        title: DEFAULT_LOCATION_NAME,
+        icon: 'none'
+      })
+      return
+    }
+
+    wx.openSetting({
+      success: async res => {
+        const authSetting = (res && res.authSetting) || {}
+        if (authSetting['scope.userLocation']) {
+          await this.tryGetLocation()
+          await this.loadCourseList({
+            page: 1
+          })
+          return
+        }
+
+        wx.showToast({
+          title: '仍未开启定位权限',
+          icon: 'none'
+        })
+      }
     })
   },
 

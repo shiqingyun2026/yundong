@@ -19,6 +19,14 @@
     "backgroundColor": "#f7f8fa",
     "backgroundTextStyle": "dark"
   },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于展示你附近的课程和训练地点"
+    }
+  },
+  "requiredPrivateInfos": [
+    "getLocation"
+  ],
   "tabBar": {
     "color": "#8f96a3",
     "selectedColor": "#1677ff",

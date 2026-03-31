@@ -3,7 +3,8 @@ const {
   resolveApiTransportByEnv,
   resolveBaseURLByEnv,
   resolveCloudEnvByEnv,
-  resolveCloudContainerServiceNameByEnv
+  resolveCloudContainerServiceNameByEnv,
+  resolveCloudLocationFunctionNameByEnv
 } = require('./config/env')
 
 App({
@@ -26,6 +27,7 @@ App({
     this.globalData.baseURL = resolveBaseURLByEnv(envVersion)
     this.globalData.cloudEnv = resolveCloudEnvByEnv(envVersion)
     this.globalData.cloudContainerServiceName = resolveCloudContainerServiceNameByEnv(envVersion)
+    this.globalData.cloudLocationFunctionName = resolveCloudLocationFunctionNameByEnv(envVersion)
   },
 
   initCloud() {
@@ -144,6 +146,7 @@ App({
     baseURL: resolveBaseURLByEnv('develop'),
     cloudEnv: resolveCloudEnvByEnv('develop'),
     cloudContainerServiceName: resolveCloudContainerServiceNameByEnv('develop'),
+    cloudLocationFunctionName: resolveCloudLocationFunctionNameByEnv('develop'),
     cloudReady: false,
     token: wx.getStorageSync('token') || '',
     userInfo: wx.getStorageSync('userInfo') || null,

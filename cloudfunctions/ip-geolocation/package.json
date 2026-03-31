@@ -1,0 +1,9 @@
+{
+  "name": "ip-geolocation",
+  "version": "1.0.0",
+  "description": "Serverless Cloud Function for IP geolocation using Tencent Map API with CloudBase caching",
+  "main": "index.js",
+  "dependencies": {
+    "@cloudbase/node-sdk": "^3.3.7"
+  }
+}
