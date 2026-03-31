@@ -1,4 +1,4 @@
-const { loginWithUserProfile, authDebugConfig } = require('../../utils/auth')
+const { loginWithWechat } = require('../../utils/auth')
 
 const SERVICE_QR_CODE = 'https://dummyimage.com/240x240/f3f8ff/1677ff.png&text=%E5%AE%A2%E6%9C%8D%E4%BA%8C%E7%BB%B4%E7%A0%81'
 
@@ -6,6 +6,8 @@ Page({
   data: {
     userInfo: null,
     loginLoading: false,
+    showLoginModal: false,
+    loginAgreementChecked: false,
     showServiceModal: false,
     menuList: [
       {
@@ -29,8 +31,25 @@ Page({
 
   onShow() {
     const app = getApp()
+    this.showTabBar()
     this.setData({
       userInfo: app.globalData.userInfo || wx.getStorageSync('userInfo') || null
+    })
+  },
+
+  onUnload() {
+    this.showTabBar()
+  },
+
+  hideTabBar() {
+    wx.hideTabBar({
+      animation: false
+    })
+  },
+
+  showTabBar() {
+    wx.showTabBar({
+      animation: false
     })
   },
 
@@ -65,8 +84,57 @@ Page({
     }
   },
 
-  async handleLogin() {
+  handleLogin() {
     if (this.data.loginLoading) {
+      return
+    }
+
+    this.setData({
+      showLoginModal: true,
+      loginAgreementChecked: false
+    })
+    this.hideTabBar()
+  },
+
+  handleCloseLoginModal() {
+    if (this.data.loginLoading) {
+      return
+    }
+
+    this.setData({
+      showLoginModal: false
+    })
+    this.showTabBar()
+  },
+
+  handleOpenAgreement() {
+    wx.navigateTo({
+      url: '/pages/agreement-content/index?key=user'
+    })
+  },
+
+  handleOpenPrivacy() {
+    wx.navigateTo({
+      url: '/pages/agreement-content/index?key=privacy'
+    })
+  },
+
+  handleToggleLoginAgreement() {
+    this.setData({
+      loginAgreementChecked: !this.data.loginAgreementChecked
+    })
+  },
+
+  async handleConfirmLogin() {
+    if (this.data.loginLoading) {
+      return
+    }
+
+    if (!this.data.loginAgreementChecked) {
+      wx.showToast({
+        title: '请先阅读并勾选用户协议',
+        icon: 'none'
+      })
       return
     }
 
@@ -75,30 +143,24 @@ Page({
     })
 
     try {
-      const result = await loginWithUserProfile()
+      const result = await loginWithWechat()
       const app = getApp()
 
       app.setUserInfo(result.userInfo)
       app.setToken(result.token)
 
       this.setData({
-        userInfo: result.userInfo
+        userInfo: result.userInfo,
+        showLoginModal: false
       })
+      this.showTabBar()
 
       wx.showToast({
-        title:
-          authDebugConfig.USE_MOCK_USER && !result.mock
-            ? `登录成功(${authDebugConfig.MOCK_OPEN_ID || 'mock'})`
-            : result.mock
-              ? '已登录，当前为 mock 模式'
-              : '登录成功',
+        title: '登录成功',
         icon: 'success'
       })
     } catch (error) {
-      const message =
-        error && /cancel|deny|auth deny/i.test(error.errMsg || '')
-          ? '你已取消微信授权，可稍后再登录'
-          : '登录未完成，请稍后再试'
+      const message = error && error.message ? error.message : '登录未完成，请稍后再试'
 
       wx.showToast({
         title: message,

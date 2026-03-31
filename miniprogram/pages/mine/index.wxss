@@ -26,16 +26,12 @@
   background: linear-gradient(135deg, #1677ff 0%, #69a7ff 100%);
 }
 
-.avatar-image {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-}
-
 .avatar-placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  height: 100%;
 }
 
 .avatar-placeholder-icon {
@@ -57,12 +53,6 @@
   font-size: 36rpx;
   font-weight: 700;
   color: #1f2329;
-}
-
-.profile-desc {
-  margin-top: 12rpx;
-  font-size: 24rpx;
-  color: #8f96a3;
 }
 
 .login-button {
@@ -120,4 +110,135 @@
   margin-top: 16rpx;
   font-size: 24rpx;
   color: #5f6b7a;
+}
+
+.login-sheet-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.login-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 750rpx;
+  min-height: 0;
+  padding: 32rpx 32rpx calc(40rpx + env(safe-area-inset-bottom));
+  border-radius: 36rpx 36rpx 0 0;
+  background: #ffffff;
+  box-shadow: 0 -16rpx 48rpx rgba(0, 0, 0, 0.18);
+}
+
+.login-sheet-title {
+  margin-top: 28rpx;
+  padding: 0 32rpx;
+  font-size: 34rpx;
+  font-weight: 600;
+  text-align: center;
+  color: #1f2329;
+  line-height: 1.4;
+}
+
+.login-sheet-icon {
+  width: 128rpx;
+  height: 128rpx;
+  margin: 24rpx auto 0;
+  border-radius: 50%;
+  background: #dbeafe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-sheet-bolt {
+  width: 56rpx;
+  height: 56rpx;
+}
+
+.login-sheet-button-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-top: 36rpx;
+}
+
+.login-sheet-button,
+.login-sheet-secondary-button {
+  flex: 1;
+  height: 96rpx;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  line-height: 96rpx;
+}
+
+.login-sheet-button {
+  background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
+  box-shadow: 0 8rpx 20rpx rgba(59, 130, 246, 0.24);
+  font-weight: 500;
+}
+
+.login-sheet-secondary-button {
+  padding: 0;
+  border: 2rpx solid #dbe3f0;
+  background: #ffffff;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.login-sheet-secondary-button::after {
+  border: none;
+}
+
+.login-sheet-agreement-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12rpx;
+  margin-top: 24rpx;
+  padding: 0 28rpx;
+}
+
+.login-sheet-check-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 4rpx;
+}
+
+.login-sheet-check {
+  width: 24rpx;
+  height: 24rpx;
+  border-radius: 6rpx;
+  border: 2rpx solid #cbd5e1;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-sheet-check-active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.login-sheet-check-mark {
+  width: 16rpx;
+  height: 16rpx;
+}
+
+.login-sheet-agreement {
+  max-width: 480rpx;
+  font-size: 22rpx;
+  line-height: 1.7;
+  color: #6b7280;
+  text-align: center;
+}
+
+.login-sheet-link {
+  color: #3b82f6;
+  font-weight: 500;
 }

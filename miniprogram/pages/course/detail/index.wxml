@@ -130,38 +130,14 @@
     </view>
   </base-modal>
 
-  <view wx:if="{{showLoginModal}}" class="login-sheet-mask" bindtap="handleCloseLoginModal">
-    <view class="login-sheet" catchtap="noop">
-      <view class="login-sheet-icon">
-        <image class="login-sheet-bolt" src="/assets/ant-icons/thunderbolt-blue.svg" mode="aspectFit" />
-      </view>
-      <view class="login-sheet-title">完成登录即可参团</view>
-      <view class="login-sheet-button-row">
-        <button class="login-sheet-secondary-button" bindtap="handleCloseLoginModal" disabled="{{loginLoading}}">
-          稍后登录
-        </button>
-        <button class="primary-button login-sheet-button" bindtap="handleConfirmLogin" loading="{{loginLoading}}">
-          授权并登录
-        </button>
-      </view>
-      <view class="login-sheet-agreement-row">
-        <view class="login-sheet-check-wrap" bindtap="handleToggleLoginAgreement">
-          <view class="login-sheet-check {{loginAgreementChecked ? 'login-sheet-check-active' : ''}}">
-            <image
-              wx:if="{{loginAgreementChecked}}"
-              class="login-sheet-check-mark"
-              src="/assets/ant-icons/check-white.svg"
-              mode="aspectFit"
-            />
-          </view>
-        </view>
-        <view class="login-sheet-agreement">
-          <text>我已阅读并同意</text>
-          <text class="login-sheet-link" bindtap="handleOpenAgreement">用户协议</text>
-          <text>和</text>
-          <text class="login-sheet-link" bindtap="handleOpenPrivacy">隐私政策</text>
-        </view>
-      </view>
-    </view>
-  </view>
+  <login-sheet
+    visible="{{showLoginModal}}"
+    loading="{{loginLoading}}"
+    agreementChecked="{{loginAgreementChecked}}"
+    bind:close="handleCloseLoginModal"
+    bind:confirm="handleConfirmLogin"
+    bind:toggleagreement="handleToggleLoginAgreement"
+    bind:openagreement="handleOpenAgreement"
+    bind:openprivacy="handleOpenPrivacy"
+  />
 </view>

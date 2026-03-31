@@ -88,7 +88,7 @@ const tabbarVariants = [
 fs.mkdirSync(tabbarDir, { recursive: true })
 
 for (const [fileName, iconName, color] of tabbarVariants) {
-  const tempSvgPath = path.join(tabbarDir, `${path.parse(fileName).name}.generated.svg`)
+  const tempSvgPath = path.join(tabbarDir, `${path.parse(fileName).name}.tmp.svg`)
   const outputPath = path.join(tabbarDir, fileName)
   const thumbnailPath = path.join(tabbarDir, `${path.basename(tempSvgPath)}.png`)
 

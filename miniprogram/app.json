@@ -51,7 +51,8 @@
   "usingComponents": {
     "loading-view": "/components/loading/index",
     "empty-state": "/components/empty-state/index",
-    "base-modal": "/components/base-modal/index"
+    "base-modal": "/components/base-modal/index",
+    "login-sheet": "/components/login-sheet/index"
   },
   "style": "v2",
   "componentFramework": "glass-easel",

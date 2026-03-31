@@ -1,5 +1,5 @@
 const { fetchCourseDetail, fetchActiveGroup, createOrder } = require('../../../utils/course')
-const { loginWithUserProfile, authDebugConfig } = require('../../../utils/auth')
+const { loginWithWechat } = require('../../../utils/auth')
 const {
   buildActiveGroupViewModel,
   buildGroupPresentationState,
@@ -23,7 +23,7 @@ Page({
     showServiceModal: false,
     showLoginModal: false,
     loginLoading: false,
-    loginAgreementChecked: true,
+    loginAgreementChecked: false,
     creatingOrder: false,
     actionButtonMode: 'create',
     actionButtonText: '立即开团',
@@ -59,7 +59,7 @@ Page({
   promptLogin() {
     this.setData({
       showLoginModal: true,
-      loginAgreementChecked: true
+      loginAgreementChecked: false
     })
   },
 
@@ -98,7 +98,7 @@ Page({
 
     if (!this.data.loginAgreementChecked) {
       wx.showToast({
-        title: '请先阅读并同意相关协议',
+        title: '请先阅读并勾选用户协议',
         icon: 'none'
       })
       return
@@ -109,7 +109,7 @@ Page({
     })
 
     try {
-      const result = await loginWithUserProfile()
+      const result = await loginWithWechat()
       const app = getApp()
 
       app.setUserInfo(result.userInfo)
@@ -120,12 +120,7 @@ Page({
       })
 
       wx.showToast({
-        title:
-          authDebugConfig.USE_MOCK_USER && !result.mock
-            ? `登录成功(${authDebugConfig.MOCK_OPEN_ID || 'mock'})`
-            : result.mock
-              ? '已登录，当前为 mock 模式'
-              : '登录成功',
+        title: '登录成功',
         icon: 'success'
       })
 
@@ -133,10 +128,7 @@ Page({
         await this.loadPageData(this.data.courseId)
       }
     } catch (error) {
-      const message =
-        error && /cancel|deny|auth deny/i.test(error.errMsg || '')
-          ? '你已取消微信授权，可稍后再登录'
-          : '登录未完成，请稍后再试'
+      const message = error && error.message ? error.message : '登录未完成，请稍后再试'
 
       wx.showToast({
         title: message,
@@ -270,8 +262,6 @@ Page({
       showServiceModal: false
     })
   },
-
-  noop() {},
 
   handleConfirmService() {
     this.setData({

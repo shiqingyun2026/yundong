@@ -2,21 +2,12 @@
   <view class="profile-card card-shadow">
     <view class="profile-main">
       <view class="avatar-box">
-        <image
-          wx:if="{{userInfo && userInfo.avatarUrl}}"
-          class="avatar-image"
-          src="{{userInfo.avatarUrl}}"
-          mode="aspectFill"
-        />
-        <view wx:else class="avatar-placeholder">
+        <view class="avatar-placeholder">
           <image class="avatar-placeholder-icon" src="/assets/ant-icons/user-white.svg" mode="aspectFit" />
         </view>
       </view>
       <view class="profile-info">
         <view class="profile-name">{{userInfo ? userInfo.nickName : '未登录用户'}}</view>
-        <view class="profile-desc">
-          {{userInfo ? '已完成微信授权登录，当前展示昵称与头像等基础资料。' : '支持浏览课程，报名与拼团将在登录授权后开启。'}}
-        </view>
       </view>
     </view>
 
@@ -26,7 +17,7 @@
       bindtap="handleLogin"
       loading="{{loginLoading}}"
     >
-      点击登录
+      去登录
     </button>
 
     <button
@@ -68,4 +59,15 @@
       <view class="service-tip">请使用微信扫码联系专属客服</view>
     </view>
   </base-modal>
+
+  <login-sheet
+    visible="{{showLoginModal}}"
+    loading="{{loginLoading}}"
+    agreementChecked="{{loginAgreementChecked}}"
+    bind:close="handleCloseLoginModal"
+    bind:confirm="handleConfirmLogin"
+    bind:toggleagreement="handleToggleLoginAgreement"
+    bind:openagreement="handleOpenAgreement"
+    bind:openprivacy="handleOpenPrivacy"
+  />
 </view>

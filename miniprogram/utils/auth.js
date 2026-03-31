@@ -1,8 +1,31 @@
 const { post } = require('./request')
 
 // Development-only mock login switch. Keep disabled for production releases.
-const USE_MOCK_USER = true
+const USE_MOCK_USER = false
 const MOCK_OPEN_ID = 'seed0326_u02'
+const GENERATED_USER_INFO_STORAGE_KEY = 'generatedLoginUserInfo'
+
+const buildRandomNickname = () => `用户${Math.floor(1000 + Math.random() * 9000)}`
+
+const getGeneratedUserInfo = () => {
+  const existing = wx.getStorageSync(GENERATED_USER_INFO_STORAGE_KEY)
+
+  if (existing && existing.nickName) {
+    return existing
+  }
+
+  const generatedUserInfo = {
+    nickName: buildRandomNickname(),
+    avatarUrl: ''
+  }
+
+  wx.setStorageSync(GENERATED_USER_INFO_STORAGE_KEY, generatedUserInfo)
+  return generatedUserInfo
+}
+
+const clearGeneratedUserInfo = () => {
+  wx.removeStorageSync(GENERATED_USER_INFO_STORAGE_KEY)
+}
 
 const pickUserInfo = (payload, fallbackUserInfo) => {
   const source =
@@ -74,18 +97,15 @@ const getStableMockOpenId = () => {
 
 const getUserProfile = () =>
   new Promise((resolve, reject) => {
-    wx.getUserProfile({
-      desc: '用于完善会员资料与报名体验',
-      success: resolve,
-      fail: reject
-    })
+    reject(new Error('当前登录方案不采集微信头像昵称'))
   })
 
 const login = async userInfo => {
   const loginCode = await getLoginCode()
-  const payload = {
-    code: loginCode,
-    mockOpenId: isMockUserEnabled() ? MOCK_OPEN_ID : getStableMockOpenId()
+  const payload = { code: loginCode }
+
+  if (isMockUserEnabled()) {
+    payload.mockOpenId = MOCK_OPEN_ID || getStableMockOpenId()
   }
 
   const result = await post('/api/auth/login', payload, {
@@ -100,24 +120,21 @@ const login = async userInfo => {
 
   return {
     token: result.token,
-    userInfo: pickUserInfo(result, userInfo)
+    userInfo: {
+      ...pickUserInfo(result, userInfo || getGeneratedUserInfo()),
+      ...getGeneratedUserInfo(),
+      avatarUrl: ''
+    }
   }
 }
 
-const loginWithUserProfile = async () => {
-  const profile = await getUserProfile()
-  const result = await login(profile.userInfo)
-
-  return {
-    ...result,
-    profile
-  }
-}
+const loginWithWechat = async () => login()
 
 module.exports = {
   getUserProfile,
   login,
-  loginWithUserProfile,
+  loginWithWechat,
+  clearGeneratedUserInfo,
   authDebugConfig: {
     USE_MOCK_USER,
     MOCK_OPEN_ID

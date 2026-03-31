@@ -1,0 +1,35 @@
+<view wx:if="{{visible}}" class="login-sheet-mask" bindtap="handleMaskTap">
+  <view class="login-sheet" catchtap="noop">
+    <view class="login-sheet-icon">
+      <image class="login-sheet-bolt" src="/assets/ant-icons/thunderbolt-blue.svg" mode="aspectFit" />
+    </view>
+    <view class="login-sheet-title">邻动体适能欢迎你</view>
+    <view class="login-sheet-subtitle">为了提供更好的服务，我们需要获取你的授权</view>
+    <view class="login-sheet-button-row">
+      <button class="login-sheet-secondary-button" bindtap="handleClose" disabled="{{loading}}">
+        稍后登录
+      </button>
+      <button class="login-sheet-button" bindtap="handleConfirm" loading="{{loading}}">
+        微信一键登录
+      </button>
+    </view>
+    <view class="login-sheet-agreement-row">
+      <view class="login-sheet-check-wrap" bindtap="handleToggleAgreement">
+        <view class="login-sheet-check {{agreementChecked ? 'login-sheet-check-active' : ''}}">
+          <image
+            wx:if="{{agreementChecked}}"
+            class="login-sheet-check-mark"
+            src="/assets/ant-icons/check-white.svg"
+            mode="aspectFit"
+          />
+        </view>
+      </view>
+      <view class="login-sheet-agreement">
+        <text>我已阅读并同意</text>
+        <text class="login-sheet-link" bindtap="handleOpenAgreement">用户协议</text>
+        <text>和</text>
+        <text class="login-sheet-link" bindtap="handleOpenPrivacy">隐私政策</text>
+      </view>
+    </view>
+  </view>
+</view>
