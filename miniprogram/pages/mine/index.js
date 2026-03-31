@@ -1,4 +1,4 @@
-const { login, authDebugConfig } = require('../../utils/auth')
+const { loginWithUserProfile, authDebugConfig } = require('../../utils/auth')
 
 const SERVICE_QR_CODE = 'https://dummyimage.com/240x240/f3f8ff/1677ff.png&text=%E5%AE%A2%E6%9C%8D%E4%BA%8C%E7%BB%B4%E7%A0%81'
 
@@ -63,15 +63,7 @@ Page({
     })
 
     try {
-      const profile = await new Promise((resolve, reject) => {
-        wx.getUserProfile({
-          desc: '用于完善会员资料与报名体验',
-          success: resolve,
-          fail: reject
-        })
-      })
-
-      const result = await login(profile.userInfo)
+      const result = await loginWithUserProfile()
       const app = getApp()
 
       app.setUserInfo(result.userInfo)

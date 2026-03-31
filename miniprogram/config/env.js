@@ -6,7 +6,7 @@ const ENV_API_BASE_URLS = {
 
 const ENV_API_TRANSPORTS = {
   develop: 'container',
-  trial: 'http',
+  trial: 'container',
   release: 'http'
 }
 
@@ -15,13 +15,13 @@ const CLOUD_CONTAINER_SERVICE_PLACEHOLDER = 'TODO_CLOUD_RUN_SERVICE'
 
 const ENV_CLOUD_ENVS = {
   develop: 'cloud1-4glzoev0baf7b187',
-  trial: CLOUD_ENV_PLACEHOLDER,
+  trial: 'cloud1-4glzoev0baf7b187',
   release: CLOUD_ENV_PLACEHOLDER
 }
 
 const ENV_CLOUD_CONTAINER_SERVICE_NAMES = {
   develop: 'lindong-api',
-  trial: CLOUD_CONTAINER_SERVICE_PLACEHOLDER,
+  trial: 'lindong-api',
   release: CLOUD_CONTAINER_SERVICE_PLACEHOLDER
 }
 

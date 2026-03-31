@@ -1,4 +1,5 @@
 const { fetchCourseDetail, fetchActiveGroup, createOrder } = require('../../../utils/course')
+const { loginWithUserProfile, authDebugConfig } = require('../../../utils/auth')
 
 const safeDate = value => {
   if (!value) {
@@ -242,6 +243,9 @@ Page({
     courseGroupList: [],
     loading: true,
     showServiceModal: false,
+    showLoginModal: false,
+    loginLoading: false,
+    loginAgreementChecked: true,
     creatingOrder: false,
     actionButtonMode: 'create',
     actionButtonText: '立即开团',
@@ -275,19 +279,96 @@ Page({
   },
 
   promptLogin() {
-    wx.showModal({
-      title: '请先登录',
-      content: '开团和参团需要先完成登录，是否前往“我的”页面登录？',
-      confirmText: '去登录',
-      cancelText: '稍后',
-      success: res => {
-        if (res.confirm) {
-          wx.switchTab({
-            url: '/pages/mine/index'
-          })
-        }
-      }
+    this.setData({
+      showLoginModal: true,
+      loginAgreementChecked: true
     })
+  },
+
+  handleCloseLoginModal() {
+    if (this.data.loginLoading) {
+      return
+    }
+
+    this.setData({
+      showLoginModal: false
+    })
+  },
+
+  handleOpenAgreement() {
+    wx.navigateTo({
+      url: '/pages/agreement/index?type=user'
+    })
+  },
+
+  handleOpenPrivacy() {
+    wx.navigateTo({
+      url: '/pages/agreement/index?type=privacy'
+    })
+  },
+
+  handleToggleLoginAgreement() {
+    this.setData({
+      loginAgreementChecked: !this.data.loginAgreementChecked
+    })
+  },
+
+  async handleConfirmLogin() {
+    if (this.data.loginLoading) {
+      return
+    }
+
+    if (!this.data.loginAgreementChecked) {
+      wx.showToast({
+        title: '请先阅读并同意相关协议',
+        icon: 'none'
+      })
+      return
+    }
+
+    this.setData({
+      loginLoading: true
+    })
+
+    try {
+      const result = await loginWithUserProfile()
+      const app = getApp()
+
+      app.setUserInfo(result.userInfo)
+      app.setToken(result.token)
+
+      this.setData({
+        showLoginModal: false
+      })
+
+      wx.showToast({
+        title:
+          authDebugConfig.USE_MOCK_USER && !result.mock
+            ? `登录成功(${authDebugConfig.MOCK_OPEN_ID || 'mock'})`
+            : result.mock
+              ? '已登录，当前为 mock 模式'
+              : '登录成功',
+        icon: 'success'
+      })
+
+      if (this.data.courseId) {
+        await this.loadPageData(this.data.courseId)
+      }
+    } catch (error) {
+      const message =
+        error && /cancel|deny|auth deny/i.test(error.errMsg || '')
+          ? '你已取消微信授权，可稍后再登录'
+          : '登录未完成，请稍后再试'
+
+      wx.showToast({
+        title: message,
+        icon: 'none'
+      })
+    } finally {
+      this.setData({
+        loginLoading: false
+      })
+    }
   },
 
   clearExpireTimer() {
@@ -467,6 +548,8 @@ Page({
       showServiceModal: false
     })
   },
+
+  noop() {},
 
   handleConfirmService() {
     this.setData({

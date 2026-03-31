@@ -127,4 +127,34 @@
       <view class="service-tip">请使用微信扫码联系专属客服</view>
     </view>
   </base-modal>
+
+  <view wx:if="{{showLoginModal}}" class="login-sheet-mask" bindtap="handleCloseLoginModal">
+    <view class="login-sheet" catchtap="noop">
+      <view class="login-sheet-icon">
+        <text class="login-sheet-bolt">⚡</text>
+      </view>
+      <view class="login-sheet-title">完成登录即可参团</view>
+      <view class="login-sheet-button-row">
+        <button class="login-sheet-secondary-button" bindtap="handleCloseLoginModal" disabled="{{loginLoading}}">
+          稍后登录
+        </button>
+        <button class="primary-button login-sheet-button" bindtap="handleConfirmLogin" loading="{{loginLoading}}">
+          授权并登录
+        </button>
+      </view>
+      <view class="login-sheet-agreement-row">
+        <view class="login-sheet-check-wrap" bindtap="handleToggleLoginAgreement">
+          <view class="login-sheet-check {{loginAgreementChecked ? 'login-sheet-check-active' : ''}}">
+            <text wx:if="{{loginAgreementChecked}}" class="login-sheet-check-mark">✓</text>
+          </view>
+        </view>
+        <view class="login-sheet-agreement">
+          <text>我已阅读并同意</text>
+          <text class="login-sheet-link" bindtap="handleOpenAgreement">用户协议</text>
+          <text>和</text>
+          <text class="login-sheet-link" bindtap="handleOpenPrivacy">隐私政策</text>
+        </view>
+      </view>
+    </view>
+  </view>
 </view>

@@ -30,6 +30,16 @@ const resolveApiTransport = () => {
   return 'http'
 }
 
+const resolveEnvVersion = () => {
+  const app = getRuntimeApp()
+
+  if (app && app.globalData && app.globalData.envVersion) {
+    return app.globalData.envVersion
+  }
+
+  return 'develop'
+}
+
 const resolveCloudContainerServiceName = () => {
   const app = getRuntimeApp()
 
@@ -124,6 +134,25 @@ const handleRequestError = (error, showErrorToast) => {
   if (showErrorToast) {
     showToast(error && error.message ? error.message : DEFAULT_ERROR_MESSAGE)
   }
+}
+
+const shouldRetryContainerWithHttp = error => {
+  if (!error) {
+    return false
+  }
+
+  if (error.statusCode || error.code) {
+    return false
+  }
+
+  const message = `${error.errMsg || error.message || ''}`.toLowerCase()
+
+  return (
+    message.indexOf('callcontainer:fail') >= 0 ||
+    message.indexOf('request timeout') >= 0 ||
+    message.indexOf('请求超时') >= 0 ||
+    message.indexOf('timeout') >= 0
+  )
 }
 
 const httpRequest = ({ url, method, data, header, token }) =>
@@ -258,6 +287,7 @@ const request = options => {
   }
 
   const transport = resolveApiTransport()
+  const envVersion = resolveEnvVersion()
   const token = wx.getStorageSync('token')
   const requestHeader = {
     'Content-Type': 'application/json',
@@ -268,15 +298,31 @@ const request = options => {
     requestHeader.Authorization = `Bearer ${token}`
   }
 
-  const transportRequest = transport === 'container' ? containerRequest : httpRequest
-
-  return transportRequest({
+  const requestPayload = {
     url,
     method,
     data,
     header: requestHeader,
     token
-  })
+  }
+
+  const transportRequest = transport === 'container' ? containerRequest : httpRequest
+
+  return transportRequest(requestPayload)
+    .catch(error => {
+      if (transport === 'container' && envVersion === 'develop' && shouldRetryContainerWithHttp(error)) {
+        console.warn('[request] container request failed in develop, retrying with http', {
+          url,
+          method,
+          error
+        })
+
+        return httpRequest(requestPayload)
+      }
+
+      handleRequestError(error, showErrorToast)
+      return Promise.reject(error)
+    })
     .catch(error => {
       handleRequestError(error, showErrorToast)
       return Promise.reject(error)

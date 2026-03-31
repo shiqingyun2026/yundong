@@ -72,6 +72,15 @@ const getStableMockOpenId = () => {
   return mockOpenId
 }
 
+const getUserProfile = () =>
+  new Promise((resolve, reject) => {
+    wx.getUserProfile({
+      desc: '用于完善会员资料与报名体验',
+      success: resolve,
+      fail: reject
+    })
+  })
+
 const login = async userInfo => {
   const loginCode = await getLoginCode()
   const payload = {
@@ -95,8 +104,20 @@ const login = async userInfo => {
   }
 }
 
+const loginWithUserProfile = async () => {
+  const profile = await getUserProfile()
+  const result = await login(profile.userInfo)
+
+  return {
+    ...result,
+    profile
+  }
+}
+
 module.exports = {
+  getUserProfile,
   login,
+  loginWithUserProfile,
   authDebugConfig: {
     USE_MOCK_USER,
     MOCK_OPEN_ID
