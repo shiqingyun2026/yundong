@@ -13,6 +13,7 @@ App({
     this.initCloud()
     this.initSystemInfo()
     this.syncAgreementState()
+    this.syncLocationState()
     wx.removeStorageSync('phoneNumber')
   },
 
@@ -73,6 +74,12 @@ App({
     this.globalData.agreementAccepted = hasAgreed
   },
 
+  syncLocationState() {
+    this.globalData.gpsLocation = wx.getStorageSync('gpsLocation') || null
+    this.globalData.selectedLocation = wx.getStorageSync('selectedLocation') || null
+    this.globalData.location = this.globalData.selectedLocation || null
+  },
+
   hasAgreedAgreement() {
     return !!this.globalData.agreementAccepted
   },
@@ -129,15 +136,37 @@ App({
     wx.removeStorageSync('token')
   },
 
-  setLocation(location) {
+  setGpsLocation(location) {
+    this.globalData.gpsLocation = location || null
+
+    if (location) {
+      wx.setStorageSync('gpsLocation', location)
+      return
+    }
+
+    wx.removeStorageSync('gpsLocation')
+  },
+
+  setSelectedLocation(location) {
+    this.globalData.selectedLocation = location || null
     this.globalData.location = location || null
 
     if (location) {
+      wx.setStorageSync('selectedLocation', location)
       wx.setStorageSync('location', location)
       return
     }
 
+    wx.removeStorageSync('selectedLocation')
     wx.removeStorageSync('location')
+  },
+
+  setLocation(location) {
+    this.setSelectedLocation(location)
+  },
+
+  getCurrentLocation() {
+    return this.globalData.selectedLocation || this.globalData.gpsLocation || null
   },
 
   globalData: {
@@ -151,7 +180,9 @@ App({
     token: wx.getStorageSync('token') || '',
     userInfo: wx.getStorageSync('userInfo') || null,
     pendingOrder: null,
-    location: wx.getStorageSync('location') || null,
+    location: wx.getStorageSync('selectedLocation') || wx.getStorageSync('location') || null,
+    gpsLocation: wx.getStorageSync('gpsLocation') || null,
+    selectedLocation: wx.getStorageSync('selectedLocation') || wx.getStorageSync('location') || null,
     agreementAccepted: !!wx.getStorageSync('agreementAccepted'),
     systemInfo: null,
     navbarHeight: 64

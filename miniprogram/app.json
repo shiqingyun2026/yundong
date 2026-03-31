@@ -4,6 +4,7 @@
     "pages/agreement-list/index",
     "pages/agreement-content/index",
     "pages/service-agreement/index",
+    "pages/location-search/index",
     "pages/course/detail/index",
     "pages/payment/confirm/index",
     "pages/payment/result/index",

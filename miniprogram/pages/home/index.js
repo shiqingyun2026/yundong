@@ -1,5 +1,9 @@
 const { fetchCourseList } = require('../../utils/course')
-const { DEFAULT_LOCATION_NAME, resolveLocationDetails } = require('../../utils/location')
+const {
+  DEFAULT_LOCATION,
+  DEFAULT_LOCATION_NAME,
+  resolveLocationDetails
+} = require('../../utils/location')
 
 const safeDate = value => {
   if (!value) {
@@ -70,18 +74,16 @@ const HOME_TABS = [
   { key: 'recent', label: '最近开课', sort: 'time' }
 ]
 
-const DEFAULT_LOCATION = {
-  latitude: 39.9042,
-  longitude: 116.4074,
-  name: '北京市 · 默认位置'
-}
 const LOCATION_TIMEOUT_MS = 5000
+const buildLocationKey = location =>
+  location ? `${location.latitude || ''}:${location.longitude || ''}:${location.source || ''}:${location.name || ''}` : ''
 
 Page({
   data: {
     tabs: HOME_TABS,
     activeTab: 'all',
     locationText: '定位中...',
+    locationSource: '',
     locationDenied: false,
     locationTip: '',
     courseList: [],
@@ -96,11 +98,22 @@ Page({
     this._countdownTimer = null
     this._countdownStartTimer = null
     this._hasLoadedOnce = false
+    this._currentLocationKey = ''
     this.initLocationAndCourses()
   },
 
   onShow() {
     if (this._hasLoadedOnce) {
+      const previousLocationKey = this._currentLocationKey
+      const location = this.syncCurrentLocationFromStore()
+      if (buildLocationKey(location) !== previousLocationKey) {
+        this.loadCourseList({
+          page: 1,
+          showLoading: false
+        })
+        return
+      }
+
       this.loadCourseList({
         page: 1,
         showLoading: false
@@ -138,14 +151,39 @@ Page({
   },
 
   async initLocationAndCourses() {
-    await this.tryGetLocation()
+    const location = this.syncCurrentLocationFromStore()
+
+    if (!location || location.source === 'default') {
+      await this.tryGetLocation({
+        applyToSelected: !location || location.source !== 'manual'
+      })
+    }
+
     await this.loadCourseList({
       page: 1
     })
     this._hasLoadedOnce = true
   },
 
-  tryGetLocation() {
+  syncCurrentLocationFromStore() {
+    const app = getApp()
+    const selectedLocation = app.globalData.selectedLocation || wx.getStorageSync('selectedLocation') || null
+    const gpsLocation = app.globalData.gpsLocation || wx.getStorageSync('gpsLocation') || null
+    const nextLocation = selectedLocation || gpsLocation || DEFAULT_LOCATION
+
+    app.globalData.selectedLocation = selectedLocation
+    app.globalData.gpsLocation = gpsLocation
+    app.globalData.location = nextLocation
+
+    this.setData({
+      locationText: nextLocation.source === 'manual' ? `${nextLocation.name}（已切换）` : nextLocation.name,
+      locationSource: nextLocation.source
+    })
+
+    return nextLocation
+  },
+
+  tryGetLocation({ applyToSelected = false } = {}) {
     return new Promise(resolve => {
       let settled = false
       const finishWithLocation = (location, { denied = false, tip = '', toast } = {}) => {
@@ -155,9 +193,22 @@ Page({
 
         settled = true
         clearTimeout(timeoutId)
-        getApp().setLocation(location)
+        const app = getApp()
+        const normalizedLocation = {
+          ...DEFAULT_LOCATION,
+          ...location
+        }
+        app.setGpsLocation(normalizedLocation)
+        if (applyToSelected || !app.globalData.selectedLocation) {
+          app.setSelectedLocation(normalizedLocation)
+        }
+        this._currentLocationKey = buildLocationKey(app.getCurrentLocation() || normalizedLocation)
         this.setData({
-          locationText: location.name,
+          locationText:
+            (app.getCurrentLocation() || normalizedLocation).source === 'manual'
+              ? `${(app.getCurrentLocation() || normalizedLocation).name}（已切换）`
+              : (app.getCurrentLocation() || normalizedLocation).name,
+          locationSource: (app.getCurrentLocation() || normalizedLocation).source,
           locationDenied: denied,
           locationTip: tip
         })
@@ -169,7 +220,7 @@ Page({
           })
         }
 
-        resolve(location)
+        resolve(normalizedLocation)
       }
 
       const timeoutId = setTimeout(() => {
@@ -188,10 +239,7 @@ Page({
           })
 
           finishWithLocation(location, {
-            tip:
-              location.source === 'cloud-function'
-                ? ''
-                : '已获取真实经纬度，但云函数地址解析未返回，先按当前位置展示课程。'
+            tip: location.source === 'coordinates' ? '已获取真实经纬度，但云函数地址解析未返回，先按当前位置展示课程。' : ''
           })
         },
         fail: error => {
@@ -211,7 +259,13 @@ Page({
   async loadCourseList({ page = 1, showLoading = true } = {}) {
     const app = getApp()
     const currentTab = this.data.tabs.find(item => item.key === this.data.activeTab) || this.data.tabs[0]
-    const currentLocation = app.globalData.location || DEFAULT_LOCATION
+    const currentLocation = app.getCurrentLocation() || DEFAULT_LOCATION
+    this._currentLocationKey = buildLocationKey(currentLocation)
+
+    this.setData({
+      locationText: currentLocation.source === 'manual' ? `${currentLocation.name}（已切换）` : currentLocation.name,
+      locationSource: currentLocation.source
+    })
 
     this.setData({
       loading: true,
@@ -314,37 +368,24 @@ Page({
 
   async handleLocationTap() {
     if (this.data.locationDenied) {
-      wx.openSetting({
-        success: async res => {
-          const authSetting = (res && res.authSetting) || {}
-          if (authSetting['scope.userLocation']) {
-            await this.tryGetLocation()
-            await this.loadCourseList({
-              page: 1
-            })
-            return
-          }
-
-          wx.showToast({
-            title: '仍未开启定位权限',
-            icon: 'none'
-          })
-        }
+      wx.navigateTo({
+        url: `/pages/location-search/index?city=${encodeURIComponent(DEFAULT_LOCATION.city)}`
       })
       return
     }
 
-    await this.tryGetLocation()
-    await this.loadCourseList({
-      page: 1
+    const currentLocation = getApp().getCurrentLocation() || DEFAULT_LOCATION
+    wx.navigateTo({
+      url: `/pages/location-search/index?city=${encodeURIComponent(currentLocation.city || DEFAULT_LOCATION.city)}`
     })
   },
 
   handleManualLocationTip() {
     if (!this.data.locationDenied) {
-      wx.showToast({
-        title: DEFAULT_LOCATION_NAME,
-        icon: 'none'
+      wx.navigateTo({
+        url: `/pages/location-search/index?city=${encodeURIComponent(
+          (getApp().getCurrentLocation() || DEFAULT_LOCATION).city || DEFAULT_LOCATION.city
+        )}`
       })
       return
     }
@@ -353,7 +394,9 @@ Page({
       success: async res => {
         const authSetting = (res && res.authSetting) || {}
         if (authSetting['scope.userLocation']) {
-          await this.tryGetLocation()
+          await this.tryGetLocation({
+            applyToSelected: !getApp().globalData.selectedLocation
+          })
           await this.loadCourseList({
             page: 1
           })

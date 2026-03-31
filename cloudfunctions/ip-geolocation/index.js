@@ -59,6 +59,35 @@ function buildCoordinateCacheKey(coordinates) {
   return `geo:${coordinates.latitude.toFixed(GEO_PRECISION)},${coordinates.longitude.toFixed(GEO_PRECISION)}`;
 }
 
+async function searchPlaceFromTencentMap({ keyword, city, key }) {
+  const url =
+    `https://apis.map.qq.com/ws/place/v1/search?keyword=${encodeURIComponent(keyword)}` +
+    `&boundary=region(${encodeURIComponent(city)},0)&orderby=_distance&key=${key}`;
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`HTTP请求失败，状态码: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  if (data.status !== 0) {
+    throw new Error(data.message || '腾讯地图API返回错误');
+  }
+
+  return (data.data || []).map(item => ({
+    latitude: item.location && item.location.lat,
+    longitude: item.location && item.location.lng,
+    name: item.title || item.address || '',
+    address: item.address || '',
+    city: (item.ad_info && item.ad_info.city) || city || '',
+    district: (item.ad_info && item.ad_info.district) || '',
+    distance: item._distance || 0,
+    ad_info: item.ad_info || {},
+  }));
+}
+
 // 腾讯地图IP定位API
 async function getLocationFromTencentMap(ip, key) {
   const url = `https://apis.map.qq.com/ws/location/v1/ip?ip=${encodeURIComponent(ip)}&key=${key}`;
@@ -136,6 +165,7 @@ async function reverseGeocodeFromTencentMap(coordinates, key) {
 }
 
 exports.main = async (event, context) => {
+  const action = event && event.action;
   const coordinates = resolveCoordinates(event);
   const ip = resolveClientIp(event, context);
   const cacheKey = coordinates ? buildCoordinateCacheKey(coordinates) : ip;
@@ -168,6 +198,35 @@ exports.main = async (event, context) => {
   }
 
   try {
+    const apiKey = process.env.TENCENT_MAP_KEY;
+    if (!apiKey) {
+      console.error('缺少环境变量 TENCENT_MAP_KEY');
+      throw new Error('服务器配置错误：缺少地图API密钥');
+    }
+
+    if (action === 'search') {
+      const keyword = pickFirstNonEmptyString([event && event.keyword]);
+      const city = pickFirstNonEmptyString([event && event.city, '深圳']);
+
+      if (!keyword) {
+        return {
+          status: 'success',
+          source: 'poi-search',
+          list: []
+        };
+      }
+
+      return {
+        status: 'success',
+        source: 'poi-search',
+        list: await searchPlaceFromTencentMap({
+          keyword,
+          city,
+          key: apiKey
+        })
+      };
+    }
+
     // 1. 尝试从缓存获取
     const cacheResult = await db.collection(CACHE_COLLECTION_NAME).doc(cacheKey).get();
 
@@ -185,12 +244,6 @@ exports.main = async (event, context) => {
     }
 
     // 2. 缓存未命中：从腾讯地图API获取
-    const apiKey = process.env.TENCENT_MAP_KEY;
-    if (!apiKey) {
-      console.error('缺少环境变量 TENCENT_MAP_KEY');
-      throw new Error('服务器配置错误：缺少地图API密钥');
-    }
-
     const locationData = coordinates
       ? await reverseGeocodeFromTencentMap(coordinates, apiKey)
       : await getLocationFromTencentMap(ip, apiKey);

@@ -1,0 +1,80 @@
+<view class="location-search-page">
+  <view class="page-header" style="padding-top: {{statusBarHeight}}px;">
+    <view class="header-bar">
+      <view class="header-back" bindtap="handleBack">‹</view>
+      <view class="header-title">选择地址</view>
+      <view class="header-space"></view>
+    </view>
+    <view class="search-row card-shadow">
+      <view class="city-pill">{{city}}</view>
+      <view class="search-box">
+        <text class="search-icon">⌕</text>
+        <input
+          class="search-input"
+          type="text"
+          focus="{{true}}"
+          placeholder="搜索地址"
+          value="{{keyword}}"
+          bindinput="handleInput"
+          confirm-type="search"
+        />
+        <view wx:if="{{keyword}}" class="clear-btn" bindtap="handleClear">×</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="page-body">
+    <view wx:if="{{gpsLocation}}" class="current-card card-shadow" bindtap="handleUseCurrentLocation">
+      <view class="current-icon">📍</view>
+      <view class="current-content">
+        <view class="current-label">当前位置</view>
+        <view class="current-name">{{gpsLocation.name}}</view>
+        <view class="current-address">{{gpsLocation.address}}</view>
+      </view>
+      <view class="current-action" catchtap="handleRefreshLocation">重定位</view>
+    </view>
+
+    <view wx:if="{{searchState === 'loading'}}" class="state-panel">
+      <view class="state-spinner">◌</view>
+      <view class="state-title">正在搜索地址</view>
+      <view class="state-desc">正在为您实时匹配{{city}}范围内的精准地理信息，请稍候...</view>
+    </view>
+
+    <view wx:elif="{{searchState === 'empty'}}" class="state-panel">
+      <view class="state-empty-icon">⌖</view>
+      <view class="state-title">未找到相关地址</view>
+      <view class="state-desc">抱歉，我们没有找到关于“{{keyword}}”的任何结果，请尝试检查拼写或搜索更通用的名称。</view>
+    </view>
+
+    <view wx:elif="{{searchState === 'result'}}" class="result-section">
+      <view class="result-header">
+        <view class="result-title">搜索结果</view>
+        <view class="result-subtitle">找到 {{resultList.length}} 个与“{{keyword}}”相关的结果</view>
+      </view>
+
+      <view
+        wx:for="{{resultList}}"
+        wx:key="index"
+        class="result-card card-shadow"
+        data-index="{{index}}"
+        bindtap="handleSelectResult"
+      >
+        <view class="result-icon {{item.iconClass}}">⌖</view>
+        <view class="result-content">
+          <view class="result-name">{{item.name}}</view>
+          <view class="result-address">{{item.address}}</view>
+        </view>
+        <view class="result-meta">
+          <view wx:if="{{item.distanceText}}" class="distance-pill">{{item.distanceText}}</view>
+          <view class="result-arrow">›</view>
+        </view>
+      </view>
+
+      <view class="result-footer">
+        <view class="footer-line"></view>
+        <view class="footer-end">END</view>
+        <view class="footer-text">没有更多地点了，试试其他关键词</view>
+      </view>
+    </view>
+  </view>
+</view>

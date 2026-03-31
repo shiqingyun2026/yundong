@@ -1,4 +1,14 @@
 const DEFAULT_LOCATION_NAME = '当前位置'
+const DEFAULT_CITY = '深圳'
+const DEFAULT_LOCATION = {
+  latitude: 22.7215,
+  longitude: 114.251,
+  name: '龙岗区',
+  address: '深圳市龙岗区',
+  city: '深圳',
+  district: '龙岗区',
+  source: 'default'
+}
 
 const getRuntimeApp = () => {
   try {
@@ -53,6 +63,15 @@ const buildLocationName = payload => {
     adInfo.district,
     addressComponent.district
   ])
+  const town =
+    pickFirstString([
+      payload.town,
+      addressComponent.township,
+      addressComponent.town
+    ]) ||
+    pickFirstString([
+      addressReference.town && addressReference.town.title
+    ])
   const province = pickFirstString([
     payload.province,
     adInfo.province,
@@ -72,6 +91,7 @@ const buildLocationName = payload => {
     payload.display_name,
     formattedAddresses.recommend,
     formattedAddresses.rough,
+    joinLocationParts([district, town]),
     joinLocationParts([city, district, landmarkLevel2]),
     joinLocationParts([province, city, district]),
     joinLocationParts([city, district]),
@@ -90,6 +110,26 @@ const buildAddress = payload =>
     payload.formatted_address,
     payload.formattedAddress
   ])
+
+const normalizeLocation = (payload, fallback, source = '') => {
+  const coordinates = normalizeCoordinates(payload, fallback)
+  const adInfo = payload.ad_info || payload.adInfo || {}
+  const addressComponent = payload.address_component || payload.addressComponent || {}
+
+  return {
+    ...coordinates,
+    name: buildLocationName(payload),
+    address: buildAddress(payload),
+    city: pickFirstString([payload.city, adInfo.city, addressComponent.city, fallback.city]),
+    district: pickFirstString([
+      payload.district,
+      adInfo.district,
+      addressComponent.district,
+      fallback.district
+    ]),
+    source: source || payload.source || fallback.source || 'gps'
+  }
+}
 
 const normalizeCoordinates = (payload, fallback) => ({
   latitude: isFiniteNumber(payload.latitude)
@@ -150,21 +190,66 @@ const resolveLocationDetails = async ({ latitude, longitude }) => {
       throw new Error(payload.message || '云函数定位失败')
     }
 
-    const coordinates = normalizeCoordinates(payload, fallbackLocation)
-
-    return {
-      ...coordinates,
-      name: buildLocationName(payload),
-      address: buildAddress(payload),
-      source: 'cloud-function'
-    }
+    return normalizeLocation(payload, fallbackLocation, payload.source || 'gps')
   } catch (error) {
     console.warn('[location] cloud function resolve failed', error)
     return fallbackLocation
   }
 }
 
+const searchLocationPOI = ({ keyword, city = DEFAULT_CITY }) =>
+  new Promise((resolve, reject) => {
+    const app = getRuntimeApp()
+    const functionName =
+      app && app.globalData ? app.globalData.cloudLocationFunctionName || 'ip-geolocation' : 'ip-geolocation'
+
+    if (!wx.cloud || typeof wx.cloud.callFunction !== 'function') {
+      reject(new Error('当前基础库不支持云函数调用'))
+      return
+    }
+
+    wx.cloud.callFunction({
+      name: functionName,
+      data: {
+        action: 'search',
+        keyword,
+        city
+      },
+      success: res => {
+        const payload = normalizeFunctionPayload(res && res.result ? res.result : res)
+        if (payload.status && payload.status !== 'success') {
+          reject(new Error(payload.message || '搜索地址失败'))
+          return
+        }
+
+        resolve(
+          (payload.list || []).map(item =>
+            ({
+              ...normalizeLocation(
+                {
+                  ...item,
+                  name: item.name || item.title,
+                  address: item.address,
+                  city: item.city,
+                  district: item.district
+                },
+                DEFAULT_LOCATION,
+                'manual'
+              ),
+              distance: item.distance || 0
+            })
+          )
+        )
+      },
+      fail: reject
+    })
+  })
+
 module.exports = {
+  DEFAULT_CITY,
+  DEFAULT_LOCATION,
   DEFAULT_LOCATION_NAME,
-  resolveLocationDetails
+  normalizeLocation,
+  resolveLocationDetails,
+  searchLocationPOI
 }
