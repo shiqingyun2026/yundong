@@ -297,13 +297,13 @@ Page({
 
   handleOpenAgreement() {
     wx.navigateTo({
-      url: '/pages/agreement/index?type=user'
+      url: '/pages/agreement-content/index?key=user'
     })
   },
 
   handleOpenPrivacy() {
     wx.navigateTo({
-      url: '/pages/agreement/index?type=privacy'
+      url: '/pages/agreement-content/index?key=privacy'
     })
   },
 

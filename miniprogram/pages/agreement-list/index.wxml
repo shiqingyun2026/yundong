@@ -1,0 +1,16 @@
+<view class="agreement-list-page">
+  <view class="agreement-list-card">
+    <view
+      wx:for="{{agreementList}}"
+      wx:key="key"
+      class="agreement-list-item"
+      data-key="{{item.key}}"
+      bindtap="handleOpenAgreement"
+    >
+      <view class="agreement-list-main">
+        <view class="agreement-list-item-title">{{item.title}}</view>
+      </view>
+      <view class="agreement-list-arrow">></view>
+    </view>
+  </view>
+</view>

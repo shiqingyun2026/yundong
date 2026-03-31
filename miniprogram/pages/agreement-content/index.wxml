@@ -1,0 +1,10 @@
+<view class="agreement-content-page">
+  <view class="agreement-content-header">
+    <view class="agreement-content-title">{{title}}</view>
+    <view class="agreement-content-subtitle">{{subtitle}}</view>
+  </view>
+
+  <scroll-view class="agreement-content-body" scroll-y>
+    <rich-text class="agreement-content-rich-text" nodes="{{contentNodes}}"></rich-text>
+  </scroll-view>
+</view>

@@ -266,7 +266,35 @@ const courseServiceAgreementNodes = [
   }
 ]
 
+const AGREEMENT_DOCS = [
+  {
+    key: 'user',
+    title: '用户协议',
+    subtitle: '当前为临时占位文本，后续可替换为正式用户协议。',
+    nodes: userAgreementNodes
+  },
+  {
+    key: 'privacy',
+    title: '隐私政策',
+    subtitle: '当前为临时占位文本，后续可替换为正式隐私政策。',
+    nodes: privacyPolicyNodes
+  },
+  {
+    key: 'course-service',
+    title: '课程服务协议',
+    subtitle: '当前为临时占位文本，后续可替换为正式课程服务协议。',
+    nodes: courseServiceAgreementNodes
+  }
+]
+
+const getAgreementDocByKey = key => {
+  const matched = AGREEMENT_DOCS.find(item => item.key === key)
+  return matched || AGREEMENT_DOCS[0]
+}
+
 module.exports = {
+  AGREEMENT_DOCS,
+  getAgreementDocByKey,
   userAgreementNodes,
   privacyPolicyNodes,
   courseServiceAgreementNodes

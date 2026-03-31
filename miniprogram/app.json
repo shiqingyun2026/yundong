@@ -1,6 +1,8 @@
 {
   "pages": [
     "pages/agreement/index",
+    "pages/agreement-list/index",
+    "pages/agreement-content/index",
     "pages/service-agreement/index",
     "pages/course/detail/index",
     "pages/payment/confirm/index",

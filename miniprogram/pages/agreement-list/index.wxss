@@ -1,0 +1,40 @@
+.agreement-list-page {
+  min-height: 100vh;
+  padding: 28rpx 24rpx 32rpx;
+  background: #f7f8fa;
+  box-sizing: border-box;
+}
+
+.agreement-list-card {
+  padding: 0 28rpx;
+  border-radius: 28rpx;
+  background: #ffffff;
+  border: 2rpx solid #e8edf3;
+}
+
+.agreement-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  padding: 30rpx 0;
+}
+
+.agreement-list-item + .agreement-list-item {
+  border-top: 2rpx solid #eef2f7;
+}
+
+.agreement-list-main {
+  flex: 1;
+}
+
+.agreement-list-item-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1f2329;
+}
+
+.agreement-list-arrow {
+  color: #b6bdc8;
+  font-size: 28rpx;
+}
