@@ -4,62 +4,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { PageBackButton } from '../components/PageBackButton'
 import { api, uploadImage } from '../lib/api'
 import type { CourseDetail, CourseGroupRecord } from '../types'
-
-const emptyCourse: CourseDetail = {
-  title: '',
-  cover: '',
-  description: '',
-  age_range: '',
-  original_price: 0,
-  group_price: 0,
-  target_count: 2,
-  max_groups: 1,
-  publish_time: '',
-  unpublish_time: '',
-  start_time: '',
-  end_time: '',
-  location_district: '',
-  location_detail: '',
-  longitude: null,
-  latitude: null,
-  deadline: '',
-  coach_name: '',
-  coach_intro: '',
-  coach_cert: [],
-  rules: ''
-}
-
-const toDateTimeLocal = (value: string) => (value ? value.slice(0, 16).replace(' ', 'T') : '')
-
-const getGroupStatusText = (status: CourseGroupRecord['status']) => {
-  if (status === 'success') return '已成团'
-  if (status === 'failed') return '已失败'
-  return '进行中'
-}
-
-const REGION_OPTIONS = [
-  {
-    label: '广东省',
-    value: '广东省',
-    cities: [
-      {
-        label: '深圳市',
-        value: '深圳市',
-        districts: [
-          '福田区',
-          '罗湖区',
-          '南山区',
-          '宝安区',
-          '龙岗区',
-          '龙华区',
-          '盐田区',
-          '坪山区',
-          '光明区'
-        ]
-      }
-    ]
-  }
-]
+import { CourseGroupRecordsSection } from './CourseGroupRecordsSection'
+import { emptyCourse, REGION_OPTIONS, splitLines, summarizeGroupItems, toDateTimeLocal } from './courseFormHelpers'
 
 const RequiredMark = () => <span className="required-mark">*</span>
 
@@ -265,13 +211,6 @@ export function CourseFormPage({ mode }: { mode: CoursePageMode }) {
       event.target.value = ''
     }
   }
-
-  const splitLines = (value: string) =>
-    value
-      .split('\n')
-      .map(item => item.trim())
-      .filter(Boolean)
-
   const removeArrayItem = (field: 'coach_cert', index: number) => {
     updateField(
       field,
@@ -304,16 +243,7 @@ export function CourseFormPage({ mode }: { mode: CoursePageMode }) {
     }
   }
 
-  const groupSummary = groupItems.reduce(
-    (result, item) => {
-      result.total += 1
-      if (item.status === 'active') result.active += 1
-      if (item.status === 'success') result.success += 1
-      if (item.status === 'failed') result.failed += 1
-      return result
-    },
-    { total: 0, active: 0, success: 0, failed: 0 }
-  )
+  const groupSummary = summarizeGroupItems(groupItems)
 
   return (
     <section className="panel stack">
@@ -659,75 +589,13 @@ export function CourseFormPage({ mode }: { mode: CoursePageMode }) {
       ) : null}
 
       {mode !== 'create' && id ? (
-        <section className="panel subtle-panel stack">
-          <div>
-            <p className="section-kicker">Course Groups</p>
-            <h3>拼团记录</h3>
-          </div>
-
-          {groupsLoading ? <p className="muted-text">加载拼团记录中...</p> : null}
-          {groupsError ? <p className="error-text">{groupsError}</p> : null}
-
-          {!groupsLoading && !groupsError ? (
-            <>
-              <section className="stats-grid">
-                <article className="stat-card">
-                  <span>累计开团</span>
-                  <strong>{groupSummary.total}</strong>
-                </article>
-                <article className="stat-card">
-                  <span>进行中</span>
-                  <strong>{groupSummary.active}</strong>
-                </article>
-                <article className="stat-card">
-                  <span>已成团</span>
-                  <strong>{groupSummary.success}</strong>
-                </article>
-                <article className="stat-card">
-                  <span>已失败</span>
-                  <strong>{groupSummary.failed}</strong>
-                </article>
-              </section>
-
-              {groupItems.length ? (
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>拼团ID</th>
-                      <th>状态</th>
-                      <th>当前人数</th>
-                      <th>成团人数要求</th>
-                      <th>开团人</th>
-                      <th>团截止时间</th>
-                      <th>创建时间</th>
-                      <th>操作</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {groupItems.map(item => (
-                      <tr key={item.id}>
-                        <td>{item.id}</td>
-                        <td>{getGroupStatusText(item.status)}</td>
-                        <td>{item.current_count}</td>
-                        <td>{item.target_count}</td>
-                        <td>{item.creator_name || '-'}</td>
-                        <td>{item.expire_time || '-'}</td>
-                        <td>{item.create_time || '-'}</td>
-                        <td>
-                          <Link className="table-link" to={`/groups/${item.id}`}>
-                            查看详情
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p className="muted-text">当前课程还没有产生拼团记录，后续开团后会在这里展示历史团和进行中团。</p>
-              )}
-            </>
-          ) : null}
-        </section>
+        <CourseGroupRecordsSection
+          id={id}
+          groupsLoading={groupsLoading}
+          groupsError={groupsError}
+          groupItems={groupItems}
+          groupSummary={groupSummary}
+        />
       ) : null}
     </section>
   )

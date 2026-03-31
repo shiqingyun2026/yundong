@@ -1,0 +1,65 @@
+import type { CourseDetail, CourseGroupRecord } from '../types'
+
+export const emptyCourse: CourseDetail = {
+  title: '',
+  cover: '',
+  description: '',
+  age_range: '',
+  original_price: 0,
+  group_price: 0,
+  target_count: 2,
+  max_groups: 1,
+  publish_time: '',
+  unpublish_time: '',
+  start_time: '',
+  end_time: '',
+  location_district: '',
+  location_detail: '',
+  longitude: null,
+  latitude: null,
+  deadline: '',
+  coach_name: '',
+  coach_intro: '',
+  coach_cert: [],
+  rules: ''
+}
+
+export const toDateTimeLocal = (value: string) => (value ? value.slice(0, 16).replace(' ', 'T') : '')
+
+export const getGroupStatusText = (status: CourseGroupRecord['status']) => {
+  if (status === 'success') return '已成团'
+  if (status === 'failed') return '已失败'
+  return '进行中'
+}
+
+export const REGION_OPTIONS = [
+  {
+    label: '广东省',
+    value: '广东省',
+    cities: [
+      {
+        label: '深圳市',
+        value: '深圳市',
+        districts: ['福田区', '罗湖区', '南山区', '宝安区', '龙岗区', '龙华区', '盐田区', '坪山区', '光明区']
+      }
+    ]
+  }
+]
+
+export const splitLines = (value: string) =>
+  value
+    .split('\n')
+    .map(item => item.trim())
+    .filter(Boolean)
+
+export const summarizeGroupItems = (groupItems: CourseGroupRecord[]) =>
+  groupItems.reduce(
+    (result, item) => {
+      result.total += 1
+      if (item.status === 'active') result.active += 1
+      if (item.status === 'success') result.success += 1
+      if (item.status === 'failed') result.failed += 1
+      return result
+    },
+    { total: 0, active: 0, success: 0, failed: 0 }
+  )

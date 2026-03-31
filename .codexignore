@@ -1,0 +1,29 @@
+# Dependencies
+**/node_modules/
+
+# Build artifacts
+**/dist/
+**/build/
+**/.next/
+**/coverage/
+
+# Test outputs
+**/playwright-report/
+**/test-results/
+
+# Logs and temp files
+**/*.log
+**/.DS_Store
+
+# Docs and handoff material
+docs/
+
+# Local env files
+**/.env
+**/.env.local
+**/.env.development.local
+**/.env.test.local
+**/.env.production.local
+
+# Lock noise from nested example app docs if not needed in normal coding tasks
+docs/**/package-lock.json
