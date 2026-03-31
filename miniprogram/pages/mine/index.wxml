@@ -8,7 +8,9 @@
           src="{{userInfo.avatarUrl}}"
           mode="aspectFill"
         />
-        <view wx:else class="avatar-placeholder">邻</view>
+        <view wx:else class="avatar-placeholder">
+          <image class="avatar-placeholder-icon" src="/assets/ant-icons/user-white.svg" mode="aspectFit" />
+        </view>
       </view>
       <view class="profile-info">
         <view class="profile-name">{{userInfo ? userInfo.nickName : '未登录用户'}}</view>
@@ -48,7 +50,7 @@
         <view class="menu-title">{{item.title}}</view>
         <view class="menu-desc">{{item.desc}}</view>
       </view>
-      <view class="menu-arrow">></view>
+      <image class="menu-arrow" src="/assets/ant-icons/arrow-right-muted.svg" mode="aspectFit" />
     </view>
   </view>
 

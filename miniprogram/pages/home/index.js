@@ -69,9 +69,37 @@ const buildCourseCard = item => {
   }
 }
 
+const resolveCourseCategory = item => {
+  const rawCategory = `${(item && (item.category || item.courseCategory || item.course_category)) || ''}`.trim()
+  if (rawCategory) {
+    return rawCategory
+  }
+
+  const title = `${(item && item.title) || ''}`
+  if (/跳绳|跳跃|绳/i.test(title)) {
+    return 'jump_rope'
+  }
+
+  return 'fitness'
+}
+
+const filterCourseListByTab = (list, activeTab) => {
+  if (activeTab === 'fitness') {
+    return (list || []).filter(item => resolveCourseCategory(item) === 'fitness')
+  }
+
+  if (activeTab === 'rope') {
+    return (list || []).filter(item => resolveCourseCategory(item) === 'jump_rope')
+  }
+
+  return list || []
+}
+
 const HOME_TABS = [
   { key: 'all', label: '全部课程', sort: 'distance' },
-  { key: 'recent', label: '最近开课', sort: 'time' }
+  { key: 'recent', label: '最近开课', sort: 'time' },
+  { key: 'fitness', label: '体适能', sort: 'distance' },
+  { key: 'rope', label: '跳绳', sort: 'distance' }
 ]
 
 const LOCATION_TIMEOUT_MS = 5000
@@ -82,6 +110,7 @@ Page({
   data: {
     tabs: HOME_TABS,
     activeTab: 'all',
+    statusBarHeight: 20,
     locationText: '定位中...',
     locationSource: '',
     locationDenied: false,
@@ -95,10 +124,14 @@ Page({
   },
 
   onLoad() {
+    const app = getApp()
     this._countdownTimer = null
     this._countdownStartTimer = null
     this._hasLoadedOnce = false
     this._currentLocationKey = ''
+    this.setData({
+      statusBarHeight: (app.globalData.systemInfo && app.globalData.systemInfo.statusBarHeight) || 20
+    })
     this.initLocationAndCourses()
   },
 
@@ -176,7 +209,7 @@ Page({
     app.globalData.location = nextLocation
 
     this.setData({
-      locationText: nextLocation.source === 'manual' ? `${nextLocation.name}（已切换）` : nextLocation.name,
+      locationText: nextLocation.name,
       locationSource: nextLocation.source
     })
 
@@ -204,10 +237,7 @@ Page({
         }
         this._currentLocationKey = buildLocationKey(app.getCurrentLocation() || normalizedLocation)
         this.setData({
-          locationText:
-            (app.getCurrentLocation() || normalizedLocation).source === 'manual'
-              ? `${(app.getCurrentLocation() || normalizedLocation).name}（已切换）`
-              : (app.getCurrentLocation() || normalizedLocation).name,
+          locationText: (app.getCurrentLocation() || normalizedLocation).name,
           locationSource: (app.getCurrentLocation() || normalizedLocation).source,
           locationDenied: denied,
           locationTip: tip
@@ -263,7 +293,7 @@ Page({
     this._currentLocationKey = buildLocationKey(currentLocation)
 
     this.setData({
-      locationText: currentLocation.source === 'manual' ? `${currentLocation.name}（已切换）` : currentLocation.name,
+      locationText: currentLocation.name,
       locationSource: currentLocation.source
     })
 
@@ -281,7 +311,8 @@ Page({
         pageSize: this.data.pageSize
       })
 
-      const nextList = (page === 1 ? result.list : this.data.courseList.concat(result.list)).map(buildCourseCard)
+      const mergedList = page === 1 ? result.list : this.data.courseList.concat(result.list)
+      const nextList = filterCourseListByTab(mergedList, this.data.activeTab).map(buildCourseCard)
 
       this.setData({
         courseList: nextList,

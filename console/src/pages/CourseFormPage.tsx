@@ -5,7 +5,15 @@ import { PageBackButton } from '../components/PageBackButton'
 import { api, uploadImage } from '../lib/api'
 import type { CourseDetail, CourseGroupRecord } from '../types'
 import { CourseGroupRecordsSection } from './CourseGroupRecordsSection'
-import { emptyCourse, REGION_OPTIONS, splitLines, summarizeGroupItems, toDateTimeLocal } from './courseFormHelpers'
+import {
+  COURSE_CATEGORY_OPTIONS,
+  emptyCourse,
+  normalizeCourseDetail,
+  REGION_OPTIONS,
+  splitLines,
+  summarizeGroupItems,
+  toDateTimeLocal
+} from './courseFormHelpers'
 
 const RequiredMark = () => <span className="required-mark">*</span>
 
@@ -34,7 +42,8 @@ export function CourseFormPage({ mode }: { mode: CoursePageMode }) {
 
     void (async () => {
       try {
-        const data = await api.get<CourseDetail>(`/courses/${id}`)
+        const response = await api.get<CourseDetail & { course_category?: CourseDetail['category'] }>(`/courses/${id}`)
+        const data = normalizeCourseDetail(response)
         const districtParts = `${data.location_district || ''}`
           .split(/[\/\s-]+/)
           .map(item => item.trim())
@@ -90,6 +99,12 @@ export function CourseFormPage({ mode }: { mode: CoursePageMode }) {
     event.preventDefault()
     setSaving(true)
     setError('')
+
+    if (!form.category) {
+      setError('请选择课程类别')
+      setSaving(false)
+      return
+    }
 
     if (mode === 'create' && (!province || !city || !district)) {
       setError('新建课程时，请先完成省 / 市 / 区三级选择')
@@ -285,6 +300,17 @@ export function CourseFormPage({ mode }: { mode: CoursePageMode }) {
             <label>
               <span>课程名称<RequiredMark /></span>
               <input value={form.title} onChange={event => updateField('title', event.target.value)} disabled={isReadOnly} />
+            </label>
+            <label>
+              <span>课程类别<RequiredMark /></span>
+              <select value={form.category} onChange={event => updateField('category', event.target.value as CourseDetail['category'])} disabled={isReadOnly}>
+                <option value="">请选择课程类别</option>
+                {COURSE_CATEGORY_OPTIONS.map(item => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
             </label>
             <label>
               <span>适龄范围<RequiredMark /></span>

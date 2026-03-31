@@ -7,6 +7,7 @@ const { COURSE_STATUS } = require('../../utils/courseLifecycle')
 const { writeAdminLog } = require('../../utils/adminStore')
 
 const GEOCODE_API_BASE_URL = process.env.GEOCODE_API_BASE_URL || 'https://nominatim.openstreetmap.org/search'
+const COURSE_CATEGORIES = ['体适能', '跳绳']
 
 const normalizeStringArray = value => {
   if (Array.isArray(value)) {
@@ -26,6 +27,7 @@ const normalizeStringArray = value => {
 const mapCourseListItem = (item, lifecycle = {}) => ({
   id: item.id,
   title: item.name || '',
+  category: item.course_category || '',
   publish_time: formatDateTime(item.publish_time),
   unpublish_time: formatDateTime(item.unpublish_time),
   deadline: formatDateTime(item.deadline),
@@ -44,6 +46,7 @@ const mapCourseListItem = (item, lifecycle = {}) => ({
 const mapCourseDetail = (item, lifecycle = {}) => ({
   id: item.id,
   title: item.name || '',
+  category: item.course_category || '',
   cover: item.cover || '',
   description: item.description || '',
   age_range: item.age_limit || '',
@@ -89,6 +92,7 @@ const validateCoursePayload = (payload, options = {}) => {
   const enforceFuturePublish = options.enforceFuturePublish !== false
 
   if (!payload.title || !`${payload.title}`.trim()) return '课程名称不能为空'
+  if (!payload.category || !COURSE_CATEGORIES.includes(`${payload.category}`.trim())) return '课程类别不合法'
   if (!payload.cover || !`${payload.cover}`.trim()) return '封面图不能为空'
 
   const groupPrice = Number(payload.group_price || 0)
@@ -127,6 +131,7 @@ const validateCoursePayload = (payload, options = {}) => {
 
 const mapPayloadToCourse = payload => ({
   name: `${payload.title || ''}`.trim(),
+  course_category: `${payload.category || ''}`.trim(),
   cover: `${payload.cover || ''}`.trim(),
   images: payload.cover ? [payload.cover] : [],
   description: payload.description || '',
@@ -196,6 +201,7 @@ const geocodeCourseAddress = async ({ district, detail }) => {
 }
 
 module.exports = {
+  COURSE_CATEGORIES,
   buildAddress,
   geocodeCourseAddress,
   mapCourseDetail,

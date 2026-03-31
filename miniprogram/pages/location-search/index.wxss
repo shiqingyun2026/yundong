@@ -20,9 +20,14 @@
 .header-back,
 .header-space {
   width: 64rpx;
-  color: #1f2329;
-  font-size: 44rpx;
-  line-height: 1;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+}
+
+.header-back-icon {
+  width: 28rpx;
+  height: 28rpx;
 }
 
 .header-title {
@@ -64,9 +69,16 @@
 .clear-btn {
   flex-shrink: 0;
   width: 44rpx;
-  color: #98a2b3;
-  font-size: 28rpx;
-  text-align: center;
+  height: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-icon,
+.clear-icon {
+  width: 28rpx;
+  height: 28rpx;
 }
 
 .search-input {
@@ -98,7 +110,11 @@
   border-radius: 24rpx;
   background: linear-gradient(180deg, #2d7fff 0%, #156cff 100%);
   color: #ffffff;
-  font-size: 34rpx;
+}
+
+.current-icon-image {
+  width: 34rpx;
+  height: 34rpx;
 }
 
 .current-content {
@@ -151,9 +167,17 @@
   height: 132rpx;
   border-radius: 36rpx;
   background: radial-gradient(circle, rgba(45, 127, 255, 0.16) 0%, rgba(45, 127, 255, 0.06) 70%, rgba(45, 127, 255, 0) 100%);
-  color: #2d7fff;
-  font-size: 72rpx;
   box-shadow: 0 22rpx 56rpx rgba(45, 127, 255, 0.08);
+}
+
+.state-spinner-icon,
+.state-empty-icon-image {
+  width: 72rpx;
+  height: 72rpx;
+}
+
+.state-spinner-icon {
+  animation: ant-icon-spin 1s linear infinite;
 }
 
 .state-title {
@@ -207,9 +231,12 @@
   width: 72rpx;
   height: 72rpx;
   border-radius: 22rpx;
-  color: #2d7fff;
-  font-size: 30rpx;
   background: #edf4ff;
+}
+
+.result-icon-image {
+  width: 30rpx;
+  height: 30rpx;
 }
 
 .result-icon.warm {
@@ -261,8 +288,9 @@
 }
 
 .result-arrow {
-  color: #c0c7d2;
-  font-size: 32rpx;
+  width: 24rpx;
+  height: 24rpx;
+  flex-shrink: 0;
 }
 
 .result-footer {
@@ -288,4 +316,14 @@
   margin-top: 8rpx;
   color: #b6bdc8;
   font-size: 22rpx;
+}
+
+@keyframes ant-icon-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }

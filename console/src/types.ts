@@ -1,3 +1,5 @@
+export type CourseCategory = '体适能' | '跳绳'
+
 export interface AdminUser {
   id: string
   username: string
@@ -12,6 +14,7 @@ export interface LoginResponse {
 export interface CourseListItem {
   id: string
   title: string
+  category: CourseCategory | ''
   publish_time: string
   unpublish_time: string
   deadline: string
@@ -30,6 +33,7 @@ export interface CourseListItem {
 export interface CourseDetail {
   id?: string
   title: string
+  category: CourseCategory | ''
   cover: string
   description: string
   age_range: string

@@ -283,6 +283,7 @@ mockModule('console-api/services/coursesService.js', {
       {
         id: 'course-1',
         title: '测试课程',
+        category: '体适能',
         publish_time: '',
         unpublish_time: '',
         deadline: '',
@@ -311,6 +312,7 @@ mockModule('console-api/services/coursesService.js', {
     return {
       id: 'course-1',
       title: '测试课程',
+      category: '体适能',
       cover: 'https://example.com/course.png',
       description: '课程描述',
       age_range: '6-8岁',

@@ -1,15 +1,14 @@
 <view class="app-page home-page">
-  <view class="hero-card card-shadow">
-    <view class="hero-top">
-      <view>
-        <view class="hero-title">邻动体适能</view>
-      </view>
-      <view class="location-pill" bindtap="handleLocationTap">
-        <text class="location-dot"></text>
+  <view class="home-navbar" style="padding-top: {{statusBarHeight}}px;">
+    <view class="home-navbar-row">
+      <view class="location-pill navbar-location-pill" bindtap="handleLocationTap">
         <text class="location-text">{{locationText}}</text>
+        <image class="location-chevron" src="/assets/ant-icons/arrow-right-blue.svg" mode="aspectFit" />
       </view>
     </view>
+  </view>
 
+  <view class="hero-card card-shadow">
     <view class="tab-row">
       <view
         wx:for="{{tabs}}"
@@ -78,7 +77,7 @@
     desc="下拉刷新后再试，或稍后切换筛选条件查看。"
   />
 
-  <view wx:if="{{courseList.length}}" class="list-footer">
+  <view wx:if="{{!initialLoading && courseList.length}}" class="list-footer">
     <block wx:if="{{loading}}">
       <view class="footer-text">加载中...</view>
     </block>

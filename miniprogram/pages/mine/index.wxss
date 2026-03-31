@@ -33,6 +33,17 @@
 }
 
 .avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-placeholder-icon {
+  width: 44rpx;
+  height: 44rpx;
+}
+
+.avatar-placeholder {
   color: #ffffff;
   font-size: 40rpx;
   font-weight: 700;
@@ -87,8 +98,9 @@
 }
 
 .menu-arrow {
-  color: #b6bdc8;
-  font-size: 28rpx;
+  width: 24rpx;
+  height: 24rpx;
+  flex-shrink: 0;
 }
 
 .service-modal-content {

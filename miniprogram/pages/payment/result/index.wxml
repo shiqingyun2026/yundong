@@ -1,7 +1,11 @@
 <view class="result-page">
   <view class="result-card card-shadow">
     <view class="result-icon {{status === 'success' ? 'icon-success' : 'icon-fail'}}">
-      {{status === 'success' ? '✓' : '!'}}
+      <image
+        class="result-icon-image"
+        src="{{status === 'success' ? '/assets/ant-icons/check-success.svg' : '/assets/ant-icons/close-fail.svg'}}"
+        mode="aspectFit"
+      />
     </view>
     <view class="result-title">{{status === 'success' ? '支付成功' : '支付失败'}}</view>
     <view class="result-desc">

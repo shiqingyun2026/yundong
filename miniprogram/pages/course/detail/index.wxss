@@ -187,9 +187,8 @@
 }
 
 .login-sheet-bolt {
-  font-size: 56rpx;
-  line-height: 1;
-  color: #3b82f6;
+  width: 56rpx;
+  height: 56rpx;
 }
 
 .login-sheet-button-row {
@@ -259,9 +258,8 @@
 }
 
 .login-sheet-check-mark {
-  font-size: 16rpx;
-  line-height: 1;
-  color: #ffffff;
+  width: 16rpx;
+  height: 16rpx;
 }
 
 .login-sheet-agreement {
@@ -469,9 +467,11 @@
   margin: 0 auto;
   border-radius: 50%;
   background: #eef5ff;
-  color: #1677ff;
-  font-size: 24rpx;
-  font-weight: 700;
+}
+
+.service-icon-image {
+  width: 28rpx;
+  height: 28rpx;
 }
 
 .service-text {

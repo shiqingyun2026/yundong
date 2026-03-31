@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { PaginationBar } from '../components/PaginationBar'
 import { api } from '../lib/api'
 import type { CourseListItem } from '../types'
+import { getCourseCategoryText, normalizeCourseListItem } from './courseFormHelpers'
 
 const getStatusText = (status: number) => {
   if (status === 0) return '待上架'
@@ -78,13 +79,13 @@ export function CourseListPage() {
       params.set('page', `${nextPage}`)
       params.set('size', '10')
       const result = await api.get<{
-        list: CourseListItem[]
+        list: Array<CourseListItem & { course_category?: CourseListItem['category'] }>
         total: number
         total_pages: number
         page: number
         size: number
       }>(`/courses?${params.toString()}`)
-      setItems(result.list || [])
+      setItems((result.list || []).map(normalizeCourseListItem))
       setPagination({
         total: result.total || 0,
         total_pages: result.total_pages || 1,
@@ -198,6 +199,7 @@ export function CourseListPage() {
               <thead>
                     <tr>
                       <th>课程名称</th>
+                      <th>课程类别</th>
                       <th>报名截止</th>
                       <th>上课时间</th>
                       <th>所在区域</th>
@@ -212,6 +214,7 @@ export function CourseListPage() {
                 {items.map(item => (
                   <tr key={item.id}>
                     <td>{item.title}</td>
+                    <td>{getCourseCategoryText(item.category)}</td>
                     <td>{item.deadline || '-'}</td>
                     <td>{item.start_time || '-'}</td>
                     <td>{item.location_district || '-'}</td>

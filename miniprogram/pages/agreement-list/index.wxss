@@ -35,6 +35,7 @@
 }
 
 .agreement-list-arrow {
-  color: #b6bdc8;
-  font-size: 28rpx;
+  width: 24rpx;
+  height: 24rpx;
+  flex-shrink: 0;
 }

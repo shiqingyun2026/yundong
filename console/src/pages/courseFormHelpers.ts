@@ -1,7 +1,10 @@
-import type { CourseDetail, CourseGroupRecord } from '../types'
+import type { CourseCategory, CourseDetail, CourseGroupRecord, CourseListItem } from '../types'
+
+export const COURSE_CATEGORY_OPTIONS: CourseCategory[] = ['体适能', '跳绳']
 
 export const emptyCourse: CourseDetail = {
   title: '',
+  category: '',
   cover: '',
   description: '',
   age_range: '',
@@ -25,6 +28,26 @@ export const emptyCourse: CourseDetail = {
 }
 
 export const toDateTimeLocal = (value: string) => (value ? value.slice(0, 16).replace(' ', 'T') : '')
+
+export const getCourseCategoryText = (value?: string | null) => value || '-'
+
+export const normalizeCourseDetail = (
+  data: CourseDetail & {
+    course_category?: CourseDetail['category']
+  }
+): CourseDetail => ({
+  ...data,
+  category: data.category || data.course_category || ''
+})
+
+export const normalizeCourseListItem = (
+  item: CourseListItem & {
+    course_category?: CourseListItem['category']
+  }
+): CourseListItem => ({
+  ...item,
+  category: item.category || item.course_category || ''
+})
 
 export const getGroupStatusText = (status: CourseGroupRecord['status']) => {
   if (status === 'success') return '已成团'

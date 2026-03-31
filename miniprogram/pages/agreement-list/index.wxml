@@ -10,7 +10,7 @@
       <view class="agreement-list-main">
         <view class="agreement-list-item-title">{{item.title}}</view>
       </view>
-      <view class="agreement-list-arrow">></view>
+      <image class="agreement-list-arrow" src="/assets/ant-icons/arrow-right-muted.svg" mode="aspectFit" />
     </view>
   </view>
 </view>

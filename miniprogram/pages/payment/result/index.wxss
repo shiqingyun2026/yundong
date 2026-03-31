@@ -20,8 +20,11 @@
   height: 120rpx;
   margin: 0 auto;
   border-radius: 50%;
-  font-size: 56rpx;
-  font-weight: 700;
+}
+
+.result-icon-image {
+  width: 56rpx;
+  height: 56rpx;
 }
 
 .icon-success {

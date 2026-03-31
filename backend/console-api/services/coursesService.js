@@ -28,7 +28,7 @@ const listCourses = async ({ query = {}, admin = {} }) => {
   let listQuery = supabase
     .from('courses')
     .select(
-      'id, name, cover, address, location_district, location_detail, publish_time, unpublish_time, deadline, start_time, end_time, group_price, original_price, max_groups, default_target_count, status'
+      'id, name, course_category, cover, address, location_district, location_detail, publish_time, unpublish_time, deadline, start_time, end_time, group_price, original_price, max_groups, default_target_count, status'
     )
     .order('start_time', { ascending: true })
 
@@ -152,6 +152,7 @@ const createCourse = async ({ payload = {}, admin = {}, ip = null }) => {
     targetId: data.id,
     detail: {
       title: `${payload.title || ''}`.trim(),
+      category: `${payload.category || ''}`.trim(),
       publish_time: parseShanghaiDateTimeInput(payload.publish_time),
       deadline: parseShanghaiDateTimeInput(payload.deadline),
       start_time: parseShanghaiDateTimeInput(payload.start_time)
@@ -214,6 +215,7 @@ const updateCourse = async ({ courseId, payload = {}, admin = {}, ip = null }) =
     targetId: data.id,
     detail: {
       title: `${payload.title || ''}`.trim(),
+      category: `${payload.category || ''}`.trim(),
       publish_time: parseShanghaiDateTimeInput(payload.publish_time),
       deadline: parseShanghaiDateTimeInput(payload.deadline),
       start_time: parseShanghaiDateTimeInput(payload.start_time),
