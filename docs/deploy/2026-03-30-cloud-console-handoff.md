@@ -84,7 +84,6 @@
 ### 5.1 Console
 
 - 还没有补课程或订单的真实写链路 live smoke
-- `backend/routes/admin/*` 兼容壳仍可继续评估删除条件
 
 ### 5.2 小程序
 
@@ -94,11 +93,11 @@
 ## 6. 接手顺序建议
 
 1. 先补 console 一条可回滚真实写链路 live smoke
-2. 再评估 `backend/routes/admin/*` 兼容壳是否可以删除
-3. 最后再决定 `trial / release` 是否继续切到云托管
+2. 再决定 `trial / release` 是否继续切到云托管
 
 ## 7. 重要提醒
 
 - 小程序当前真实方案是 `callContainer -> lindong-api`，不要再按 `miniProgramGateway` 的旧路线排障
 - 主数据仍然只认现有主库，不要在微信云侧另起一套业务数据
 - 如果页面回归数据被联调污染，先运行 `cd /Users/yun/lindong/backend && npm run seed:regression-course`
+- console 后端代码入口统一以 `backend/console-api/*` 为准，不再保留 `backend/routes/admin/*` 兼容壳

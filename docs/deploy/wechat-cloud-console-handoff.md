@@ -105,7 +105,6 @@ docs/
 ### 6.1 Console
 
 - 还没有补课程或订单的真实写链路 live smoke
-- `backend/routes/admin/*` 兼容壳还未彻底评估删除
 
 ### 6.2 部署层
 
@@ -115,11 +114,11 @@ docs/
 ## 7. 接手建议
 
 1. 继续先做 console 的真实写链路验证
-2. 再决定 admin 兼容壳清理节奏
-3. 最后再评估 `trial / release` 是否继续走云托管
+2. 最后再评估 `trial / release` 是否继续走云托管
 
 ## 8. 重要提醒
 
 - 小程序如果继续排障，优先看云托管服务 `lindong-api`，不要再回到旧云函数思路
 - Console 不要接入 `callContainer`
 - 所有业务规则继续收口在共享层，不要在入口层重新发散
+- Console 代码入口统一以 `backend/console-api/*` 为准，不再保留 `backend/routes/admin/*` 兼容壳

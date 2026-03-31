@@ -1,6 +1,6 @@
 # console-api
 
-`console-api/` 是从现有 `backend/routes/admin` 往独立后台服务形态拆出的第一步。
+`console-api/` 是从原 `backend/routes/admin` 迁出为独立后台服务形态的第一步。
 
 当前状态：
 
@@ -13,7 +13,7 @@
 - `groups` 也已迁到 `backend/console-api/routes/*`
 - `courses` 也已迁到 `backend/console-api/routes/*`
 - 现有 `auth`、`dashboard`、`logs`、`upload`、`accounts`、`orders`、`groups`、`courses` 路由都已进一步拆成 `routes -> controllers -> services`
-- 当前 `backend/routes/admin/*` 已全部退化为兼容壳
+- 原 `backend/routes/admin/*` 兼容壳已移除，仓库内统一以 `backend/console-api/*` 为准
 
 当前运行方式：
 

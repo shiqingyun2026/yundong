@@ -6,7 +6,7 @@ This workspace keeps Playwright-based regression assets for the current reposito
 
 - `tests/frontend.spec.ts`: user-facing course list to course detail smoke flow
 - `tests/console.spec.ts`: admin dashboard smoke flow, course create/edit/offline, account create/edit/delete, and order manual refund flow
-- `tests/console.live.spec.ts`: standalone `console-api` + console frontend real login, dashboard, courses, orders, accounts, logs, filter, and rollback-safe account update/log smoke
+- `tests/console.live.spec.ts`: standalone `console-api` + console frontend real login, dashboard, courses, orders, accounts, logs, filter, rollback-safe account update, and rollback-safe course update/log smoke
 
 ## Commands
 
@@ -35,11 +35,12 @@ This command starts:
 - standalone `console-api` on `http://127.0.0.1:8100`
 - console frontend on `http://127.0.0.1:3101`
 
-and verifies real login plus dashboard, courses, orders, accounts, logs, list filters, and a rollback-safe account status update with `account_update` log verification against the standalone admin service.
+and verifies real login plus dashboard, courses, orders, accounts, logs, list filters, a rollback-safe account status update with `account_update` log verification, and a rollback-safe pending-course update against the standalone admin service.
 
 Current seeded assumptions used by the live smoke:
 
 - course: `[测试] 深圳南山周末体适能·待上架`
+- pending course id: `11111111-1111-1111-1111-111111111101`
 - refunded order: `LD202603260007`
 - account: `t1`
 - super admin account: `admin`

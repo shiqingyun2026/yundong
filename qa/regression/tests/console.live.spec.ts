@@ -1,8 +1,11 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 
 const username = process.env.CONSOLE_LIVE_USERNAME || 'admin'
 const password = process.env.CONSOLE_LIVE_PASSWORD || 'admin123456'
+const consoleApiBaseUrl = `http://127.0.0.1:${process.env.CONSOLE_API_PORT || '8100'}`
+const seededPendingCourseId = '11111111-1111-1111-1111-111111111101'
 const seededCourseTitle = '[测试] 深圳南山周末体适能·待上架'
+const seededCourseCoachIntro = '用于验证待上架课程不出现在用户端列表。'
 const seededRefundedOrderNo = 'LD202603260007'
 const seededAccountUsername = 't1'
 const seededSuperAdminUsername = 'admin'
@@ -29,6 +32,36 @@ async function loginAsAdmin(page: Page) {
   await expect(page).toHaveURL(/\/dashboard$/)
   await expect(page.getByRole('heading', { name: '概览' })).toBeVisible()
   await expect(page.getByText(`${username} / super_admin`)).toBeVisible()
+}
+
+async function bootstrapAdminSession(page: Page, request: APIRequestContext) {
+  const response = await request.post(`${consoleApiBaseUrl}/api/admin/login`, {
+    data: {
+      username,
+      password
+    }
+  })
+
+  expect(response.ok()).toBeTruthy()
+  const payload = (await response.json()) as {
+    code: number
+    message: string
+    data: {
+      token: string
+      user: {
+        id: string
+        username: string
+        role: 'super_admin' | 'admin'
+      }
+    }
+  }
+
+  expect(payload.code).toBe(0)
+
+  await page.addInitScript(session => {
+    window.localStorage.setItem('console_admin_token', session.token)
+    window.localStorage.setItem('console_admin_user', JSON.stringify(session.user))
+  }, payload.data)
 }
 
 async function openSeededAccountEditor(page: Page) {
@@ -158,4 +191,53 @@ test('console live smoke: account status update can be written and rolled back t
   await expect(
     page.locator('tbody tr').filter({ hasText: 'account_update' }).filter({ hasText: `status: ${statusConfig.initialValue}` }).first()
   ).toBeVisible({ timeout: 15000 })
+})
+
+test('console live smoke: seeded pending course can be updated and rolled back through standalone console-api', async ({
+  page,
+  request
+}) => {
+  await bootstrapAdminSession(page, request)
+
+  const updatedCoachIntro = `${seededCourseCoachIntro}（live smoke）`
+  const courseForm = page.locator('form').first()
+
+  await page.goto(`/courses/${seededPendingCourseId}/edit`)
+  await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
+  await expect(page.getByRole('heading', { name: '编辑课程' })).toBeVisible()
+  await expect(courseForm.getByLabel(/课程名称/)).toHaveValue(seededCourseTitle)
+  await expect(courseForm.getByLabel(/教练简介/)).toHaveValue(seededCourseCoachIntro)
+
+  await courseForm.getByLabel(/教练简介/).fill(updatedCoachIntro)
+  await expect(courseForm.getByLabel(/教练简介/)).toHaveValue(updatedCoachIntro)
+  await courseForm.getByRole('button', { name: '保存课程' }).click()
+
+  await expect(page).toHaveURL(/\/courses$/)
+  await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
+  await expect(page.locator('tbody tr').filter({ hasText: seededCourseTitle }).first()).toBeVisible({ timeout: 15000 })
+
+  await page.goto('/logs')
+  await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
+  await page.getByPlaceholder('管理员用户名').fill(seededSuperAdminUsername)
+  await page.getByLabel('动作').selectOption('course_update')
+  await page.getByRole('button', { name: '查询' }).click()
+  await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
+  await expect(page).toHaveURL(/action=course_update/)
+  await expect(
+    page.locator('tbody tr').filter({ hasText: 'course_update' }).filter({ hasText: seededCourseTitle }).first()
+  ).toBeVisible({ timeout: 15000 })
+
+  await page.goto(`/courses/${seededPendingCourseId}/edit`)
+  await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
+  await expect(courseForm.getByLabel(/教练简介/)).toHaveValue(updatedCoachIntro)
+  await courseForm.getByLabel(/教练简介/).fill(seededCourseCoachIntro)
+  await expect(courseForm.getByLabel(/教练简介/)).toHaveValue(seededCourseCoachIntro)
+  await courseForm.getByRole('button', { name: '保存课程' }).click()
+
+  await expect(page).toHaveURL(/\/courses$/)
+  await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
+
+  await page.goto(`/courses/${seededPendingCourseId}/edit`)
+  await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
+  await expect(courseForm.getByLabel(/教练简介/)).toHaveValue(seededCourseCoachIntro)
 })
