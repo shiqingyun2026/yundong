@@ -1,24 +1,15 @@
 <view class="app-page mine-page">
-  <view class="profile-card card-shadow">
+  <view class="profile-card card-shadow {{!userInfo ? 'profile-card-guest' : ''}}" bindtap="handleProfileTap">
     <view class="profile-main">
-      <view class="avatar-box">
+      <view class="avatar-box {{!userInfo ? 'avatar-box-guest' : ''}}">
         <view class="avatar-placeholder">
           <image class="avatar-placeholder-icon" src="/assets/ant-icons/user-white.svg" mode="aspectFit" />
         </view>
       </view>
       <view class="profile-info">
-        <view class="profile-name">{{userInfo ? userInfo.nickName : '未登录用户'}}</view>
+        <view class="profile-name {{!userInfo ? 'profile-name-guest' : ''}}">{{userInfo ? userInfo.nickName : '立即登录'}}</view>
       </view>
     </view>
-
-    <button
-      wx:if="{{!userInfo}}"
-      class="primary-button login-button"
-      bindtap="handleLogin"
-      loading="{{loginLoading}}"
-    >
-      去登录
-    </button>
 
     <button
       wx:if="{{userInfo}}"
@@ -39,9 +30,8 @@
     >
       <view>
         <view class="menu-title">{{item.title}}</view>
-        <view class="menu-desc">{{item.desc}}</view>
       </view>
-      <image class="menu-arrow" src="/assets/ant-icons/arrow-right-muted.svg" mode="aspectFit" />
+      <text class="menu-arrow">›</text>
     </view>
   </view>
 

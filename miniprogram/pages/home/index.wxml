@@ -3,7 +3,7 @@
     <view class="home-navbar-row">
       <view class="location-pill navbar-location-pill" bindtap="handleLocationTap">
         <text class="location-text">{{locationText}}</text>
-        <image class="location-chevron" src="/assets/ant-icons/arrow-right-blue.svg" mode="aspectFit" />
+        <text class="location-chevron">›</text>
       </view>
     </view>
   </view>

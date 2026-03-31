@@ -105,6 +105,36 @@ const HOME_TABS = [
 const LOCATION_TIMEOUT_MS = 5000
 const buildLocationKey = location =>
   location ? `${location.latitude || ''}:${location.longitude || ''}:${location.source || ''}:${location.name || ''}` : ''
+const escapeRegExp = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const trimLocationDisplay = value => `${value || ''}`.replace(/^[\s·,，、\-]+|[\s·,，、\-]+$/g, '').trim()
+const formatHomeLocationText = location => {
+  if (!location) {
+    return '定位中...'
+  }
+
+  const source = location.source || ''
+  const name = trimLocationDisplay(location.name || '')
+  const district = trimLocationDisplay(location.district || '')
+
+  if (!name) {
+    return '定位中...'
+  }
+
+  if (!/^(manual|gps|coordinates)$/.test(source) || !district) {
+    return name
+  }
+
+  const prefixMatch = name.match(new RegExp(`^.*?${escapeRegExp(district)}`))
+  if (prefixMatch) {
+    const suffix = trimLocationDisplay(name.slice(prefixMatch[0].length))
+    if (suffix) {
+      return suffix
+    }
+  }
+
+  const withoutDistrict = trimLocationDisplay(name.replace(new RegExp(escapeRegExp(district), 'g'), ''))
+  return withoutDistrict || name
+}
 
 Page({
   data: {
@@ -209,7 +239,7 @@ Page({
     app.globalData.location = nextLocation
 
     this.setData({
-      locationText: nextLocation.name,
+      locationText: formatHomeLocationText(nextLocation),
       locationSource: nextLocation.source
     })
 
@@ -237,7 +267,7 @@ Page({
         }
         this._currentLocationKey = buildLocationKey(app.getCurrentLocation() || normalizedLocation)
         this.setData({
-          locationText: (app.getCurrentLocation() || normalizedLocation).name,
+          locationText: formatHomeLocationText(app.getCurrentLocation() || normalizedLocation),
           locationSource: (app.getCurrentLocation() || normalizedLocation).source,
           locationDenied: denied,
           locationTip: tip
@@ -293,7 +323,7 @@ Page({
     this._currentLocationKey = buildLocationKey(currentLocation)
 
     this.setData({
-      locationText: currentLocation.name,
+      locationText: formatHomeLocationText(currentLocation),
       locationSource: currentLocation.source
     })
 

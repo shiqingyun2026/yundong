@@ -34,16 +34,19 @@
 }
 
 .location-chevron {
-  margin-left: 10rpx;
-  width: 24rpx;
-  height: 24rpx;
+  margin-left: 12rpx;
+  color: #000000;
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 1;
   flex-shrink: 0;
 }
 
 .location-text {
   overflow: hidden;
-  color: #1677ff;
-  font-size: 28rpx;
+  color: #000000;
+  font-size: 30rpx;
+  font-weight: 700;
   white-space: nowrap;
   text-overflow: ellipsis;
 }

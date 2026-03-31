@@ -5,15 +5,25 @@
 .profile-card,
 .menu-card {
   margin-bottom: 24rpx;
-  padding: 32rpx;
+  padding: 40rpx 32rpx;
   background: #ffffff;
   border-radius: 32rpx;
+}
+
+.menu-card {
+  padding-top: 28rpx;
+  padding-bottom: 28rpx;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
 }
 
 .profile-main {
   display: flex;
   align-items: center;
   gap: 24rpx;
+}
+
+.profile-card-guest {
+  min-height: 156rpx;
 }
 
 .avatar-box {
@@ -24,6 +34,11 @@
   height: 112rpx;
   border-radius: 50%;
   background: linear-gradient(135deg, #1677ff 0%, #69a7ff 100%);
+}
+
+.avatar-box-guest {
+  width: 134rpx;
+  height: 134rpx;
 }
 
 .avatar-placeholder {
@@ -37,6 +52,11 @@
 .avatar-placeholder-icon {
   width: 44rpx;
   height: 44rpx;
+}
+
+.avatar-box-guest .avatar-placeholder-icon {
+  width: 53rpx;
+  height: 53rpx;
 }
 
 .avatar-placeholder {
@@ -55,41 +75,38 @@
   color: #1f2329;
 }
 
-.login-button {
-  margin-top: 28rpx;
+.profile-name-guest {
+  font-size: 40rpx;
 }
 
 .logout-button {
-  margin-top: 20rpx;
+  margin-top: 28rpx;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20rpx;
-  padding: 28rpx 0;
+  gap: 24rpx;
+  min-height: 112rpx;
+  padding: 32rpx 4rpx;
 }
 
 .menu-item + .menu-item {
-  border-top: 2rpx solid #eef2f7;
+  border-top: 2rpx solid #f0f2f5;
 }
 
 .menu-title {
-  font-size: 30rpx;
-  font-weight: 600;
+  font-size: 36rpx;
+  font-weight: 400;
   color: #1f2329;
 }
 
-.menu-desc {
-  margin-top: 10rpx;
-  font-size: 24rpx;
-  color: #8f96a3;
-}
-
 .menu-arrow {
-  width: 24rpx;
-  height: 24rpx;
+  color: #1f2329;
+  font-size: 32rpx;
+  font-weight: 500;
+  line-height: 1;
   flex-shrink: 0;
 }
 
