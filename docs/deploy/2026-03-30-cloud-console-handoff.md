@@ -33,6 +33,14 @@
   - `create order -> mock success` 通过
   - “我的拼团”与详情页状态同步通过
 
+补充说明：
+
+- 2026-04-01 已新增并上线管理端课程类别字段：
+  - 课程新建 / 编辑支持选择 `体适能`、`跳绳`
+  - 课程列表与课程详情支持展示课程类别
+  - 课程列表支持按课程类别筛选
+  - `/api/admin/courses` 支持返回并按课程类别筛选
+
 ## 3. 当前关键文件
 
 ### 3.1 小程序云托管入口
@@ -84,6 +92,7 @@
 ### 5.1 Console
 
 - 还没有补课程或订单的真实写链路 live smoke
+- 还没有给 `https://lindong-console.pages.dev` 增加 Cloudflare Access 邮箱白名单
 
 ### 5.2 小程序
 
@@ -101,3 +110,14 @@
 - 主数据仍然只认现有主库，不要在微信云侧另起一套业务数据
 - 如果页面回归数据被联调污染，先运行 `cd /Users/yun/lindong/backend && npm run seed:regression-course`
 - console 后端代码入口统一以 `backend/console-api/*` 为准，不再保留 `backend/routes/admin/*` 兼容壳
+- 当前 console 生产地址：`https://lindong-console.pages.dev`
+- 当前 console 管理接口地址：`https://lindong-backend.shiqingyun2026.workers.dev/api/admin`
+- Cloudflare Pages 当前推荐构建参数：
+  - Project name：`lindong-console`
+  - Production branch：`main`
+  - Root directory：`console`
+  - Build command：`npm run build`
+  - Build output directory：`dist`
+  - 环境变量：`VITE_API_BASE_URL=https://lindong-backend.shiqingyun2026.workers.dev/api/admin`
+- 数据库需包含迁移：
+  - `backend/migrations/20260331_course_category.sql`

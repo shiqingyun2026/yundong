@@ -5,6 +5,7 @@ const password = process.env.CONSOLE_LIVE_PASSWORD || 'admin123456'
 const consoleApiBaseUrl = `http://127.0.0.1:${process.env.CONSOLE_API_PORT || '8100'}`
 const seededPendingCourseId = '11111111-1111-1111-1111-111111111101'
 const seededCourseTitle = '[测试] 深圳南山周末体适能·待上架'
+const seededCourseCategory = '体适能'
 const seededCourseCoachIntro = '用于验证待上架课程不出现在用户端列表。'
 const seededRefundedOrderNo = 'LD202603260007'
 const seededAccountUsername = 't1'
@@ -138,8 +139,10 @@ test('console live smoke: logs and list filters work against standalone console-
   await page.goto('/courses')
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
   await page.getByPlaceholder('按课程名称搜索').fill(seededCourseKeyword)
+  await page.getByLabel('课程类别').selectOption(seededCourseCategory)
   await page.getByRole('button', { name: '查询' }).click()
   await expect(page).toHaveURL(/keyword=%E5%8D%97%E5%B1%B1/)
+  await expect(page).toHaveURL(/category=%E4%BD%93%E9%80%82%E8%83%BD/)
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
   await expect(page.locator('tbody tr').filter({ hasText: seededCourseTitle }).first()).toBeVisible()
 })

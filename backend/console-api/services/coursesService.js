@@ -18,6 +18,7 @@ const {
 const listCourses = async ({ query = {}, admin = {} }) => {
   const { page, size, from, to } = getPagination(query)
   const keyword = `${query.keyword || ''}`.trim()
+  const category = `${query.category || ''}`.trim()
   const startDate = `${query.start_date || ''}`.trim()
   const endDate = `${query.end_date || ''}`.trim()
   const status = `${query.status || ''}`.trim()
@@ -34,6 +35,10 @@ const listCourses = async ({ query = {}, admin = {} }) => {
 
   if (keyword) {
     listQuery = listQuery.ilike('name', `%${keyword}%`)
+  }
+
+  if (category) {
+    listQuery = listQuery.eq('course_category', category)
   }
 
   if (startDate) {

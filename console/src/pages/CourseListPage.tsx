@@ -4,7 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { PaginationBar } from '../components/PaginationBar'
 import { api } from '../lib/api'
 import type { CourseListItem } from '../types'
-import { getCourseCategoryText, normalizeCourseListItem } from './courseFormHelpers'
+import { COURSE_CATEGORY_OPTIONS, getCourseCategoryText, normalizeCourseListItem } from './courseFormHelpers'
 
 const getStatusText = (status: number) => {
   if (status === 0) return '待上架'
@@ -20,6 +20,7 @@ const getStatusText = (status: number) => {
 export function CourseListPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [keyword, setKeyword] = useState('')
+  const [category, setCategory] = useState('')
   const [status, setStatus] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -32,6 +33,7 @@ export function CourseListPage() {
 
   const applySearch = (
     nextKeyword = keyword,
+    nextCategory = category,
     nextStatus = status,
     nextStartDate = startDate,
     nextEndDate = endDate,
@@ -40,6 +42,7 @@ export function CourseListPage() {
   ) => {
     const params = new URLSearchParams()
     if (nextKeyword) params.set('keyword', nextKeyword)
+    if (nextCategory) params.set('category', nextCategory)
     if (nextStatus) params.set('status', nextStatus)
     if (nextStartDate) params.set('start_date', nextStartDate)
     if (nextEndDate) params.set('end_date', nextEndDate)
@@ -50,6 +53,7 @@ export function CourseListPage() {
 
   const fetchList = async (
     nextKeyword = keyword,
+    nextCategory = category,
     nextStatus = status,
     nextStartDate = startDate,
     nextEndDate = endDate,
@@ -63,6 +67,9 @@ export function CourseListPage() {
       const params = new URLSearchParams()
       if (nextKeyword) {
         params.set('keyword', nextKeyword)
+      }
+      if (nextCategory) {
+        params.set('category', nextCategory)
       }
       if (nextStatus) {
         params.set('status', nextStatus)
@@ -102,6 +109,7 @@ export function CourseListPage() {
 
   useEffect(() => {
     const nextKeyword = searchParams.get('keyword') || ''
+    const nextCategory = searchParams.get('category') || ''
     const nextStatus = searchParams.get('status') || ''
     const nextStartDate = searchParams.get('start_date') || ''
     const nextEndDate = searchParams.get('end_date') || ''
@@ -109,11 +117,12 @@ export function CourseListPage() {
     const nextPage = Number(searchParams.get('page') || '1') || 1
 
     setKeyword(nextKeyword)
+    setCategory(nextCategory)
     setStatus(nextStatus)
     setStartDate(nextStartDate)
     setEndDate(nextEndDate)
     setDateField(nextDateField)
-    void fetchList(nextKeyword, nextStatus, nextStartDate, nextEndDate, nextDateField, nextPage)
+    void fetchList(nextKeyword, nextCategory, nextStatus, nextStartDate, nextEndDate, nextDateField, nextPage)
   }, [searchParams])
 
   const offlineCourse = async (id: string) => {
@@ -125,7 +134,7 @@ export function CourseListPage() {
 
     try {
       await api.put(`/courses/${id}/offline`)
-      await fetchList(keyword, status, startDate, endDate, dateField, page)
+      await fetchList(keyword, category, status, startDate, endDate, dateField, page)
     } catch (offlineError) {
       setError(offlineError instanceof Error ? offlineError.message : '下架课程失败')
     }
@@ -157,6 +166,17 @@ export function CourseListPage() {
             </select>
           </label>
           <label className="filter-field">
+            <span>课程类别</span>
+            <select value={category} onChange={event => setCategory(event.target.value)}>
+              <option value="">全部类别</option>
+              {COURSE_CATEGORY_OPTIONS.map(item => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="filter-field">
             <span>时间维度</span>
             <select value={dateField} onChange={event => setDateField(event.target.value)}>
               <option value="start_time">按上课时间</option>
@@ -179,7 +199,7 @@ export function CourseListPage() {
           <button
             className="secondary-button compact-action-button query-button"
             type="button"
-            onClick={() => applySearch(keyword, status, startDate, endDate, dateField, 1)}
+            onClick={() => applySearch(keyword, category, status, startDate, endDate, dateField, 1)}
           >
             查询
           </button>
@@ -250,8 +270,8 @@ export function CourseListPage() {
               total={pagination.total}
               page={pagination.page}
               totalPages={pagination.total_pages}
-              onPrev={() => applySearch(keyword, status, startDate, endDate, dateField, pagination.page - 1)}
-              onNext={() => applySearch(keyword, status, startDate, endDate, dateField, pagination.page + 1)}
+              onPrev={() => applySearch(keyword, category, status, startDate, endDate, dateField, pagination.page - 1)}
+              onNext={() => applySearch(keyword, category, status, startDate, endDate, dateField, pagination.page + 1)}
             />
           </>
         ) : null}
