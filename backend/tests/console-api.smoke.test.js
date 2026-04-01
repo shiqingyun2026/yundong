@@ -271,6 +271,9 @@ mockModule('console-api/services/dashboardService.js', {
 mockModule('console-api/services/coursesService.js', {
   geocodeCourseAddress: async () => ({
     formatted_address: '深圳市南山区测试地点',
+    province: '广东省',
+    city: '深圳市',
+    district: '南山区',
     longitude: 113.93,
     latitude: 22.53
   }),
@@ -282,6 +285,7 @@ mockModule('console-api/services/coursesService.js', {
         address: '深圳市南山区测试地点',
         longitude: 113.93,
         latitude: 22.53,
+        province: '广东省',
         city: '深圳市',
         district: '南山区',
         adcode: '440305'

@@ -101,6 +101,8 @@ const geocodeAddressWithTencentMap = async ({ district, detail }) => {
     message: '未查询到对应坐标'
   })
   const location = result.location || {}
+  const adInfo = result.ad_info || {}
+  const addressComponent = result.address_component || {}
   const latitude = normalizeCoordinate(location.lat)
   const longitude = normalizeCoordinate(location.lng)
 
@@ -111,6 +113,9 @@ const geocodeAddressWithTencentMap = async ({ district, detail }) => {
 
   return {
     formatted_address: pickFirstNonEmptyString([result.address, normalizedDetail]),
+    province: pickFirstNonEmptyString([adInfo.province, addressComponent.province]),
+    city: pickFirstNonEmptyString([adInfo.city, addressComponent.city]),
+    district: pickFirstNonEmptyString([adInfo.district, addressComponent.district]),
     latitude,
     longitude
   }
@@ -139,6 +144,7 @@ const searchPlacesWithTencentMap = async ({ keyword, district, limit = 8 }) => {
     address: buildSuggestionAddress(item),
     latitude: normalizeCoordinate(item.location && item.location.lat),
     longitude: normalizeCoordinate(item.location && item.location.lng),
+    province: pickFirstNonEmptyString([item.ad_info && item.ad_info.province]),
     city: pickFirstNonEmptyString([item.ad_info && item.ad_info.city]),
     district: pickFirstNonEmptyString([item.ad_info && item.ad_info.district]),
     adcode: pickFirstNonEmptyString([item.ad_info && item.ad_info.adcode])

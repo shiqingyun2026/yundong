@@ -21,6 +21,14 @@ type CoursePageMode = 'create' | 'edit' | 'view'
 type CourseLocationSuggestionResponse = {
   list: CourseLocationSuggestion[]
 }
+type CourseGeocodeResponse = {
+  formatted_address: string
+  longitude: number
+  latitude: number
+  province?: string
+  city?: string
+  district?: string
+}
 
 export function CourseFormPage({ mode }: { mode: CoursePageMode }) {
   const navigate = useNavigate()
@@ -204,6 +212,19 @@ export function CourseFormPage({ mode }: { mode: CoursePageMode }) {
     )
   }
 
+  const syncResolvedRegion = (nextProvince?: string, nextCity?: string, nextDistrict?: string) => {
+    const provinceValue = (nextProvince || province || '广东省').trim()
+    const cityValue = (nextCity || city || '').trim()
+    const districtValue = (nextDistrict || district || '').trim()
+
+    if (mode === 'create') {
+      updateRegionField(provinceValue, cityValue, districtValue)
+      return
+    }
+
+    updateField('location_district', [provinceValue, cityValue, districtValue].filter(Boolean).join(' / '))
+  }
+
   const offlineCourse = async () => {
     if (!id || !canOfflineCourse) {
       return
@@ -304,6 +325,7 @@ export function CourseFormPage({ mode }: { mode: CoursePageMode }) {
       longitude: suggestion.longitude,
       latitude: suggestion.latitude
     }))
+    syncResolvedRegion(suggestion.province, suggestion.city, suggestion.district)
     setLocationSuggestions([])
     setShowLocationSuggestions(false)
   }
@@ -313,7 +335,7 @@ export function CourseFormPage({ mode }: { mode: CoursePageMode }) {
     setError('')
 
     try {
-      const data = await api.post<{ formatted_address: string; longitude: number; latitude: number }>(
+      const data = await api.post<CourseGeocodeResponse>(
         '/courses/geocode',
         {
           district: form.location_district,
@@ -326,6 +348,7 @@ export function CourseFormPage({ mode }: { mode: CoursePageMode }) {
         longitude: data.longitude,
         latitude: data.latitude
       }))
+      syncResolvedRegion(data.province, data.city, data.district)
     } catch (resolveError) {
       setError(resolveError instanceof Error ? resolveError.message : '解析坐标失败')
     } finally {

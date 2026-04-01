@@ -63,6 +63,7 @@ export interface CourseLocationSuggestion {
   address: string
   longitude: number | null
   latitude: number | null
+  province: string
   city: string
   district: string
   adcode: string
