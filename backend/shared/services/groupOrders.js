@@ -15,6 +15,7 @@ const {
   hasUserJoinedCourseGroup,
   rollbackGroupParticipationForOrder
 } = require('./groupOrderParticipation')
+const { enqueueGroupResultNotifications, enqueueNotificationsForGroups } = require('./groupResultNotifications')
 
 const createServiceError = (status, message) => {
   const error = new Error(message)
@@ -24,6 +25,23 @@ const createServiceError = (status, message) => {
 
 const isServiceError = error => {
   return !!(error && Number.isInteger(error.status) && error.status >= 400)
+}
+
+const cleanupExpiredGroupsAndEnqueueFailedNotifications = async ({ supabase, courseId, now = new Date() }) => {
+  const cleanupResult = await cleanupExpiredActiveGroupsForCourse({
+    supabase,
+    courseId,
+    now
+  })
+
+  await enqueueNotificationsForGroups({
+    supabase,
+    groupIds: cleanupResult && cleanupResult.groupIds ? cleanupResult.groupIds : [],
+    resultType: 'failed',
+    now
+  })
+
+  return cleanupResult
 }
 
 
@@ -60,7 +78,7 @@ const createPendingOrder = async ({
     courseId
   })
 
-  await cleanupExpiredActiveGroupsForCourse({
+  await cleanupExpiredGroupsAndEnqueueFailedNotifications({
     supabase,
     courseId,
     now
@@ -213,7 +231,7 @@ const markOrderPaymentSuccess = async ({
     throw createServiceError(404, 'order not found')
   }
 
-  await cleanupExpiredActiveGroupsForCourse({
+  await cleanupExpiredGroupsAndEnqueueFailedNotifications({
     supabase,
     courseId: order.course_id,
     now
@@ -241,6 +259,7 @@ const markOrderPaymentSuccess = async ({
   let currentCount = 0
   let targetCount = 0
   let nextGroupStatus = 'failed'
+  let successNotificationGroupId = ''
 
   if (targetGroupId) {
     const { data: group, error: groupError } = await supabase
@@ -296,6 +315,7 @@ const markOrderPaymentSuccess = async ({
     }
 
     if (paymentResult.shouldUpdateGroup) {
+      const shouldEnqueueSuccessNotification = group.status === 'active' && paymentResult.nextStatus === 'success'
       const { data: updatedGroup, error: updateGroupError } = await supabase
         .from('groups')
         .update({
@@ -313,6 +333,10 @@ const markOrderPaymentSuccess = async ({
       currentCount = Number(updatedGroup.current_count) || 0
       targetCount = Number(updatedGroup.target_count) || 0
       nextGroupStatus = updatedGroup.status || 'failed'
+
+      if (shouldEnqueueSuccessNotification) {
+        successNotificationGroupId = updatedGroup.id
+      }
     } else {
       currentCount = paymentResult.nextCount
       nextGroupStatus = paymentResult.nextStatus
@@ -334,6 +358,15 @@ const markOrderPaymentSuccess = async ({
     if (orderUpdateError) {
       throw orderUpdateError
     }
+  }
+
+  if (successNotificationGroupId) {
+    await enqueueGroupResultNotifications({
+      supabase,
+      groupId: successNotificationGroupId,
+      resultType: 'success',
+      now
+    })
   }
 
   return {

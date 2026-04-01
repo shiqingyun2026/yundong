@@ -32,6 +32,19 @@ const ENV_CLOUD_LOCATION_FUNCTION_NAMES = {
   release: 'ip-geolocation'
 }
 
+const SUBSCRIBE_TEMPLATE_PLACEHOLDER = 'TODO_GROUP_RESULT_TEMPLATE_ID'
+const ENV_SUBSCRIBE_TEMPLATE_IDS = {
+  develop: {
+    groupResult: SUBSCRIBE_TEMPLATE_PLACEHOLDER
+  },
+  trial: {
+    groupResult: SUBSCRIBE_TEMPLATE_PLACEHOLDER
+  },
+  release: {
+    groupResult: SUBSCRIBE_TEMPLATE_PLACEHOLDER
+  }
+}
+
 const getMiniProgramEnvVersion = () => {
   try {
     const accountInfo = wx.getAccountInfoSync && wx.getAccountInfoSync()
@@ -70,6 +83,16 @@ const isCloudLocationFunctionConfigured = envVersion =>
   ) &&
   (ENV_CLOUD_LOCATION_FUNCTION_NAMES[envVersion] || ENV_CLOUD_LOCATION_FUNCTION_NAMES.develop) !==
     CLOUD_LOCATION_FUNCTION_PLACEHOLDER
+const resolveSubscribeTemplateIdsByEnv = envVersion => {
+  const value = ENV_SUBSCRIBE_TEMPLATE_IDS[envVersion] || ENV_SUBSCRIBE_TEMPLATE_IDS.develop
+
+  return {
+    groupResult:
+      value && value.groupResult && value.groupResult !== SUBSCRIBE_TEMPLATE_PLACEHOLDER
+        ? value.groupResult
+        : ''
+  }
+}
 
 module.exports = {
   ENV_API_BASE_URLS,
@@ -80,12 +103,15 @@ module.exports = {
   ENV_CLOUD_ENVS,
   ENV_CLOUD_CONTAINER_SERVICE_NAMES,
   ENV_CLOUD_LOCATION_FUNCTION_NAMES,
+  ENV_SUBSCRIBE_TEMPLATE_IDS,
+  SUBSCRIBE_TEMPLATE_PLACEHOLDER,
   getMiniProgramEnvVersion,
   resolveBaseURLByEnv,
   resolveApiTransportByEnv,
   resolveCloudEnvByEnv,
   resolveCloudContainerServiceNameByEnv,
   resolveCloudLocationFunctionNameByEnv,
+  resolveSubscribeTemplateIdsByEnv,
   isCloudEnvConfigured,
   isCloudContainerServiceConfigured,
   isCloudLocationFunctionConfigured

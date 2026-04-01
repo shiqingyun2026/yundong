@@ -11,6 +11,13 @@
     <view class="result-desc">
       {{status === 'success' ? '订单已提交，可前往查看当前拼团详情。' : '本次支付未完成，你可以重新支付或返回首页。'}}
     </view>
+    <view wx:if="{{status === 'success'}}" class="subscribe-card">
+      <view class="subscribe-title">拼团结果通知</view>
+      <view class="subscribe-desc">{{subscribeHintText}}</view>
+      <view wx:if="{{subscribeStatusText}}" class="subscribe-status {{subscribeStatusClassName}}">
+        {{subscribeStatusText}}
+      </view>
+    </view>
 
     <button class="primary-button result-button" bindtap="handlePrimaryAction">
       {{status === 'success' ? '查看拼团详情' : '重新支付'}}

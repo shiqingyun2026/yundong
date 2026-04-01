@@ -4,6 +4,7 @@ const authenticate = require('../middleware/auth')
 const supabase = require('../utils/supabase')
 const { createPendingOrder, isServiceError } = require('../shared/services/groupOrders')
 const { normalizeGroupStatus } = require('../shared/domain/groupRules')
+const { getOrderPaymentStatus } = require('../shared/services/paymentShell')
 
 const router = express.Router()
 
@@ -42,6 +43,27 @@ router.post('/', authenticate, async (req, res) => {
     })
     return res.status(isServiceError(error) ? error.status : 500).json({
       message: error.message || 'failed to create order'
+    })
+  }
+})
+
+router.get('/:id', authenticate, async (req, res) => {
+  try {
+    return res.json(
+      await getOrderPaymentStatus({
+        supabase,
+        userId: req.userId,
+        orderId: req.params.id
+      })
+    )
+  } catch (error) {
+    console.error('[orders/:id] failed to fetch order detail', {
+      orderId: req.params.id,
+      userId: req.userId,
+      error
+    })
+    return res.status(isServiceError(error) ? error.status : 500).json({
+      message: error.message || 'failed to fetch order detail'
     })
   }
 })

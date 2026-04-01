@@ -1,4 +1,4 @@
-const { fetchCourseDetail, fetchActiveGroup, createOrder, mockPaymentSuccess } = require('../../../utils/course')
+const { fetchCourseDetail, fetchActiveGroup, createOrder, preparePayment, mockPaymentSuccess } = require('../../../utils/course')
 
 Page({
   data: {
@@ -8,6 +8,7 @@ Page({
     courseDetail: null,
     groupDetail: null,
     paymentParams: null,
+    paymentMode: 'mock',
     agreementChecked: true,
     loading: true,
     paying: false
@@ -171,6 +172,40 @@ Page({
     }
 
     try {
+      const paymentPreparation = await preparePayment({
+        orderId: order.orderId
+      })
+
+      if (!this._isAlive) {
+        return
+      }
+
+      this.safeSetData({
+        paymentParams: (paymentPreparation && paymentPreparation.paymentParams) || null,
+        paymentMode: (paymentPreparation && paymentPreparation.paymentMode) || 'mock'
+      })
+
+      getApp().globalData.pendingOrder = {
+        orderId: order.orderId,
+        courseId: this.data.courseId,
+        groupId: order.groupId || this.data.groupId,
+        paymentMode: (paymentPreparation && paymentPreparation.paymentMode) || 'mock',
+        paymentParams: (paymentPreparation && paymentPreparation.paymentParams) || null,
+        outTradeNo: (paymentPreparation && paymentPreparation.outTradeNo) || ''
+      }
+
+      if (paymentPreparation && paymentPreparation.canUseRequestPayment) {
+        wx.showToast({
+          title: '真实支付通道待新 AppID 接入',
+          icon: 'none'
+        })
+
+        this.safeSetData({
+          paying: false
+        })
+        return
+      }
+
       const paymentResult = await mockPaymentSuccess({
         orderId: order.orderId,
         groupId: order.groupId || this.data.groupId

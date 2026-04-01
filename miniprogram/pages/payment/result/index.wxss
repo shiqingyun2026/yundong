@@ -55,6 +55,41 @@
   margin-top: 40rpx;
 }
 
+.subscribe-card {
+  margin-top: 28rpx;
+  padding: 24rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(180deg, #fff7ed 0%, #fffaf4 100%);
+  text-align: left;
+}
+
+.subscribe-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1f2329;
+}
+
+.subscribe-desc {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.7;
+  color: #5f6b7a;
+}
+
+.subscribe-status {
+  margin-top: 16rpx;
+  font-size: 24rpx;
+  line-height: 1.7;
+}
+
+.subscribe-status-success {
+  color: #1f9d63;
+}
+
+.subscribe-status-muted {
+  color: #86909c;
+}
+
 .secondary-text-button {
   height: 72rpx;
   margin-top: 20rpx;

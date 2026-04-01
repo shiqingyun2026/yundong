@@ -111,6 +111,28 @@ const mockPaymentSuccess = async ({ orderId, groupId }) =>
     }
   )
 
+const preparePayment = async ({ orderId }) =>
+  post(
+    '/api/payments/prepare',
+    {
+      orderId
+    },
+    {
+      showLoading: true,
+      loadingText: '拉起支付中',
+      showErrorToast: false
+    }
+  )
+
+const fetchOrderDetail = async orderId =>
+  get(
+    `/api/orders/${orderId}`,
+    {},
+    {
+      showErrorToast: false
+    }
+  )
+
 const fetchUserGroupList = async ({ status = 'all', page = 1, pageSize = 10 }) => {
   return withMockFallback({
     label: 'fetchUserGroupList',
@@ -144,7 +166,9 @@ module.exports = {
   fetchActiveGroup,
   fetchGroupDetail,
   createOrder,
+  preparePayment,
   mockPaymentSuccess,
   createMockOrder,
-  fetchUserGroupList
+  fetchUserGroupList,
+  fetchOrderDetail
 }
