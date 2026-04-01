@@ -5,8 +5,7 @@ const {
 const { ensureCondition, ensureFound } = require('./_guards')
 const { COURSE_STATUS } = require('../../utils/courseLifecycle')
 const { writeAdminLog } = require('../../utils/adminStore')
-
-const GEOCODE_API_BASE_URL = process.env.GEOCODE_API_BASE_URL || 'https://nominatim.openstreetmap.org/search'
+const { geocodeAddressWithTencentMap } = require('./tencentMapService')
 const COURSE_CATEGORIES = ['体适能', '跳绳']
 
 const normalizeStringArray = value => {
@@ -160,44 +159,7 @@ const mapPayloadToCourse = payload => ({
 })
 
 const geocodeCourseAddress = async ({ district, detail }) => {
-  const normalizedDistrict = `${district || ''}`.trim()
-  const normalizedDetail = `${detail || ''}`.trim()
-
-  ensureCondition(!!normalizedDetail, {
-    responseCode: 5000,
-    statusCode: 400,
-    message: '详细地点不能为空'
-  })
-
-  const query = [normalizedDistrict, normalizedDetail].filter(Boolean).join(' ')
-  const url = new URL(GEOCODE_API_BASE_URL)
-  url.searchParams.set('format', 'jsonv2')
-  url.searchParams.set('limit', '1')
-  url.searchParams.set('q', query)
-
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent': 'lindong-admin-console/1.0'
-    }
-  })
-
-  if (!response.ok) {
-    throw new Error(`地理编码服务调用失败: ${response.status}`)
-  }
-
-  const result = await response.json()
-  const first = Array.isArray(result) ? result[0] : null
-
-  ensureFound(first, {
-    responseCode: 5000,
-    message: '未查询到对应坐标'
-  })
-
-  return {
-    formatted_address: first.display_name || query,
-    longitude: Number(first.lon),
-    latitude: Number(first.lat)
-  }
+  return geocodeAddressWithTencentMap({ district, detail })
 }
 
 module.exports = {

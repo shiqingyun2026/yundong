@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { PageBackButton } from '../components/PageBackButton'
 import { api, uploadImage } from '../lib/api'
-import type { CourseDetail, CourseGroupRecord } from '../types'
+import type { CourseDetail, CourseGroupRecord, CourseLocationSuggestion } from '../types'
 import { CourseGroupRecordsSection } from './CourseGroupRecordsSection'
 import {
   COURSE_CATEGORY_OPTIONS,
@@ -18,6 +18,9 @@ import {
 const RequiredMark = () => <span className="required-mark">*</span>
 
 type CoursePageMode = 'create' | 'edit' | 'view'
+type CourseLocationSuggestionResponse = {
+  list: CourseLocationSuggestion[]
+}
 
 export function CourseFormPage({ mode }: { mode: CoursePageMode }) {
   const navigate = useNavigate()
@@ -34,6 +37,9 @@ export function CourseFormPage({ mode }: { mode: CoursePageMode }) {
   const [province, setProvince] = useState('广东省')
   const [city, setCity] = useState('深圳市')
   const [district, setDistrict] = useState('')
+  const [locationSuggestions, setLocationSuggestions] = useState<CourseLocationSuggestion[]>([])
+  const [searchingLocations, setSearchingLocations] = useState(false)
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false)
 
   useEffect(() => {
     if (mode === 'create' || !id) {
@@ -94,6 +100,64 @@ export function CourseFormPage({ mode }: { mode: CoursePageMode }) {
   const isReadOnly = mode === 'view' || !canEdit
   const cityOptions = REGION_OPTIONS.find(item => item.value === province)?.cities || []
   const districtOptions = cityOptions.find(item => item.value === city)?.districts || []
+  const locationSearchDistrict = mode === 'create'
+    ? [province, city, district].filter(Boolean).join(' / ')
+    : form.location_district
+
+  useEffect(() => {
+    if (isReadOnly) {
+      setLocationSuggestions([])
+      setShowLocationSuggestions(false)
+      setSearchingLocations(false)
+      return
+    }
+
+    const keyword = form.location_detail.trim()
+    if (!keyword) {
+      setLocationSuggestions([])
+      setShowLocationSuggestions(false)
+      setSearchingLocations(false)
+      return
+    }
+
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        setSearchingLocations(true)
+
+        try {
+          const params = new URLSearchParams({
+            keyword,
+            district: locationSearchDistrict || ''
+          })
+          const data = await api.get<CourseLocationSuggestionResponse>(`/courses/location-suggestions?${params.toString()}`)
+
+          if (cancelled) {
+            return
+          }
+
+          setLocationSuggestions(data.list || [])
+          setShowLocationSuggestions(true)
+        } catch (searchError) {
+          if (cancelled) {
+            return
+          }
+
+          setLocationSuggestions([])
+          setError(searchError instanceof Error ? searchError.message : '查询地点失败')
+        } finally {
+          if (!cancelled) {
+            setSearchingLocations(false)
+          }
+        }
+      })()
+    }, 300)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [form.location_detail, isReadOnly, locationSearchDistrict])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -231,6 +295,17 @@ export function CourseFormPage({ mode }: { mode: CoursePageMode }) {
       field,
       form[field].filter((_, currentIndex) => currentIndex !== index) as CourseDetail[typeof field]
     )
+  }
+
+  const applyLocationSuggestion = (suggestion: CourseLocationSuggestion) => {
+    setForm(current => ({
+      ...current,
+      location_detail: suggestion.address || suggestion.title,
+      longitude: suggestion.longitude,
+      latitude: suggestion.latitude
+    }))
+    setLocationSuggestions([])
+    setShowLocationSuggestions(false)
   }
 
   const resolveCoordinates = async () => {
@@ -459,11 +534,53 @@ export function CourseFormPage({ mode }: { mode: CoursePageMode }) {
             )}
             <label>
               <span>详细地点<RequiredMark /></span>
-              <input
-                value={form.location_detail}
-                onChange={event => updateField('location_detail', event.target.value)}
-                disabled={isReadOnly}
-              />
+              <div
+                className="location-autocomplete"
+                onBlur={() => {
+                  window.setTimeout(() => {
+                    setShowLocationSuggestions(false)
+                  }, 120)
+                }}
+              >
+                <input
+                  value={form.location_detail}
+                  onChange={event => {
+                    updateField('location_detail', event.target.value)
+                    setShowLocationSuggestions(true)
+                  }}
+                  onFocus={() => {
+                    if (locationSuggestions.length) {
+                      setShowLocationSuggestions(true)
+                    }
+                  }}
+                  placeholder={mode === 'create' ? '输入场馆名、小区名或详细地址后联想搜索' : '输入详细地点后联想搜索'}
+                  disabled={isReadOnly}
+                />
+                {showLocationSuggestions && !isReadOnly ? (
+                  <div className="location-suggestion-panel">
+                    {searchingLocations ? <p className="location-suggestion-empty">地点搜索中...</p> : null}
+                    {!searchingLocations && !locationSuggestions.length ? (
+                      <p className="location-suggestion-empty">未找到匹配地点，继续输入后可手动解析坐标</p>
+                    ) : null}
+                    {!searchingLocations
+                      ? locationSuggestions.map(item => (
+                          <button
+                            key={item.id}
+                            className="location-suggestion-item"
+                            type="button"
+                            onMouseDown={event => {
+                              event.preventDefault()
+                              applyLocationSuggestion(item)
+                            }}
+                          >
+                            <strong>{item.title || item.address}</strong>
+                            <span>{item.address || '暂无地址描述'}</span>
+                          </button>
+                        ))
+                      : null}
+                  </div>
+                ) : null}
+              </div>
             </label>
             <label>
               经度
@@ -497,7 +614,7 @@ export function CourseFormPage({ mode }: { mode: CoursePageMode }) {
             <button className="secondary-button" type="button" onClick={() => void resolveCoordinates()} disabled={resolvingGeo || isReadOnly}>
               {resolvingGeo ? '解析中...' : '根据详细地点解析坐标'}
             </button>
-            <span className="muted-text">支持先自动解析，再手动微调经纬度</span>
+            <span className="muted-text">优先从腾讯地图联想选择，选中后会自动回填经纬度，也支持手动解析和微调</span>
           </div>
 
           <div className="stack">

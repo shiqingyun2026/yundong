@@ -7,7 +7,8 @@
     "test:headed": "playwright test --headed",
     "test:update": "playwright test --update-snapshots",
     "codegen": "playwright codegen http://127.0.0.1:3000",
-    "test:console-live": "playwright test -c playwright.live.config.ts --project=console-live-chromium"
+    "test:console-live": "playwright test -c playwright.live.config.ts --project=console-live-chromium",
+    "test:console-prod": "playwright test -c playwright.prod.config.ts --project=console-prod-chromium"
   },
   "devDependencies": {
     "@playwright/test": "^1.54.2"

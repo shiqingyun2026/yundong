@@ -6,12 +6,14 @@ const {
   listCourseGroupsHandler,
   listCoursesHandler,
   offlineCourseHandler,
+  searchCourseLocationsHandler,
   updateCourseHandler
 } = require('../controllers/coursesController')
 
 const router = express.Router()
 
 router.post('/geocode', geocodeCourseHandler)
+router.get('/location-suggestions', searchCourseLocationsHandler)
 router.get('/', listCoursesHandler)
 router.get('/:id', getCourseDetailHandler)
 router.get('/:id/groups', listCourseGroupsHandler)

@@ -14,6 +14,7 @@ const {
   safeWriteAdminLog,
   validateCoursePayload
 } = require('./courseServiceHelpers')
+const { searchPlacesWithTencentMap } = require('./tencentMapService')
 
 const listCourses = async ({ query = {}, admin = {} }) => {
   const { page, size, from, to } = getPagination(query)
@@ -94,6 +95,24 @@ const getCourseDetail = async ({ courseId, admin = {} }) => {
   })
 
   return mapCourseDetail(data, lifecycle)
+}
+
+const searchCourseLocations = async ({ query = {} }) => {
+  const keyword = `${query.keyword || ''}`.trim()
+  const district = `${query.district || ''}`.trim()
+
+  if (!keyword) {
+    return {
+      list: []
+    }
+  }
+
+  return {
+    list: await searchPlacesWithTencentMap({
+      keyword,
+      district
+    })
+  }
 }
 
 const listCourseGroups = async ({ courseId }) => {
@@ -298,5 +317,6 @@ module.exports = {
   listCourseGroups,
   listCourses,
   offlineCourse,
+  searchCourseLocations,
   updateCourse
 }

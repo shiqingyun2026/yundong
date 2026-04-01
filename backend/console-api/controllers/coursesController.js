@@ -6,6 +6,7 @@ const {
   listCourseGroups,
   listCourses,
   offlineCourse,
+  searchCourseLocations,
   updateCourse
 } = require('../services/coursesService')
 
@@ -13,6 +14,12 @@ const geocodeCourseHandler = createOkHandler('解析坐标失败', req =>
   geocodeCourseAddress({
     district: req.body && req.body.district,
     detail: req.body && req.body.detail
+  })
+)
+
+const searchCourseLocationsHandler = createOkHandler('查询地点失败', req =>
+  searchCourseLocations({
+    query: req.query || {}
   })
 )
 
@@ -68,5 +75,6 @@ module.exports = {
   listCourseGroupsHandler,
   listCoursesHandler,
   offlineCourseHandler,
+  searchCourseLocationsHandler,
   updateCourseHandler
 }

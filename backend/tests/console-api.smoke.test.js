@@ -274,6 +274,20 @@ mockModule('console-api/services/coursesService.js', {
     longitude: 113.93,
     latitude: 22.53
   }),
+  searchCourseLocations: async () => ({
+    list: [
+      {
+        id: 'poi-1',
+        title: '测试地点',
+        address: '深圳市南山区测试地点',
+        longitude: 113.93,
+        latitude: 22.53,
+        city: '深圳市',
+        district: '南山区',
+        adcode: '440305'
+      }
+    ]
+  }),
   listCourses: async () => ({
     total: 1,
     page: 1,

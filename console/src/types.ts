@@ -57,6 +57,17 @@ export interface CourseDetail {
   status?: number
 }
 
+export interface CourseLocationSuggestion {
+  id: string
+  title: string
+  address: string
+  longitude: number | null
+  latitude: number | null
+  city: string
+  district: string
+  adcode: string
+}
+
 export interface OrderListItem {
   id: string
   order_no: string
