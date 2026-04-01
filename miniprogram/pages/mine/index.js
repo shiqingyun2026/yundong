@@ -182,8 +182,13 @@ Page({
     app.setToken('')
 
     this.setData({
-      userInfo: null
+      userInfo: null,
+      showLoginModal: false,
+      loginAgreementChecked: false,
+      loginLoading: false
     })
+
+    this.showTabBar()
 
     wx.showToast({
       title: '已退出登录',

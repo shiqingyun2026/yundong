@@ -14,7 +14,7 @@
     <button
       wx:if="{{userInfo}}"
       class="primary-button secondary-button logout-button"
-      bindtap="handleLogout"
+      catchtap="handleLogout"
     >
       退出登录
     </button>
