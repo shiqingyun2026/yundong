@@ -5,6 +5,7 @@ node_modules/
 .vscode/
 .project
 *.local
+backend/.env.save
+cloudfunctions/ip-geolocation/.env
 backend/   # 如果你删除了 backend，这行可以保留或删除
 project.private.config.json   # 微信开发者工具的个人配置文件
-
