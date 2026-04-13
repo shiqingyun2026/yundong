@@ -1,8 +1,15 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
 import { authStore } from '../lib/auth'
+import type { AdminUser } from '../types'
 
-const navItems = [
+type NavItem = {
+  to: string
+  label: string
+  roles?: ReadonlyArray<AdminUser['role']>
+}
+
+const navItems: NavItem[] = [
   { to: '/dashboard', label: '概览' },
   { to: '/courses', label: '课程管理' },
   { to: '/groups', label: '拼团管理' },

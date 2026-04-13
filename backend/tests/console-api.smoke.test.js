@@ -4,6 +4,9 @@ const test = require('node:test')
 const jwt = require('jsonwebtoken')
 
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'console-api-smoke-secret'
+process.env.ADMIN_LOGIN_MAX_FAILURES = process.env.ADMIN_LOGIN_MAX_FAILURES || '3'
+process.env.ADMIN_LOGIN_WINDOW_MS = process.env.ADMIN_LOGIN_WINDOW_MS || '60000'
+process.env.ADMIN_LOGIN_LOCKOUT_MS = process.env.ADMIN_LOGIN_LOCKOUT_MS || '60000'
 
 const backendRoot = path.resolve(__dirname, '..')
 
@@ -372,6 +375,7 @@ mockModule('console-api/services/coursesService.js', {
 })
 
 const app = require(path.join(backendRoot, 'console-api/app.js'))
+const loginRateLimiter = require(path.join(backendRoot, 'console-api/services/loginRateLimiter.js'))
 
 const createToken = role =>
   jwt.sign(
@@ -388,7 +392,7 @@ const createToken = role =>
 const superAdminToken = createToken('super_admin')
 const adminToken = createToken('admin')
 
-const requestJson = async ({ method = 'GET', path: pathname, body, token } = {}) => {
+const requestJson = async ({ method = 'GET', path: pathname, body, token, headers: extraHeaders = {} } = {}) => {
   const headers = new Headers()
 
   if (body !== undefined) {
@@ -398,6 +402,10 @@ const requestJson = async ({ method = 'GET', path: pathname, body, token } = {})
   if (token) {
     headers.set('Authorization', `Bearer ${token}`)
   }
+
+  Object.entries(extraHeaders).forEach(([key, value]) => {
+    headers.set(key, value)
+  })
 
   const response = await app.fetch(
     new Request(`http://127.0.0.1${pathname}`, {
@@ -413,6 +421,10 @@ const requestJson = async ({ method = 'GET', path: pathname, body, token } = {})
   }
 }
 
+test.afterEach(() => {
+  loginRateLimiter.__unsafeResetForTests()
+})
+
 test('console api smoke: login route returns ok envelope', async () => {
   const response = await requestJson({
     method: 'POST',
@@ -426,6 +438,80 @@ test('console api smoke: login route returns ok envelope', async () => {
   assert.equal(response.status, 200)
   assert.equal(response.body.code, 0)
   assert.equal(response.body.data.user.username, 'smoke-admin')
+})
+
+test('console api smoke: login route rate limits repeated failures', async () => {
+  const ip = '203.0.113.10'
+  const requestWithBadPassword = () =>
+    requestJson({
+      method: 'POST',
+      path: '/api/admin/login',
+      body: {
+        username: 'smoke-admin',
+        password: 'bad-password'
+      },
+      headers: {
+        'x-forwarded-for': ip
+      }
+    })
+
+  const first = await requestWithBadPassword()
+  const second = await requestWithBadPassword()
+  const third = await requestWithBadPassword()
+
+  assert.equal(first.status, 400)
+  assert.equal(first.body.code, 1001)
+  assert.equal(second.status, 400)
+  assert.equal(second.body.code, 1001)
+  assert.equal(third.status, 429)
+  assert.equal(third.body.code, 1004)
+  assert.match(third.body.message, /登录尝试过于频繁/)
+})
+
+test('console api smoke: successful login clears previous failure counters', async () => {
+  const ip = '203.0.113.11'
+
+  const failed = await requestJson({
+    method: 'POST',
+    path: '/api/admin/login',
+    body: {
+      username: 'smoke-admin',
+      password: 'bad-password'
+    },
+    headers: {
+      'x-forwarded-for': ip
+    }
+  })
+
+  const success = await requestJson({
+    method: 'POST',
+    path: '/api/admin/login',
+    body: {
+      username: 'smoke-admin',
+      password: '123456'
+    },
+    headers: {
+      'x-forwarded-for': ip
+    }
+  })
+
+  const failedAgain = await requestJson({
+    method: 'POST',
+    path: '/api/admin/login',
+    body: {
+      username: 'smoke-admin',
+      password: 'bad-password'
+    },
+    headers: {
+      'x-forwarded-for': ip
+    }
+  })
+
+  assert.equal(failed.status, 400)
+  assert.equal(success.status, 200)
+  assert.equal(success.body.code, 0)
+  assert.equal(failedAgain.status, 400)
+  assert.equal(failedAgain.body.code, 1001)
 })
 
 test('console api smoke: admin routes reject missing token', async () => {

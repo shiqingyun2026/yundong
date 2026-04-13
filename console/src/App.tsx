@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import { AdminLayout } from './components/AdminLayout'
@@ -13,7 +15,7 @@ import { LoginPage } from './pages/LoginPage'
 import { OrderListPage } from './pages/OrderListPage'
 import { authStore } from './lib/auth'
 
-function SuperAdminRoute({ children }: { children: JSX.Element }) {
+function SuperAdminRoute({ children }: { children: ReactNode }) {
   const user = authStore.getUser()
 
   if (user?.role !== 'super_admin') {

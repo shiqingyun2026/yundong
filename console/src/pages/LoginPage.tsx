@@ -7,8 +7,8 @@ import type { LoginResponse } from '../types'
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const [username, setUsername] = useState('admin')
-  const [password, setPassword] = useState('admin123456')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -42,13 +42,20 @@ export function LoginPage() {
         <form className="login-form" onSubmit={handleSubmit}>
           <label>
             用户名
-            <input value={username} onChange={event => setUsername(event.target.value)} />
+            <input
+              autoComplete="username"
+              placeholder="请输入管理员用户名"
+              value={username}
+              onChange={event => setUsername(event.target.value)}
+            />
           </label>
 
           <label>
             密码
             <input
               type="password"
+              autoComplete="current-password"
+              placeholder="请输入登录密码"
               value={password}
               onChange={event => setPassword(event.target.value)}
             />

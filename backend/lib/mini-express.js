@@ -84,6 +84,15 @@ const createHeadersObject = headers =>
     return result
   }, {})
 
+const getClientIp = headers => {
+  const forwarded = `${headers.get('cf-connecting-ip') || headers.get('x-forwarded-for') || headers.get('x-real-ip') || ''}`
+    .split(',')
+    .map(item => item.trim())
+    .find(Boolean)
+
+  return forwarded || ''
+}
+
 const parseBody = async request => {
   const method = request.method.toUpperCase()
   if (method === 'GET' || method === 'HEAD') {
@@ -228,6 +237,7 @@ const createRouter = () => {
       path,
       query: Object.fromEntries(url.searchParams.entries()),
       headers: createHeadersObject(request.headers),
+      ip: getClientIp(request.headers),
       body: await parseBody(request),
       params: {},
       raw: request
