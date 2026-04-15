@@ -1,5 +1,23 @@
 const { fetchCourseDetail, fetchActiveGroup, createOrder, preparePayment, mockPaymentSuccess } = require('../../../utils/course')
 
+const invokeWechatPayment = paymentParams =>
+  new Promise((resolve, reject) => {
+    if (!wx.requestPayment) {
+      reject(new Error('当前微信版本不支持支付能力'))
+      return
+    }
+
+    wx.requestPayment({
+      ...(paymentParams || {}),
+      success(result) {
+        resolve(result || {})
+      },
+      fail(error) {
+        reject(error)
+      }
+    })
+  })
+
 Page({
   data: {
     courseId: '',
@@ -195,15 +213,28 @@ Page({
       }
 
       if (paymentPreparation && paymentPreparation.canUseRequestPayment) {
-        wx.showToast({
-          title: '真实支付通道待新 AppID 接入',
-          icon: 'none'
-        })
+        try {
+          await invokeWechatPayment((paymentPreparation && paymentPreparation.paymentParams) || {})
+          getApp().globalData.pendingOrder = null
+          this.navigateToPaymentResult('success', order.groupId || this.data.groupId)
+          return
+        } catch (paymentError) {
+          const message = `${paymentError && (paymentError.errMsg || paymentError.message || '')}`.toLowerCase()
 
-        this.safeSetData({
-          paying: false
-        })
-        return
+          if (message.includes('cancel')) {
+            wx.showToast({
+              title: '已取消支付',
+              icon: 'none'
+            })
+          } else {
+            wx.showToast({
+              title: '支付失败，请稍后重试',
+              icon: 'none'
+            })
+          }
+
+          return
+        }
       }
 
       const paymentResult = await mockPaymentSuccess({

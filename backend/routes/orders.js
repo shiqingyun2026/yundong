@@ -1,5 +1,6 @@
 const express = require('../lib/mini-express')
 
+const { env } = require('../config/env')
 const authenticate = require('../middleware/auth')
 const supabase = require('../utils/supabase')
 const { createPendingOrder, isServiceError } = require('../shared/services/groupOrders')
@@ -19,7 +20,7 @@ router.post('/', authenticate, async (req, res) => {
 
   try {
     const { group, order } = await createPendingOrder({
-      supabase,
+      supabase: env.useMySqlRepositories ? null : supabase,
       userId: req.userId,
       courseId,
       groupId
@@ -51,7 +52,7 @@ router.get('/:id', authenticate, async (req, res) => {
   try {
     return res.json(
       await getOrderPaymentStatus({
-        supabase,
+        supabase: env.useMySqlRepositories ? null : supabase,
         userId: req.userId,
         orderId: req.params.id
       })

@@ -1,4 +1,6 @@
 const supabase = require('./supabase')
+const { env } = require('../config/env')
+const { coursesRepository, groupsRepository, ordersRepository } = require('../repositories')
 const { writeAdminLog } = require('./adminStore')
 const { AUTO_REFUND_REASON } = require('../shared/constants/refunds')
 
@@ -90,6 +92,41 @@ const summarizeGroupsByCourse = groups => {
 }
 
 const markFailedCourseRefunds = async ({ course, groupIds = [], operatorId = null, now = new Date() }) => {
+  if (env.useMySqlRepositories) {
+    let failedGroupCount = 0
+    let refundedOrderCount = 0
+
+    if (groupIds.length) {
+      const updatedGroups = await groupsRepository.bulkUpdateGroupStatus({
+        groupIds,
+        status: 'failed'
+      })
+      failedGroupCount = updatedGroups.length
+    }
+
+    const orders = await ordersRepository.listOrders({
+      courseId: course.id,
+      statuses: ['pending', 'success']
+    })
+
+    for (const order of orders) {
+      await ordersRepository.updateOrder(order.id, {
+        status: 'refunded',
+        refund_time: now,
+        refund_reason: AUTO_REFUND_REASON,
+        refund_operator_id: operatorId,
+        updated_at: now
+      })
+    }
+
+    refundedOrderCount = orders.length
+
+    return {
+      failedGroupCount,
+      refundedOrderCount
+    }
+  }
+
   const timestamp = now.toISOString()
   let failedGroupCount = 0
   let refundedOrderCount = 0
@@ -141,6 +178,85 @@ const syncCourseLifecycle = async (courseIds = [], options = {}) => {
   }
 
   const now = options.now instanceof Date ? options.now : new Date()
+
+   if (env.useMySqlRepositories) {
+    const courses = await coursesRepository.findCoursesByIds(uniqueCourseIds)
+    const groups = await groupsRepository.listGroups({
+      courseIds: uniqueCourseIds
+    })
+    const groupSummaryByCourse = summarizeGroupsByCourse(groups || [])
+    const result = {}
+
+    for (const course of courses || []) {
+      const stats = groupSummaryByCourse[course.id] || {
+        successGroupCount: 0,
+        activeGroupIds: []
+      }
+
+      const nextStatus = computeCourseLifecycleStatus(course, stats, now)
+      const shouldAutoRefund = nextStatus === COURSE_STATUS.GROUP_FAILED && stats.successGroupCount === 0
+
+      if (shouldAutoRefund) {
+        const refundResult = await markFailedCourseRefunds({
+          course,
+          groupIds: stats.activeGroupIds,
+          operatorId: options.operatorId || null,
+          now
+        })
+
+        const didMutateRefundState =
+          Number(refundResult && refundResult.failedGroupCount) > 0 ||
+          Number(refundResult && refundResult.refundedOrderCount) > 0
+
+        if (options.operatorId && didMutateRefundState) {
+          await safeWriteAdminLog({
+            adminId: options.operatorId,
+            action: 'course_auto_refund',
+            targetType: 'course',
+            targetId: course.id,
+            detail: {
+              next_status: nextStatus,
+              active_group_ids: stats.activeGroupIds,
+              success_group_count: stats.successGroupCount,
+              refund_reason: AUTO_REFUND_REASON,
+              failed_group_count: Number(refundResult.failedGroupCount) || 0,
+              refunded_order_count: Number(refundResult.refundedOrderCount) || 0
+            },
+            ip: null
+          })
+        }
+      }
+
+      if (course.status !== nextStatus) {
+        await coursesRepository.updateCourseStatus(course.id, nextStatus, now)
+
+        if (options.operatorId) {
+          await safeWriteAdminLog({
+            adminId: options.operatorId,
+            action: 'course_status_sync',
+            targetType: 'course',
+            targetId: course.id,
+            detail: {
+              previous_status: course.status,
+              next_status: nextStatus,
+              success_group_count: stats.successGroupCount,
+              active_group_ids: stats.activeGroupIds
+            },
+            ip: null
+          })
+        }
+      }
+
+      result[course.id] = {
+        status: nextStatus,
+        successGroupCount: stats.successGroupCount,
+        activeGroupIds: stats.activeGroupIds
+      }
+    }
+
+    return result
+  }
+
   const { data: courses, error: courseError } = await supabase
     .from('courses')
     .select('id, publish_time, unpublish_time, deadline, start_time, end_time, status')
@@ -260,6 +376,12 @@ const getSingleCourseLifecycle = async (courseId, options = {}) => {
 }
 
 const syncAllCourseLifecycles = async (options = {}) => {
+  if (env.useMySqlRepositories) {
+    const courses = await coursesRepository.listCourses()
+    const courseIds = (courses || []).map(item => item.id).filter(Boolean)
+    return getCourseLifecycleMap(courseIds, options)
+  }
+
   const { data, error } = await supabase.from('courses').select('id')
 
   if (error) {

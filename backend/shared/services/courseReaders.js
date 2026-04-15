@@ -1,3 +1,5 @@
+const { env } = require('../../config/env')
+const { coursesRepository, groupsRepository } = require('../../repositories')
 const { COURSE_STATUS, getCourseLifecycleMap, getSingleCourseLifecycle } = require('../../utils/courseLifecycle')
 const {
   buildActiveGroupMap,
@@ -31,16 +33,22 @@ const fetchMiniProgramCourseList = async ({ supabase, page = 1, pageSize = 10, s
   const from = (safePage - 1) * safePageSize
   const to = from + safePageSize - 1
 
-  const { data: courses, error } = await supabase
-    .from('courses')
-    .select(
-      'id, cover, name, address, start_time, end_time, publish_time, unpublish_time, deadline, group_price, original_price, max_groups, status'
-    )
-    .order('start_time', { ascending: safeSort === 'time' })
+  const courses = env.useMySqlRepositories
+    ? await coursesRepository.listCourses()
+    : await (async () => {
+        const { data, error } = await supabase
+          .from('courses')
+          .select(
+            'id, cover, name, address, start_time, end_time, publish_time, unpublish_time, deadline, group_price, original_price, max_groups, status'
+          )
+          .order('start_time', { ascending: safeSort === 'time' })
 
-  if (error) {
-    throw error
-  }
+        if (error) {
+          throw error
+        }
+
+        return data || []
+      })()
 
   const courseIds = (courses || []).map(item => item.id).filter(Boolean)
   const lifecycleMap = await getCourseLifecycleMap(courseIds, {})
@@ -55,29 +63,48 @@ const fetchMiniProgramCourseList = async ({ supabase, page = 1, pageSize = 10, s
 
   if (pagedCourses.length) {
     const pagedCourseIds = pagedCourses.map(item => item.id).filter(Boolean)
-    const { data: groups, error: groupsError } = await supabase
-      .from('groups')
-      .select('id, course_id, expire_time, current_count, target_count')
-      .in('course_id', pagedCourseIds)
-      .eq('status', 'active')
-      .gt('expire_time', new Date().toISOString())
-      .order('expire_time', { ascending: false })
+    const groups = env.useMySqlRepositories
+      ? await groupsRepository.listGroups({
+          courseIds: pagedCourseIds,
+          statuses: ['active'],
+          afterExpireTime: new Date()
+        })
+      : await (async () => {
+          const { data, error } = await supabase
+            .from('groups')
+            .select('id, course_id, expire_time, current_count, target_count')
+            .in('course_id', pagedCourseIds)
+            .eq('status', 'active')
+            .gt('expire_time', new Date().toISOString())
+            .order('expire_time', { ascending: false })
 
-    if (groupsError) {
-      throw groupsError
-    }
+          if (error) {
+            throw error
+          }
+
+          return data || []
+        })()
 
     activeGroupMap = buildActiveGroupMap(groups || [])
 
-    const { data: successGroups, error: successGroupsError } = await supabase
-      .from('groups')
-      .select('course_id, current_count')
-      .in('course_id', pagedCourseIds)
-      .eq('status', 'success')
+    const successGroups = env.useMySqlRepositories
+      ? await groupsRepository.listGroups({
+          courseIds: pagedCourseIds,
+          statuses: ['success']
+        })
+      : await (async () => {
+          const { data, error } = await supabase
+            .from('groups')
+            .select('course_id, current_count')
+            .in('course_id', pagedCourseIds)
+            .eq('status', 'success')
 
-    if (successGroupsError) {
-      throw successGroupsError
-    }
+          if (error) {
+            throw error
+          }
+
+          return data || []
+        })()
 
     successStatsMap = summarizeSuccessGroupStats(successGroups || [])
   }
@@ -103,15 +130,21 @@ const fetchMiniProgramCourseList = async ({ supabase, page = 1, pageSize = 10, s
 }
 
 const fetchMiniProgramCourseDetail = async ({ supabase, courseId }) => {
-  const { data: course, error } = await supabase
-    .from('courses')
-    .select('*')
-    .eq('id', courseId)
-    .maybeSingle()
+  const course = env.useMySqlRepositories
+    ? await coursesRepository.findCourseById(courseId)
+    : await (async () => {
+        const { data, error } = await supabase
+          .from('courses')
+          .select('*')
+          .eq('id', courseId)
+          .maybeSingle()
 
-  if (error) {
-    throw error
-  }
+        if (error) {
+          throw error
+        }
+
+        return data
+      })()
 
   if (!course) {
     throw createNotFoundError('course not found')
@@ -122,44 +155,65 @@ const fetchMiniProgramCourseDetail = async ({ supabase, courseId }) => {
     throw createNotFoundError('course not found')
   }
 
-  const { data: activeGroup, error: activeGroupError } = await supabase
-    .from('groups')
-    .select('id, course_id, current_count, target_count, expire_time')
-    .eq('course_id', course.id)
-    .eq('status', 'active')
-    .gt('expire_time', new Date().toISOString())
-    .order('expire_time', { ascending: true })
-    .limit(1)
-    .maybeSingle()
+  const activeGroup = env.useMySqlRepositories
+    ? await groupsRepository.findActiveGroupByCourseId(course.id, new Date())
+    : await (async () => {
+        const { data, error } = await supabase
+          .from('groups')
+          .select('id, course_id, current_count, target_count, expire_time')
+          .eq('course_id', course.id)
+          .eq('status', 'active')
+          .gt('expire_time', new Date().toISOString())
+          .order('expire_time', { ascending: true })
+          .limit(1)
+          .maybeSingle()
 
-  if (activeGroupError) {
-    throw activeGroupError
-  }
+        if (error) {
+          throw error
+        }
 
-  const { data: successGroups, error: successGroupsError } = await supabase
-    .from('groups')
-    .select('id, current_count')
-    .eq('course_id', course.id)
-    .eq('status', 'success')
+        return data
+      })()
 
-  if (successGroupsError) {
-    throw successGroupsError
-  }
+  const successGroups = env.useMySqlRepositories
+    ? await groupsRepository.listGroups({
+        courseIds: [course.id],
+        statuses: ['success']
+      })
+    : await (async () => {
+        const { data, error } = await supabase
+          .from('groups')
+          .select('id, current_count')
+          .eq('course_id', course.id)
+          .eq('status', 'success')
+
+        if (error) {
+          throw error
+        }
+
+        return data || []
+      })()
 
   const completedGroupsCount = (successGroups || []).length
   const successJoinedCount = (successGroups || []).reduce((total, group) => {
     return total + (Number(group.current_count) || 0)
   }, 0)
 
-  const { data: groupList, error: groupListError } = await supabase
-    .from('groups')
-    .select('id, status, current_count, target_count, expire_time')
-    .eq('course_id', course.id)
-    .order('expire_time', { ascending: false })
+  const groupList = env.useMySqlRepositories
+    ? await groupsRepository.listGroupsByCourseId(course.id)
+    : await (async () => {
+        const { data, error } = await supabase
+          .from('groups')
+          .select('id, status, current_count, target_count, expire_time')
+          .eq('course_id', course.id)
+          .order('expire_time', { ascending: false })
 
-  if (groupListError) {
-    throw groupListError
-  }
+        if (error) {
+          throw error
+        }
+
+        return data || []
+      })()
 
   return {
     ...mapCourseDetail(
@@ -174,15 +228,21 @@ const fetchMiniProgramCourseDetail = async ({ supabase, courseId }) => {
 }
 
 const fetchMiniProgramCourseActiveGroup = async ({ supabase, courseId, userId = '' }) => {
-  const { data: course, error: courseError } = await supabase
-    .from('courses')
-    .select('id')
-    .eq('id', courseId)
-    .maybeSingle()
+  const course = env.useMySqlRepositories
+    ? await coursesRepository.findCourseById(courseId)
+    : await (async () => {
+        const { data, error } = await supabase
+          .from('courses')
+          .select('id')
+          .eq('id', courseId)
+          .maybeSingle()
 
-  if (courseError) {
-    throw courseError
-  }
+        if (error) {
+          throw error
+        }
+
+        return data
+      })()
 
   if (!course) {
     return null
@@ -193,35 +253,45 @@ const fetchMiniProgramCourseActiveGroup = async ({ supabase, courseId, userId = 
     return null
   }
 
-  let { data: group, error } = await supabase
-    .from('groups')
-    .select('id, course_id, current_count, target_count, expire_time, status')
-    .eq('course_id', courseId)
-    .eq('status', 'active')
-    .gt('expire_time', new Date().toISOString())
-    .order('expire_time', { ascending: true })
-    .limit(1)
-    .maybeSingle()
+  let group = env.useMySqlRepositories
+    ? await groupsRepository.findActiveGroupByCourseId(courseId, new Date())
+    : await (async () => {
+        const { data, error } = await supabase
+          .from('groups')
+          .select('id, course_id, current_count, target_count, expire_time, status')
+          .eq('course_id', courseId)
+          .eq('status', 'active')
+          .gt('expire_time', new Date().toISOString())
+          .order('expire_time', { ascending: true })
+          .limit(1)
+          .maybeSingle()
 
-  if (error) {
-    throw error
-  }
+        if (error) {
+          throw error
+        }
+
+        return data
+      })()
 
   if (!group) {
-    const { data: latestGroup, error: latestGroupError } = await supabase
-      .from('groups')
-      .select('id, course_id, current_count, target_count, expire_time, status')
-      .eq('course_id', courseId)
-      .in('status', ['success', 'failed'])
-      .order('expire_time', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+    group = env.useMySqlRepositories
+      ? (await groupsRepository.listGroupsByCourseId(courseId)).find(item => item.status === 'success' || item.status === 'failed') || null
+      : await (async () => {
+          const { data, error } = await supabase
+            .from('groups')
+            .select('id, course_id, current_count, target_count, expire_time, status')
+            .eq('course_id', courseId)
+            .in('status', ['success', 'failed'])
+            .order('expire_time', { ascending: false })
+            .limit(1)
+            .maybeSingle()
 
-    if (latestGroupError) {
-      throw latestGroupError
-    }
+          if (error) {
+            throw error
+          }
 
-    group = latestGroup
+          return data
+        })()
   }
 
   if (!group) {

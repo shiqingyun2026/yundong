@@ -1,6 +1,9 @@
 const crypto = require('crypto')
 
 const supabase = require('./supabase')
+const { env } = require('../config/env')
+const adminUsersRepository = require('../repositories/adminUsersRepository')
+const adminLogRepository = require('../repositories/adminLogRepository')
 
 let adminUsersTableState = null
 let adminLogTableState = null
@@ -15,6 +18,7 @@ const getBootstrapAdmin = () => ({
 })
 
 const buildInternalAdminEmail = username => `${username}@admin.local`
+const isMySqlRepositoryMode = () => env.useMySqlRepositories
 
 const isTableMissingError = error => error && error.code === 'PGRST205'
 const isColumnMissingError = error => error && (error.code === 'PGRST204' || error.code === '42703')
@@ -56,6 +60,10 @@ const detectTable = async tableName => {
 }
 
 const hasAdminUsersTable = async () => {
+  if (isMySqlRepositoryMode()) {
+    return true
+  }
+
   if (adminUsersTableState !== null) {
     return adminUsersTableState
   }
@@ -65,6 +73,10 @@ const hasAdminUsersTable = async () => {
 }
 
 const hasAdminLogTable = async () => {
+  if (isMySqlRepositoryMode()) {
+    return true
+  }
+
   if (adminLogTableState !== null) {
     return adminLogTableState
   }
@@ -74,6 +86,10 @@ const hasAdminLogTable = async () => {
 }
 
 const hasAdminPasswordColumn = async () => {
+  if (isMySqlRepositoryMode()) {
+    return true
+  }
+
   if (adminPasswordColumnState !== null) {
     return adminPasswordColumnState
   }
@@ -118,6 +134,16 @@ const listAdmins = async ({ keyword = '', role = '', status = '', from = 0, to =
     }
   }
 
+  if (isMySqlRepositoryMode()) {
+    return adminUsersRepository.listAdmins({
+      keyword,
+      role,
+      status,
+      from,
+      size: Math.max(0, to - from + 1)
+    })
+  }
+
   let query = supabase
     .from('admin_users')
     .select('id, username, role, status, last_login, created_at', { count: 'exact' })
@@ -154,6 +180,16 @@ const findAdminByUsername = async username => {
     return username === fallbackAdmin.username ? fallbackAdmin : null
   }
 
+  if (isMySqlRepositoryMode()) {
+    const admin = await adminUsersRepository.findAdminByUsername(username)
+    return admin
+      ? {
+          ...admin,
+          password: fallbackAdmin.password
+        }
+      : null
+  }
+
   const { data, error } = await supabase
     .from('admin_users')
     .select('*')
@@ -175,6 +211,24 @@ const findAdminByUsername = async username => {
 }
 
 const createAdmin = async ({ username, password, role = 'admin' }) => {
+  if (isMySqlRepositoryMode()) {
+    const existing = await adminUsersRepository.findAdminByUsername(username)
+    if (existing) {
+      const error = new Error('账号已存在')
+      error.code = 'ADMIN_EXISTS'
+      throw error
+    }
+
+    return adminUsersRepository.createAdmin({
+      email: buildInternalAdminEmail(username),
+      username,
+      passwordHash: hashPassword(password),
+      passwordUpdatedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      role,
+      status: 'active'
+    })
+  }
+
   const { data: existing, error: existingError } = await supabase
     .from('admin_users')
     .select('id')
@@ -221,6 +275,10 @@ const createAdmin = async ({ username, password, role = 'admin' }) => {
 }
 
 const countActiveSuperAdmins = async () => {
+  if (isMySqlRepositoryMode()) {
+    return adminUsersRepository.countActiveSuperAdmins()
+  }
+
   const { count, error } = await supabase
     .from('admin_users')
     .select('id', { count: 'exact', head: true })
@@ -235,6 +293,39 @@ const countActiveSuperAdmins = async () => {
 }
 
 const updateAdmin = async (id, { password, role, status }) => {
+  if (isMySqlRepositoryMode()) {
+    const existing = await adminUsersRepository.findAdminById(id)
+
+    if (!existing) {
+      const error = new Error('账号不存在')
+      error.code = 'ADMIN_NOT_FOUND'
+      throw error
+    }
+
+    if (existing.role === 'super_admin' && role && role !== 'super_admin' && (await countActiveSuperAdmins()) <= 1) {
+      const error = new Error('至少保留一个超级管理员账号')
+      error.code = 'LAST_SUPER_ADMIN'
+      throw error
+    }
+
+    if (existing.role === 'super_admin' && status === 'disabled' && (await countActiveSuperAdmins()) <= 1) {
+      const error = new Error('至少保留一个超级管理员账号')
+      error.code = 'LAST_SUPER_ADMIN'
+      throw error
+    }
+
+    return adminUsersRepository.updateAdmin(id, {
+      role,
+      status,
+      ...(password
+        ? {
+            passwordHash: hashPassword(password),
+            passwordUpdatedAt: new Date().toISOString().slice(0, 19).replace('T', ' ')
+          }
+        : {})
+    })
+  }
+
   const { data: existing, error: existingError } = await supabase
     .from('admin_users')
     .select('*')
@@ -295,6 +386,25 @@ const updateAdmin = async (id, { password, role, status }) => {
 }
 
 const deleteAdmin = async id => {
+  if (isMySqlRepositoryMode()) {
+    const existing = await adminUsersRepository.findAdminById(id)
+
+    if (!existing) {
+      const error = new Error('账号不存在')
+      error.code = 'ADMIN_NOT_FOUND'
+      throw error
+    }
+
+    if (existing.role === 'super_admin' && (await countActiveSuperAdmins()) <= 1) {
+      const error = new Error('至少保留一个超级管理员账号')
+      error.code = 'LAST_SUPER_ADMIN'
+      throw error
+    }
+
+    await adminUsersRepository.deleteAdmin(id)
+    return
+  }
+
   const { data: existing, error: existingError } = await supabase
     .from('admin_users')
     .select('id, role')
@@ -325,6 +435,11 @@ const deleteAdmin = async id => {
 }
 
 const touchAdminLogin = async adminId => {
+  if (isMySqlRepositoryMode()) {
+    await adminUsersRepository.touchAdminLogin(adminId)
+    return
+  }
+
   if (!(await hasAdminUsersTable())) {
     return
   }
@@ -343,6 +458,18 @@ const touchAdminLogin = async adminId => {
 }
 
 const writeAdminLog = async ({ adminId, action, targetType = '', targetId = '', detail = {}, ip = null }) => {
+  if (isMySqlRepositoryMode()) {
+    await adminLogRepository.createAdminLog({
+      adminId,
+      action,
+      targetType,
+      targetId,
+      detail,
+      ip
+    })
+    return
+  }
+
   if (!(await hasAdminLogTable())) {
     return
   }
@@ -362,6 +489,47 @@ const writeAdminLog = async ({ adminId, action, targetType = '', targetId = '', 
 }
 
 const ensureBootstrapAdmin = async () => {
+  if (isMySqlRepositoryMode()) {
+    const fallbackAdmin = getBootstrapAdmin()
+    const existing = await adminUsersRepository.findAdminByUsername(fallbackAdmin.username)
+
+    if (existing) {
+      await adminUsersRepository.updateAdmin(existing.id, {
+        email: buildInternalAdminEmail(fallbackAdmin.username),
+        role: fallbackAdmin.role,
+        status: fallbackAdmin.status,
+        passwordHash: hashPassword(fallbackAdmin.password),
+        passwordUpdatedAt: new Date().toISOString().slice(0, 19).replace('T', ' ')
+      })
+
+      return {
+        mode: 'updated',
+        admin: {
+          ...fallbackAdmin,
+          id: existing.id
+        }
+      }
+    }
+
+    const created = await adminUsersRepository.createAdmin({
+      id: fallbackAdmin.id === '00000000-0000-0000-0000-000000000001' ? crypto.randomUUID() : fallbackAdmin.id,
+      email: buildInternalAdminEmail(fallbackAdmin.username),
+      username: fallbackAdmin.username,
+      role: fallbackAdmin.role,
+      status: fallbackAdmin.status,
+      passwordHash: hashPassword(fallbackAdmin.password),
+      passwordUpdatedAt: new Date().toISOString().slice(0, 19).replace('T', ' ')
+    })
+
+    return {
+      mode: 'created',
+      admin: {
+        ...fallbackAdmin,
+        id: created.id
+      }
+    }
+  }
+
   if (!(await hasAdminUsersTable())) {
     return {
       mode: 'fallback',

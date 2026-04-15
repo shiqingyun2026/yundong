@@ -1,4 +1,7 @@
 const jwt = require('jsonwebtoken')
+const { env } = require('../../config/env')
+const usersRepository = require('../../repositories/usersRepository')
+const { exchangeCodeForSession } = require('./wechatMiniProgram')
 
 const resolveMiniProgramOpenId = ({ code, mockOpenId, openId }) => {
   if (openId) {
@@ -16,18 +19,68 @@ const resolveMiniProgramOpenId = ({ code, mockOpenId, openId }) => {
   return ''
 }
 
+const shouldUseWechatCodeExchange = ({ mockOpenId, openId }) => !mockOpenId && !openId
+
+const resolveWechatIdentity = async ({ code, mockOpenId, openId }) => {
+  if (shouldUseWechatCodeExchange({ mockOpenId, openId })) {
+    const session = await exchangeCodeForSession(code)
+    return {
+      openId: session.openId,
+      unionId: session.unionId,
+      sessionKey: session.sessionKey
+    }
+  }
+
+  return {
+    openId: resolveMiniProgramOpenId({
+      code,
+      mockOpenId,
+      openId
+    }),
+    unionId: '',
+    sessionKey: ''
+  }
+}
+
 const loginMiniProgramUser = async ({ supabase, code, mockOpenId, openId }) => {
-  const resolvedOpenId = resolveMiniProgramOpenId({
+  const wechatIdentity = await resolveWechatIdentity({
     code,
     mockOpenId,
     openId
   })
+  const resolvedOpenId = `${wechatIdentity.openId || ''}`.trim()
 
   if (!resolvedOpenId) {
     const error = new Error('code is required')
     error.statusCode = 400
     error.code = 400
     throw error
+  }
+
+  if (env.useMySqlRepositories) {
+    let user = await usersRepository.findUserByOpenId(resolvedOpenId)
+
+    if (!user) {
+      user = await usersRepository.createUser({
+        openid: resolvedOpenId,
+        nickname: '微信用户',
+        avatarUrl: ''
+      })
+    }
+
+    const token = jwt.sign(
+      { userId: user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    )
+
+    return {
+      token,
+      userInfo: {
+        nickName: user.nickname || '微信用户',
+        avatarUrl: user.avatar_url || ''
+      }
+    }
   }
 
   const { data: existingUser, error: queryError } = await supabase
@@ -77,5 +130,6 @@ const loginMiniProgramUser = async ({ supabase, code, mockOpenId, openId }) => {
 
 module.exports = {
   loginMiniProgramUser,
-  resolveMiniProgramOpenId
+  resolveMiniProgramOpenId,
+  resolveWechatIdentity
 }

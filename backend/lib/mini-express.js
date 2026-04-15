@@ -96,28 +96,46 @@ const getClientIp = headers => {
 const parseBody = async request => {
   const method = request.method.toUpperCase()
   if (method === 'GET' || method === 'HEAD') {
-    return undefined
+    return {
+      body: undefined,
+      rawBody: ''
+    }
   }
 
   const contentType = `${request.headers.get('content-type') || ''}`.toLowerCase()
   const raw = await request.text()
   if (!raw) {
-    return undefined
+    return {
+      body: undefined,
+      rawBody: ''
+    }
   }
 
   if (contentType.includes('application/json')) {
     try {
-      return JSON.parse(raw)
+      return {
+        body: JSON.parse(raw),
+        rawBody: raw
+      }
     } catch (error) {
-      return undefined
+      return {
+        body: undefined,
+        rawBody: raw
+      }
     }
   }
 
   if (contentType.includes('application/x-www-form-urlencoded')) {
-    return Object.fromEntries(new URLSearchParams(raw).entries())
+    return {
+      body: Object.fromEntries(new URLSearchParams(raw).entries()),
+      rawBody: raw
+    }
   }
 
-  return raw
+  return {
+    body: raw,
+    rawBody: raw
+  }
 }
 
 const createResponseToolkit = () => {
@@ -231,6 +249,8 @@ const createRouter = () => {
       })
     }
 
+    const parsedBody = await parseBody(request)
+
     const req = {
       method: request.method.toUpperCase(),
       url: request.url,
@@ -238,7 +258,8 @@ const createRouter = () => {
       query: Object.fromEntries(url.searchParams.entries()),
       headers: createHeadersObject(request.headers),
       ip: getClientIp(request.headers),
-      body: await parseBody(request),
+      body: parsedBody.body,
+      rawBody: parsedBody.rawBody,
       params: {},
       raw: request
     }

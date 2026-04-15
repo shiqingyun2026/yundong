@@ -1,8 +1,18 @@
+const { env } = require('../../config/env')
+const { groupsRepository, ordersRepository } = require('../../repositories')
+
 const listPendingOrderIdsForCourse = async ({
   supabase,
   userId,
   courseId
 }) => {
+  if (env.useMySqlRepositories) {
+    return ordersRepository.listPendingOrderIdsByUserAndCourse({
+      userId,
+      courseId
+    })
+  }
+
   const { data: pendingOrders, error: pendingOrdersError } = await supabase
     .from('orders')
     .select('id')
@@ -22,6 +32,13 @@ const closePendingOrdersByIds = async ({
   orderIds,
   now = new Date()
 }) => {
+  if (env.useMySqlRepositories) {
+    return ordersRepository.closeOrdersByIds({
+      orderIds,
+      now
+    })
+  }
+
   const ids = [...new Set((orderIds || []).filter(Boolean))]
   if (!ids.length) {
     return []
@@ -50,6 +67,59 @@ const cleanupExpiredActiveGroupsForCourse = async ({
   courseId,
   now = new Date()
 }) => {
+  if (env.useMySqlRepositories) {
+    const expiredGroups = await groupsRepository.listGroups({
+      courseIds: [courseId],
+      statuses: ['active'],
+      beforeExpireTime: now
+    })
+
+    const groupIds = expiredGroups.map(item => item.id).filter(Boolean)
+    if (!groupIds.length) {
+      return {
+        groupIds: [],
+        paidOrders: []
+      }
+    }
+
+    await groupsRepository.bulkUpdateGroupStatus({
+      groupIds,
+      status: 'failed'
+    })
+
+    await ordersRepository.closeOrdersByIds({
+      orderIds: (
+        await Promise.all(
+          groupIds.map(groupId =>
+            ordersRepository.listOrdersByGroupId({
+              groupId,
+              status: 'pending'
+            })
+          )
+        )
+      )
+        .flat()
+        .map(item => item.id),
+      now
+    })
+
+    const paidOrders = (
+      await Promise.all(
+        groupIds.map(groupId =>
+          ordersRepository.listOrdersByGroupId({
+            groupId,
+            status: 'success'
+          })
+        )
+      )
+    ).flat()
+
+    return {
+      groupIds,
+      paidOrders
+    }
+  }
+
   const timestamp = now.toISOString()
   const { data: expiredGroups, error: expiredGroupsError } = await supabase
     .from('groups')
@@ -108,6 +178,13 @@ const cleanupExpiredActiveGroupsForCourse = async ({
 }
 
 const getOrderForUser = async ({ supabase, userId, orderId }) => {
+  if (env.useMySqlRepositories) {
+    return ordersRepository.findOrderForUser({
+      userId,
+      orderId
+    })
+  }
+
   const { data: order, error: orderQueryError } = await supabase
     .from('orders')
     .select('id, user_id, course_id, group_id, status, pay_time')

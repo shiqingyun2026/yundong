@@ -1,5 +1,6 @@
 const express = require('../lib/mini-express')
 
+const { env } = require('../config/env')
 const supabase = require('../utils/supabase')
 const { loginMiniProgramUser } = require('../shared/services/miniProgramAuth')
 
@@ -17,7 +18,7 @@ router.post('/login', async (req, res) => {
   try {
     return res.json(
       await loginMiniProgramUser({
-        supabase,
+        supabase: env.useMySqlRepositories ? null : supabase,
         code,
         mockOpenId
       })

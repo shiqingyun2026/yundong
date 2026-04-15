@@ -1,10 +1,12 @@
 const express = require('../lib/mini-express')
 
+const { env } = require('../config/env')
 const authenticate = require('../middleware/auth')
 const supabase = require('../utils/supabase')
 const { isServiceError, markOrderPaymentSuccess } = require('../shared/services/groupOrders')
 const { normalizeGroupStatus } = require('../shared/domain/groupRules')
 const { prepareOrderPayment, handleWechatPaymentCallback, markPaymentRecordPaid } = require('../shared/services/paymentShell')
+const { verifyWechatPayCallbackSignature } = require('../shared/services/wechatMiniProgram')
 
 const router = express.Router()
 
@@ -20,7 +22,7 @@ router.post('/prepare', authenticate, async (req, res) => {
   try {
     return res.json(
       await prepareOrderPayment({
-        supabase,
+        supabase: env.useMySqlRepositories ? null : supabase,
         userId: req.userId,
         orderId
       })
@@ -48,14 +50,14 @@ router.post('/mock-success', authenticate, async (req, res) => {
 
   try {
     const result = await markOrderPaymentSuccess({
-      supabase,
+      supabase: env.useMySqlRepositories ? null : supabase,
       userId: req.userId,
       orderId,
       groupId
     })
 
     await markPaymentRecordPaid({
-      supabase,
+      supabase: env.useMySqlRepositories ? null : supabase,
       orderId
     })
 
@@ -82,13 +84,28 @@ router.post('/mock-success', authenticate, async (req, res) => {
 
 router.post('/notify/wechat', async (req, res) => {
   try {
+    const signatureVerified = verifyWechatPayCallbackSignature({
+      timestamp: req.headers['wechatpay-timestamp'],
+      nonce: req.headers['wechatpay-nonce'],
+      signature: req.headers['wechatpay-signature'],
+      rawBody: req.rawBody || ''
+    })
+
+    if (!signatureVerified) {
+      return res.status(401).json({
+        code: 'FAIL',
+        message: 'invalid wechatpay signature'
+      })
+    }
+
     const result = await handleWechatPaymentCallback({
-      supabase,
+      supabase: env.useMySqlRepositories ? null : supabase,
       payload: req.body || {}
     })
 
     return res.json({
-      ok: true,
+      code: 'SUCCESS',
+      message: '成功',
       ...result
     })
   } catch (error) {
@@ -97,6 +114,7 @@ router.post('/notify/wechat', async (req, res) => {
       error
     })
     return res.status(isServiceError(error) ? error.status : 500).json({
+      code: 'FAIL',
       message: error.message || 'failed to process payment callback'
     })
   }

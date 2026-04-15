@@ -7,7 +7,7 @@ const ENV_API_BASE_URLS = {
 const ENV_API_TRANSPORTS = {
   develop: 'container',
   trial: 'container',
-  release: 'http'
+  release: 'container'
 }
 
 const CLOUD_ENV_PLACEHOLDER = 'TODO_WECHAT_CLOUD_ENV'
@@ -33,6 +33,7 @@ const ENV_CLOUD_LOCATION_FUNCTION_NAMES = {
 }
 
 const SUBSCRIBE_TEMPLATE_PLACEHOLDER = 'TODO_GROUP_RESULT_TEMPLATE_ID'
+const RELEASE_GROUP_RESULT_TEMPLATE_ID = SUBSCRIBE_TEMPLATE_PLACEHOLDER
 const ENV_SUBSCRIBE_TEMPLATE_IDS = {
   develop: {
     groupResult: SUBSCRIBE_TEMPLATE_PLACEHOLDER
@@ -41,7 +42,7 @@ const ENV_SUBSCRIBE_TEMPLATE_IDS = {
     groupResult: SUBSCRIBE_TEMPLATE_PLACEHOLDER
   },
   release: {
-    groupResult: SUBSCRIBE_TEMPLATE_PLACEHOLDER
+    groupResult: RELEASE_GROUP_RESULT_TEMPLATE_ID
   }
 }
 
@@ -105,6 +106,7 @@ module.exports = {
   ENV_CLOUD_LOCATION_FUNCTION_NAMES,
   ENV_SUBSCRIBE_TEMPLATE_IDS,
   SUBSCRIBE_TEMPLATE_PLACEHOLDER,
+  RELEASE_GROUP_RESULT_TEMPLATE_ID,
   getMiniProgramEnvVersion,
   resolveBaseURLByEnv,
   resolveApiTransportByEnv,

@@ -1,9 +1,4 @@
-const ACCESS_TOKEN_BUFFER_MS = 60 * 1000
-
-let accessTokenCache = {
-  token: '',
-  expiresAt: 0
-}
+const { getWechatAccessToken, fetchJson } = require('./wechatMiniProgram')
 
 const readRequiredEnv = key => {
   const value = `${process.env[key] || ''}`.trim()
@@ -39,46 +34,6 @@ const parseTemplateFieldMap = () => {
   }
 
   return normalized
-}
-
-const fetchJson = async (url, options) => {
-  const response = await fetch(url, options)
-  const payload = await response.json()
-
-  if (!response.ok) {
-    throw new Error(`wechat request failed: ${response.status}`)
-  }
-
-  return payload
-}
-
-const getWechatAccessToken = async () => {
-  const now = Date.now()
-  if (accessTokenCache.token && accessTokenCache.expiresAt - ACCESS_TOKEN_BUFFER_MS > now) {
-    return accessTokenCache.token
-  }
-
-  const appId = readRequiredEnv('WX_MINIPROGRAM_APP_ID')
-  const appSecret = readRequiredEnv('WX_MINIPROGRAM_APP_SECRET')
-  const url = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${encodeURIComponent(appId)}&secret=${encodeURIComponent(appSecret)}`
-  const payload = await fetchJson(url, {
-    method: 'GET'
-  })
-
-  if (!payload || payload.errcode) {
-    throw new Error((payload && payload.errmsg) || 'failed to fetch wechat access token')
-  }
-
-  accessTokenCache = {
-    token: payload.access_token || '',
-    expiresAt: now + (Number(payload.expires_in) || 0) * 1000
-  }
-
-  if (!accessTokenCache.token) {
-    throw new Error('wechat access token missing')
-  }
-
-  return accessTokenCache.token
 }
 
 const buildPagePath = pagePath => {

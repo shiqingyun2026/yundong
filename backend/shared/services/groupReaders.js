@@ -1,3 +1,5 @@
+const { env } = require('../../config/env')
+const { coursesRepository, groupMembersRepository, groupsRepository, usersRepository } = require('../../repositories')
 const { getCourseLifecycleMap, getSingleCourseLifecycle } = require('../../utils/courseLifecycle')
 const { mapGroupDetailResponse, mapGroupMembers, mapUserGroupListItem } = require('../presenters/groupView')
 
@@ -33,6 +35,14 @@ const fetchUsersByIds = async ({ supabase, userIds }) => {
     return {}
   }
 
+  if (env.useMySqlRepositories) {
+    const users = await usersRepository.listUsersByIds(ids)
+    return (users || []).reduce((result, user) => {
+      result[user.id] = user
+      return result
+    }, {})
+  }
+
   const { data: users, error: usersError } = await supabase
     .from('users')
     .select('id, nickname, avatar_url')
@@ -49,6 +59,20 @@ const fetchUsersByIds = async ({ supabase, userIds }) => {
 }
 
 const fetchGroupMembers = async ({ supabase, groupId }) => {
+  if (env.useMySqlRepositories) {
+    const memberRows = await groupMembersRepository.listGroupMembers({
+      groupId
+    })
+
+    const userIds = memberRows.map(item => item.user_id).filter(Boolean)
+    const usersById = await fetchUsersByIds({
+      supabase,
+      userIds
+    })
+
+    return mapGroupMembers(memberRows, usersById)
+  }
+
   const { data: memberRows, error: memberRowsError } = await supabase
     .from('group_members')
     .select('user_id')
@@ -70,6 +94,15 @@ const fetchGroupMembers = async ({ supabase, groupId }) => {
 const hasGroupMembership = async ({ supabase, groupId, userId }) => {
   if (!groupId || !userId) {
     return false
+  }
+
+  if (env.useMySqlRepositories) {
+    const membership = await groupMembersRepository.findMembership({
+      groupId,
+      userId
+    })
+
+    return !!membership
   }
 
   const { data: membership, error } = await supabase
@@ -97,15 +130,21 @@ const fetchMiniProgramGroupDetail = async ({ supabase, groupId, userId }) => {
     throw createForbiddenError('You are not a member of this group')
   }
 
-  const { data: group, error: groupError } = await supabase
-    .from('groups')
-    .select('id, course_id, status, current_count, target_count, expire_time')
-    .eq('id', groupId)
-    .maybeSingle()
+  const group = env.useMySqlRepositories
+    ? await groupsRepository.findGroupById(groupId)
+    : await (async () => {
+        const { data, error } = await supabase
+          .from('groups')
+          .select('id, course_id, status, current_count, target_count, expire_time')
+          .eq('id', groupId)
+          .maybeSingle()
 
-  if (groupError) {
-    throw groupError
-  }
+        if (error) {
+          throw error
+        }
+
+        return data
+      })()
 
   if (!group) {
     throw createNotFoundError('group not found')
@@ -116,15 +155,21 @@ const fetchMiniProgramGroupDetail = async ({ supabase, groupId, userId }) => {
     groupId: group.id
   })
 
-  const { data: course, error: courseError } = await supabase
-    .from('courses')
-    .select('id, name, cover, address, start_time, group_price, original_price')
-    .eq('id', group.course_id)
-    .maybeSingle()
+  const course = env.useMySqlRepositories
+    ? await coursesRepository.findCourseById(group.course_id)
+    : await (async () => {
+        const { data, error } = await supabase
+          .from('courses')
+          .select('id, name, cover, address, start_time, group_price, original_price')
+          .eq('id', group.course_id)
+          .maybeSingle()
 
-  if (courseError) {
-    throw courseError
-  }
+        if (error) {
+          throw error
+        }
+
+        return data
+      })()
 
   if (!course) {
     throw createNotFoundError('course not found')
@@ -148,24 +193,66 @@ const fetchMiniProgramUserGroupList = async ({ supabase, userId, status, page = 
   const from = (safePage - 1) * safePageSize
   const to = from + safePageSize - 1
 
-  let query = supabase
-    .from('group_members')
-    .select(
-      'group_id, joined_at, groups!inner(id, course_id, status, current_count, target_count, expire_time, courses!inner(id, cover, name, address, start_time))',
-      { count: 'exact' }
-    )
-    .eq('user_id', userId)
-    .order('joined_at', { ascending: false })
-    .range(from, to)
+  let data = []
+  let count = 0
 
-  if (normalizedStatus) {
-    query = query.eq('groups.status', normalizedStatus)
-  }
+  if (env.useMySqlRepositories) {
+    const memberships = await groupMembersRepository.listGroupMembers({
+      userId
+    })
+    const groupIds = memberships.map(item => item.group_id).filter(Boolean)
+    const groups = await groupsRepository.listGroups({
+      statuses: normalizedStatus ? [normalizedStatus] : []
+    })
+    const groupById = groups.reduce((result, item) => {
+      if (groupIds.includes(item.id)) {
+        result[item.id] = item
+      }
+      return result
+    }, {})
 
-  const { data, count, error } = await query
+    const filteredMemberships = memberships.filter(item => groupById[item.group_id])
+    count = filteredMemberships.length
 
-  if (error) {
-    throw error
+    const pagedMemberships = filteredMemberships.slice(from, to + 1)
+    const courseIds = [...new Set(pagedMemberships.map(item => (groupById[item.group_id] && groupById[item.group_id].course_id) || '').filter(Boolean))]
+    const courses = await coursesRepository.findCoursesByIds(courseIds)
+    const courseById = courses.reduce((result, item) => {
+      result[item.id] = item
+      return result
+    }, {})
+
+    data = pagedMemberships.map(item => ({
+      group_id: item.group_id,
+      joined_at: item.joined_at,
+      groups: {
+        ...groupById[item.group_id],
+        courses: courseById[(groupById[item.group_id] && groupById[item.group_id].course_id) || ''] || null
+      }
+    }))
+  } else {
+    let query = supabase
+      .from('group_members')
+      .select(
+        'group_id, joined_at, groups!inner(id, course_id, status, current_count, target_count, expire_time, courses!inner(id, cover, name, address, start_time))',
+        { count: 'exact' }
+      )
+      .eq('user_id', userId)
+      .order('joined_at', { ascending: false })
+      .range(from, to)
+
+    if (normalizedStatus) {
+      query = query.eq('groups.status', normalizedStatus)
+    }
+
+    const response = await query
+
+    if (response.error) {
+      throw response.error
+    }
+
+    data = response.data || []
+    count = response.count || 0
   }
 
   const courseIds = (data || [])

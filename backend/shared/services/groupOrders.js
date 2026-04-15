@@ -1,3 +1,5 @@
+const { env } = require('../../config/env')
+const { coursesRepository, groupMembersRepository, groupsRepository, ordersRepository } = require('../../repositories')
 const { COURSE_STATUS, getSingleCourseLifecycle, safeDate } = require('../../utils/courseLifecycle')
 const {
   applyPaymentToGroup,
@@ -53,6 +55,114 @@ const createPendingOrder = async ({
   now = new Date(),
   getCourseLifecycle = getSingleCourseLifecycle
 }) => {
+  if (env.useMySqlRepositories) {
+    const course = await coursesRepository.findCourseById(courseId)
+
+    if (!course) {
+      throw createServiceError(404, 'course not found')
+    }
+
+    const unpublishAt = safeDate(course.unpublish_time)
+    if (unpublishAt && unpublishAt.getTime() <= now.getTime()) {
+      throw createServiceError(400, '当前课程已下架')
+    }
+
+    const pendingOrderIdsToClose = await listPendingOrderIdsForCourse({
+      supabase,
+      userId,
+      courseId
+    })
+
+    await cleanupExpiredGroupsAndEnqueueFailedNotifications({
+      supabase,
+      courseId,
+      now
+    })
+
+    const lifecycle = await getCourseLifecycle(courseId)
+    if (lifecycle.status !== COURSE_STATUS.GROUPING) {
+      throw createServiceError(400, '当前课程不在可拼团状态')
+    }
+
+    const userHasJoinedCourseGroup = await hasUserJoinedCourseGroup({
+      supabase,
+      userId,
+      courseId
+    })
+
+    if (userHasJoinedCourseGroup) {
+      throw createServiceError(400, '你已参加过该课程的拼团，不能重复参加')
+    }
+
+    let finalGroup = null
+
+    if (groupId) {
+      const existingGroup = await groupsRepository.findGroupById(groupId)
+
+      if (!existingGroup) {
+        throw createServiceError(404, 'group not found')
+      }
+
+      if (existingGroup.course_id !== courseId) {
+        throw createServiceError(400, 'group does not belong to the course')
+      }
+
+      if (!isGroupJoinable(existingGroup, now)) {
+        throw createServiceError(400, 'group is not active')
+      }
+
+      finalGroup = existingGroup
+    } else {
+      const activeGroup = await groupsRepository.findActiveGroupByCourseId(courseId, now)
+
+      if (activeGroup) {
+        throw createServiceError(400, '当前课程还有进行中的拼团，请先完成')
+      }
+
+      const successGroups = await groupsRepository.listGroups({
+        courseIds: [courseId],
+        statuses: ['success']
+      })
+
+      if (successGroups.length >= (Number(course.max_groups) || 0)) {
+        throw createServiceError(400, '该课程已达开团上限')
+      }
+
+      if (!course.deadline) {
+        throw createServiceError(400, '当前课程未配置报名截止时间，无法创建拼团')
+      }
+
+      const targetCount = Number(course.default_target_count) || 2
+      finalGroup = await groupsRepository.createGroup(
+        buildGroupCreationPayload({
+          courseId,
+          creatorId: userId,
+          deadline: course.deadline,
+          targetCount
+        })
+      )
+    }
+
+    await closePendingOrdersByIds({
+      supabase,
+      orderIds: pendingOrderIdsToClose,
+      now
+    })
+
+    const order = await ordersRepository.createOrder({
+      user_id: userId,
+      course_id: courseId,
+      group_id: finalGroup.id,
+      amount: Number(course.group_price) || 0
+    })
+
+    return {
+      course,
+      group: finalGroup,
+      order
+    }
+  }
+
   const { data: course, error: courseError } = await supabase
     .from('courses')
     .select('*')
@@ -221,6 +331,129 @@ const markOrderPaymentSuccess = async ({
   groupId,
   now = new Date()
 }) => {
+  if (env.useMySqlRepositories) {
+    let order = await getOrderForUser({
+      supabase,
+      userId,
+      orderId
+    })
+
+    if (!order) {
+      throw createServiceError(404, 'order not found')
+    }
+
+    await cleanupExpiredGroupsAndEnqueueFailedNotifications({
+      supabase,
+      courseId: order.course_id,
+      now
+    })
+
+    order = await getOrderForUser({
+      supabase,
+      userId,
+      orderId
+    })
+
+    if (!order) {
+      throw createServiceError(404, 'order not found')
+    }
+
+    if (order.status === 'refunded') {
+      throw createServiceError(400, 'order is refunded')
+    }
+
+    if (order.status === 'closed') {
+      throw createServiceError(400, 'order is closed')
+    }
+
+    const targetGroupId = order.group_id || groupId || ''
+    let currentCount = 0
+    let targetCount = 0
+    let nextGroupStatus = 'failed'
+    let successNotificationGroupId = ''
+
+    if (targetGroupId) {
+      const group = await groupsRepository.findGroupById(targetGroupId)
+
+      if (!group) {
+        throw createServiceError(404, 'group not found')
+      }
+
+      currentCount = Number(group.current_count) || 0
+      targetCount = Number(group.target_count) || 0
+      nextGroupStatus = group.status || 'failed'
+
+      const membership = await groupMembersRepository.findMembership({
+        groupId: group.id,
+        userId
+      })
+
+      if (!canApplyPaymentToGroup({ group, membershipExists: !!membership, now })) {
+        throw createServiceError(400, 'group is not active')
+      }
+
+      const paymentResult = applyPaymentToGroup({
+        group,
+        membershipExists: !!membership,
+        now
+      })
+
+      if (paymentResult.membershipShouldCreate) {
+        await groupMembersRepository.addMember({
+          groupId: group.id,
+          userId,
+          joinedAt: now
+        })
+      }
+
+      if (paymentResult.shouldUpdateGroup) {
+        const shouldEnqueueSuccessNotification = group.status === 'active' && paymentResult.nextStatus === 'success'
+        const updatedGroup = await groupsRepository.updateGroup(group.id, {
+          current_count: paymentResult.nextCount,
+          status: paymentResult.nextStatus,
+          success_time: paymentResult.nextStatus === 'success' ? now : group.success_time || null
+        })
+
+        currentCount = Number(updatedGroup.current_count) || 0
+        targetCount = Number(updatedGroup.target_count) || 0
+        nextGroupStatus = updatedGroup.status || 'failed'
+
+        if (shouldEnqueueSuccessNotification) {
+          successNotificationGroupId = updatedGroup.id
+        }
+      } else {
+        currentCount = paymentResult.nextCount
+        nextGroupStatus = paymentResult.nextStatus
+      }
+    }
+
+    if (order.status !== 'success') {
+      const paidAt = order.pay_time || now.toISOString()
+      await ordersRepository.updateOrder(order.id, {
+        status: 'success',
+        pay_time: paidAt,
+        updated_at: paidAt
+      })
+    }
+
+    if (successNotificationGroupId) {
+      await enqueueGroupResultNotifications({
+        supabase,
+        groupId: successNotificationGroupId,
+        resultType: 'success',
+        now
+      })
+    }
+
+    return {
+      order,
+      groupId: targetGroupId,
+      currentCount,
+      targetCount,
+      groupStatus: nextGroupStatus
+    }
+  }
+
   let order = await getOrderForUser({
     supabase,
     userId,

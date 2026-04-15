@@ -1,6 +1,37 @@
+const { env } = require('../../config/env')
+const { groupMembersRepository, groupsRepository, ordersRepository } = require('../../repositories')
 const { applyRefundToGroup, hasSuccessfulParticipation } = require('../domain/groupRules')
 
 const hasUserJoinedCourseGroup = async ({ supabase, userId, courseId }) => {
+  if (env.useMySqlRepositories) {
+    const successGroups = await groupsRepository.listGroups({
+      courseIds: [courseId],
+      statuses: ['success']
+    })
+
+    const groupIds = successGroups.map(item => item.id).filter(Boolean)
+    let successMembershipExists = false
+
+    if (groupIds.length) {
+      const memberships = await groupMembersRepository.listGroupMembers({
+        userId,
+        groupIds
+      })
+      successMembershipExists = memberships.length > 0
+    }
+
+    const orders = await ordersRepository.listOrders({
+      userId,
+      courseId,
+      status: 'success'
+    })
+
+    return hasSuccessfulParticipation({
+      successMembershipExists,
+      successOrderExists: orders.length > 0
+    })
+  }
+
   const { data: successGroups, error: groupsError } = await supabase
     .from('groups')
     .select('id')
@@ -63,6 +94,47 @@ const rollbackGroupParticipationForOrder = async ({
   }
 
   if (!order || !order.group_id) {
+    return rollbackDetail
+  }
+
+  if (env.useMySqlRepositories) {
+    const group = await groupsRepository.findGroupById(order.group_id)
+
+    if (!group) {
+      return rollbackDetail
+    }
+
+    rollbackDetail.previous_group_status = group.status || ''
+    rollbackDetail.previous_group_count = Number(group.current_count || 0)
+
+    const membership = await groupMembersRepository.findMembership({
+      groupId: order.group_id,
+      userId: order.user_id
+    })
+
+    const refundResult = applyRefundToGroup({
+      group,
+      membershipExists: !!membership,
+      now
+    })
+
+    if (refundResult.membershipShouldDelete) {
+      await groupMembersRepository.removeMember({
+        groupId: order.group_id,
+        userId: order.user_id
+      })
+
+      rollbackDetail.membership_removed = true
+    }
+
+    await groupsRepository.updateGroup(order.group_id, {
+      current_count: refundResult.nextCount,
+      status: refundResult.nextStatus
+    })
+
+    rollbackDetail.next_group_count = refundResult.nextCount
+    rollbackDetail.next_group_status = refundResult.nextStatus
+
     return rollbackDetail
   }
 

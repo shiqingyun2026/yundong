@@ -1,4 +1,27 @@
+const { env } = require('../../config/env')
+const {
+  coursesRepository,
+  groupResultNotificationJobsRepository,
+  groupResultSubscriptionsRepository,
+  groupsRepository,
+  ordersRepository
+} = require('../../repositories')
+
 const loadGroupWithCourse = async ({ supabase, groupId }) => {
+  if (env.useMySqlRepositories) {
+    const group = await groupsRepository.findGroupById(groupId)
+    if (!group) {
+      return null
+    }
+
+    const course = await coursesRepository.findCourseById(group.course_id)
+
+    return {
+      ...group,
+      course: course || null
+    }
+  }
+
   const { data: group, error } = await supabase
     .from('groups')
     .select(
@@ -24,6 +47,15 @@ const loadGroupWithCourse = async ({ supabase, groupId }) => {
 }
 
 const listSuccessfulOrderUserIds = async ({ supabase, groupId }) => {
+  if (env.useMySqlRepositories) {
+    const orders = await ordersRepository.listOrdersByGroupId({
+      groupId,
+      status: 'success'
+    })
+
+    return [...new Set(orders.map(item => item.user_id).filter(Boolean))]
+  }
+
   const { data, error } = await supabase
     .from('orders')
     .select('user_id')
@@ -41,6 +73,14 @@ const listSubscribedRecipients = async ({ supabase, groupId, userIds }) => {
   const ids = [...new Set((userIds || []).filter(Boolean))]
   if (!ids.length) {
     return []
+  }
+
+  if (env.useMySqlRepositories) {
+    return groupResultSubscriptionsRepository.listSubscriptionsByGroupAndUsers({
+      groupId,
+      userIds: ids,
+      status: 'subscribed'
+    })
   }
 
   const { data, error } = await supabase
@@ -61,6 +101,14 @@ const listExistingJobs = async ({ supabase, groupId, resultType, userIds }) => {
   const ids = [...new Set((userIds || []).filter(Boolean))]
   if (!ids.length) {
     return []
+  }
+
+  if (env.useMySqlRepositories) {
+    return groupResultNotificationJobsRepository.listExistingNotificationJobs({
+      groupId,
+      resultType,
+      userIds: ids
+    })
   }
 
   const { data, error } = await supabase
@@ -197,20 +245,31 @@ const enqueueGroupResultNotifications = async ({ supabase, groupId, resultType, 
     }
   }
 
-  const { data, error } = await supabase
-    .from('group_result_notification_jobs')
-    .insert(payload)
-    .select('id')
+  let createdCount = 0
 
-  if (error) {
-    throw error
+  if (env.useMySqlRepositories) {
+    const beforeExistingCount = existingJobs.length
+    const jobs = await groupResultNotificationJobsRepository.createNotificationJobs(payload)
+    const createdJobs = jobs.filter(item => item.group_id === groupId && item.result_type === normalizedResultType)
+    createdCount = Math.max(0, createdJobs.length - beforeExistingCount)
+  } else {
+    const { data, error } = await supabase
+      .from('group_result_notification_jobs')
+      .insert(payload)
+      .select('id')
+
+    if (error) {
+      throw error
+    }
+
+    createdCount = (data || []).length
   }
 
   return {
     groupId,
     resultType: normalizedResultType,
-    createdCount: (data || []).length,
-    skippedCount: Math.max(0, userIds.length - (data || []).length)
+    createdCount,
+    skippedCount: Math.max(0, userIds.length - createdCount)
   }
 }
 
