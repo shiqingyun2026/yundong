@@ -1,33 +1,36 @@
 <view class="result-page">
-  <app-feedback id="app-feedback" />
-  <app-card extClass="result-card card-shadow">
+  <mp-toptips id="ui-toptips" />
+  <view class="weui-panel weui-ext-card result-card card-shadow">
     <view class="result-icon {{status === 'success' ? 'icon-success' : 'icon-fail'}}">
-      <app-icon
-        className="result-icon-image"
-        name="{{status === 'success' ? 'status-success' : 'status-fail'}}"
+      <mp-icon
+        extClass="result-icon-image"
+        icon="{{status === 'success' ? 'done' : 'close'}}"
+        type="filled"
+        color="{{status === 'success' ? '#1f9d63' : '#ff4d4f'}}"
+        size="{{56}}"
       />
     </view>
-    <app-msg
+    <mp-msg
       extClass="payment-result-msg"
       title="{{status === 'success' ? '支付成功' : '支付失败'}}"
       desc="{{status === 'success' ? '订单已提交，可前往查看当前拼团详情。' : '本次支付未完成，你可以重新支付或返回首页。'}}"
     >
-      <app-card wx:if="{{status === 'success'}}" slot="extend" extClass="subscribe-card">
+      <view wx:if="{{status === 'success'}}" slot="extend" class="weui-panel weui-ext-card subscribe-card">
         <view class="subscribe-title">拼团结果通知</view>
         <view class="subscribe-desc">{{subscribeHintText}}</view>
         <view wx:if="{{subscribeStatusText}}" class="subscribe-status {{subscribeStatusClassName}}">
           {{subscribeStatusText}}
         </view>
-      </app-card>
-      <view slot="handle">
-        <app-button extClass="result-button" variant="primary" bind:tap="handlePrimaryAction">
-          {{status === 'success' ? '查看拼团详情' : '重新支付'}}
-        </app-button>
-
-        <app-button wx:if="{{status === 'fail'}}" extClass="secondary-text-button" variant="text" size="medium" bind:tap="handleSecondaryAction">
-          返回首页
-        </app-button>
       </view>
-    </app-msg>
-  </app-card>
+      <view slot="handle">
+        <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary result-button" bindtap="handlePrimaryAction">
+          <view class="weui-ext-button__inner">{{status === 'success' ? '查看拼团详情' : '重新支付'}}</view>
+        </button>
+
+        <button wx:if="{{status === 'fail'}}" class="weui-btn weui-ext-button weui-ext-button--medium weui-ext-button--text secondary-text-button" bindtap="handleSecondaryAction">
+          <view class="weui-ext-button__inner">返回首页</view>
+        </button>
+      </view>
+    </mp-msg>
+  </view>
 </view>

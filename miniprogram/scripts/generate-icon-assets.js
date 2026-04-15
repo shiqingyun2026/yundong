@@ -8,7 +8,6 @@ const weuiIconBundlePath = path.join(projectRoot, 'vendor', 'weui-miniprogram', 
 const iconsDir = path.join(projectRoot, 'assets', 'icons')
 const legacyAntIconsDir = path.join(projectRoot, 'assets', 'ant-icons')
 const tabbarDir = path.join(projectRoot, 'assets', 'tabbar')
-const registryOutputPath = path.join(projectRoot, 'components', 'app-icon', 'registry.js')
 const colorableValues = new Set(['black', '#000', '#000000', 'white', '#fff', '#ffffff', 'currentcolor'])
 const weuiIconBundle = fs.readFileSync(weuiIconBundlePath, 'utf8')
 const weuiIconSourceMap = (() => {
@@ -146,14 +145,9 @@ const main = () => {
   fs.readdirSync(iconsDir)
     .filter(fileName => fileName.endsWith('.svg'))
     .forEach(fileName => fs.rmSync(path.join(iconsDir, fileName), { force: true }))
-  const registry = {}
 
   for (const icon of pageIcons) {
-    const svg = writeSvgAsset(icon)
-    registry[icon.name] = {
-      src: `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`,
-      color: icon.color || '#000000'
-    }
+    writeSvgAsset(icon)
   }
 
   for (const icon of tabbarIcons) {
@@ -161,12 +155,6 @@ const main = () => {
   }
 
   writeLegacyAntIconAliases()
-
-  fs.writeFileSync(
-    registryOutputPath,
-    `module.exports = ${JSON.stringify(registry, null, 2)}\n`,
-    'utf8'
-  )
 
   console.log(
     `Generated ${pageIcons.length} SVG icon assets in ${iconsDir}, ${Object.keys(legacyAntIconAliases).length} legacy icon aliases in ${legacyAntIconsDir}, and ${tabbarIcons.length} tabBar icon pairs in ${tabbarDir}`

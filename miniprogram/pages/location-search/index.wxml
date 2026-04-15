@@ -1,17 +1,17 @@
 <view class="location-search-page">
-  <app-feedback id="app-feedback" />
+  <mp-toptips id="ui-toptips" />
   <view class="page-header">
-    <app-nav-bar extClass="location-search-nav" background="#ffffff" color="#1f2329" back="{{false}}">
+    <mp-navigation-bar extClass="location-search-nav" background="#ffffff" color="#1f2329" back="{{false}}">
       <view slot="left" class="header-back" bindtap="handleBack">
-        <app-icon className="header-back-icon" name="nav-back-dark" />
+        <mp-icon extClass="header-back-icon" icon="back" type="outline" color="#1f2329" size="{{28}}" />
       </view>
       <view slot="center" class="header-title">选择地址</view>
       <view slot="right" class="header-space"></view>
-    </app-nav-bar>
-    <app-card extClass="search-row card-shadow">
+    </mp-navigation-bar>
+    <view class="weui-panel weui-ext-card search-row card-shadow">
       <view class="city-pill">{{city}}</view>
       <view class="search-box">
-        <app-searchbar
+        <mp-searchbar
           extClass="location-searchbar"
           focus="{{true}}"
           placeholder="搜索地址"
@@ -21,13 +21,13 @@
           bind:clear="handleClear"
         />
       </view>
-    </app-card>
+    </view>
   </view>
 
   <view class="page-body">
-    <app-card wx:if="{{gpsLocation}}" extClass="current-card card-shadow" bind:tap="handleUseCurrentLocation">
+    <view wx:if="{{gpsLocation}}" class="weui-panel weui-ext-card current-card card-shadow" bindtap="handleUseCurrentLocation">
       <view class="current-icon">
-        <app-icon className="current-icon-image" name="location-inverse" />
+        <mp-icon extClass="current-icon-image" icon="location" type="filled" color="#ffffff" size="{{34}}" />
       </view>
       <view class="current-content">
         <view class="current-label">当前位置</view>
@@ -35,11 +35,11 @@
         <view class="current-address">{{gpsLocation.address}}</view>
       </view>
       <view class="current-action" catchtap="handleRefreshLocation">重定位</view>
-    </app-card>
+    </view>
 
     <view wx:if="{{searchState === 'loading'}}" class="state-panel">
       <view class="state-spinner">
-        <app-icon className="state-spinner-icon" name="status-loading-primary" />
+        <mp-icon extClass="state-spinner-icon" icon="refresh" type="outline" color="#18bcc5" size="{{72}}" />
       </view>
       <view class="state-title">正在搜索地址</view>
       <view class="state-desc">正在为您实时匹配{{city}}范围内的精准地理信息，请稍候...</view>
@@ -47,7 +47,7 @@
 
     <view wx:elif="{{searchState === 'empty'}}" class="state-panel">
       <view class="state-empty-icon">
-        <app-icon className="state-empty-icon-image" name="location-primary" />
+        <mp-icon extClass="state-empty-icon-image" icon="location" type="filled" color="#18bcc5" size="{{72}}" />
       </view>
       <view class="state-title">未找到相关地址</view>
       <view class="state-desc">抱歉，我们没有找到关于“{{keyword}}”的任何结果，请尝试检查拼写或搜索更通用的名称。</view>
@@ -59,25 +59,31 @@
         <view class="result-subtitle">找到 {{resultList.length}} 个与“{{keyword}}”相关的结果</view>
       </view>
 
-      <app-card
+      <view
+        class="weui-panel weui-ext-card result-card card-shadow"
         wx:for="{{resultList}}"
         wx:key="index"
-        extClass="result-card card-shadow"
         data-index="{{index}}"
         bind:tap="handleSelectResult"
       >
         <view class="result-icon {{item.iconClass}}">
-          <app-icon className="result-icon-image" name="{{item.iconName}}" />
+          <mp-icon
+            extClass="result-icon-image"
+            icon="{{item.iconKey}}"
+            type="{{item.iconType}}"
+            color="{{item.iconColor}}"
+            size="{{30}}"
+          />
         </view>
         <view class="result-content">
           <view class="result-name">{{item.name}}</view>
           <view class="result-address">{{item.address}}</view>
         </view>
         <view class="result-meta">
-          <app-tag wx:if="{{item.distanceText}}" extClass="distance-pill">{{item.distanceText}}</app-tag>
-          <app-icon className="result-arrow" name="nav-forward-light" />
+          <mp-badge wx:if="{{item.distanceText}}" extClass="weui-ext-tag distance-pill" content="{{item.distanceText}}" />
+          <mp-icon extClass="result-arrow" icon="arrow" type="outline" color="#c0c7d2" size="{{24}}" />
         </view>
-      </app-card>
+      </view>
 
       <view class="result-footer">
         <view class="footer-line"></view>

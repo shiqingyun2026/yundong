@@ -1,7 +1,0 @@
-{
-  "component": true,
-  "styleIsolation": "apply-shared",
-  "usingComponents": {
-    "mp-dialog": "../../vendor/weui-miniprogram/dialog/dialog"
-  }
-}

@@ -371,3 +371,132 @@
   font-size: 24rpx;
   color: #5f6b7a;
 }
+
+.login-sheet {
+  padding: 32rpx 32rpx calc(40rpx + env(safe-area-inset-bottom));
+  background: #ffffff;
+}
+
+.login-sheet-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 128rpx;
+  height: 128rpx;
+  margin: 24rpx auto 0;
+  border-radius: 50%;
+  background: var(--brand-primary-soft-strong);
+}
+
+.login-sheet-bolt {
+  width: 56rpx;
+  height: 56rpx;
+}
+
+.login-sheet-title {
+  margin-top: 28rpx;
+  font-size: 42rpx;
+  font-weight: 600;
+  text-align: center;
+  color: #1f2329;
+  line-height: 1.4;
+}
+
+.login-sheet-subtitle {
+  margin-top: 16rpx;
+  padding: 0 32rpx;
+  font-size: 30rpx;
+  line-height: 1.7;
+  text-align: center;
+  color: #6b7280;
+}
+
+.login-sheet-button-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-top: 36rpx;
+}
+
+.login-sheet-button,
+.login-sheet-secondary-button {
+  flex: 1;
+  height: 96rpx;
+  font-size: 30rpx;
+  line-height: 1;
+}
+
+.login-sheet-button {
+  background: linear-gradient(90deg, var(--brand-primary) 0%, var(--brand-primary-light) 100%);
+  box-shadow: 0 8rpx 20rpx var(--brand-primary-shadow-strong);
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.login-sheet-secondary-button {
+  border: 2rpx solid #dbe3f0;
+  background: #ffffff;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.login-sheet-consent-cells.weui-cells__group {
+  margin-top: 24rpx;
+}
+
+.login-sheet-consent-cells .weui-cells {
+  margin-top: 0;
+  background: transparent;
+}
+
+.login-sheet-consent-cells .weui-cells::before,
+.login-sheet-consent-cells .weui-cells::after {
+  display: none;
+}
+
+.login-sheet-checkbox-group {
+  margin-top: 0;
+}
+
+.login-sheet-checkbox-item.weui-cell {
+  justify-content: center;
+  padding: 0 28rpx;
+  background: transparent;
+}
+
+.login-sheet-checkbox-item.weui-cell::before {
+  display: none;
+}
+
+.login-sheet-checkbox-item .weui-cell__hd {
+  margin-right: 12rpx;
+}
+
+.login-sheet-checkbox-item .weui-cell__bd {
+  flex: 0 1 auto;
+  max-width: 480rpx;
+  font-size: 26rpx;
+  line-height: 1.8;
+  color: #6b7280;
+  text-align: center;
+}
+
+.login-sheet-agreement-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  margin-top: 8rpx;
+  padding: 0 28rpx;
+  font-size: 26rpx;
+  line-height: 1.8;
+}
+
+.login-sheet-link {
+  color: var(--brand-primary);
+  font-weight: 500;
+}
+
+.login-sheet-link-separator {
+  color: #6b7280;
+}

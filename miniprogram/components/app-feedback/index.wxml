@@ -1,8 +1,0 @@
-<mp-toptips
-  type="{{type}}"
-  show="{{visible}}"
-  msg="{{message}}"
-  delay="{{delay}}"
-  extClass="app-feedback-shell"
-  bind:hide="handleHide"
-/>

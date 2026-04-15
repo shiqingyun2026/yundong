@@ -1,11 +1,10 @@
 {
   "navigationBarTitleText": "协议确认",
   "usingComponents": {
-    "app-feedback": "../../components/app-feedback/index",
-    "app-tabs": "../../components/app-tabs/index",
-    "app-button": "../../components/app-button/index",
-    "app-checkbox-group": "../../components/app-checkbox-group/index",
-    "app-checkbox": "../../components/app-checkbox/index",
-    "base-modal": "../../components/base-modal/index"
+    "mp-toptips": "../../vendor/weui-miniprogram/toptips/toptips",
+    "mp-cells": "../../vendor/weui-miniprogram/cells/cells",
+    "mp-checkbox-group": "../../vendor/weui-miniprogram/checkbox-group/checkbox-group",
+    "mp-checkbox": "../../vendor/weui-miniprogram/checkbox/checkbox",
+    "mp-dialog": "../../vendor/weui-miniprogram/dialog/dialog"
   }
 }

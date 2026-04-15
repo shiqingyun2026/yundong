@@ -1,62 +1,64 @@
-<view class="app-page home-page">
-  <app-feedback id="app-feedback" />
+<view class="page-shell home-page">
+  <mp-toptips id="ui-toptips" />
   <view class="home-navbar">
-    <app-nav-bar extClass="home-nav-bar" background="transparent" color="#1f2329" back="{{false}}">
+    <mp-navigation-bar extClass="home-nav-bar" background="transparent" color="#1f2329" back="{{false}}">
       <view slot="left" class="home-navbar-row">
         <view class="location-pill navbar-location-pill" bindtap="handleLocationTap">
           <text class="location-text">{{locationText}}</text>
           <text class="location-chevron">›</text>
         </view>
       </view>
-    </app-nav-bar>
+    </mp-navigation-bar>
   </view>
 
-  <app-card extClass="hero-card card-shadow">
-    <app-tabs
-      extClass="tab-row home-tabs"
-      itemClassName="tab-item"
-      activeItemClassName="tab-item-active"
-      items="{{tabs}}"
-      activeKey="{{activeTab}}"
-      wrap="{{true}}"
-      bind:change="handleTabChange"
-    />
-  </app-card>
+  <view class="weui-panel weui-ext-card hero-card card-shadow">
+    <view class="weui-navbar weui-ext-tabs weui-ext-tabs--wrap tab-row home-tabs">
+      <view
+        wx:for="{{tabs}}"
+        wx:key="key"
+        class="weui-navbar__item weui-ext-tabs__item tab-item {{activeTab === item.key ? 'weui-bar__item_on weui-ext-tabs__item--active tab-item-active' : ''}}"
+        data-key="{{item.key}}"
+        bindtap="handleTabChange"
+      >
+        {{item.label}}
+      </view>
+    </view>
+  </view>
 
-  <app-card wx:if="{{locationTip}}" extClass="notice-card card-shadow">
+  <view wx:if="{{locationTip}}" class="weui-panel weui-ext-card notice-card card-shadow">
     <view class="notice-text">{{locationTip}}</view>
     <view wx:if="{{locationDenied}}" class="notice-action" bindtap="handleManualLocationTip">
       开启定位
     </view>
-  </app-card>
+  </view>
 
-  <loading-view loading="{{initialLoading}}" text="课程加载中..." />
+  <view wx:if="{{initialLoading}}" class="page-loading">
+    <mp-loading show="{{initialLoading}}" type="dot-gray" />
+    <text class="page-loading-text">课程加载中...</text>
+  </view>
 
   <view wx:if="{{!initialLoading && courseList.length}}" class="course-list">
-    <app-card
+    <view
+      class="weui-panel weui-ext-card course-card card-shadow"
       wx:for="{{courseList}}"
       wx:key="id"
-      extClass="course-card card-shadow"
       data-id="{{item.id}}"
       bind:tap="handleCourseTap"
     >
       <view class="cover-wrap">
         <image class="course-cover" src="{{item.cover}}" mode="aspectFill"></image>
-        <app-tag wx:if="{{item.soonGroup}}" extClass="group-tag">即将成团</app-tag>
+        <mp-badge wx:if="{{item.soonGroup}}" extClass="weui-ext-tag group-tag" content="即将成团" />
       </view>
 
       <view class="course-content">
         <view class="course-title-row">
           <view class="course-title">{{item.title}}</view>
-          <app-tag wx:if="{{activeTab === 'all'}}" extClass="distance-text">{{item.distanceText}}</app-tag>
+          <mp-badge wx:if="{{activeTab === 'all'}}" extClass="weui-ext-tag distance-text" content="{{item.distanceText}}" />
         </view>
 
         <view class="course-meta">{{item.timeText}}</view>
         <view class="course-meta">{{item.locationText}}</view>
-        <app-tag wx:if="{{item.showActiveGroupCountdown}}" extClass="countdown-pill">
-          <view class="countdown-dot"></view>
-          <view class="countdown-text">{{item.activeGroup.expireTimeText}}</view>
-        </app-tag>
+        <mp-badge wx:if="{{item.showActiveGroupCountdown}}" extClass="weui-ext-tag countdown-pill" content="{{item.activeGroup.expireTimeText}}" />
 
         <view class="course-footer">
           <view class="price-group">
@@ -69,14 +71,17 @@
           </view>
         </view>
       </view>
-    </app-card>
+    </view>
   </view>
 
-  <empty-state
-    wx:if="{{!initialLoading && !courseList.length}}"
-    title="暂无可展示课程"
-    desc="下拉刷新后再试，或稍后切换筛选条件查看。"
-  />
+  <view wx:if="{{!initialLoading && !courseList.length}}" class="page-empty">
+    <view class="page-empty-illustration"></view>
+    <mp-msg
+      extClass="page-empty-msg"
+      title="暂无可展示课程"
+      desc="下拉刷新后再试，或稍后切换筛选条件查看。"
+    />
+  </view>
 
   <view wx:if="{{!initialLoading && courseList.length}}" class="list-footer">
     <block wx:if="{{loading}}">

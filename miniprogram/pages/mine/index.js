@@ -1,6 +1,16 @@
 const { loginWithWechat } = require('../../utils/auth')
 
 const SERVICE_QR_CODE = 'https://dummyimage.com/240x240/e8f8f9/18bcc5.png&text=%E5%AE%A2%E6%9C%8D%E4%BA%8C%E7%BB%B4%E7%A0%81'
+const SERVICE_DIALOG_BUTTONS = [
+  {
+    text: '关闭',
+    extClass: 'dialog-button-cancel'
+  },
+  {
+    text: '我知道了',
+    extClass: 'dialog-button-confirm'
+  }
+]
 
 Page({
   data: {
@@ -23,7 +33,8 @@ Page({
         title: '联系客服'
       }
     ],
-    serviceQrCode: SERVICE_QR_CODE
+    serviceQrCode: SERVICE_QR_CODE,
+    serviceDialogButtons: SERVICE_DIALOG_BUTTONS
   },
 
   onShow() {
@@ -122,9 +133,10 @@ Page({
     })
   },
 
-  handleToggleLoginAgreement() {
+  handleToggleLoginAgreement(event) {
+    const values = (event && event.detail && event.detail.value) || []
     this.setData({
-      loginAgreementChecked: !this.data.loginAgreementChecked
+      loginAgreementChecked: values.includes('agree')
     })
   },
 
@@ -202,9 +214,7 @@ Page({
     })
   },
 
-  handleConfirmService() {
-    this.setData({
-      showServiceModal: false
-    })
+  handleServiceDialogTap() {
+    this.handleCloseService()
   }
 })

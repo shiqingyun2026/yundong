@@ -1,8 +1,0 @@
-{
-  "component": true,
-  "styleIsolation": "apply-shared",
-  "usingComponents": {
-    "app-icon": "../app-icon/index",
-    "weui-navigation-bar": "../weui-navigation-bar/index"
-  }
-}

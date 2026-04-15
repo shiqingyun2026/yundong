@@ -1,1 +1,0 @@
-<view wx:if="{{src}}" class="weui-icon app-icon-runtime {{className}}" style="{{styleText}}" />

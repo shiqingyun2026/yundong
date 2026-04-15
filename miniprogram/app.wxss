@@ -1,4 +1,4 @@
-@import 'vendor/weui-miniprogram/weui-wxss/dist/style/weui.wxss';
+@import 'vendor/weui-miniprogram/index.wxss';
 
 page {
   --brand-primary: #18bcc5;
@@ -9,6 +9,7 @@ page {
   --brand-primary-border: #cbeaec;
   --brand-primary-shadow: rgba(24, 188, 197, 0.18);
   --brand-primary-shadow-strong: rgba(24, 188, 197, 0.24);
+  --weui-BRAND: #18bcc5;
 
   min-height: 100%;
   background: #f7f8fa;
@@ -26,7 +27,7 @@ image {
   box-sizing: border-box;
 }
 
-.app-page {
+.page-shell {
   min-height: 100vh;
   padding: 24rpx;
 }
@@ -36,6 +37,18 @@ image {
   padding: 28rpx;
   background: #ffffff;
   border-radius: 24rpx;
+}
+
+.weui-ext-card.weui-panel {
+  display: block;
+  margin-top: 0;
+  box-sizing: border-box;
+  background: #ffffff;
+}
+
+.weui-ext-card.weui-panel::before,
+.weui-ext-card.weui-panel::after {
+  display: none;
 }
 
 .section-title {
@@ -75,17 +88,140 @@ image {
   color: var(--brand-primary);
 }
 
+.weui-ext-button.weui-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 0;
+  margin: 0;
+  padding: 0 32rpx;
+  border: none;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  line-height: 1;
+  text-align: center;
+}
+
+.weui-ext-button__inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+}
+
+.weui-ext-button.weui-btn::after {
+  display: none;
+}
+
+.weui-ext-button--block {
+  width: 100%;
+}
+
+.weui-ext-button--large {
+  height: 88rpx;
+}
+
+.weui-ext-button--medium {
+  height: 72rpx;
+  font-size: 26rpx;
+}
+
+.weui-ext-button--small {
+  height: 64rpx;
+  font-size: 24rpx;
+}
+
+.weui-ext-button--primary {
+  background: var(--brand-primary);
+  color: #ffffff;
+}
+
+.weui-ext-button--secondary {
+  border: 2rpx solid var(--brand-primary-border);
+  background: #ffffff;
+  color: var(--brand-primary);
+}
+
+.weui-ext-button--text {
+  background: transparent;
+  color: #5f6b7a;
+  box-shadow: none;
+}
+
+.weui-ext-button[disabled] {
+  opacity: 0.6;
+}
+
+.weui-ext-tabs.weui-navbar {
+  display: flex;
+  margin: 0;
+  background: transparent;
+}
+
+.weui-ext-tabs--wrap {
+  flex-wrap: wrap;
+}
+
+.weui-ext-tabs--stretch .weui-ext-tabs__item {
+  flex: 1;
+}
+
+.weui-ext-tabs__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 72rpx;
+  box-sizing: border-box;
+}
+
+.weui-ext-tabs__item::before {
+  display: none;
+}
+
+.weui-ext-tag.weui-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  box-sizing: border-box;
+}
+
 .card-shadow {
   box-shadow: 0 12rpx 36rpx rgba(31, 35, 41, 0.06);
 }
 
-.loading-view-shell.wx_loading_view {
-  height: auto;
-  background: transparent;
+.page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32rpx 0;
 }
 
-.loading-view-shell .weui-loadmore {
-  margin: 0;
+.page-loading-text {
+  margin-left: 12rpx;
+  font-size: 24rpx;
+  color: #8f96a3;
+}
+
+.page-empty {
+  margin-top: 24rpx;
+  padding: 48rpx 32rpx;
+  background: #ffffff;
+  border-radius: 32rpx;
+  text-align: center;
+}
+
+.page-empty-illustration {
+  width: 120rpx;
+  height: 120rpx;
+  margin: 0 auto 20rpx;
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--brand-primary-soft) 0%, #f7f8fa 100%);
 }
 
 .weui-dialog__root .weui-mask {
@@ -143,12 +279,12 @@ image {
   display: none;
 }
 
-.weui-dialog__root .app-dialog-button-cancel {
+.weui-dialog__root .dialog-button-cancel {
   background: #f2f3f5;
   color: #5f6b7a;
 }
 
-.weui-dialog__root .app-dialog-button-confirm {
+.weui-dialog__root .dialog-button-confirm {
   background: var(--brand-primary);
   color: #ffffff;
 }
@@ -172,27 +308,27 @@ image {
   display: none;
 }
 
-.app-empty-msg.weui-msg {
-  padding: 0;
-}
-
-.app-empty-msg .weui-msg__icon-area,
+.page-empty-msg .weui-msg__icon-area,
 .payment-result-msg .weui-msg__icon-area {
   display: none;
 }
 
-.app-empty-msg .weui-msg__text-area,
+.page-empty-msg .weui-msg__text-area,
 .payment-result-msg .weui-msg__text-area {
   margin-bottom: 0;
 }
 
-.app-empty-msg .weui-msg__title {
+.page-empty-msg.weui-msg {
+  padding: 0;
+}
+
+.page-empty-msg .weui-msg__title {
   font-size: 30rpx;
   font-weight: 600;
   color: #1f2329;
 }
 
-.app-empty-msg .weui-msg__desc {
+.page-empty-msg .weui-msg__desc {
   margin-top: 12rpx;
   font-size: 24rpx;
   color: #8f96a3;
@@ -200,6 +336,7 @@ image {
 
 .payment-result-msg.weui-msg {
   padding: 0;
+  margin-bottom: 0;
 }
 
 .payment-result-msg .weui-msg__title {

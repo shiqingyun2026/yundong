@@ -4,9 +4,9 @@
     <view class="agreement-content-subtitle">{{subtitle}}</view>
   </view>
 
-  <app-card extClass="agreement-content-card card-shadow">
+  <view class="weui-panel weui-ext-card agreement-content-card card-shadow">
     <scroll-view class="agreement-content-body" scroll-y>
       <rich-text class="agreement-content-rich-text" nodes="{{contentNodes}}"></rich-text>
     </scroll-view>
-  </app-card>
+  </view>
 </view>

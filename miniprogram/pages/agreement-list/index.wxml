@@ -1,6 +1,6 @@
 <view class="agreement-list-page">
-  <app-cells extClass="agreement-list-cells agreement-list-card">
-    <app-cell
+  <mp-cells extClass="agreement-list-cells agreement-list-card">
+    <mp-cell
       wx:for="{{agreementList}}"
       wx:key="key"
       wx:for-index="index"
@@ -13,7 +13,7 @@
       <view class="agreement-list-main">
         <view class="agreement-list-item-title">{{item.title}}</view>
       </view>
-      <app-icon slot="footer" className="agreement-list-arrow" name="nav-forward-muted" />
-    </app-cell>
-  </app-cells>
+      <mp-icon slot="footer" extClass="agreement-list-arrow" icon="arrow" type="outline" color="#b6bdc8" size="{{24}}" />
+    </mp-cell>
+  </mp-cells>
 </view>

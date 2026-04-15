@@ -88,14 +88,48 @@ App({
       const currentPage = pages[pages.length - 1]
       const feedback =
         currentPage && typeof currentPage.selectComponent === 'function'
-          ? currentPage.selectComponent('#app-feedback')
+          ? currentPage.selectComponent('#ui-toptips')
           : null
 
-      if (!canUseFeedback || !feedback || typeof feedback.showToast !== 'function') {
+      if (!canUseFeedback || !feedback || typeof feedback.setData !== 'function') {
         return originalShowToast(payload)
       }
 
-      feedback.showToast(payload)
+      const title = `${payload.title || payload.msg || ''}`.trim()
+      if (!title) {
+        return originalShowToast(payload)
+      }
+
+      const duration = typeof payload.duration === 'number' ? payload.duration : 2000
+      const type = icon === 'success' ? 'success' : icon === 'loading' ? 'info' : 'error'
+
+      if (feedback._toastShowTimer) {
+        clearTimeout(feedback._toastShowTimer)
+        feedback._toastShowTimer = null
+      }
+
+      feedback.setData(
+        {
+          show: false,
+          msg: title,
+          type,
+          delay: duration
+        },
+        () => {
+          feedback._toastShowTimer = setTimeout(() => {
+            feedback._toastShowTimer = null
+            feedback.setData({
+              show: true
+            })
+            if (typeof payload.success === 'function') {
+              payload.success({ errMsg: 'showToast:ok' })
+            }
+            if (typeof payload.complete === 'function') {
+              payload.complete({ errMsg: 'showToast:ok' })
+            }
+          }, 16)
+        }
+      )
       return { errMsg: 'showToast:ok' }
     }
 

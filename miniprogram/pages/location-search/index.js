@@ -8,11 +8,11 @@ const {
 
 const SEARCH_DEBOUNCE_MS = 300
 const RESULT_ICON_CLASS = ['blue', 'blue', 'warm', 'violet', 'blue', 'green']
-const RESULT_ICON_NAME = {
-  blue: 'location-primary',
-  warm: 'location-warm',
-  violet: 'location-violet',
-  green: 'location-green'
+const RESULT_ICON_META = {
+  blue: { iconKey: 'location', iconType: 'filled', iconColor: '#18bcc5' },
+  warm: { iconKey: 'location', iconType: 'filled', iconColor: '#ff7a45' },
+  violet: { iconKey: 'location', iconType: 'filled', iconColor: '#8b5cf6' },
+  green: { iconKey: 'location', iconType: 'filled', iconColor: '#10b981' }
 }
 
 const formatDistance = distance => {
@@ -127,7 +127,7 @@ Page({
           ...item,
           distanceText: formatDistance(item.distance),
           iconClass: RESULT_ICON_CLASS[index % RESULT_ICON_CLASS.length],
-          iconName: RESULT_ICON_NAME[RESULT_ICON_CLASS[index % RESULT_ICON_CLASS.length]]
+          ...RESULT_ICON_META[RESULT_ICON_CLASS[index % RESULT_ICON_CLASS.length]]
         })),
         loading: false,
         searchState: resultList.length ? 'result' : 'empty'

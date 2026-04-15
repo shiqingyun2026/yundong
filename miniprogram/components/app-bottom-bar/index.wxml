@@ -1,3 +1,0 @@
-<view class="weui-tabbar app-bottom-bar {{extClass}}">
-  <slot></slot>
-</view>

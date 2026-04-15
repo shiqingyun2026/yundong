@@ -168,28 +168,27 @@
 }
 
 .countdown-pill {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 10rpx;
   margin-top: 16rpx;
-  padding: 10rpx 16rpx;
+  padding: 10rpx 16rpx 10rpx 38rpx;
   border-radius: 999rpx;
   background: linear-gradient(180deg, #fff7ed 0%, #fff1df 100%);
+  color: #c96a10;
+  font-size: 22rpx;
+  font-weight: 600;
 }
 
-.countdown-dot {
+.countdown-pill::before {
+  content: '';
+  position: absolute;
+  left: 16rpx;
   width: 12rpx;
   height: 12rpx;
   border-radius: 50%;
   background: #ff7a00;
   box-shadow: 0 0 0 6rpx rgba(255, 122, 0, 0.12);
-}
-
-.countdown-text {
-  color: #c96a10;
-  font-size: 22rpx;
-  font-weight: 600;
-  line-height: 1;
 }
 
 .course-footer {

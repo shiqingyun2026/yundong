@@ -1,18 +1,21 @@
 <view class="agreement-page">
-  <app-feedback id="app-feedback" />
+  <mp-toptips id="ui-toptips" />
   <view class="agreement-header">
     <view class="agreement-title">欢迎使用天天体育宝</view>
     <view class="agreement-subtitle">为保障你的账户与隐私权益，请先阅读并同意《用户协议》和《隐私政策》后再继续使用。</view>
   </view>
 
-  <app-tabs
-    extClass="agreement-tabs"
-    itemClassName="agreement-tab"
-    activeItemClassName="agreement-tab-active"
-    items="{{tabs}}"
-    activeKey="{{activeTab}}"
-    bind:change="handleTabChange"
-  />
+  <view class="weui-navbar weui-ext-tabs agreement-tabs">
+    <view
+      wx:for="{{tabs}}"
+      wx:key="key"
+      class="weui-navbar__item weui-ext-tabs__item agreement-tab {{activeTab === item.key ? 'weui-bar__item_on weui-ext-tabs__item--active agreement-tab-active' : ''}}"
+      data-tab="{{item.key}}"
+      bindtap="handleTabChange"
+    >
+      {{item.label}}
+    </view>
+  </view>
 
   <scroll-view class="agreement-content" scroll-y>
     <rich-text
@@ -28,30 +31,35 @@
   </scroll-view>
 
   <view wx:if="{{!readonly}}" class="agreement-footer">
-    <app-checkbox-group bind:change="handleAgreementChange">
-      <app-checkbox value="agreed" checked="{{agreed}}" extClass="agreement-checkbox">
-        <view class="agreement-checkbox-content">
-          <view class="agreement-checkbox-text">我已阅读并同意《用户协议》和《隐私政策》</view>
-          <view class="agreement-checkbox-tip">继续进入即表示你接受平台服务规则与隐私说明。</view>
-        </view>
-      </app-checkbox>
-    </app-checkbox-group>
+    <mp-cells extClass="agreement-consent-cells">
+      <mp-checkbox-group bind:change="handleAgreementChange">
+        <mp-checkbox
+          extClass="agreement-consent-item"
+          value="agreed"
+          checked="{{agreed}}"
+          label="我已阅读并同意《用户协议》和《隐私政策》"
+        />
+      </mp-checkbox-group>
+    </mp-cells>
+    <view class="agreement-checkbox-tip">继续进入即表示你接受平台服务规则与隐私说明。</view>
 
     <view class="agreement-actions">
-      <app-button extClass="footer-button reject-button" variant="secondary" bind:tap="handleRejectTap">拒绝</app-button>
-      <app-button extClass="footer-button agree-button" variant="primary" bind:tap="handleAgree">同意并进入</app-button>
+      <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--secondary footer-button reject-button" bindtap="handleRejectTap">
+        <view class="weui-ext-button__inner">拒绝</view>
+      </button>
+      <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary footer-button agree-button" bindtap="handleAgree">
+        <view class="weui-ext-button__inner">同意并进入</view>
+      </button>
     </view>
   </view>
 
-  <base-modal
-    visible="{{showRejectModal}}"
+  <mp-dialog
+    show="{{showRejectModal}}"
     title="提示"
-    confirmText="确认"
-    cancelText="取消"
+    buttons="{{rejectDialogButtons}}"
     bind:close="handleCloseRejectModal"
-    bind:cancel="handleCloseRejectModal"
-    bind:confirm="handleConfirmReject"
+    bind:buttontap="handleRejectDialogTap"
   >
     <view class="section-desc">您需要同意协议才能使用本小程序</view>
-  </base-modal>
+  </mp-dialog>
 </view>

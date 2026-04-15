@@ -1,8 +1,0 @@
-{
-  "component": true,
-  "styleIsolation": "apply-shared",
-  "usingComponents": {
-    "app-icon": "../app-icon/index",
-    "mp-half-screen-dialog": "../../vendor/weui-miniprogram/half-screen-dialog/half-screen-dialog"
-  }
-}

@@ -1,6 +1,9 @@
 <view class="detail-page">
-  <app-feedback id="app-feedback" />
-  <loading-view loading="{{loading}}" text="详情加载中..." />
+  <mp-toptips id="ui-toptips" />
+  <view wx:if="{{loading}}" class="page-loading">
+    <mp-loading show="{{loading}}" type="dot-gray" />
+    <text class="page-loading-text">详情加载中...</text>
+  </view>
 
   <scroll-view wx:if="{{!loading && courseDetail}}" class="detail-scroll" scroll-y>
     <swiper class="hero-swiper" indicator-dots autoplay circular>
@@ -10,16 +13,16 @@
     </swiper>
 
     <view class="detail-content">
-      <app-card extClass="page-section card-shadow">
+      <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="title-row">
           <view class="course-title">{{courseDetail.title}}</view>
-          <app-tag wx:if="{{hasActiveGroup}}" extClass="group-chip">{{groupTargetCount}}人成团</app-tag>
+          <mp-badge wx:if="{{hasActiveGroup}}" extClass="weui-ext-tag group-chip" content="{{groupTargetCount}}人成团" />
         </view>
 
         <view class="price-row">
           <view class="group-price">¥{{courseDetail.groupPriceText}}</view>
           <view class="original-price">¥{{courseDetail.originalPriceText}}</view>
-          <app-tag wx:if="{{showJoinedCount}}" extClass="joined-chip">已拼 {{displayJoinedCount}} 人</app-tag>
+          <mp-badge wx:if="{{showJoinedCount}}" extClass="weui-ext-tag joined-chip" content="已拼 {{displayJoinedCount}} 人" />
         </view>
 
         <view class="info-list">
@@ -36,19 +39,19 @@
             <view class="info-value">{{courseDetail.ageRange}}</view>
           </view>
         </view>
-      </app-card>
+      </view>
 
-      <app-card extClass="page-section card-shadow">
+      <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">课程介绍</view>
         <rich-text class="rich-text" nodes="{{courseDetail.descriptionHtml || courseDetail.descriptionNodes}}"></rich-text>
-      </app-card>
+      </view>
 
-      <app-card extClass="page-section card-shadow">
+      <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">拼团规则</view>
         <rich-text class="rich-text" nodes="{{courseDetail.groupRuleNodes}}"></rich-text>
-      </app-card>
+      </view>
 
-      <app-card extClass="page-section card-shadow">
+      <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">教练信息</view>
         <view class="coach-name">{{courseDetail.coach.name}}</view>
         <view class="coach-intro">{{courseDetail.coach.intro}}</view>
@@ -63,20 +66,20 @@
             bindtap="handlePreviewCertificate"
           ></image>
         </view>
-      </app-card>
+      </view>
 
-      <app-card extClass="page-section card-shadow insurance-card">
+      <view class="weui-panel weui-ext-card page-section card-shadow insurance-card">
         <view class="section-title">保险说明</view>
         <view class="section-desc insurance-text">{{courseDetail.insuranceText}}</view>
-      </app-card>
+      </view>
 
-      <app-card extClass="page-section card-shadow">
+      <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">当前拼团状态</view>
         <view wx:if="{{courseGroupList.length}}" class="group-panel">
-          <app-card wx:for="{{courseGroupList}}" wx:key="groupId" extClass="group-item-card">
+          <view wx:for="{{courseGroupList}}" wx:key="groupId" class="weui-panel weui-ext-card group-item-card">
             <view class="group-item-header">
               <view class="group-item-title">第{{item.index}}个团</view>
-              <app-tag extClass="group-item-status group-item-status-{{item.statusClass}}">{{item.statusText}}</app-tag>
+              <mp-badge extClass="weui-ext-tag group-item-status group-item-status-{{item.statusClass}}" content="{{item.statusText}}" />
             </view>
 
             <view class="group-progress-row">
@@ -86,60 +89,79 @@
             <view class="progress-track">
               <view class="progress-bar" style="width: {{item.progressPercent}};"></view>
             </view>
-          </app-card>
+          </view>
         </view>
 
         <view wx:else class="group-empty">
           <view class="section-desc">{{emptyGroupText}}</view>
         </view>
-      </app-card>
+      </view>
 
       <view class="bottom-space"></view>
     </view>
   </scroll-view>
 
-  <app-bottom-bar wx:if="{{!loading && courseDetail}}" extClass="bottom-bar">
+  <view wx:if="{{!loading && courseDetail}}" class="bottom-bar">
     <view class="service-entry" bindtap="handleOpenService">
       <view class="service-icon">
-        <app-icon className="service-icon-image" name="support-primary" />
+        <mp-icon extClass="service-icon-image" icon="contacts" type="filled" color="#18bcc5" size="{{28}}" />
       </view>
       <view class="service-text">客服</view>
     </view>
-    <app-button
-      extClass="bottom-action"
-      variant="primary"
-      bind:tap="handleGoPayment"
+    <button
+      class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary bottom-action"
+      bindtap="handleGoPayment"
       loading="{{creatingOrder}}"
       disabled="{{creatingOrder || actionButtonDisabled}}"
     >
-      {{actionButtonText}}
-    </app-button>
-  </app-bottom-bar>
+      <view class="weui-ext-button__inner">{{actionButtonText}}</view>
+    </button>
+  </view>
 
-  <base-modal
+  <mp-dialog
     wx:if="{{courseDetail}}"
-    visible="{{showServiceModal}}"
+    show="{{showServiceModal}}"
     title="联系客服"
-    confirmText="我知道了"
-    cancelText="关闭"
-    bindclose="handleCloseService"
-    bindcancel="handleCloseService"
-    bindconfirm="handleConfirmService"
+    buttons="{{serviceDialogButtons}}"
+    bind:close="handleCloseService"
+    bind:buttontap="handleServiceDialogTap"
   >
     <view class="service-modal-content">
       <image class="service-qrcode" src="{{courseDetail.serviceQrCode}}" mode="aspectFit"></image>
       <view class="service-tip">请使用微信扫码联系专属客服</view>
     </view>
-  </base-modal>
+  </mp-dialog>
 
-  <login-sheet
-    visible="{{showLoginModal}}"
-    loading="{{loginLoading}}"
-    agreementChecked="{{loginAgreementChecked}}"
-    bind:close="handleCloseLoginModal"
-    bind:confirm="handleConfirmLogin"
-    bind:toggleagreement="handleToggleLoginAgreement"
-    bind:openagreement="handleOpenAgreement"
-    bind:openprivacy="handleOpenPrivacy"
-  />
+  <mp-half-screen-dialog show="{{showLoginModal}}" closabled="{{true}}" mask="{{true}}" ext-class="login-sheet-panel" bind:close="handleCloseLoginModal">
+    <view slot="desc" class="login-sheet">
+      <view class="login-sheet-icon">
+        <mp-icon extClass="login-sheet-bolt" icon="discover" type="filled" color="#12aab3" size="{{56}}" />
+      </view>
+      <view class="login-sheet-title">天天体育宝欢迎你</view>
+      <view class="login-sheet-subtitle">为了提供更好的服务，我们需要获取你的授权</view>
+      <view class="login-sheet-button-row">
+        <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--secondary login-sheet-secondary-button" disabled="{{loginLoading}}" bindtap="handleCloseLoginModal">
+          <view class="weui-ext-button__inner">稍后登录</view>
+        </button>
+        <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary login-sheet-button" loading="{{loginLoading}}" disabled="{{loginLoading}}" bindtap="handleConfirmLogin">
+          <view class="weui-ext-button__inner">微信一键登录</view>
+        </button>
+      </view>
+      <mp-cells extClass="login-sheet-consent-cells">
+        <mp-checkbox-group extClass="login-sheet-checkbox-group" bind:change="handleToggleLoginAgreement">
+          <mp-checkbox
+            extClass="login-sheet-checkbox-item"
+            value="agree"
+            checked="{{loginAgreementChecked}}"
+            label="我已阅读并同意"
+          />
+        </mp-checkbox-group>
+      </mp-cells>
+      <view class="login-sheet-agreement-links">
+        <text class="login-sheet-link" catchtap="handleOpenAgreement">用户协议</text>
+        <text class="login-sheet-link-separator">和</text>
+        <text class="login-sheet-link" catchtap="handleOpenPrivacy">隐私政策</text>
+      </view>
+    </view>
+  </mp-half-screen-dialog>
 </view>

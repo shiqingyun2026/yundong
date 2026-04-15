@@ -1,21 +1,27 @@
-<view class="app-page my-group-list-page">
-  <app-feedback id="app-feedback" />
-  <app-tabs
-    extClass="tab-bar card-shadow"
-    itemClassName="tab-item"
-    activeItemClassName="tab-item-active"
-    items="{{tabs}}"
-    activeKey="{{activeTab}}"
-    bind:change="handleTabTap"
-  />
+<view class="page-shell my-group-list-page">
+  <mp-toptips id="ui-toptips" />
+  <view class="weui-navbar weui-ext-tabs tab-bar card-shadow">
+    <view
+      wx:for="{{tabs}}"
+      wx:key="key"
+      class="weui-navbar__item weui-ext-tabs__item tab-item {{activeTab === item.key ? 'weui-bar__item_on weui-ext-tabs__item--active tab-item-active' : ''}}"
+      data-key="{{item.key}}"
+      bindtap="handleTabTap"
+    >
+      {{item.label}}
+    </view>
+  </view>
 
-  <loading-view loading="{{loading}}" text="拼团记录加载中..." />
+  <view wx:if="{{loading}}" class="page-loading">
+    <mp-loading show="{{loading}}" type="dot-gray" />
+    <text class="page-loading-text">拼团记录加载中...</text>
+  </view>
 
   <view wx:if="{{!loading && groupList.length}}" class="group-list">
-    <app-card
+    <view
+      class="weui-panel weui-ext-card group-card card-shadow"
       wx:for="{{groupList}}"
       wx:key="groupId"
-      extClass="group-card card-shadow"
       data-group-id="{{item.groupId}}"
       bind:tap="handleOpenDetail"
     >
@@ -25,27 +31,24 @@
         <view class="group-title-row">
           <view class="group-title">{{item.title}}</view>
           <view class="status-group">
-            <app-tag
-              extClass="status-tag {{item.status === 'ongoing' ? 'status-ongoing' : item.status === 'success' ? 'status-success' : 'status-failed'}}"
-            >
-              {{item.statusText}}
-            </app-tag>
-            <app-tag wx:if="{{item.courseStatusText}}" extClass="status-tag status-stage">
-              {{item.courseStatusText}}
-            </app-tag>
+            <mp-badge
+              extClass="weui-ext-tag status-tag {{item.status === 'ongoing' ? 'status-ongoing' : item.status === 'success' ? 'status-success' : 'status-failed'}}"
+              content="{{item.statusText}}"
+            />
+            <mp-badge wx:if="{{item.courseStatusText}}" extClass="weui-ext-tag status-tag status-stage" content="{{item.courseStatusText}}" />
           </view>
         </view>
 
         <view class="group-meta">{{item.timeText}}</view>
         <view class="group-meta">{{item.locationText}}</view>
       </view>
-    </app-card>
+    </view>
   </view>
 
-  <empty-state
-    wx:if="{{!loading && !groupList.length}}"
-    title="暂无拼团记录"
-  />
+  <view wx:if="{{!loading && !groupList.length}}" class="page-empty">
+    <view class="page-empty-illustration"></view>
+    <mp-msg extClass="page-empty-msg" title="暂无拼团记录" />
+  </view>
 
   <view wx:if="{{groupList.length}}" class="list-footer">
     <block wx:if="{{loadingMore}}">

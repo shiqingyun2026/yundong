@@ -102,25 +102,32 @@
   padding-top: 24rpx;
 }
 
-.agreement-checkbox {
-  display: flex;
-  align-items: flex-start;
-  gap: 16rpx;
-  padding: 24rpx;
+.agreement-consent-cells.weui-cells__group {
+  margin-top: 0;
+}
+
+.agreement-consent-cells .weui-cells {
+  margin-top: 0;
   border-radius: 28rpx;
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 12rpx 28rpx rgba(31, 35, 41, 0.06);
 }
 
-.agreement-checkbox .app-checkbox__control {
-  margin-top: 2rpx;
+.agreement-consent-cells .weui-cells::before,
+.agreement-consent-cells .weui-cells::after {
+  display: none;
 }
 
-.agreement-checkbox-content {
-  flex: 1;
+.agreement-consent-item.weui-cell {
+  padding: 24rpx;
+  background: transparent;
 }
 
-.agreement-checkbox-text {
+.agreement-consent-item.weui-cell::before {
+  display: none;
+}
+
+.agreement-consent-item .weui-cell__bd {
   font-size: 26rpx;
   line-height: 1.6;
   color: #1f2329;
@@ -128,6 +135,7 @@
 }
 
 .agreement-checkbox-tip {
+  padding: 8rpx 24rpx 0;
   margin-top: 8rpx;
   font-size: 22rpx;
   line-height: 1.7;

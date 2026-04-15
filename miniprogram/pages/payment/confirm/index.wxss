@@ -54,14 +54,30 @@
   line-height: 1.8;
 }
 
-.agreement-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 16rpx;
+.payment-agreement-cells.weui-cells__group {
+  margin-top: 0;
 }
 
-.agreement-text {
-  flex: 1;
+.payment-agreement-cells .weui-cells {
+  margin-top: 0;
+  background: transparent;
+}
+
+.payment-agreement-cells .weui-cells::before,
+.payment-agreement-cells .weui-cells::after {
+  display: none;
+}
+
+.payment-agreement-item.weui-cell {
+  padding: 0;
+  background: transparent;
+}
+
+.payment-agreement-item.weui-cell::before {
+  display: none;
+}
+
+.payment-agreement-item .weui-cell__bd {
   font-size: 26rpx;
   line-height: 1.7;
   color: #3c4655;
@@ -69,6 +85,11 @@
 
 .agreement-link {
   color: var(--brand-primary);
+}
+
+.payment-agreement-links {
+  margin-top: 12rpx;
+  padding-left: 76rpx;
 }
 
 .bottom-placeholder {

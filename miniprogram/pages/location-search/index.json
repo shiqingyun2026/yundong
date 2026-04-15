@@ -1,11 +1,10 @@
 {
   "navigationStyle": "custom",
   "usingComponents": {
-    "app-nav-bar": "../../components/app-nav-bar/index",
-    "app-feedback": "../../components/app-feedback/index",
-    "app-searchbar": "../../components/app-searchbar/index",
-    "app-icon": "../../components/app-icon/index",
-    "app-card": "../../components/app-card/index",
-    "app-tag": "../../components/app-tag/index"
+    "mp-navigation-bar": "../../vendor/weui-miniprogram/navigation-bar/navigation-bar",
+    "mp-toptips": "../../vendor/weui-miniprogram/toptips/toptips",
+    "mp-searchbar": "../../vendor/weui-miniprogram/searchbar/searchbar",
+    "mp-icon": "../../vendor/weui-miniprogram/icon/icon",
+    "mp-badge": "../../vendor/weui-miniprogram/badge/badge"
   }
 }

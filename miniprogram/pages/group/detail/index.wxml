@@ -1,24 +1,27 @@
 <view class="group-detail-page">
-  <app-feedback id="app-feedback" />
-  <loading-view loading="{{loading}}" text="拼团详情加载中..." />
+  <mp-toptips id="ui-toptips" />
+  <view wx:if="{{loading}}" class="page-loading">
+    <mp-loading show="{{loading}}" type="dot-gray" />
+    <text class="page-loading-text">拼团详情加载中...</text>
+  </view>
 
   <scroll-view wx:if="{{!loading && groupDetail}}" class="group-scroll" scroll-y>
-    <view class="app-page detail-content">
+    <view class="page-shell detail-content">
       <view class="status-header">
-        <app-tag extClass="status-tag {{statusClassName}}">{{statusText}}</app-tag>
-        <app-tag wx:if="{{courseStatusText}}" extClass="status-tag status-stage">{{courseStatusText}}</app-tag>
+        <mp-badge extClass="weui-ext-tag status-tag {{statusClassName}}" content="{{statusText}}" />
+        <mp-badge wx:if="{{courseStatusText}}" extClass="weui-ext-tag status-tag status-stage" content="{{courseStatusText}}" />
       </view>
 
-      <app-card extClass="page-section card-shadow">
+      <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="title-row">
           <view class="course-title">{{groupDetail.courseInfo.title}}</view>
-          <app-tag extClass="group-chip">{{groupDetail.courseInfo.targetCount}}人成团</app-tag>
+          <mp-badge extClass="weui-ext-tag group-chip" content="{{groupDetail.courseInfo.targetCount}}人成团" />
         </view>
 
         <view class="price-row">
           <view class="group-price">¥{{groupDetail.courseInfo.groupPriceText}}</view>
           <view class="original-price">¥{{groupDetail.courseInfo.originalPriceText}}</view>
-          <app-tag extClass="joined-chip">已拼 {{groupDetail.currentCount}} 人</app-tag>
+          <mp-badge extClass="weui-ext-tag joined-chip" content="已拼 {{groupDetail.currentCount}} 人" />
         </view>
 
         <view class="info-list">
@@ -35,9 +38,9 @@
             <view class="info-value">{{groupDetail.courseInfo.ageRange}}</view>
           </view>
         </view>
-      </app-card>
+      </view>
 
-      <app-card extClass="page-section card-shadow">
+      <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">拼团进度</view>
         <view class="progress-header">
           <view class="progress-text">{{groupDetail.progressText}}</view>
@@ -51,19 +54,23 @@
         <view wx:if="{{groupDetail.status !== 'ongoing'}}" class="section-desc progress-desc">
           {{progressStatusText}}
         </view>
-      </app-card>
+      </view>
 
       <view class="bottom-space"></view>
     </view>
   </scroll-view>
 
-  <app-bottom-bar wx:if="{{!loading && groupDetail}}" extClass="bottom-bar">
+  <view wx:if="{{!loading && groupDetail}}" class="bottom-bar">
     <block wx:if="{{groupDetail.status === 'ongoing' && groupDetail.userJoined}}">
-      <app-button extClass="bottom-button" variant="primary" openType="share">邀请好友</app-button>
+      <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary bottom-button" open-type="share">
+        <view class="weui-ext-button__inner">邀请好友</view>
+      </button>
     </block>
 
     <block wx:elif="{{groupDetail.status === 'ongoing' && !groupDetail.userJoined}}">
-      <app-button extClass="bottom-button" variant="primary" bind:tap="handleJoinGroup">立即参团</app-button>
+      <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary bottom-button" bindtap="handleJoinGroup">
+        <view class="weui-ext-button__inner">立即参团</view>
+      </button>
     </block>
 
     <block wx:else>
@@ -71,5 +78,5 @@
         {{bottomStatusText}}
       </view>
     </block>
-  </app-bottom-bar>
+  </view>
 </view>

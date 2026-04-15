@@ -1,6 +1,4 @@
 {
   "navigationBarTitleText": "课程服务协议",
-  "usingComponents": {
-    "app-card": "../../components/app-card/index"
-  }
+  "usingComponents": {}
 }

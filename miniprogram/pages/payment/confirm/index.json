@@ -1,12 +1,10 @@
 {
   "navigationBarTitleText": "支付确认",
   "usingComponents": {
-    "loading-view": "../../../components/loading/index",
-    "app-feedback": "../../../components/app-feedback/index",
-    "app-card": "../../../components/app-card/index",
-    "app-button": "../../../components/app-button/index",
-    "app-bottom-bar": "../../../components/app-bottom-bar/index",
-    "app-checkbox-group": "../../../components/app-checkbox-group/index",
-    "app-checkbox": "../../../components/app-checkbox/index"
+    "mp-toptips": "../../../vendor/weui-miniprogram/toptips/toptips",
+    "mp-cells": "../../../vendor/weui-miniprogram/cells/cells",
+    "mp-checkbox-group": "../../../vendor/weui-miniprogram/checkbox-group/checkbox-group",
+    "mp-checkbox": "../../../vendor/weui-miniprogram/checkbox/checkbox",
+    "mp-loading": "../../../vendor/weui-miniprogram/loading/loading"
   }
 }

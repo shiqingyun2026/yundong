@@ -1,7 +1,0 @@
-<view
-  class="weui-panel app-card {{shadow ? 'card-shadow' : ''}} {{extClass}}"
-  hover-class="{{hoverClass}}"
-  bindtap="handleTap"
->
-  <slot></slot>
-</view>

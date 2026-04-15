@@ -1,9 +1,0 @@
-{
-  "component": true,
-  "options": {
-    "multipleSlots": true
-  },
-  "usingComponents": {
-    "app-dialog": "../app-dialog/index"
-  }
-}

@@ -1,10 +1,16 @@
-<view class="app-page mine-page">
-  <app-feedback id="app-feedback" />
-  <app-card extClass="profile-card card-shadow {{!userInfo ? 'profile-card-guest' : ''}}" bind:tap="handleProfileTap">
+<view class="page-shell mine-page">
+  <mp-toptips id="ui-toptips" />
+  <view class="weui-panel weui-ext-card profile-card card-shadow {{!userInfo ? 'profile-card-guest' : ''}}" bindtap="handleProfileTap">
     <view class="profile-main">
       <view class="avatar-box {{!userInfo ? 'avatar-box-guest' : ''}}">
         <view class="avatar-placeholder">
-          <app-icon className="avatar-placeholder-icon" name="avatar-user-inverse" />
+          <mp-icon
+            extClass="avatar-placeholder-icon"
+            icon="me"
+            type="filled"
+            color="#ffffff"
+            size="{{userInfo ? 44 : 53}}"
+          />
         </view>
       </view>
       <view class="profile-info">
@@ -12,18 +18,17 @@
       </view>
     </view>
 
-    <app-button
+    <button
       wx:if="{{userInfo}}"
-      extClass="logout-button"
-      variant="secondary"
-      bind:tap="handleLogout"
+      class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--secondary logout-button"
+      bindtap="handleLogout"
     >
-      退出登录
-    </app-button>
-  </app-card>
+      <view class="weui-ext-button__inner">退出登录</view>
+    </button>
+  </view>
 
-  <app-cells extClass="mine-menu-cells menu-card card-shadow">
-    <app-cell
+  <mp-cells extClass="mine-menu-cells menu-card card-shadow">
+    <mp-cell
       wx:for="{{menuList}}"
       wx:key="key"
       wx:for-index="index"
@@ -36,33 +41,53 @@
       <view>
         <view class="menu-title">{{item.title}}</view>
       </view>
-      <app-icon slot="footer" className="menu-arrow-icon" name="nav-forward-muted" />
-    </app-cell>
-  </app-cells>
+      <mp-icon slot="footer" extClass="menu-arrow-icon" icon="arrow" type="outline" color="#b6bdc8" size="{{24}}" />
+    </mp-cell>
+  </mp-cells>
 
-  <base-modal
-    visible="{{showServiceModal}}"
+  <mp-dialog
+    show="{{showServiceModal}}"
     title="联系客服"
-    confirmText="我知道了"
-    cancelText="关闭"
-    bindclose="handleCloseService"
-    bindcancel="handleCloseService"
-    bindconfirm="handleConfirmService"
+    buttons="{{serviceDialogButtons}}"
+    bind:close="handleCloseService"
+    bind:buttontap="handleServiceDialogTap"
   >
     <view class="service-modal-content">
       <image class="service-qrcode" src="{{serviceQrCode}}" mode="aspectFit"></image>
       <view class="service-tip">请使用微信扫码联系专属客服</view>
     </view>
-  </base-modal>
+  </mp-dialog>
 
-  <login-sheet
-    visible="{{showLoginModal}}"
-    loading="{{loginLoading}}"
-    agreementChecked="{{loginAgreementChecked}}"
-    bind:close="handleCloseLoginModal"
-    bind:confirm="handleConfirmLogin"
-    bind:toggleagreement="handleToggleLoginAgreement"
-    bind:openagreement="handleOpenAgreement"
-    bind:openprivacy="handleOpenPrivacy"
-  />
+  <mp-half-screen-dialog show="{{showLoginModal}}" closabled="{{true}}" mask="{{true}}" ext-class="login-sheet-panel" bind:close="handleCloseLoginModal">
+    <view slot="desc" class="login-sheet">
+      <view class="login-sheet-icon">
+        <mp-icon extClass="login-sheet-bolt" icon="discover" type="filled" color="#12aab3" size="{{56}}" />
+      </view>
+      <view class="login-sheet-title">天天体育宝欢迎你</view>
+      <view class="login-sheet-subtitle">为了提供更好的服务，我们需要获取你的授权</view>
+      <view class="login-sheet-button-row">
+        <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--secondary login-sheet-secondary-button" disabled="{{loginLoading}}" bindtap="handleCloseLoginModal">
+          <view class="weui-ext-button__inner">稍后登录</view>
+        </button>
+        <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary login-sheet-button" loading="{{loginLoading}}" disabled="{{loginLoading}}" bindtap="handleConfirmLogin">
+          <view class="weui-ext-button__inner">微信一键登录</view>
+        </button>
+      </view>
+      <mp-cells extClass="login-sheet-consent-cells">
+        <mp-checkbox-group extClass="login-sheet-checkbox-group" bind:change="handleToggleLoginAgreement">
+          <mp-checkbox
+            extClass="login-sheet-checkbox-item"
+            value="agree"
+            checked="{{loginAgreementChecked}}"
+            label="我已阅读并同意"
+          />
+        </mp-checkbox-group>
+      </mp-cells>
+      <view class="login-sheet-agreement-links">
+        <text class="login-sheet-link" catchtap="handleOpenAgreement">用户协议</text>
+        <text class="login-sheet-link-separator">和</text>
+        <text class="login-sheet-link" catchtap="handleOpenPrivacy">隐私政策</text>
+      </view>
+    </view>
+  </mp-half-screen-dialog>
 </view>

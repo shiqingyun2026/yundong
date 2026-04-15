@@ -14,7 +14,7 @@
 ## 技术栈
 
 - 小程序：微信原生小程序，`WXML + WXSS + JavaScript`，使用 `style: v2`、`glass-easel`、`lazyCodeLoading`。
-- 小程序 UI：基于 `weui-miniprogram` 的 `app-*` 组件体系，图标运行时遵循 `weui` icon 结构，图标资产由 `weui-miniprogram/icon` 官方数据构建生成。
+- 小程序 UI：基于 `weui-miniprogram` 官方组件与官方样式语义，图标资产由 `weui-miniprogram/icon` 官方数据构建生成。
 - 后端：`Node.js + Express + JWT + MySQL`，当前保留部分 `Supabase` 迁移痕迹，并维护 `Cloudflare Worker / Wrangler` 入口。
 - 运营后台：`React 19 + TypeScript + Vite 6 + React Router 7 + Semi Icons`。
 - 回归测试：`Playwright`。
@@ -95,7 +95,7 @@ npm run test:console-prod
 
 ## 开发约束
 
-- 小程序页面层优先使用项目 `app-*` 组件和业务组件，不直接在页面里重复堆底层交互实现。
+- 小程序页面层优先使用 `weui-miniprogram` 官方组件和官方样式语义，不在页面里重复堆平行的自定义基础组件。
 - 图标统一走 `weui-miniprogram/icon` 官方数据和生成链路；品牌色、状态色、阴影、渐变统一从主题 token 改，不在页面里散写主品牌色。
 - 不手改生成产物，例如小程序图标资产、`tabBar` 图标、图标注册表；相关改动后统一执行对应脚本重建。
 - 小程序组件优先局部注册，保持 `lazyCodeLoading` 的收益；全局组件只在确有必要时引入。

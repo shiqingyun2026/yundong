@@ -1,7 +1,7 @@
 {
   "usingComponents": {
-    "app-icon": "../../components/app-icon/index",
-    "app-cells": "../../components/app-cells/index",
-    "app-cell": "../../components/app-cell/index"
+    "mp-cells": "../../vendor/weui-miniprogram/cells/cells",
+    "mp-cell": "../../vendor/weui-miniprogram/cell/cell",
+    "mp-icon": "../../vendor/weui-miniprogram/icon/icon"
   }
 }

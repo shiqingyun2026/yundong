@@ -1,4 +1,14 @@
 const { getAgreementPageContent } = require('../../utils/agreement')
+const REJECT_DIALOG_BUTTONS = [
+  {
+    text: '取消',
+    extClass: 'dialog-button-cancel'
+  },
+  {
+    text: '确认',
+    extClass: 'dialog-button-confirm'
+  }
+]
 
 Page({
   data: {
@@ -10,6 +20,7 @@ Page({
     agreed: false,
     readonly: false,
     showRejectModal: false,
+    rejectDialogButtons: REJECT_DIALOG_BUTTONS,
     userAgreementNodes: [],
     privacyPolicyNodes: []
   },
@@ -64,6 +75,17 @@ Page({
     this.setData({
       showRejectModal: false
     })
+  },
+
+  handleRejectDialogTap(event) {
+    const { index } = event.detail || {}
+
+    if (index === 0) {
+      this.handleCloseRejectModal()
+      return
+    }
+
+    this.handleConfirmReject()
   },
 
   handleConfirmReject() {

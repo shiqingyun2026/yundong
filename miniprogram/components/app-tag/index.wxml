@@ -1,3 +1,0 @@
-<view class="weui-badge app-tag {{extClass}}" bindtap="handleTap">
-  <slot>{{text}}</slot>
-</view>
