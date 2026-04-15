@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, User, Lock, Eye, EyeOff } from 'lucide-react';
+import { Activity, User, Lock, Eye, EyeOff } from '../components/icons';
 import { motion } from 'motion/react';
 
 export const Login: React.FC = () => {

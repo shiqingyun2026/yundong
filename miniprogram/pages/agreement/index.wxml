@@ -1,25 +1,18 @@
 <view class="agreement-page">
+  <app-feedback id="app-feedback" />
   <view class="agreement-header">
-    <view class="agreement-title">欢迎使用邻动体适能</view>
+    <view class="agreement-title">欢迎使用天天体育宝</view>
     <view class="agreement-subtitle">为保障你的账户与隐私权益，请先阅读并同意《用户协议》和《隐私政策》后再继续使用。</view>
   </view>
 
-  <view class="agreement-tabs">
-    <view
-      class="agreement-tab {{activeTab === 'user' ? 'agreement-tab-active' : ''}}"
-      data-tab="user"
-      bindtap="handleTabChange"
-    >
-      用户协议
-    </view>
-    <view
-      class="agreement-tab {{activeTab === 'privacy' ? 'agreement-tab-active' : ''}}"
-      data-tab="privacy"
-      bindtap="handleTabChange"
-    >
-      隐私政策
-    </view>
-  </view>
+  <app-tabs
+    extClass="agreement-tabs"
+    itemClassName="agreement-tab"
+    activeItemClassName="agreement-tab-active"
+    items="{{tabs}}"
+    activeKey="{{activeTab}}"
+    bind:change="handleTabChange"
+  />
 
   <scroll-view class="agreement-content" scroll-y>
     <rich-text
@@ -35,19 +28,30 @@
   </scroll-view>
 
   <view wx:if="{{!readonly}}" class="agreement-footer">
-    <checkbox-group bindchange="handleAgreementChange">
-      <label class="agreement-checkbox">
-        <checkbox value="agreed" color="#1677ff" checked="{{agreed}}" />
+    <app-checkbox-group bind:change="handleAgreementChange">
+      <app-checkbox value="agreed" checked="{{agreed}}" extClass="agreement-checkbox">
         <view class="agreement-checkbox-content">
           <view class="agreement-checkbox-text">我已阅读并同意《用户协议》和《隐私政策》</view>
           <view class="agreement-checkbox-tip">继续进入即表示你接受平台服务规则与隐私说明。</view>
         </view>
-      </label>
-    </checkbox-group>
+      </app-checkbox>
+    </app-checkbox-group>
 
     <view class="agreement-actions">
-      <button class="footer-button reject-button" bindtap="handleRejectTap">拒绝</button>
-      <button class="footer-button agree-button" bindtap="handleAgree">同意并进入</button>
+      <app-button extClass="footer-button reject-button" variant="secondary" bind:tap="handleRejectTap">拒绝</app-button>
+      <app-button extClass="footer-button agree-button" variant="primary" bind:tap="handleAgree">同意并进入</app-button>
     </view>
   </view>
+
+  <base-modal
+    visible="{{showRejectModal}}"
+    title="提示"
+    confirmText="确认"
+    cancelText="取消"
+    bind:close="handleCloseRejectModal"
+    bind:cancel="handleCloseRejectModal"
+    bind:confirm="handleConfirmReject"
+  >
+    <view class="section-desc">您需要同意协议才能使用本小程序</view>
+  </base-modal>
 </view>

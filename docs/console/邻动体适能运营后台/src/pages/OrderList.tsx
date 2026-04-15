@@ -15,7 +15,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Info
-} from 'lucide-react';
+} from '../components/icons';
 import { MOCK_ORDERS } from '../constants';
 import { OrderStatus, Order } from '../types';
 import { cn } from '../lib/utils';

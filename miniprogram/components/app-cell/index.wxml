@@ -1,0 +1,26 @@
+<mp-cell
+  hover="{{hover}}"
+  link="{{link}}"
+  ext-class="{{extClass}}"
+  icon-class="{{iconClass}}"
+  body-class="{{bodyClass}}"
+  icon="{{icon}}"
+  title="{{title}}"
+  value="{{value}}"
+  showError="{{showError}}"
+  url="{{url}}"
+  footer-class="{{footerClass}}"
+  footer="{{footer}}"
+  inline="{{inline}}"
+  hasHeader="{{hasHeader}}"
+  hasFooter="{{hasFooter}}"
+  hasBody="{{hasBody}}"
+  ext-hover-class="{{extHoverClass}}"
+  aria-role="{{ariaRole}}"
+  bindtap="handleTap"
+>
+  <slot name="icon" slot="icon"></slot>
+  <slot name="title" slot="title"></slot>
+  <slot></slot>
+  <slot name="footer" slot="footer"></slot>
+</mp-cell>

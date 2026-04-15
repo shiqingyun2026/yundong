@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Verified, Calendar, MapPin, ShoppingCart, Group, Users, History } from 'lucide-react';
+import { ChevronLeft, Verified, Calendar, MapPin, ShoppingCart, Group, Users, History } from '@/src/components/icons';
 import { COURSES } from '@/src/mockData';
 import { cn } from '@/src/lib/utils';
 import { motion } from 'motion/react';

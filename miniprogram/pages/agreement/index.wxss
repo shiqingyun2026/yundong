@@ -4,7 +4,7 @@
   min-height: 100vh;
   padding: 36rpx 24rpx 44rpx;
   background:
-    radial-gradient(circle at top left, rgba(22, 119, 255, 0.12), transparent 36%),
+    radial-gradient(circle at top left, rgba(24, 188, 197, 0.12), transparent 36%),
     linear-gradient(180deg, #f5f9ff 0%, #f7f8fa 38%, #f3f5f8 100%);
 }
 
@@ -50,9 +50,9 @@
 
 .agreement-tab-active {
   background: #ffffff;
-  color: #1677ff;
+  color: var(--brand-primary);
   font-weight: 600;
-  box-shadow: inset 0 0 0 2rpx rgba(22, 119, 255, 0.14), 0 8rpx 18rpx rgba(31, 35, 41, 0.06);
+  box-shadow: inset 0 0 0 2rpx rgba(24, 188, 197, 0.16), 0 8rpx 18rpx rgba(31, 35, 41, 0.06);
 }
 
 .agreement-content {
@@ -112,9 +112,8 @@
   box-shadow: 0 12rpx 28rpx rgba(31, 35, 41, 0.06);
 }
 
-.agreement-checkbox checkbox {
-  transform: scale(0.9);
-  transform-origin: left top;
+.agreement-checkbox .app-checkbox__control {
+  margin-top: 2rpx;
 }
 
 .agreement-checkbox-content {
@@ -166,6 +165,6 @@
 }
 
 .agree-button {
-  background: linear-gradient(135deg, #1677ff 0%, #3a95ff 100%);
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-light) 100%);
   color: #ffffff;
 }

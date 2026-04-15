@@ -1,0 +1,9 @@
+<mp-cells
+  ext-class="{{extClass}}"
+  title="{{title}}"
+  footer="{{footer}}"
+  aria-role="{{ariaRole}}"
+>
+  <slot></slot>
+  <slot name="footer" slot="footer"></slot>
+</mp-cells>

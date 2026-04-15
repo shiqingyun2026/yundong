@@ -1,0 +1,11 @@
+.app-card.weui-panel {
+  display: block;
+  margin-top: 0;
+  box-sizing: border-box;
+  background: #ffffff;
+}
+
+.app-card.weui-panel::before,
+.app-card.weui-panel::after {
+  display: none;
+}

@@ -1,5 +1,4 @@
 <view class="empty-wrap">
   <view class="empty-illustration"></view>
-  <view class="empty-title">{{title}}</view>
-  <view class="empty-desc">{{desc}}</view>
+  <app-msg extClass="app-empty-msg" title="{{title}}" desc="{{desc}}" />
 </view>

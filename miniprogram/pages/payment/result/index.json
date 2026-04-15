@@ -1,3 +1,10 @@
 {
-  "navigationBarTitleText": "支付结果"
+  "navigationBarTitleText": "支付结果",
+  "usingComponents": {
+    "app-feedback": "../../../components/app-feedback/index",
+    "app-icon": "../../../components/app-icon/index",
+    "app-msg": "../../../components/app-msg/index",
+    "app-card": "../../../components/app-card/index",
+    "app-button": "../../../components/app-button/index"
+  }
 }

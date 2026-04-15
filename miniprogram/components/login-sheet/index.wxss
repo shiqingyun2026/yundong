@@ -1,22 +1,6 @@
-.login-sheet-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.4);
-}
-
 .login-sheet {
-  position: relative;
-  width: 100%;
-  max-width: 750rpx;
-  min-height: 0;
   padding: 32rpx 32rpx calc(40rpx + env(safe-area-inset-bottom));
-  border-radius: 36rpx 36rpx 0 0;
   background: #ffffff;
-  box-shadow: 0 -16rpx 48rpx rgba(0, 0, 0, 0.18);
 }
 
 .login-sheet-icon {
@@ -27,7 +11,7 @@
   height: 128rpx;
   margin: 24rpx auto 0;
   border-radius: 50%;
-  background: #dbeafe;
+  background: var(--brand-primary-soft-strong);
 }
 
 .login-sheet-bolt {
@@ -63,21 +47,14 @@
 .login-sheet-button,
 .login-sheet-secondary-button {
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   height: 96rpx;
-  padding: 0;
-  border-radius: 999rpx;
-  border: none;
   font-size: 30rpx;
   line-height: 1;
-  text-align: center;
 }
 
 .login-sheet-button {
-  background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
-  box-shadow: 0 8rpx 20rpx rgba(59, 130, 246, 0.24);
+  background: linear-gradient(90deg, var(--brand-primary) 0%, var(--brand-primary-light) 100%);
+  box-shadow: 0 8rpx 20rpx var(--brand-primary-shadow-strong);
   color: #ffffff;
   font-weight: 500;
 }
@@ -89,12 +66,7 @@
   font-weight: 500;
 }
 
-.login-sheet-button::after,
-.login-sheet-secondary-button::after {
-  border: none;
-}
-
-.login-sheet-agreement-row {
+.login-sheet-checkbox {
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -103,35 +75,19 @@
   padding: 0 28rpx;
 }
 
-.login-sheet-check-wrap {
+.login-sheet-checkbox .app-checkbox__control {
   display: flex;
   align-items: center;
   justify-content: center;
   min-width: 48rpx;
   min-height: 48rpx;
-  padding: 4rpx;
-  margin-top: 0;
+  margin-top: 4rpx;
 }
 
-.login-sheet-check {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36rpx;
-  height: 36rpx;
-  border: 2rpx solid #cbd5e1;
-  border-radius: 10rpx;
-  background: #ffffff;
-}
-
-.login-sheet-check-active {
-  background: #3b82f6;
-  border-color: #3b82f6;
-}
-
-.login-sheet-check-mark {
-  width: 22rpx;
-  height: 22rpx;
+.login-sheet-checkbox .app-checkbox__indicator {
+  width: 40rpx;
+  height: 40rpx;
+  font-size: 34rpx;
 }
 
 .login-sheet-agreement {
@@ -143,6 +99,6 @@
 }
 
 .login-sheet-link {
-  color: #3b82f6;
+  color: var(--brand-primary);
   font-weight: 500;
 }

@@ -1,0 +1,3 @@
+.app-cell-shell {
+  display: block;
+}

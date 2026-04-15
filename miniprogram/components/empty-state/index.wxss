@@ -11,17 +11,5 @@
   height: 120rpx;
   margin: 0 auto 20rpx;
   border-radius: 50%;
-  background: linear-gradient(180deg, #eef5ff 0%, #f7f8fa 100%);
-}
-
-.empty-title {
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #1f2329;
-}
-
-.empty-desc {
-  margin-top: 12rpx;
-  font-size: 24rpx;
-  color: #8f96a3;
+  background: linear-gradient(180deg, var(--brand-primary-soft) 0%, #f7f8fa 100%);
 }

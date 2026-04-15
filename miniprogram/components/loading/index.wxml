@@ -1,4 +1,4 @@
 <view wx:if="{{loading}}" class="loading-wrap">
-  <view class="loading-dot"></view>
+  <app-loading extClass="loading-view-shell" show="{{loading}}" type="dot-gray" />
   <text class="loading-text">{{text}}</text>
 </view>

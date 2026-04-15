@@ -1,0 +1,24 @@
+.app-nav-bar-shell {
+  display: flex;
+  align-items: center;
+}
+
+.app-nav-bar__right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.app-nav-bar__back {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 64rpx;
+  height: 64rpx;
+  margin-right: 8rpx;
+}
+
+.app-nav-bar__back-icon {
+  width: 28rpx;
+  height: 28rpx;
+}

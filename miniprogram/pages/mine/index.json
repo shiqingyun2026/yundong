@@ -1,3 +1,13 @@
 {
-  "navigationBarTitleText": ""
+  "navigationBarTitleText": "",
+  "usingComponents": {
+    "app-icon": "../../components/app-icon/index",
+    "app-feedback": "../../components/app-feedback/index",
+    "app-card": "../../components/app-card/index",
+    "app-button": "../../components/app-button/index",
+    "app-cells": "../../components/app-cells/index",
+    "app-cell": "../../components/app-cell/index",
+    "base-modal": "../../components/base-modal/index",
+    "login-sheet": "../../components/login-sheet/index"
+  }
 }

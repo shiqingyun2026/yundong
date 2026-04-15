@@ -1,0 +1,14 @@
+<mp-msg
+  extClass="app-msg {{extClass}}"
+  title="{{title}}"
+  type="{{resolvedType}}"
+  icon="{{resolvedIcon}}"
+  desc="{{desc}}"
+  size="{{size}}"
+>
+  <slot slot="desc" name="desc"></slot>
+  <slot slot="extend" name="extend"></slot>
+  <slot slot="handle" name="handle"></slot>
+  <slot slot="tips" name="tips"></slot>
+  <slot slot="footer" name="footer"></slot>
+</mp-msg>

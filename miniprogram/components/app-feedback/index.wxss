@@ -1,0 +1,6 @@
+.app-feedback-shell.weui-toptips {
+  border-radius: 0 0 24rpx 24rpx;
+  box-shadow: 0 12rpx 30rpx rgba(15, 23, 42, 0.12);
+  font-size: 26rpx;
+  font-weight: 500;
+}

@@ -13,13 +13,13 @@ import {
   Calendar, 
   MapPin, 
   User, 
-  Image as ImageIcon,
+  ImageIcon,
   CheckCircle2,
   Bold,
   Italic,
   List,
   ChevronDown
-} from 'lucide-react';
+} from '../components/icons';
 import { MOCK_COURSES } from '../constants';
 import { cn } from '../lib/utils';
 

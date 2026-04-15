@@ -1,0 +1,51 @@
+.app-msg.weui-msg {
+  min-height: auto;
+  padding: 0;
+  text-align: center;
+  background: transparent;
+}
+
+.app-msg .weui-msg__icon-area:empty {
+  display: none;
+}
+
+.app-msg .weui-msg__icon-area {
+  margin: 0 auto 24rpx;
+}
+
+.app-msg .weui-msg__text-area {
+  margin-bottom: 0;
+  padding: 0;
+  flex: none;
+}
+
+.app-msg .weui-msg__title {
+  margin-bottom: 0;
+  font-size: 40rpx;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #1f2329;
+}
+
+.app-msg .weui-msg__desc {
+  margin-top: 16rpx;
+  margin-bottom: 0;
+  font-size: 26rpx;
+  line-height: 1.7;
+  color: #6b7280;
+}
+
+.app-msg .weui-msg__opr-area {
+  margin-bottom: 0;
+}
+
+.app-msg .weui-msg__tips-area {
+  margin-bottom: 0;
+  padding: 0;
+}
+
+.app-msg .weui-msg__extra-area {
+  margin-top: 0;
+  margin-bottom: 0;
+  padding: 0;
+}

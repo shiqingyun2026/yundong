@@ -1,9 +1,10 @@
 <view class="app-page mine-page">
-  <view class="profile-card card-shadow {{!userInfo ? 'profile-card-guest' : ''}}" bindtap="handleProfileTap">
+  <app-feedback id="app-feedback" />
+  <app-card extClass="profile-card card-shadow {{!userInfo ? 'profile-card-guest' : ''}}" bind:tap="handleProfileTap">
     <view class="profile-main">
       <view class="avatar-box {{!userInfo ? 'avatar-box-guest' : ''}}">
         <view class="avatar-placeholder">
-          <image class="avatar-placeholder-icon" src="/assets/ant-icons/user-white.svg" mode="aspectFit" />
+          <app-icon className="avatar-placeholder-icon" name="avatar-user-inverse" />
         </view>
       </view>
       <view class="profile-info">
@@ -11,29 +12,33 @@
       </view>
     </view>
 
-    <button
+    <app-button
       wx:if="{{userInfo}}"
-      class="primary-button secondary-button logout-button"
-      catchtap="handleLogout"
+      extClass="logout-button"
+      variant="secondary"
+      bind:tap="handleLogout"
     >
       退出登录
-    </button>
-  </view>
+    </app-button>
+  </app-card>
 
-  <view class="menu-card card-shadow">
-    <view
+  <app-cells extClass="mine-menu-cells menu-card card-shadow">
+    <app-cell
       wx:for="{{menuList}}"
       wx:key="key"
-      class="menu-item"
+      wx:for-index="index"
+      extClass="mine-menu-cell {{index > 0 ? 'mine-menu-cell--with-divider' : ''}}"
+      hasHeader="{{false}}"
+      hasFooter="{{true}}"
       data-key="{{item.key}}"
-      bindtap="handleMenuTap"
+      bind:tap="handleMenuTap"
     >
       <view>
         <view class="menu-title">{{item.title}}</view>
       </view>
-      <text class="menu-arrow">›</text>
-    </view>
-  </view>
+      <app-icon slot="footer" className="menu-arrow-icon" name="nav-forward-muted" />
+    </app-cell>
+  </app-cells>
 
   <base-modal
     visible="{{showServiceModal}}"

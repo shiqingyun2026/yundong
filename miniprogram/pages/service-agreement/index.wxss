@@ -24,14 +24,20 @@
   color: #6a7787;
 }
 
-.service-agreement-content {
+.service-agreement-card {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
   padding: 28rpx;
   border-radius: 28rpx;
-  background: #ffffff;
   border: 2rpx solid #e8edf3;
   box-sizing: border-box;
+}
+
+.service-agreement-content {
+  flex: 1;
+  min-height: 0;
 }
 
 .service-agreement-rich-text {

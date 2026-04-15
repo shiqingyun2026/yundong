@@ -1,4 +1,13 @@
 {
   "navigationStyle": "custom",
-  "enablePullDownRefresh": true
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "app-nav-bar": "../../components/app-nav-bar/index",
+    "app-feedback": "../../components/app-feedback/index",
+    "app-card": "../../components/app-card/index",
+    "app-tabs": "../../components/app-tabs/index",
+    "app-tag": "../../components/app-tag/index",
+    "loading-view": "../../components/loading/index",
+    "empty-state": "../../components/empty-state/index"
+  }
 }

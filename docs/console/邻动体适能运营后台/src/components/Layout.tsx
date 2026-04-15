@@ -13,7 +13,7 @@ import {
   LogOut, 
   ChevronDown,
   Activity
-} from 'lucide-react';
+} from './icons';
 import { cn } from '../lib/utils';
 
 interface SidebarItemProps {

@@ -1,0 +1,21 @@
+<weui-navigation-bar
+  extClass="app-nav-bar-shell {{extClass}}"
+  title="{{title}}"
+  background="{{background}}"
+  color="{{color}}"
+  loading="{{loading}}"
+  show="{{show}}"
+>
+  <view slot="left" class="app-nav-bar__left">
+    <view wx:if="{{back}}" class="app-nav-bar__back" bindtap="handleBack">
+      <app-icon className="app-nav-bar__back-icon" name="nav-back-dark" />
+    </view>
+    <slot name="left"></slot>
+  </view>
+
+  <slot name="center" slot="center"></slot>
+
+  <view slot="right" class="app-nav-bar__right">
+    <slot name="right"></slot>
+  </view>
+</weui-navigation-bar>

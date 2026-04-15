@@ -1,7 +1,13 @@
-const { courseServiceAgreementNodes } = require('../../utils/agreement')
+const { getCourseServiceAgreementNodes } = require('../../utils/agreement')
 
 Page({
   data: {
-    contentNodes: courseServiceAgreementNodes
+    contentNodes: []
+  },
+
+  onLoad() {
+    this.setData({
+      contentNodes: getCourseServiceAgreementNodes()
+    })
   }
 })

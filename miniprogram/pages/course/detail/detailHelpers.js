@@ -232,7 +232,7 @@ const buildSharePayload = ({ activeGroup, courseDetail, courseId, sharedGroupId 
 
   if (!targetGroupId || !courseDetail || !courseId) {
     return {
-      title: '邻动体适能拼团',
+      title: '天天体育宝拼团',
       path: '/pages/home/index',
       success() {
         wx.showToast({ title: '分享成功', icon: 'success', duration: 2000 })

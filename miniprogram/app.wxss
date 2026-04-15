@@ -1,4 +1,15 @@
+@import 'vendor/weui-miniprogram/weui-wxss/dist/style/weui.wxss';
+
 page {
+  --brand-primary: #18bcc5;
+  --brand-primary-strong: #12aab3;
+  --brand-primary-light: #59d2d7;
+  --brand-primary-soft: #e8f8f9;
+  --brand-primary-soft-strong: #d8f2f4;
+  --brand-primary-border: #cbeaec;
+  --brand-primary-shadow: rgba(24, 188, 197, 0.18);
+  --brand-primary-shadow-strong: rgba(24, 188, 197, 0.24);
+
   min-height: 100%;
   background: #f7f8fa;
   color: #1f2329;
@@ -47,7 +58,7 @@ image {
   height: 88rpx;
   border-radius: 999rpx;
   border: none;
-  background: #1677ff;
+  background: var(--brand-primary);
   color: #ffffff;
   font-size: 30rpx;
   font-weight: 600;
@@ -59,11 +70,300 @@ image {
 }
 
 .secondary-button {
-  border: 2rpx solid #d9e3f0;
+  border: 2rpx solid var(--brand-primary-border);
   background: #ffffff;
-  color: #1677ff;
+  color: var(--brand-primary);
 }
 
 .card-shadow {
   box-shadow: 0 12rpx 36rpx rgba(31, 35, 41, 0.06);
+}
+
+.loading-view-shell.wx_loading_view {
+  height: auto;
+  background: transparent;
+}
+
+.loading-view-shell .weui-loadmore {
+  margin: 0;
+}
+
+.weui-dialog__root .weui-mask {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.weui-dialog__root .weui-dialog {
+  width: calc(100% - 64rpx);
+  max-width: none;
+  padding: 32rpx;
+  border-radius: 32rpx;
+  box-sizing: border-box;
+}
+
+.weui-dialog__root .weui-dialog__hd {
+  padding: 0;
+}
+
+.weui-dialog__root .weui-dialog__title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1f2329;
+}
+
+.weui-dialog__root .weui-dialog__bd {
+  min-height: 0;
+  margin-top: 16rpx;
+  padding: 0;
+  font-size: 26rpx;
+  color: #5f6b7a;
+}
+
+.weui-dialog__root .weui-dialog__ft {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 32rpx;
+  padding: 0;
+}
+
+.weui-dialog__root .weui-dialog__btn {
+  flex: 1;
+  height: 80rpx;
+  line-height: 80rpx;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  text-align: center;
+}
+
+.weui-dialog__root .weui-dialog__btn::after {
+  display: none;
+}
+
+.weui-dialog__root .weui-dialog__btn + .weui-dialog__btn::after {
+  display: none;
+}
+
+.weui-dialog__root .app-dialog-button-cancel {
+  background: #f2f3f5;
+  color: #5f6b7a;
+}
+
+.weui-dialog__root .app-dialog-button-confirm {
+  background: var(--brand-primary);
+  color: #ffffff;
+}
+
+.weui-half-screen-dialog.login-sheet-panel {
+  max-width: 750rpx;
+  border-radius: 36rpx 36rpx 0 0;
+  box-shadow: 0 -16rpx 48rpx rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+.weui-half-screen-dialog.login-sheet-panel .weui-half-screen-dialog__hd {
+  display: none;
+}
+
+.weui-half-screen-dialog.login-sheet-panel .weui-half-screen-dialog__bd {
+  padding: 0;
+}
+
+.weui-half-screen-dialog.login-sheet-panel .weui-half-screen-dialog__ft {
+  display: none;
+}
+
+.app-empty-msg.weui-msg {
+  padding: 0;
+}
+
+.app-empty-msg .weui-msg__icon-area,
+.payment-result-msg .weui-msg__icon-area {
+  display: none;
+}
+
+.app-empty-msg .weui-msg__text-area,
+.payment-result-msg .weui-msg__text-area {
+  margin-bottom: 0;
+}
+
+.app-empty-msg .weui-msg__title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1f2329;
+}
+
+.app-empty-msg .weui-msg__desc {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #8f96a3;
+}
+
+.payment-result-msg.weui-msg {
+  padding: 0;
+}
+
+.payment-result-msg .weui-msg__title {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #1f2329;
+}
+
+.payment-result-msg .weui-msg__desc {
+  margin-top: 16rpx;
+  font-size: 26rpx;
+  line-height: 1.8;
+  color: #5f6b7a;
+}
+
+.payment-result-msg .weui-msg__opr-area {
+  margin-top: 40rpx;
+}
+
+.payment-result-msg .weui-msg__tips-area {
+  margin-top: 0;
+}
+
+.home-nav-bar .weui-navigation-bar {
+  background: transparent;
+}
+
+.home-nav-bar .weui-navigation-bar__inner {
+  background: transparent !important;
+}
+
+.home-nav-bar .weui-navigation-bar__left {
+  flex: 1;
+  min-width: 0;
+}
+
+.home-nav-bar .weui-navigation-bar__center,
+.home-nav-bar .weui-navigation-bar__right {
+  display: none;
+}
+
+.location-search-nav .weui-navigation-bar {
+  background: transparent;
+}
+
+.location-search-nav .weui-navigation-bar__inner {
+  background: transparent !important;
+}
+
+.location-search-nav .weui-navigation-bar__left {
+  width: 64rpx;
+  flex: none;
+  min-width: 64rpx;
+}
+
+.location-search-nav .weui-navigation-bar__right {
+  width: 64rpx;
+  flex: none;
+  min-width: 64rpx;
+}
+
+.location-search-nav .weui-navigation-bar__center {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #1f2329;
+}
+
+.location-searchbar.weui-search-bar {
+  padding: 0;
+  background: transparent;
+}
+
+.location-searchbar .weui-search-bar__form {
+  background: transparent;
+}
+
+.location-searchbar .weui-search-bar__box {
+  height: 72rpx;
+  padding: 0 10rpx;
+  border-radius: 999rpx;
+  background: #f5f7fb;
+}
+
+.location-searchbar .weui-search-bar__label {
+  display: none;
+}
+
+.location-searchbar .weui-search-bar__input {
+  height: 72rpx;
+  font-size: 26rpx;
+  color: #1f2329;
+}
+
+.location-searchbar .weui-search-bar__icon,
+.location-searchbar .weui-search-bar__clear-icon {
+  width: 28rpx;
+  height: 28rpx;
+}
+
+.location-searchbar .weui-search-bar__cancel-btn {
+  display: none;
+}
+
+.mine-menu-cells.weui-cells__group,
+.agreement-list-cells.weui-cells__group {
+  margin-top: 0;
+}
+
+.mine-menu-cells .weui-cells,
+.agreement-list-cells .weui-cells {
+  margin-top: 0;
+  background: transparent;
+}
+
+.mine-menu-cells .weui-cells::before,
+.mine-menu-cells .weui-cells::after,
+.agreement-list-cells .weui-cells::before,
+.agreement-list-cells .weui-cells::after {
+  display: none !important;
+}
+
+.mine-menu-cell.weui-cell {
+  min-height: 112rpx;
+  padding: 32rpx 4rpx;
+}
+
+.mine-menu-cell.weui-cell::before {
+  display: none !important;
+}
+
+.mine-menu-cell--with-divider.weui-cell::before {
+  display: flex !important;
+  left: 0;
+  right: 0;
+  border-top: 2rpx solid #f0f2f5;
+}
+
+.mine-menu-cell .weui-cell__bd {
+  font-size: 36rpx;
+  font-weight: 400;
+  color: #1f2329;
+}
+
+.mine-menu-cell .weui-cell__ft {
+  color: #1f2329;
+}
+
+.agreement-list-cell.weui-cell {
+  padding: 30rpx 0;
+}
+
+.agreement-list-cell.weui-cell::before {
+  display: none !important;
+}
+
+.agreement-list-cell--with-divider.weui-cell::before {
+  display: flex !important;
+  left: 0;
+  right: 0;
+  border-top: 2rpx solid #eef2f7;
+}
+
+.agreement-list-cell .weui-cell__bd {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1f2329;
 }

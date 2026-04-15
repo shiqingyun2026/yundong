@@ -4,7 +4,9 @@
     <view class="service-agreement-subtitle">当前为临时占位文本，后续可替换为正式服务协议。</view>
   </view>
 
-  <scroll-view class="service-agreement-content" scroll-y>
-    <rich-text class="service-agreement-rich-text" nodes="{{contentNodes}}"></rich-text>
-  </scroll-view>
+  <app-card extClass="service-agreement-card card-shadow">
+    <scroll-view class="service-agreement-content" scroll-y>
+      <rich-text class="service-agreement-rich-text" nodes="{{contentNodes}}"></rich-text>
+    </scroll-view>
+  </app-card>
 </view>

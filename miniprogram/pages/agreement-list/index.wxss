@@ -12,18 +12,6 @@
   border: 2rpx solid #e8edf3;
 }
 
-.agreement-list-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20rpx;
-  padding: 30rpx 0;
-}
-
-.agreement-list-item + .agreement-list-item {
-  border-top: 2rpx solid #eef2f7;
-}
-
 .agreement-list-main {
   flex: 1;
 }

@@ -1,16 +1,19 @@
 <view class="agreement-list-page">
-  <view class="agreement-list-card">
-    <view
+  <app-cells extClass="agreement-list-cells agreement-list-card">
+    <app-cell
       wx:for="{{agreementList}}"
       wx:key="key"
-      class="agreement-list-item"
+      wx:for-index="index"
+      extClass="agreement-list-cell {{index > 0 ? 'agreement-list-cell--with-divider' : ''}}"
+      hasHeader="{{false}}"
+      hasFooter="{{true}}"
       data-key="{{item.key}}"
-      bindtap="handleOpenAgreement"
+      bind:tap="handleOpenAgreement"
     >
       <view class="agreement-list-main">
         <view class="agreement-list-item-title">{{item.title}}</view>
       </view>
-      <image class="agreement-list-arrow" src="/assets/ant-icons/arrow-right-muted.svg" mode="aspectFit" />
-    </view>
-  </view>
+      <app-icon slot="footer" className="agreement-list-arrow" name="nav-forward-muted" />
+    </app-cell>
+  </app-cells>
 </view>

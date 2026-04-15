@@ -1,6 +1,6 @@
 const { loginWithWechat } = require('../../utils/auth')
 
-const SERVICE_QR_CODE = 'https://dummyimage.com/240x240/f3f8ff/1677ff.png&text=%E5%AE%A2%E6%9C%8D%E4%BA%8C%E7%BB%B4%E7%A0%81'
+const SERVICE_QR_CODE = 'https://dummyimage.com/240x240/e8f8f9/18bcc5.png&text=%E5%AE%A2%E6%9C%8D%E4%BA%8C%E7%BB%B4%E7%A0%81'
 
 Page({
   data: {

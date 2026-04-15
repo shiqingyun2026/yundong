@@ -7,12 +7,14 @@ const {
   resolveCloudLocationFunctionNameByEnv,
   resolveSubscribeTemplateIdsByEnv
 } = require('./config/env')
+const { resolveRuntimeInfo } = require('./utils/util')
 
 App({
   onLaunch() {
     this.initRuntimeEnv()
     this.initCloud()
     this.initSystemInfo()
+    this.installUiFeedback()
     this.syncAgreementState()
     this.syncLocationState()
     wx.removeStorageSync('phoneNumber')
@@ -63,12 +65,42 @@ App({
 
   initSystemInfo() {
     try {
-      const systemInfo = wx.getSystemInfoSync()
+      const systemInfo = resolveRuntimeInfo()
       this.globalData.systemInfo = systemInfo
-      this.globalData.navbarHeight = systemInfo.statusBarHeight + 44
+      this.globalData.navbarHeight = systemInfo.navBarHeight
     } catch (error) {
-      console.warn('getSystemInfoSync failed', error)
+      console.warn('resolveRuntimeInfo failed', error)
     }
+  },
+
+  installUiFeedback() {
+    if (this._uiFeedbackInstalled || !wx || typeof wx.showToast !== 'function') {
+      return
+    }
+
+    const originalShowToast = wx.showToast
+
+    wx.showToast = options => {
+      const payload = options || {}
+      const icon = payload.icon || 'none'
+      const canUseFeedback = !payload.image && !payload.mask && ['none', 'success', 'loading'].includes(icon)
+      const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+      const currentPage = pages[pages.length - 1]
+      const feedback =
+        currentPage && typeof currentPage.selectComponent === 'function'
+          ? currentPage.selectComponent('#app-feedback')
+          : null
+
+      if (!canUseFeedback || !feedback || typeof feedback.showToast !== 'function') {
+        return originalShowToast(payload)
+      }
+
+      feedback.showToast(payload)
+      return { errMsg: 'showToast:ok' }
+    }
+
+    this._uiFeedbackInstalled = true
+    this.globalData.originalShowToast = originalShowToast
   },
 
   syncAgreementState() {
@@ -188,6 +220,7 @@ App({
     selectedLocation: wx.getStorageSync('selectedLocation') || wx.getStorageSync('location') || null,
     agreementAccepted: !!wx.getStorageSync('agreementAccepted'),
     systemInfo: null,
-    navbarHeight: 64
+    navbarHeight: 64,
+    originalShowToast: null
   }
 })

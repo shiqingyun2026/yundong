@@ -17,7 +17,7 @@ import {
   ShieldCheck,
   Trash2,
   AlertTriangle
-} from 'lucide-react';
+} from '../components/icons';
 import { MOCK_ACCOUNTS } from '../constants';
 import { UserRole, Account } from '../types';
 import { cn } from '../lib/utils';

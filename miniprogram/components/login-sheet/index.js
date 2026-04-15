@@ -14,17 +14,13 @@ Component({
     }
   },
   methods: {
-    noop() {},
-    handleMaskTap() {
-      this.triggerEvent('close')
-    },
     handleClose() {
       this.triggerEvent('close')
     },
     handleConfirm() {
       this.triggerEvent('confirm')
     },
-    handleToggleAgreement() {
+    handleAgreementChange() {
       this.triggerEvent('toggleagreement')
     },
     handleOpenAgreement() {

@@ -5,29 +5,8 @@
   padding: 32rpx 0;
 }
 
-.loading-dot {
-  width: 20rpx;
-  height: 20rpx;
-  margin-right: 12rpx;
-  border-radius: 50%;
-  background: #1677ff;
-  animation: pulse 1s ease-in-out infinite;
-}
-
 .loading-text {
+  margin-left: 12rpx;
   font-size: 24rpx;
   color: #8f96a3;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.4;
-    transform: scale(0.8);
-  }
-
-  50% {
-    opacity: 1;
-    transform: scale(1);
-  }
 }

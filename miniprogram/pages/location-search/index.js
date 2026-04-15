@@ -8,11 +8,11 @@ const {
 
 const SEARCH_DEBOUNCE_MS = 300
 const RESULT_ICON_CLASS = ['blue', 'blue', 'warm', 'violet', 'blue', 'green']
-const RESULT_ICON_SRC = {
-  blue: '/assets/ant-icons/environment-blue.svg',
-  warm: '/assets/ant-icons/environment-orange.svg',
-  violet: '/assets/ant-icons/environment-violet.svg',
-  green: '/assets/ant-icons/environment-green.svg'
+const RESULT_ICON_NAME = {
+  blue: 'location-primary',
+  warm: 'location-warm',
+  violet: 'location-violet',
+  green: 'location-green'
 }
 
 const formatDistance = distance => {
@@ -127,7 +127,7 @@ Page({
           ...item,
           distanceText: formatDistance(item.distance),
           iconClass: RESULT_ICON_CLASS[index % RESULT_ICON_CLASS.length],
-          iconSrc: RESULT_ICON_SRC[RESULT_ICON_CLASS[index % RESULT_ICON_CLASS.length]]
+          iconName: RESULT_ICON_NAME[RESULT_ICON_CLASS[index % RESULT_ICON_CLASS.length]]
         })),
         loading: false,
         searchState: resultList.length ? 'result' : 'empty'

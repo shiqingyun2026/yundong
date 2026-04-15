@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Share2, Heart, Calendar, Baby, MapPin, ChevronRight, ShieldCheck, Verified, Headset, CheckCircle2, Users, History } from 'lucide-react';
+import { ChevronLeft, Share2, Heart, Calendar, Baby, MapPin, ChevronRight, ShieldCheck, Verified, Headset, CheckCircle2, Users, History } from '@/src/components/icons';
 import { COURSES, COACH } from '@/src/mockData';
 import { cn } from '@/src/lib/utils';
 import { motion } from 'motion/react';

@@ -12,14 +12,14 @@
 .home-navbar-row {
   display: flex;
   align-items: center;
-  height: 88rpx;
+  min-height: 88rpx;
 }
 
 .hero-card {
   margin-bottom: 24rpx;
   padding: 24rpx;
   border-radius: 32rpx;
-  background: linear-gradient(180deg, #ffffff 0%, #f3f8ff 100%);
+  background: linear-gradient(180deg, #ffffff 0%, var(--brand-primary-soft) 100%);
 }
 
 .location-pill {
@@ -68,7 +68,7 @@
 }
 
 .tab-item-active {
-  background: #1677ff;
+  background: var(--brand-primary);
   color: #ffffff;
   font-weight: 600;
 }
@@ -92,7 +92,7 @@
 }
 
 .notice-action {
-  color: #1677ff;
+  color: var(--brand-primary);
   font-size: 24rpx;
   font-weight: 600;
 }
@@ -221,7 +221,7 @@
 }
 
 .joined-text {
-  color: #1677ff;
+  color: var(--brand-primary);
   font-size: 24rpx;
   font-weight: 600;
 }

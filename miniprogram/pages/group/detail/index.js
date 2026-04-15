@@ -274,7 +274,7 @@ Page({
     const { groupDetail } = this.data
     if (!groupDetail) {
       return {
-        title: '邻动体适能拼团',
+        title: '天天体育宝拼团',
         path: '/pages/home/index',
         success: handleShareSuccess
       }

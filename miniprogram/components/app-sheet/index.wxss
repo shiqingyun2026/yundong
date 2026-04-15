@@ -1,0 +1,28 @@
+.app-sheet-shell {
+  display: block;
+}
+
+.app-sheet__title-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.app-sheet__title-slot {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-sheet__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56rpx;
+  height: 56rpx;
+  margin-left: 16rpx;
+}
+
+.app-sheet__close-icon {
+  width: 28rpx;
+  height: 28rpx;
+}

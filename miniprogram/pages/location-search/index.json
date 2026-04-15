@@ -1,3 +1,11 @@
 {
-  "navigationStyle": "custom"
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "app-nav-bar": "../../components/app-nav-bar/index",
+    "app-feedback": "../../components/app-feedback/index",
+    "app-searchbar": "../../components/app-searchbar/index",
+    "app-icon": "../../components/app-icon/index",
+    "app-card": "../../components/app-card/index",
+    "app-tag": "../../components/app-tag/index"
+  }
 }

@@ -1,0 +1,14 @@
+<view wx:if="{{show}}" class="app-loading-shell {{extClass}}">
+  <view wx:if="{{usePrimary}}" class="weui-primary-loading weui-primary-loading_brand app-loading__primary {{!animated ? 'app-loading__primary--static' : ''}}">
+    <view class="weui-primary-loading__dot"></view>
+  </view>
+  <mp-loading
+    wx:else
+    extClass="app-loading__vendor"
+    show="{{show}}"
+    animated="{{animated}}"
+    duration="{{duration}}"
+    type="{{resolvedType}}"
+    tips="{{tips}}"
+  />
+</view>

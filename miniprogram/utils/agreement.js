@@ -20,7 +20,7 @@ const userAgreementNodes = [
         children: [
           {
             type: 'text',
-            text: '邻动体适能小程序当前为测试阶段占位协议内容，后续将替换为正式《用户协议》。用户在使用课程浏览、报名、拼团等服务前，应先完整阅读并确认同意本协议。'
+            text: '天天体育宝小程序当前为测试阶段占位协议内容，后续将替换为正式《用户协议》。用户在使用课程浏览、报名、拼团等服务前，应先完整阅读并确认同意本协议。'
           }
         ]
       },
@@ -287,13 +287,29 @@ const AGREEMENT_DOCS = [
   }
 ]
 
+const cloneNodes = nodes => JSON.parse(JSON.stringify(nodes))
+
+const getAgreementPageContent = () => ({
+  userAgreementNodes: cloneNodes(userAgreementNodes),
+  privacyPolicyNodes: cloneNodes(privacyPolicyNodes)
+})
+
+const getCourseServiceAgreementNodes = () => cloneNodes(courseServiceAgreementNodes)
+
 const getAgreementDocByKey = key => {
   const matched = AGREEMENT_DOCS.find(item => item.key === key)
-  return matched || AGREEMENT_DOCS[0]
+  const target = matched || AGREEMENT_DOCS[0]
+
+  return {
+    ...target,
+    nodes: cloneNodes(target.nodes)
+  }
 }
 
 module.exports = {
   AGREEMENT_DOCS,
+  getAgreementPageContent,
+  getCourseServiceAgreementNodes,
   getAgreementDocByKey,
   userAgreementNodes,
   privacyPolicyNodes,

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { MapPin, Verified, Info } from 'lucide-react';
+import { MapPin, Verified, Info } from '@/src/components/icons';
 import { MY_GROUP_BUYS } from '@/src/mockData';
 import { BottomNav } from '@/src/components/BottomNav';
 import { cn } from '@/src/lib/utils';

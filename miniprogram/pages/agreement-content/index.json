@@ -1,3 +1,5 @@
 {
-  "usingComponents": {}
+  "usingComponents": {
+    "app-card": "../../components/app-card/index"
+  }
 }

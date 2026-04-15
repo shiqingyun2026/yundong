@@ -1,0 +1,14 @@
+.app-loading-shell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-loading__primary {
+  font-size: 32rpx;
+  color: var(--brand-primary);
+}
+
+.app-loading__primary--static {
+  animation: none;
+}

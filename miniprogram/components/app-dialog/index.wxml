@@ -1,0 +1,12 @@
+<mp-dialog
+  ext-class="app-dialog-shell {{extClass}}"
+  title="{{title}}"
+  show="{{visible}}"
+  buttons="{{dialogButtons}}"
+  mask="{{mask}}"
+  maskClosable="{{maskClosable}}"
+  bind:close="handleClose"
+  bind:buttontap="handleButtonTap"
+>
+  <slot></slot>
+</mp-dialog>

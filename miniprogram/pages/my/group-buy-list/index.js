@@ -71,7 +71,7 @@ Page({
   },
 
   handleTabTap(event) {
-    const { key } = event.currentTarget.dataset
+    const key = (event.detail && event.detail.key) || (event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.key)
     if (!key || key === this.data.activeTab) {
       return
     }

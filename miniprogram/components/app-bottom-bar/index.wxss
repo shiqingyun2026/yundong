@@ -1,0 +1,8 @@
+.app-bottom-bar.weui-tabbar {
+  display: block;
+  box-sizing: border-box;
+}
+
+.app-bottom-bar.weui-tabbar::before {
+  display: none;
+}

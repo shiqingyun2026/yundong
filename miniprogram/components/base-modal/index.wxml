@@ -1,16 +1,13 @@
-<view wx:if="{{visible}}" class="modal-mask" bindtap="handleMaskTap">
-  <view class="modal-panel" catchtap="noop">
-    <view class="modal-title">{{title}}</view>
-    <view class="modal-body">
-      <slot></slot>
-    </view>
-    <view class="modal-footer">
-      <button wx:if="{{showCancel}}" class="modal-button cancel-button" bindtap="handleCancel">
-        {{cancelText}}
-      </button>
-      <button class="modal-button confirm-button" bindtap="handleConfirm">
-        {{confirmText}}
-      </button>
-    </view>
-  </view>
-</view>
+<app-dialog
+  visible="{{visible}}"
+  title="{{title}}"
+  confirmText="{{confirmText}}"
+  cancelText="{{cancelText}}"
+  showCancel="{{showCancel}}"
+  extClass="base-modal-shell"
+  bind:close="handleMaskTap"
+  bind:cancel="handleCancel"
+  bind:confirm="handleConfirm"
+>
+  <slot></slot>
+</app-dialog>

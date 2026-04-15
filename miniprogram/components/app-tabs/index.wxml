@@ -1,0 +1,12 @@
+<view class="weui-navbar app-tabs {{wrap ? 'app-tabs--wrap' : 'app-tabs--stretch'}} {{extClass}}">
+  <view
+    wx:for="{{items}}"
+    wx:key="key"
+    class="weui-navbar__item app-tabs__item {{itemClassName}} {{activeKey === item.key ? 'weui-bar__item_on app-tabs__item--active ' + activeItemClassName : ''}}"
+    data-index="{{index}}"
+    data-key="{{item.key}}"
+    bindtap="handleTap"
+  >
+    {{item.label}}
+  </view>
+</view>

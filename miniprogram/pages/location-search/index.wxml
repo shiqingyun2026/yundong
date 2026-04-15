@@ -1,36 +1,33 @@
 <view class="location-search-page">
-  <view class="page-header" style="padding-top: {{statusBarHeight}}px;">
-    <view class="header-bar">
-      <view class="header-back" bindtap="handleBack">
-        <image class="header-back-icon" src="/assets/ant-icons/arrow-left-dark.svg" mode="aspectFit" />
+  <app-feedback id="app-feedback" />
+  <view class="page-header">
+    <app-nav-bar extClass="location-search-nav" background="#ffffff" color="#1f2329" back="{{false}}">
+      <view slot="left" class="header-back" bindtap="handleBack">
+        <app-icon className="header-back-icon" name="nav-back-dark" />
       </view>
-      <view class="header-title">选择地址</view>
-      <view class="header-space"></view>
-    </view>
-    <view class="search-row card-shadow">
+      <view slot="center" class="header-title">选择地址</view>
+      <view slot="right" class="header-space"></view>
+    </app-nav-bar>
+    <app-card extClass="search-row card-shadow">
       <view class="city-pill">{{city}}</view>
       <view class="search-box">
-        <image class="search-icon" src="/assets/ant-icons/search-muted.svg" mode="aspectFit" />
-        <input
-          class="search-input"
-          type="text"
+        <app-searchbar
+          extClass="location-searchbar"
           focus="{{true}}"
           placeholder="搜索地址"
           value="{{keyword}}"
-          bindinput="handleInput"
-          confirm-type="search"
+          cancel="{{false}}"
+          bind:input="handleInput"
+          bind:clear="handleClear"
         />
-        <view wx:if="{{keyword}}" class="clear-btn" bindtap="handleClear">
-          <image class="clear-icon" src="/assets/ant-icons/close-muted.svg" mode="aspectFit" />
-        </view>
       </view>
-    </view>
+    </app-card>
   </view>
 
   <view class="page-body">
-    <view wx:if="{{gpsLocation}}" class="current-card card-shadow" bindtap="handleUseCurrentLocation">
+    <app-card wx:if="{{gpsLocation}}" extClass="current-card card-shadow" bind:tap="handleUseCurrentLocation">
       <view class="current-icon">
-        <image class="current-icon-image" src="/assets/ant-icons/environment-white.svg" mode="aspectFit" />
+        <app-icon className="current-icon-image" name="location-inverse" />
       </view>
       <view class="current-content">
         <view class="current-label">当前位置</view>
@@ -38,11 +35,11 @@
         <view class="current-address">{{gpsLocation.address}}</view>
       </view>
       <view class="current-action" catchtap="handleRefreshLocation">重定位</view>
-    </view>
+    </app-card>
 
     <view wx:if="{{searchState === 'loading'}}" class="state-panel">
       <view class="state-spinner">
-        <image class="state-spinner-icon" src="/assets/ant-icons/loading-blue.svg" mode="aspectFit" />
+        <app-icon className="state-spinner-icon" name="status-loading-primary" />
       </view>
       <view class="state-title">正在搜索地址</view>
       <view class="state-desc">正在为您实时匹配{{city}}范围内的精准地理信息，请稍候...</view>
@@ -50,7 +47,7 @@
 
     <view wx:elif="{{searchState === 'empty'}}" class="state-panel">
       <view class="state-empty-icon">
-        <image class="state-empty-icon-image" src="/assets/ant-icons/environment-blue.svg" mode="aspectFit" />
+        <app-icon className="state-empty-icon-image" name="location-primary" />
       </view>
       <view class="state-title">未找到相关地址</view>
       <view class="state-desc">抱歉，我们没有找到关于“{{keyword}}”的任何结果，请尝试检查拼写或搜索更通用的名称。</view>
@@ -62,25 +59,25 @@
         <view class="result-subtitle">找到 {{resultList.length}} 个与“{{keyword}}”相关的结果</view>
       </view>
 
-      <view
+      <app-card
         wx:for="{{resultList}}"
         wx:key="index"
-        class="result-card card-shadow"
+        extClass="result-card card-shadow"
         data-index="{{index}}"
-        bindtap="handleSelectResult"
+        bind:tap="handleSelectResult"
       >
         <view class="result-icon {{item.iconClass}}">
-          <image class="result-icon-image" src="{{item.iconSrc}}" mode="aspectFit" />
+          <app-icon className="result-icon-image" name="{{item.iconName}}" />
         </view>
         <view class="result-content">
           <view class="result-name">{{item.name}}</view>
           <view class="result-address">{{item.address}}</view>
         </view>
         <view class="result-meta">
-          <view wx:if="{{item.distanceText}}" class="distance-pill">{{item.distanceText}}</view>
-          <image class="result-arrow" src="/assets/ant-icons/arrow-right-light.svg" mode="aspectFit" />
+          <app-tag wx:if="{{item.distanceText}}" extClass="distance-pill">{{item.distanceText}}</app-tag>
+          <app-icon className="result-arrow" name="nav-forward-light" />
         </view>
-      </view>
+      </app-card>
 
       <view class="result-footer">
         <view class="footer-line"></view>

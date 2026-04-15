@@ -1,0 +1,85 @@
+.app-button.weui-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 0;
+  margin: 0;
+  padding: 0 32rpx;
+  border: none;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  line-height: 1;
+  text-align: center;
+}
+
+.app-button__inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+}
+
+.app-button__loading-icon {
+  width: 28rpx;
+  height: 28rpx;
+  flex-shrink: 0;
+}
+
+.app-button__loading-icon--spin {
+  animation: app-button-spin 0.9s linear infinite;
+}
+
+.app-button.weui-btn::after {
+  display: none;
+}
+
+.app-button--block {
+  width: 100%;
+}
+
+.app-button--large {
+  height: 88rpx;
+}
+
+.app-button--medium {
+  height: 72rpx;
+  font-size: 26rpx;
+}
+
+.app-button--small {
+  height: 64rpx;
+  font-size: 24rpx;
+}
+
+.app-button--primary {
+  background: var(--brand-primary);
+  color: #ffffff;
+}
+
+.app-button--secondary {
+  border: 2rpx solid var(--brand-primary-border);
+  background: #ffffff;
+  color: var(--brand-primary);
+}
+
+.app-button--text {
+  background: transparent;
+  color: #5f6b7a;
+  box-shadow: none;
+}
+
+.app-button[disabled] {
+  opacity: 0.6;
+}
+
+@keyframes app-button-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}

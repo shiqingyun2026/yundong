@@ -15,7 +15,7 @@ import {
   ChevronLeft, 
   ChevronRight,
   MoreHorizontal
-} from 'lucide-react';
+} from '../components/icons';
 import { MOCK_COURSES } from '../constants';
 import { CourseStatus } from '../types';
 import { cn } from '../lib/utils';

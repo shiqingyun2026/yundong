@@ -1,0 +1,3 @@
+<checkbox-group class="app-checkbox-group {{extClass}}">
+  <slot></slot>
+</checkbox-group>

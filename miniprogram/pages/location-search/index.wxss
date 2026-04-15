@@ -9,14 +9,6 @@
   box-shadow: 0 12rpx 30rpx rgba(15, 23, 42, 0.05);
 }
 
-.header-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 88rpx;
-  padding: 0 24rpx;
-}
-
 .header-back,
 .header-space {
   width: 64rpx;
@@ -56,36 +48,8 @@
 }
 
 .search-box {
-  display: flex;
   flex: 1;
-  align-items: center;
   min-width: 0;
-  padding: 0 10rpx;
-  border-radius: 999rpx;
-  background: #f5f7fb;
-}
-
-.search-icon,
-.clear-btn {
-  flex-shrink: 0;
-  width: 44rpx;
-  height: 44rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.search-icon,
-.clear-icon {
-  width: 28rpx;
-  height: 28rpx;
-}
-
-.search-input {
-  flex: 1;
-  height: 72rpx;
-  color: #1f2329;
-  font-size: 26rpx;
 }
 
 .page-body {
@@ -98,7 +62,7 @@
   gap: 20rpx;
   padding: 24rpx;
   border-radius: 28rpx;
-  background: linear-gradient(180deg, #f1f6ff 0%, #edf4ff 100%);
+  background: linear-gradient(180deg, var(--brand-primary-soft) 0%, var(--brand-primary-soft-strong) 100%);
 }
 
 .current-icon {
@@ -108,7 +72,7 @@
   width: 80rpx;
   height: 80rpx;
   border-radius: 24rpx;
-  background: linear-gradient(180deg, #2d7fff 0%, #156cff 100%);
+  background: linear-gradient(180deg, var(--brand-primary) 0%, var(--brand-primary-strong) 100%);
   color: #ffffff;
 }
 
@@ -123,7 +87,7 @@
 }
 
 .current-label {
-  color: #2d7fff;
+  color: var(--brand-primary);
   font-size: 22rpx;
   font-weight: 600;
 }
@@ -144,7 +108,7 @@
 
 .current-action {
   flex-shrink: 0;
-  color: #2d7fff;
+  color: var(--brand-primary);
   font-size: 24rpx;
   font-weight: 700;
 }
@@ -166,8 +130,8 @@
   width: 132rpx;
   height: 132rpx;
   border-radius: 36rpx;
-  background: radial-gradient(circle, rgba(45, 127, 255, 0.16) 0%, rgba(45, 127, 255, 0.06) 70%, rgba(45, 127, 255, 0) 100%);
-  box-shadow: 0 22rpx 56rpx rgba(45, 127, 255, 0.08);
+  background: radial-gradient(circle, rgba(24, 188, 197, 0.16) 0%, rgba(24, 188, 197, 0.06) 70%, rgba(24, 188, 197, 0) 100%);
+  box-shadow: 0 22rpx 56rpx rgba(24, 188, 197, 0.08);
 }
 
 .state-spinner-icon,
@@ -231,7 +195,7 @@
   width: 72rpx;
   height: 72rpx;
   border-radius: 22rpx;
-  background: #edf4ff;
+  background: var(--brand-primary-soft-strong);
 }
 
 .result-icon-image {
@@ -281,8 +245,8 @@
 .distance-pill {
   padding: 8rpx 14rpx;
   border-radius: 999rpx;
-  background: #edf4ff;
-  color: #2d7fff;
+  background: var(--brand-primary-soft-strong);
+  color: var(--brand-primary);
   font-size: 22rpx;
   font-weight: 700;
 }

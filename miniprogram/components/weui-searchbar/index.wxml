@@ -1,0 +1,37 @@
+<view class="weui-search-bar {{searchState ? 'weui-search-bar_focusing' : ''}} {{extClass}}">
+  <view
+    class="weui-search-bar__form"
+    aria-role="combobox"
+    aria-haspopup
+    aria-expanded="{{searchState}}"
+  >
+    <view class="weui-search-bar__box">
+      <app-icon className="weui-search-bar__icon" name="search-muted" />
+      <input
+        type="text"
+        class="weui-search-bar__input"
+        placeholder="{{placeholder}}"
+        value="{{value}}"
+        focus="{{focus}}"
+        placeholder-class="weui-search-bar__input-placeholder"
+        confirm-type="{{confirmType}}"
+        bindblur="inputBlur"
+        bindfocus="inputFocus"
+        bindinput="inputChange"
+        bindconfirm="inputConfirm"
+      />
+      <view wx:if="{{value.length > 0}}" class="weui-search-bar__clear-action" bindtap="clearInput">
+        <app-icon className="weui-search-bar__clear-icon" name="action-clear-muted" />
+      </view>
+    </view>
+
+    <label class="weui-search-bar__label" bindtap="showInput">
+      <app-icon className="weui-search-bar__label-icon" name="search-muted" />
+      <text aria-hidden class="weui-search-bar__label-text">{{placeholder}}</text>
+    </label>
+  </view>
+
+  <view wx:if="{{cancel && searchState}}" class="weui-search-bar__cancel-btn" bindtap="hideInput" aria-role="button">
+    {{cancelText}}
+  </view>
+</view>

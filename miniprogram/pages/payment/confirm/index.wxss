@@ -68,7 +68,7 @@
 }
 
 .agreement-link {
-  color: #1677ff;
+  color: var(--brand-primary);
 }
 
 .bottom-placeholder {

@@ -1,3 +1,11 @@
 {
-  "navigationBarTitleText": "拼团详情"
+  "navigationBarTitleText": "拼团详情",
+  "usingComponents": {
+    "loading-view": "../../../components/loading/index",
+    "app-feedback": "../../../components/app-feedback/index",
+    "app-card": "../../../components/app-card/index",
+    "app-tag": "../../../components/app-tag/index",
+    "app-button": "../../../components/app-button/index",
+    "app-bottom-bar": "../../../components/app-bottom-bar/index"
+  }
 }

@@ -1,61 +1,62 @@
 <view class="app-page home-page">
-  <view class="home-navbar" style="padding-top: {{statusBarHeight}}px;">
-    <view class="home-navbar-row">
-      <view class="location-pill navbar-location-pill" bindtap="handleLocationTap">
-        <text class="location-text">{{locationText}}</text>
-        <text class="location-chevron">›</text>
+  <app-feedback id="app-feedback" />
+  <view class="home-navbar">
+    <app-nav-bar extClass="home-nav-bar" background="transparent" color="#1f2329" back="{{false}}">
+      <view slot="left" class="home-navbar-row">
+        <view class="location-pill navbar-location-pill" bindtap="handleLocationTap">
+          <text class="location-text">{{locationText}}</text>
+          <text class="location-chevron">›</text>
+        </view>
       </view>
-    </view>
+    </app-nav-bar>
   </view>
 
-  <view class="hero-card card-shadow">
-    <view class="tab-row">
-      <view
-        wx:for="{{tabs}}"
-        wx:key="key"
-        class="tab-item {{activeTab === item.key ? 'tab-item-active' : ''}}"
-        data-key="{{item.key}}"
-        bindtap="handleTabChange"
-      >
-        {{item.label}}
-      </view>
-    </view>
-  </view>
+  <app-card extClass="hero-card card-shadow">
+    <app-tabs
+      extClass="tab-row home-tabs"
+      itemClassName="tab-item"
+      activeItemClassName="tab-item-active"
+      items="{{tabs}}"
+      activeKey="{{activeTab}}"
+      wrap="{{true}}"
+      bind:change="handleTabChange"
+    />
+  </app-card>
 
-  <view wx:if="{{locationTip}}" class="notice-card card-shadow">
+  <app-card wx:if="{{locationTip}}" extClass="notice-card card-shadow">
     <view class="notice-text">{{locationTip}}</view>
     <view wx:if="{{locationDenied}}" class="notice-action" bindtap="handleManualLocationTip">
       开启定位
     </view>
-  </view>
+  </app-card>
 
   <loading-view loading="{{initialLoading}}" text="课程加载中..." />
 
   <view wx:if="{{!initialLoading && courseList.length}}" class="course-list">
-    <view
+    <app-card
       wx:for="{{courseList}}"
       wx:key="id"
-      class="course-card card-shadow"
+      extClass="course-card card-shadow"
       data-id="{{item.id}}"
-      bindtap="handleCourseTap"
+      bind:tap="handleCourseTap"
     >
       <view class="cover-wrap">
         <image class="course-cover" src="{{item.cover}}" mode="aspectFill"></image>
-        <view wx:if="{{item.soonGroup}}" class="group-tag">即将成团</view>
+        <app-tag wx:if="{{item.soonGroup}}" extClass="group-tag">即将成团</app-tag>
       </view>
 
       <view class="course-content">
         <view class="course-title-row">
           <view class="course-title">{{item.title}}</view>
-          <view wx:if="{{activeTab === 'all'}}" class="distance-text">{{item.distanceText}}</view>
+          <app-tag wx:if="{{activeTab === 'all'}}" extClass="distance-text">{{item.distanceText}}</app-tag>
         </view>
 
         <view class="course-meta">{{item.timeText}}</view>
         <view class="course-meta">{{item.locationText}}</view>
-        <view wx:if="{{item.showActiveGroupCountdown}}" class="countdown-pill">
+        <app-tag wx:if="{{item.showActiveGroupCountdown}}" extClass="countdown-pill">
           <view class="countdown-dot"></view>
           <view class="countdown-text">{{item.activeGroup.expireTimeText}}</view>
-        </view>
+        </app-tag>
 
         <view class="course-footer">
           <view class="price-group">
@@ -68,7 +69,7 @@
           </view>
         </view>
       </view>
-    </view>
+    </app-card>
   </view>
 
   <empty-state

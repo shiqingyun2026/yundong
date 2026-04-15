@@ -21,7 +21,7 @@
 }
 
 .tab-item-active {
-  background: #1677ff;
+  background: var(--brand-primary);
   color: #ffffff;
   font-weight: 600;
 }
@@ -96,8 +96,8 @@
 }
 
 .status-success {
-  background: #eef5ff;
-  color: #1677ff;
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
 }
 
 .status-failed {

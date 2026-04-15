@@ -1,21 +1,30 @@
-const { userAgreementNodes, privacyPolicyNodes } = require('../../utils/agreement')
+const { getAgreementPageContent } = require('../../utils/agreement')
 
 Page({
   data: {
+    tabs: [
+      { key: 'user', label: '用户协议' },
+      { key: 'privacy', label: '隐私政策' }
+    ],
     activeTab: 'user',
     agreed: false,
     readonly: false,
-    userAgreementNodes,
-    privacyPolicyNodes
+    showRejectModal: false,
+    userAgreementNodes: [],
+    privacyPolicyNodes: []
   },
 
   onLoad(options) {
     const activeTab = options && (options.tab === 'privacy' ? 'privacy' : 'user')
     const readonly = !!(options && options.readonly === '1')
 
+    const { userAgreementNodes, privacyPolicyNodes } = getAgreementPageContent()
+
     this.setData({
       activeTab,
-      readonly
+      readonly,
+      userAgreementNodes,
+      privacyPolicyNodes
     })
 
     const app = getApp()
@@ -28,7 +37,7 @@ Page({
   },
 
   handleTabChange(event) {
-    const { tab } = event.currentTarget.dataset
+    const tab = (event.detail && event.detail.key) || (event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.tab)
     if (!tab || tab === this.data.activeTab) {
       return
     }
@@ -46,21 +55,25 @@ Page({
   },
 
   handleRejectTap() {
-    wx.showModal({
-      title: '提示',
-      content: '您需要同意协议才能使用本小程序',
-      confirmText: '确认',
-      cancelText: '取消',
-      success: result => {
-        if (!result.confirm) {
-          return
-        }
-
-        if (typeof wx.exitMiniProgram === 'function') {
-          wx.exitMiniProgram()
-        }
-      }
+    this.setData({
+      showRejectModal: true
     })
+  },
+
+  handleCloseRejectModal() {
+    this.setData({
+      showRejectModal: false
+    })
+  },
+
+  handleConfirmReject() {
+    this.setData({
+      showRejectModal: false
+    })
+
+    if (typeof wx.exitMiniProgram === 'function') {
+      wx.exitMiniProgram()
+    }
   },
 
   handleAgree() {

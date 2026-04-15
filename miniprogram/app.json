@@ -15,7 +15,7 @@
   ],
   "window": {
     "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "邻动体适能",
+    "navigationBarTitleText": "天天体育宝",
     "navigationBarBackgroundColor": "#f7f8fa",
     "backgroundColor": "#f7f8fa",
     "backgroundTextStyle": "dark"
@@ -30,7 +30,7 @@
   ],
   "tabBar": {
     "color": "#8f96a3",
-    "selectedColor": "#1677ff",
+    "selectedColor": "#18bcc5",
     "backgroundColor": "#ffffff",
     "borderStyle": "black",
     "list": [
@@ -48,12 +48,7 @@
       }
     ]
   },
-  "usingComponents": {
-    "loading-view": "/components/loading/index",
-    "empty-state": "/components/empty-state/index",
-    "base-modal": "/components/base-modal/index",
-    "login-sheet": "/components/login-sheet/index"
-  },
+  "usingComponents": {},
   "style": "v2",
   "componentFramework": "glass-easel",
   "sitemapLocation": "sitemap.json",

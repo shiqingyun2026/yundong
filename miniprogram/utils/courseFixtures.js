@@ -1,4 +1,4 @@
-const SERVICE_QR_CODE = 'https://dummyimage.com/240x240/f3f8ff/1677ff.png&text=%E5%AE%A2%E6%9C%8D%E4%BA%8C%E7%BB%B4%E7%A0%81'
+const SERVICE_QR_CODE = 'https://dummyimage.com/240x240/e8f8f9/18bcc5.png&text=%E5%AE%A2%E6%9C%8D%E4%BA%8C%E7%BB%B4%E7%A0%81'
 
 const buildDescriptionNodes = title => [
   {
@@ -128,8 +128,8 @@ const MOCK_COURSES = [
     coachName: '王教练',
     coachIntro: '拥有 6 年儿童体适能教学经验，擅长通过游戏化训练提升孩子参与度与运动自信。',
     coachCertificates: [
-      'https://dummyimage.com/240x160/e8f3ff/1677ff.png&text=%E6%95%99%E7%BB%83%E8%AF%81%E4%B9%A61',
-      'https://dummyimage.com/240x160/f6f7fb/1677ff.png&text=%E6%95%99%E7%BB%83%E8%AF%81%E4%B9%A62'
+      'https://dummyimage.com/240x160/e8f8f9/18bcc5.png&text=%E6%95%99%E7%BB%83%E8%AF%81%E4%B9%A61',
+      'https://dummyimage.com/240x160/f6fbfb/18bcc5.png&text=%E6%95%99%E7%BB%83%E8%AF%81%E4%B9%A62'
     ]
   },
   {
@@ -152,8 +152,8 @@ const MOCK_COURSES = [
     coachName: '陈老师',
     coachIntro: '亲子课程专项教练，关注亲子互动与孩子动作启蒙。',
     coachCertificates: [
-      'https://dummyimage.com/240x160/e8f3ff/1677ff.png&text=%E8%AF%81%E4%B9%A61',
-      'https://dummyimage.com/240x160/f6f7fb/1677ff.png&text=%E8%AF%81%E4%B9%A62'
+      'https://dummyimage.com/240x160/e8f8f9/18bcc5.png&text=%E8%AF%81%E4%B9%A61',
+      'https://dummyimage.com/240x160/f6fbfb/18bcc5.png&text=%E8%AF%81%E4%B9%A62'
     ]
   },
   {
@@ -176,7 +176,7 @@ const MOCK_COURSES = [
     coachName: '李教练',
     coachIntro: '专注低龄儿童动作启蒙，课程节奏轻松、互动强。',
     coachCertificates: [
-      'https://dummyimage.com/240x160/e8f3ff/1677ff.png&text=%E8%AF%81%E4%B9%A61'
+      'https://dummyimage.com/240x160/e8f8f9/18bcc5.png&text=%E8%AF%81%E4%B9%A61'
     ]
   },
   {
@@ -198,7 +198,7 @@ const MOCK_COURSES = [
     coachName: '赵老师',
     coachIntro: '擅长爆发力和弹跳训练，注重动作规范与安全保护。',
     coachCertificates: [
-      'https://dummyimage.com/240x160/e8f3ff/1677ff.png&text=%E8%AF%81%E4%B9%A61'
+      'https://dummyimage.com/240x160/e8f8f9/18bcc5.png&text=%E8%AF%81%E4%B9%A61'
     ]
   },
   {
@@ -220,7 +220,7 @@ const MOCK_COURSES = [
     coachName: '周教练',
     coachIntro: '强调跑动敏捷与反应训练，适合好动型孩子。',
     coachCertificates: [
-      'https://dummyimage.com/240x160/e8f3ff/1677ff.png&text=%E8%AF%81%E4%B9%A61'
+      'https://dummyimage.com/240x160/e8f8f9/18bcc5.png&text=%E8%AF%81%E4%B9%A61'
     ]
   },
   {
@@ -242,7 +242,7 @@ const MOCK_COURSES = [
     coachName: '孙老师',
     coachIntro: '核心力量与身体控制教学经验丰富，训练节奏适中。',
     coachCertificates: [
-      'https://dummyimage.com/240x160/e8f3ff/1677ff.png&text=%E8%AF%81%E4%B9%A61'
+      'https://dummyimage.com/240x160/e8f8f9/18bcc5.png&text=%E8%AF%81%E4%B9%A61'
     ]
   },
   {
@@ -264,7 +264,7 @@ const MOCK_COURSES = [
     coachName: '许老师',
     coachIntro: '亲子互动课程设计师，擅长营造轻松愉快的课堂氛围。',
     coachCertificates: [
-      'https://dummyimage.com/240x160/e8f3ff/1677ff.png&text=%E8%AF%81%E4%B9%A61'
+      'https://dummyimage.com/240x160/e8f8f9/18bcc5.png&text=%E8%AF%81%E4%B9%A61'
     ]
   },
   {
@@ -286,7 +286,7 @@ const MOCK_COURSES = [
     coachName: '吴教练',
     coachIntro: '重视反应速度、协调控制和团队互动训练。',
     coachCertificates: [
-      'https://dummyimage.com/240x160/e8f3ff/1677ff.png&text=%E8%AF%81%E4%B9%A61'
+      'https://dummyimage.com/240x160/e8f8f9/18bcc5.png&text=%E8%AF%81%E4%B9%A61'
     ]
   },
   {
@@ -308,7 +308,7 @@ const MOCK_COURSES = [
     coachName: '郑老师',
     coachIntro: '晚间课程经验丰富，注重课程节奏和家长沟通。',
     coachCertificates: [
-      'https://dummyimage.com/240x160/e8f3ff/1677ff.png&text=%E8%AF%81%E4%B9%A61'
+      'https://dummyimage.com/240x160/e8f8f9/18bcc5.png&text=%E8%AF%81%E4%B9%A61'
     ]
   },
   {
@@ -330,7 +330,7 @@ const MOCK_COURSES = [
     coachName: '何教练',
     coachIntro: '晨练课程专长，擅长综合体能唤醒与节奏训练。',
     coachCertificates: [
-      'https://dummyimage.com/240x160/e8f3ff/1677ff.png&text=%E8%AF%81%E4%B9%A61'
+      'https://dummyimage.com/240x160/e8f8f9/18bcc5.png&text=%E8%AF%81%E4%B9%A61'
     ]
   },
   {
@@ -352,7 +352,7 @@ const MOCK_COURSES = [
     coachName: '彭老师',
     coachIntro: '专注耐力训练和心肺能力提升，课程安排循序渐进。',
     coachCertificates: [
-      'https://dummyimage.com/240x160/e8f3ff/1677ff.png&text=%E8%AF%81%E4%B9%A61'
+      'https://dummyimage.com/240x160/e8f8f9/18bcc5.png&text=%E8%AF%81%E4%B9%A61'
     ]
   },
   {
@@ -374,7 +374,7 @@ const MOCK_COURSES = [
     coachName: '高老师',
     coachIntro: '擅长把运动训练设计成闯关游戏，提升孩子参与意愿。',
     coachCertificates: [
-      'https://dummyimage.com/240x160/e8f3ff/1677ff.png&text=%E8%AF%81%E4%B9%A61'
+      'https://dummyimage.com/240x160/e8f8f9/18bcc5.png&text=%E8%AF%81%E4%B9%A61'
     ]
   }
 ]
@@ -390,7 +390,7 @@ const GROUP_DETAIL_MAP = {
     refundDesc: '截止时间未成团将自动原路退款',
     userJoined: true,
     members: [
-      { avatar: 'https://dummyimage.com/96x96/e8f3ff/1677ff.png&text=A', nickName: '安安妈' },
+      { avatar: 'https://dummyimage.com/96x96/e8f8f9/18bcc5.png&text=A', nickName: '安安妈' },
       { avatar: 'https://dummyimage.com/96x96/fbead9/ff7a00.png&text=B', nickName: '贝贝爸' },
       { avatar: 'https://dummyimage.com/96x96/e7f8ef/1f9d63.png&text=C', nickName: '晨晨妈' }
     ]
@@ -405,7 +405,7 @@ const GROUP_DETAIL_MAP = {
     refundDesc: '截止时间未成团将自动原路退款',
     userJoined: false,
     members: [
-      { avatar: 'https://dummyimage.com/96x96/e8f3ff/1677ff.png&text=1', nickName: '一一妈' },
+      { avatar: 'https://dummyimage.com/96x96/e8f8f9/18bcc5.png&text=1', nickName: '一一妈' },
       { avatar: 'https://dummyimage.com/96x96/fbead9/ff7a00.png&text=2', nickName: '朵朵爸' },
       { avatar: 'https://dummyimage.com/96x96/e7f8ef/1f9d63.png&text=3', nickName: '可可妈' },
       { avatar: 'https://dummyimage.com/96x96/f4ecff/7a5cff.png&text=4', nickName: '乐乐爸' }
@@ -421,7 +421,7 @@ const GROUP_DETAIL_MAP = {
     refundDesc: '截止时间未成团将自动原路退款',
     userJoined: true,
     members: [
-      { avatar: 'https://dummyimage.com/96x96/e8f3ff/1677ff.png&text=M1', nickName: '米米妈' },
+      { avatar: 'https://dummyimage.com/96x96/e8f8f9/18bcc5.png&text=M1', nickName: '米米妈' },
       { avatar: 'https://dummyimage.com/96x96/fbead9/ff7a00.png&text=M2', nickName: '元元爸' },
       { avatar: 'https://dummyimage.com/96x96/e7f8ef/1f9d63.png&text=M3', nickName: '九九妈' },
       { avatar: 'https://dummyimage.com/96x96/f4ecff/7a5cff.png&text=M4', nickName: '宁宁爸' },
@@ -438,7 +438,7 @@ const GROUP_DETAIL_MAP = {
     refundDesc: '已成团，不支持自动退款',
     userJoined: true,
     members: [
-      { avatar: 'https://dummyimage.com/96x96/e8f3ff/1677ff.png&text=S1', nickName: '果果妈' },
+      { avatar: 'https://dummyimage.com/96x96/e8f8f9/18bcc5.png&text=S1', nickName: '果果妈' },
       { avatar: 'https://dummyimage.com/96x96/fbead9/ff7a00.png&text=S2', nickName: '西西爸' },
       { avatar: 'https://dummyimage.com/96x96/e7f8ef/1f9d63.png&text=S3', nickName: '点点妈' },
       { avatar: 'https://dummyimage.com/96x96/f4ecff/7a5cff.png&text=S4', nickName: '阿杰爸' }
@@ -454,7 +454,7 @@ const GROUP_DETAIL_MAP = {
     refundDesc: '拼团失败，系统已自动原路退款',
     userJoined: false,
     members: [
-      { avatar: 'https://dummyimage.com/96x96/e8f3ff/1677ff.png&text=F1', nickName: '悠悠妈' },
+      { avatar: 'https://dummyimage.com/96x96/e8f8f9/18bcc5.png&text=F1', nickName: '悠悠妈' },
       { avatar: 'https://dummyimage.com/96x96/fbead9/ff7a00.png&text=F2', nickName: '大壮爸' }
     ]
   }

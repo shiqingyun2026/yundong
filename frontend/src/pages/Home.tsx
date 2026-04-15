@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MapPin, Calendar, Flame, Star, CheckCircle2 } from 'lucide-react';
+import { MapPin, Calendar, Flame, Star, CheckCircle2 } from '@/src/components/icons';
 import { COURSES } from '@/src/mockData';
 import { BottomNav } from '@/src/components/BottomNav';
 import { cn } from '@/src/lib/utils';

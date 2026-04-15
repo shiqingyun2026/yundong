@@ -1,25 +1,23 @@
 <view class="app-page my-group-list-page">
-  <view class="tab-bar card-shadow">
-    <view
-      wx:for="{{tabs}}"
-      wx:key="key"
-      class="tab-item {{activeTab === item.key ? 'tab-item-active' : ''}}"
-      data-key="{{item.key}}"
-      bindtap="handleTabTap"
-    >
-      {{item.label}}
-    </view>
-  </view>
+  <app-feedback id="app-feedback" />
+  <app-tabs
+    extClass="tab-bar card-shadow"
+    itemClassName="tab-item"
+    activeItemClassName="tab-item-active"
+    items="{{tabs}}"
+    activeKey="{{activeTab}}"
+    bind:change="handleTabTap"
+  />
 
   <loading-view loading="{{loading}}" text="拼团记录加载中..." />
 
   <view wx:if="{{!loading && groupList.length}}" class="group-list">
-    <view
+    <app-card
       wx:for="{{groupList}}"
       wx:key="groupId"
-      class="group-card card-shadow"
+      extClass="group-card card-shadow"
       data-group-id="{{item.groupId}}"
-      bindtap="handleOpenDetail"
+      bind:tap="handleOpenDetail"
     >
       <image class="group-cover" src="{{item.cover}}" mode="aspectFill"></image>
 
@@ -27,21 +25,21 @@
         <view class="group-title-row">
           <view class="group-title">{{item.title}}</view>
           <view class="status-group">
-            <view
-              class="status-tag {{item.status === 'ongoing' ? 'status-ongoing' : item.status === 'success' ? 'status-success' : 'status-failed'}}"
+            <app-tag
+              extClass="status-tag {{item.status === 'ongoing' ? 'status-ongoing' : item.status === 'success' ? 'status-success' : 'status-failed'}}"
             >
               {{item.statusText}}
-            </view>
-            <view wx:if="{{item.courseStatusText}}" class="status-tag status-stage">
+            </app-tag>
+            <app-tag wx:if="{{item.courseStatusText}}" extClass="status-tag status-stage">
               {{item.courseStatusText}}
-            </view>
+            </app-tag>
           </view>
         </view>
 
         <view class="group-meta">{{item.timeText}}</view>
         <view class="group-meta">{{item.locationText}}</view>
       </view>
-    </view>
+    </app-card>
   </view>
 
   <empty-state

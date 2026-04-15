@@ -1,4 +1,5 @@
 <view class="detail-page">
+  <app-feedback id="app-feedback" />
   <loading-view loading="{{loading}}" text="详情加载中..." />
 
   <scroll-view wx:if="{{!loading && courseDetail}}" class="detail-scroll" scroll-y>
@@ -9,16 +10,16 @@
     </swiper>
 
     <view class="detail-content">
-      <view class="page-section card-shadow">
+      <app-card extClass="page-section card-shadow">
         <view class="title-row">
           <view class="course-title">{{courseDetail.title}}</view>
-          <view wx:if="{{hasActiveGroup}}" class="group-chip">{{groupTargetCount}}人成团</view>
+          <app-tag wx:if="{{hasActiveGroup}}" extClass="group-chip">{{groupTargetCount}}人成团</app-tag>
         </view>
 
         <view class="price-row">
           <view class="group-price">¥{{courseDetail.groupPriceText}}</view>
           <view class="original-price">¥{{courseDetail.originalPriceText}}</view>
-          <view wx:if="{{showJoinedCount}}" class="joined-chip">已拼 {{displayJoinedCount}} 人</view>
+          <app-tag wx:if="{{showJoinedCount}}" extClass="joined-chip">已拼 {{displayJoinedCount}} 人</app-tag>
         </view>
 
         <view class="info-list">
@@ -35,19 +36,19 @@
             <view class="info-value">{{courseDetail.ageRange}}</view>
           </view>
         </view>
-      </view>
+      </app-card>
 
-      <view class="page-section card-shadow">
+      <app-card extClass="page-section card-shadow">
         <view class="section-title">课程介绍</view>
         <rich-text class="rich-text" nodes="{{courseDetail.descriptionHtml || courseDetail.descriptionNodes}}"></rich-text>
-      </view>
+      </app-card>
 
-      <view class="page-section card-shadow">
+      <app-card extClass="page-section card-shadow">
         <view class="section-title">拼团规则</view>
         <rich-text class="rich-text" nodes="{{courseDetail.groupRuleNodes}}"></rich-text>
-      </view>
+      </app-card>
 
-      <view class="page-section card-shadow">
+      <app-card extClass="page-section card-shadow">
         <view class="section-title">教练信息</view>
         <view class="coach-name">{{courseDetail.coach.name}}</view>
         <view class="coach-intro">{{courseDetail.coach.intro}}</view>
@@ -62,20 +63,20 @@
             bindtap="handlePreviewCertificate"
           ></image>
         </view>
-      </view>
+      </app-card>
 
-      <view class="page-section card-shadow insurance-card">
+      <app-card extClass="page-section card-shadow insurance-card">
         <view class="section-title">保险说明</view>
         <view class="section-desc insurance-text">{{courseDetail.insuranceText}}</view>
-      </view>
+      </app-card>
 
-      <view class="page-section card-shadow">
+      <app-card extClass="page-section card-shadow">
         <view class="section-title">当前拼团状态</view>
         <view wx:if="{{courseGroupList.length}}" class="group-panel">
-          <view wx:for="{{courseGroupList}}" wx:key="groupId" class="group-item-card">
+          <app-card wx:for="{{courseGroupList}}" wx:key="groupId" extClass="group-item-card">
             <view class="group-item-header">
               <view class="group-item-title">第{{item.index}}个团</view>
-              <view class="group-item-status group-item-status-{{item.statusClass}}">{{item.statusText}}</view>
+              <app-tag extClass="group-item-status group-item-status-{{item.statusClass}}">{{item.statusText}}</app-tag>
             </view>
 
             <view class="group-progress-row">
@@ -85,34 +86,35 @@
             <view class="progress-track">
               <view class="progress-bar" style="width: {{item.progressPercent}};"></view>
             </view>
-          </view>
+          </app-card>
         </view>
 
         <view wx:else class="group-empty">
           <view class="section-desc">{{emptyGroupText}}</view>
         </view>
-      </view>
+      </app-card>
 
       <view class="bottom-space"></view>
     </view>
   </scroll-view>
 
-  <view wx:if="{{!loading && courseDetail}}" class="bottom-bar">
+  <app-bottom-bar wx:if="{{!loading && courseDetail}}" extClass="bottom-bar">
     <view class="service-entry" bindtap="handleOpenService">
       <view class="service-icon">
-        <image class="service-icon-image" src="/assets/ant-icons/customer-service-blue.svg" mode="aspectFit" />
+        <app-icon className="service-icon-image" name="support-primary" />
       </view>
       <view class="service-text">客服</view>
     </view>
-    <button
-      class="primary-button bottom-action"
-      bindtap="handleGoPayment"
+    <app-button
+      extClass="bottom-action"
+      variant="primary"
+      bind:tap="handleGoPayment"
       loading="{{creatingOrder}}"
       disabled="{{creatingOrder || actionButtonDisabled}}"
     >
       {{actionButtonText}}
-    </button>
-  </view>
+    </app-button>
+  </app-bottom-bar>
 
   <base-modal
     wx:if="{{courseDetail}}"

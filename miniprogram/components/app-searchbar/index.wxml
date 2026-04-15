@@ -1,0 +1,15 @@
+<weui-searchbar
+  extClass="app-searchbar-shell {{extClass}}"
+  focus="{{focus}}"
+  placeholder="{{placeholder}}"
+  value="{{value}}"
+  cancel="{{cancel}}"
+  cancelText="{{cancelText}}"
+  confirmType="{{confirmType}}"
+  bind:input="handleInput"
+  bind:focus="handleFocus"
+  bind:blur="handleBlur"
+  bind:confirm="handleConfirm"
+  bind:clear="handleClear"
+  bind:cancel="handleCancel"
+/>

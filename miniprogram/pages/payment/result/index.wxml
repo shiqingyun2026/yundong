@@ -1,30 +1,33 @@
 <view class="result-page">
-  <view class="result-card card-shadow">
+  <app-feedback id="app-feedback" />
+  <app-card extClass="result-card card-shadow">
     <view class="result-icon {{status === 'success' ? 'icon-success' : 'icon-fail'}}">
-      <image
-        class="result-icon-image"
-        src="{{status === 'success' ? '/assets/ant-icons/check-success.svg' : '/assets/ant-icons/close-fail.svg'}}"
-        mode="aspectFit"
+      <app-icon
+        className="result-icon-image"
+        name="{{status === 'success' ? 'status-success' : 'status-fail'}}"
       />
     </view>
-    <view class="result-title">{{status === 'success' ? '支付成功' : '支付失败'}}</view>
-    <view class="result-desc">
-      {{status === 'success' ? '订单已提交，可前往查看当前拼团详情。' : '本次支付未完成，你可以重新支付或返回首页。'}}
-    </view>
-    <view wx:if="{{status === 'success'}}" class="subscribe-card">
-      <view class="subscribe-title">拼团结果通知</view>
-      <view class="subscribe-desc">{{subscribeHintText}}</view>
-      <view wx:if="{{subscribeStatusText}}" class="subscribe-status {{subscribeStatusClassName}}">
-        {{subscribeStatusText}}
+    <app-msg
+      extClass="payment-result-msg"
+      title="{{status === 'success' ? '支付成功' : '支付失败'}}"
+      desc="{{status === 'success' ? '订单已提交，可前往查看当前拼团详情。' : '本次支付未完成，你可以重新支付或返回首页。'}}"
+    >
+      <app-card wx:if="{{status === 'success'}}" slot="extend" extClass="subscribe-card">
+        <view class="subscribe-title">拼团结果通知</view>
+        <view class="subscribe-desc">{{subscribeHintText}}</view>
+        <view wx:if="{{subscribeStatusText}}" class="subscribe-status {{subscribeStatusClassName}}">
+          {{subscribeStatusText}}
+        </view>
+      </app-card>
+      <view slot="handle">
+        <app-button extClass="result-button" variant="primary" bind:tap="handlePrimaryAction">
+          {{status === 'success' ? '查看拼团详情' : '重新支付'}}
+        </app-button>
+
+        <app-button wx:if="{{status === 'fail'}}" extClass="secondary-text-button" variant="text" size="medium" bind:tap="handleSecondaryAction">
+          返回首页
+        </app-button>
       </view>
-    </view>
-
-    <button class="primary-button result-button" bindtap="handlePrimaryAction">
-      {{status === 'success' ? '查看拼团详情' : '重新支付'}}
-    </button>
-
-    <button wx:if="{{status === 'fail'}}" class="secondary-text-button" bindtap="handleSecondaryAction">
-      返回首页
-    </button>
-  </view>
+    </app-msg>
+  </app-card>
 </view>

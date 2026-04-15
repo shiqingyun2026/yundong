@@ -24,14 +24,20 @@
   color: #6a7787;
 }
 
-.agreement-content-body {
+.agreement-content-card {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
   padding: 28rpx;
   border-radius: 28rpx;
-  background: #ffffff;
   border: 2rpx solid #e8edf3;
   box-sizing: border-box;
+}
+
+.agreement-content-body {
+  flex: 1;
+  min-height: 0;
 }
 
 .agreement-content-rich-text {

@@ -100,6 +100,79 @@ const storageGet = (key, defaultValue = null) => {
   return value === '' || value === undefined ? defaultValue : value
 }
 
+const safeCall = fn => {
+  try {
+    return typeof fn === 'function' ? fn() : null
+  } catch (error) {
+    return null
+  }
+}
+
+const toNumber = (value, fallback = 0) => {
+  const next = Number(value)
+  return Number.isFinite(next) ? next : fallback
+}
+
+const resolveWindowInfo = () => safeCall(() => wx.getWindowInfo && wx.getWindowInfo()) || {}
+
+const resolveDeviceInfo = () => safeCall(() => wx.getDeviceInfo && wx.getDeviceInfo()) || {}
+
+const resolveAppBaseInfo = () => safeCall(() => wx.getAppBaseInfo && wx.getAppBaseInfo()) || {}
+
+const resolveMenuButtonRect = () =>
+  safeCall(() => wx.getMenuButtonBoundingClientRect && wx.getMenuButtonBoundingClientRect()) || null
+
+const buildFallbackMenuButtonRect = ({ statusBarHeight, windowWidth }) => {
+  const top = statusBarHeight + 4
+  const height = 32
+  const width = 88
+  const right = Math.max(windowWidth - 12, width)
+  const left = Math.max(right - width, 0)
+
+  return {
+    top,
+    bottom: top + height,
+    height,
+    width,
+    left,
+    right
+  }
+}
+
+const resolveRuntimeInfo = () => {
+  const windowInfo = resolveWindowInfo()
+  const deviceInfo = resolveDeviceInfo()
+  const appBaseInfo = resolveAppBaseInfo()
+  const windowWidth = toNumber(windowInfo.windowWidth, 375)
+  const statusBarHeight = Math.max(
+    toNumber(windowInfo.statusBarHeight, 0),
+    toNumber(appBaseInfo.statusBarHeight, 0),
+    20
+  )
+  const menuButtonRect =
+    resolveMenuButtonRect() || buildFallbackMenuButtonRect({ statusBarHeight, windowWidth })
+  const navBarVerticalPadding = Math.max(
+    toNumber(menuButtonRect.top, statusBarHeight + 4) - statusBarHeight,
+    4
+  )
+  const navBarContentHeight = Math.max(toNumber(menuButtonRect.height, 32), 32)
+  const navBarBodyHeight = navBarContentHeight + navBarVerticalPadding * 2
+  const navBarHeight = statusBarHeight + navBarBodyHeight
+  const platform = `${deviceInfo.platform || appBaseInfo.platform || ''}`.toLowerCase()
+
+  return {
+    statusBarHeight,
+    windowWidth,
+    platform,
+    ios: platform === 'ios',
+    menuButtonRect,
+    navBarHeight,
+    navBarBodyHeight,
+    navBarContentHeight,
+    navBarVerticalPadding
+  }
+}
+
 module.exports = {
   formatTime,
   formatPrice,
@@ -109,5 +182,6 @@ module.exports = {
   formatCourseTimeRange,
   formatDistance,
   storageSet,
-  storageGet
+  storageGet,
+  resolveRuntimeInfo
 }
