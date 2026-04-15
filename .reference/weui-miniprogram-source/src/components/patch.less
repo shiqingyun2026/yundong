@@ -1,0 +1,145 @@
+@import (reference) "~weui-wxss/src/style/base/fn.less";
+
+/* weui 用了标签写法，skyline 下部分声明不生效，所以重新声明一次 */
+/* root-portal-content 匹配不到 page 的声明，所以再声明一次 */
+page,
+root-portal-content {
+    .varsLight();
+}
+
+root-portal-content {
+    position: absolute;
+}
+
+/** skyline 不支持 :nth-last-child */
+.weui-half-screen-dialog__ft .weui-btn {
+    display: inline-block;
+    vertical-align: top;
+    margin: 0 8px;
+    width: 120px;
+}
+
+/** skyline 不支持 em */
+.weui-navigation-bar__inner .weui-navigation-bar__left .weui-navigation-bar__btn_goback {
+    width: 12px;
+    height: 23px;
+}
+
+/** skyline 不支持 em */
+.weui-loading {
+    width: 15.0469px;
+    height: 15.0469px;
+}
+
+/** skyline 不支持 em */
+.weui-tabbar__icon {
+    width: 26.344px;
+    height: 26.344px;
+}
+
+/** skyline 不支持 em */
+.weui-badge {
+    padding: 1.694px 4.518px;
+    line-height: 13.5529px; /** skyline 不支持不带单位 */
+}
+
+/** skyline 不支持 em */
+.weui-badge_dot {
+    padding: 4.518px;
+}
+
+/** skyline 不支持 attribute selector */
+.weui-icon-circle,
+.weui-icon-download,
+.weui-icon-info,
+.weui-icon-safe-success,
+.weui-icon-safe-warn,
+.weui-icon-success,
+.weui-icon-success-circle,
+.weui-icon-success-no-circle,
+.weui-icon-waiting,
+.weui-icon-waiting-circle,
+.weui-icon-warn,
+.weui-icon-outlined-warn,
+.weui-icon-info-circle,
+.weui-icon-cancel,
+.weui-icon-search,
+.weui-icon-clear,
+.weui-icon-back,
+.weui-icon-delete,
+.weui-icon-success-no-circle-thin,
+.weui-icon-arrow,
+.weui-icon-arrow-bold,
+.weui-icon-back-arrow,
+.weui-icon-back-arrow-thin,
+.weui-icon-close,
+.weui-icon-close-thin,
+.weui-icon-back-circle,
+.weui-icon-camera,
+.weui-icon-success,
+.weui-icon-waiting,
+.weui-icon-warn,
+.weui-icon-info,
+.weui-icon-success-circle,
+.weui-icon-success-no-circle,
+.weui-icon-success-no-circle-thin,
+.weui-icon-waiting-circle,
+.weui-icon-circle,
+.weui-icon-download,
+.weui-icon-info-circle,
+.weui-icon-safe-success,
+.weui-icon-safe-warn,
+.weui-icon-cancel,
+.weui-icon-search,
+.weui-icon-clear,
+.weui-icon-delete,
+.weui-icon_msg,
+.weui-icon_msg-primary,
+.weui-icon-checked,
+.weui-icon-btn,
+.weui-icon-arrow,
+.weui-icon-more,
+.weui-icon-slide-down,
+.weui-icon-btn_goback,
+.weui-icon-btn_close,
+.weui-icon_toast {
+    display: inline-block;
+    vertical-align: middle;
+    font-size: 0.5882352941176471rem;
+    -webkit-mask-position: 50% 50%;
+    mask-position: 50% 50%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 100%;
+    mask-size: 100%;
+    background-color: currentColor;
+    width: 22.578px;
+    height: 22.578px;
+}
+
+
+/** skyline 不支持 em */
+.weui-agree__checkbox {
+    width: 16px;
+    height: 18.438px;
+}
+
+/** skyline 不支持 em */
+.weui-search-bar__box .weui-icon-clear::before {
+    width: 18.813px;
+    height: 18.813px;
+}
+/** skyline 不支持 em */
+.weui-search-bar__box .weui-icon-clear::after {
+    height: 25.281px;
+}
+
+.weui-search-bar__box .weui-search-bar__input {
+    height: 33.3906px; /** skyline 不支持不带单位 */
+    line-height: 25.6px;
+}
+
+/** skyline 不支持不带单位 */
+.weui-cell {
+    line-height: 22.5882px;
+}

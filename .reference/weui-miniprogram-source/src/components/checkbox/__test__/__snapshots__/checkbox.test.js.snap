@@ -1,0 +1,202 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`checkbox-group & checkbox basic checkbox 1`] = `
+<main>
+  <mp-cells
+    title="单选列表项"
+  >
+    <mp-checkbox-group
+      class="radio-group"
+      bind:change="radioChange"
+    >
+      <wx-radio-group
+        class=""
+        bind:change="checkedChange"
+      >
+        <mp-checkbox
+          class="test-radio"
+        >
+          <wx-label
+            bind:tap="checkedChange"
+          >
+            <mp-cell>
+              <wx-view
+                ariaRole=""
+                class="weui-cell  weui-check__label   ^weui-cell_radio  "
+                hoverClass="weui-active"
+                bind:tap="navigateTo"
+              >
+                <wx-view
+                  class="weui-cell__bd"
+                >
+                  <wx-view>
+                    cell standard
+                  </wx-view>
+                </wx-view>
+                <wx-view
+                  class="weui-cell__ft weui-cell__ft_in-access "
+                >
+                  <wx-view
+                    slot="footer"
+                  >
+                    <wx-radio
+                      checked="{{false}}"
+                      class="weui-check"
+                      color=""
+                      disabled="{{false}}"
+                      value="0"
+                    />
+                    <wx-view
+                      class="weui-icon-checked checkbox--weui-icon-checked "
+                    />
+                  </wx-view>
+                </wx-view>
+              </wx-view>
+            </mp-cell>
+          </wx-label>
+        </mp-checkbox>
+        <mp-checkbox
+          class="test-radio"
+        >
+          <wx-label
+            bind:tap="checkedChange"
+          >
+            <mp-cell>
+              <wx-view
+                ariaRole=""
+                class="weui-cell  weui-check__label weui-cell_wxss  ^weui-cell_radio  "
+                hoverClass="weui-active"
+                bind:tap="navigateTo"
+              >
+                <wx-view
+                  class="weui-cell__bd"
+                >
+                  <wx-view>
+                    cell standard
+                  </wx-view>
+                </wx-view>
+                <wx-view
+                  class="weui-cell__ft weui-cell__ft_in-access "
+                >
+                  <wx-view
+                    slot="footer"
+                  >
+                    <wx-radio
+                      checked="{{false}}"
+                      class="weui-check"
+                      color=""
+                      disabled="{{false}}"
+                      value="1"
+                    />
+                    <wx-view
+                      class="weui-icon-checked checkbox--weui-icon-checked "
+                    />
+                  </wx-view>
+                </wx-view>
+              </wx-view>
+            </mp-cell>
+          </wx-label>
+        </mp-checkbox>
+      </wx-radio-group>
+    </mp-checkbox-group>
+  </mp-cells>
+  <mp-cells
+    title="复选列表项"
+  >
+    <mp-checkbox-group
+      class="checkbox-group"
+      bind:change="checkboxChange"
+    >
+      <wx-checkbox-group
+        class=""
+        bind:change="checkedChange"
+      >
+        <mp-checkbox
+          class="test-checkbox"
+        >
+          <wx-label
+            bind:tap="checkedChange"
+          >
+            <mp-cell>
+              <wx-view
+                ariaRole=""
+                class="weui-cell  weui-check__label   ^weui-cell_checkbox  "
+                hoverClass="weui-active"
+                bind:tap="navigateTo"
+              >
+                <wx-view
+                  class="weui-cell__hd "
+                >
+                  <wx-view
+                    slot="icon"
+                  >
+                    <wx-checkbox
+                      checked="{{false}}"
+                      class="weui-check"
+                      color=""
+                      disabled="{{false}}"
+                      value="0"
+                    />
+                    <wx-view
+                      class="weui-icon-checked checkbox--weui-icon-checked "
+                    />
+                  </wx-view>
+                </wx-view>
+                <wx-view
+                  class="weui-cell__bd"
+                >
+                  <wx-view>
+                    standard is dealt for u.
+                  </wx-view>
+                </wx-view>
+              </wx-view>
+            </mp-cell>
+          </wx-label>
+        </mp-checkbox>
+        <mp-checkbox
+          class="test-checkbox"
+        >
+          <wx-label
+            bind:tap="checkedChange"
+          >
+            <mp-cell>
+              <wx-view
+                ariaRole=""
+                class="weui-cell  weui-check__label weui-cell_wxss  ^weui-cell_checkbox  "
+                hoverClass="weui-active"
+                bind:tap="navigateTo"
+              >
+                <wx-view
+                  class="weui-cell__hd "
+                >
+                  <wx-view
+                    slot="icon"
+                  >
+                    <wx-checkbox
+                      checked="{{false}}"
+                      class="weui-check"
+                      color=""
+                      disabled="{{false}}"
+                      value="1"
+                    />
+                    <wx-view
+                      class="weui-icon-checked checkbox--weui-icon-checked "
+                    />
+                  </wx-view>
+                </wx-view>
+                <wx-view
+                  class="weui-cell__bd"
+                >
+                  <wx-view>
+                    standard is dealicient for u.
+                  </wx-view>
+                </wx-view>
+              </wx-view>
+            </mp-cell>
+          </wx-label>
+        </mp-checkbox>
+      </wx-checkbox-group>
+    </mp-checkbox-group>
+  </mp-cells>
+</main>
+`;

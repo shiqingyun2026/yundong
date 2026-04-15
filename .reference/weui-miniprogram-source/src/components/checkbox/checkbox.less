@@ -1,0 +1,27 @@
+@import (reference) '~weui-wxss/src/style/widget/weui-cell/weui-check/weui-radio.less';
+@import (reference) '~weui-wxss/src/style/widget/weui-cell/weui-check/weui-checkbox.less';
+
+.weui-cell_wxss.weui-cell_wxss::before{
+  display: flex;
+}
+
+.weui-cell_radio .weui-check+.weui-icon-checked {
+  color: transparent;
+}
+
+.weui-cell_radio .weui-check + .weui-icon-checked {
+  &.weui-icon-is-checked {
+    /* skyline 不支持 attribute selector */
+    &:extend(.weui-cells_radio .weui-check:checked + .weui-icon-checked);
+    background-color: @weuiColorPrimary;
+  }
+  background-color: transparent;
+}
+
+.weui-cell_checkbox .weui-check + .weui-icon-checked {
+  &.weui-icon-is-checked {
+    /* skyline 不支持 attribute selector */
+    &:extend(.weui-cells_checkbox .weui-check:checked + .weui-icon-checked);
+  }
+  &:extend(.weui-cells_checkbox .weui-icon-checked);
+}

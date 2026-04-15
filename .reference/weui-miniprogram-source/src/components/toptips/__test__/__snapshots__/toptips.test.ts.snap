@@ -1,0 +1,50 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`toptips auto hide 1`] = `
+<main>
+  <mp-toptips>
+    <wx-root-portal
+      enable="{{true}}"
+    >
+      <wx-view
+        ariaRole="alert"
+        class="weui-toptips weui-toptips_warn weui-toptips_success "
+      >
+        500ms后关闭
+      </wx-view>
+    </wx-root-portal>
+  </mp-toptips>
+</main>
+`;
+
+exports[`toptips auto hide 2`] = `
+<main>
+  <mp-toptips>
+    <wx-root-portal
+      enable="{{true}}"
+    >
+      <wx-view
+        ariaRole="alert"
+        class="weui-toptips weui-toptips_warn weui-toptips_success "
+      >
+        500ms后关闭
+      </wx-view>
+    </wx-root-portal>
+  </mp-toptips>
+</main>
+`;
+
+exports[`toptips basic 1`] = `
+<mp-toptips>
+  <wx-root-portal
+    enable="{{true}}"
+  >
+    <wx-view
+      ariaRole="alert"
+      class="weui-toptips weui-toptips_warn weui-toptips_error top100"
+    >
+      距离顶部100px
+    </wx-view>
+  </wx-root-portal>
+</mp-toptips>
+`;
