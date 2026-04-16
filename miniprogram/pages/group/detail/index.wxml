@@ -1,5 +1,5 @@
 <view class="group-detail-page">
-  <mp-toptips id="ui-toptips" />
+  <mp-toptips id="ui-toptips" root-portal="{{true}}" />
   <view wx:if="{{loading}}" class="page-loading">
     <mp-loading show="{{loading}}" type="dot-gray" />
     <text class="page-loading-text">拼团详情加载中...</text>

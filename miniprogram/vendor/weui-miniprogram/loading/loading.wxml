@@ -3,7 +3,8 @@
     </view>
     <view wx:elif="{{type==='dot-gray'}}" class="loading wx_dot_loading"/>
     <view wx:elif="{{type==='circle'}}" class="weui-loadmore">
-        <view class="weui-loading"/>
+        <!-- <view class="weui-loading weui-loading-animation"></view> -->
+        <image src="/_assets/loading-icon.1d274d77.svg" class="weui-loading-animation"/>
         <view class="weui-loadmore__tips">{{tips}}</view>
     </view>
 </view>

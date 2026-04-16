@@ -132,7 +132,7 @@ const getMockGroupDetailAsync = groupId =>
           userJoined: true,
           members: [
             {
-              avatar: 'https://dummyimage.com/96x96/e8f8f9/18bcc5.png&text=ME',
+              avatar: 'https://dummyimage.com/96x96/e8f8f9/1abcc5.png&text=ME',
               nickName: '我'
             }
           ],

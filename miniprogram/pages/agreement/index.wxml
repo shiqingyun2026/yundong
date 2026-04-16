@@ -1,15 +1,15 @@
 <view class="agreement-page">
-  <mp-toptips id="ui-toptips" />
+  <mp-toptips id="ui-toptips" root-portal="{{true}}" />
   <view class="agreement-header">
     <view class="agreement-title">欢迎使用天天体育宝</view>
     <view class="agreement-subtitle">为保障你的账户与隐私权益，请先阅读并同意《用户协议》和《隐私政策》后再继续使用。</view>
   </view>
 
-  <view class="weui-navbar weui-ext-tabs agreement-tabs">
+  <view class="agreement-tabs">
     <view
       wx:for="{{tabs}}"
       wx:key="key"
-      class="weui-navbar__item weui-ext-tabs__item agreement-tab {{activeTab === item.key ? 'weui-bar__item_on weui-ext-tabs__item--active agreement-tab-active' : ''}}"
+      class="agreement-tab {{activeTab === item.key ? 'agreement-tab--active' : ''}}"
       data-tab="{{item.key}}"
       bindtap="handleTabChange"
     >
@@ -56,6 +56,7 @@
   <mp-dialog
     show="{{showRejectModal}}"
     title="提示"
+    root-portal="{{true}}"
     buttons="{{rejectDialogButtons}}"
     bind:close="handleCloseRejectModal"
     bind:buttontap="handleRejectDialogTap"

@@ -1,7 +1,7 @@
 {
   "navigationStyle": "custom",
   "usingComponents": {
-    "mp-navigation-bar": "../../vendor/weui-miniprogram/navigation-bar/navigation-bar",
+    "mp-navigation-bar": "../../components/navigation-bar/index",
     "mp-toptips": "../../vendor/weui-miniprogram/toptips/toptips",
     "mp-searchbar": "../../vendor/weui-miniprogram/searchbar/searchbar",
     "mp-icon": "../../vendor/weui-miniprogram/icon/icon",

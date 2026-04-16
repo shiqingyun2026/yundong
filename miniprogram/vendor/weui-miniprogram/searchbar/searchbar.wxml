@@ -3,11 +3,10 @@
         <view class="weui-search-bar__box">
             <icon class="weui-icon-search" type="search" size="12"/>
             <input aria-controls="searchResult" type="text" class="weui-search-bar__input" placeholder="{{placeholder}}" value="{{value}}" focus="{{focus}}" bindblur="inputBlur" bindfocus="inputFocus" bindinput="inputChange"/>
-            <text class="weui-icon-clear" hover-class="weui-active" wx:if="{{value.length > 0}}" bindtap="clearInput" aria-role="button" aria-label="清除"/>
+            <view class="weui-icon-clear" hover-class="weui-hover-active" wx:if="{{value.length > 0}}" bindtap="clearInput" aria-role="button" aria-label="清除"/>
         </view>
         <label id="searchText" class="weui-search-bar__label" bindtap="showInput">
-            <!-- <icon class="weui-icon-search" type="search" size="12"></icon> -->
-            <view class="weui-icon-search"/>
+            <icon class="weui-icon-search" type="search" size="12"/>
             <text aria-hidden class="weui-search-bar__text">{{placeholder}}</text>
         </label>
     </view>

@@ -4,7 +4,7 @@
   min-height: 100vh;
   padding: 36rpx 24rpx 44rpx;
   background:
-    radial-gradient(circle at top left, rgba(24, 188, 197, 0.12), transparent 36%),
+    radial-gradient(circle at top left, rgba(26, 188, 197, 0.12), transparent 36%),
     linear-gradient(180deg, #f5f9ff 0%, #f7f8fa 38%, #f3f5f8 100%);
 }
 
@@ -33,7 +33,7 @@
   padding: 10rpx;
   margin-bottom: 24rpx;
   border-radius: 28rpx;
-  background: rgba(223, 232, 243, 0.72);
+  background: rgba(26, 188, 197, 0.08);
 }
 
 .agreement-tab {
@@ -48,11 +48,11 @@
   transition: all 0.2s ease;
 }
 
-.agreement-tab-active {
-  background: #ffffff;
-  color: var(--brand-primary);
+.agreement-tab--active {
+  background-color: var(--brand-primary);
+  color: #ffffff;
   font-weight: 600;
-  box-shadow: inset 0 0 0 2rpx rgba(24, 188, 197, 0.16), 0 8rpx 18rpx rgba(31, 35, 41, 0.06);
+  box-shadow: 0 8rpx 18rpx rgba(26, 188, 197, 0.2);
 }
 
 .agreement-content {
@@ -173,6 +173,6 @@
 }
 
 .agree-button {
-  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-light) 100%);
+  background: var(--brand-primary);
   color: #ffffff;
 }

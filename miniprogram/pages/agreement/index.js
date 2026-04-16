@@ -1,12 +1,10 @@
 const { getAgreementPageContent } = require('../../utils/agreement')
 const REJECT_DIALOG_BUTTONS = [
   {
-    text: '取消',
-    extClass: 'dialog-button-cancel'
+    text: '取消'
   },
   {
-    text: '确认',
-    extClass: 'dialog-button-confirm'
+    text: '确认'
   }
 ]
 

@@ -9,7 +9,7 @@ const {
 const SEARCH_DEBOUNCE_MS = 300
 const RESULT_ICON_CLASS = ['blue', 'blue', 'warm', 'violet', 'blue', 'green']
 const RESULT_ICON_META = {
-  blue: { iconKey: 'location', iconType: 'filled', iconColor: '#18bcc5' },
+  blue: { iconKey: 'location', iconType: 'filled', iconColor: '#1abcc5' },
   warm: { iconKey: 'location', iconType: 'filled', iconColor: '#ff7a45' },
   violet: { iconKey: 'location', iconType: 'filled', iconColor: '#8b5cf6' },
   green: { iconKey: 'location', iconType: 'filled', iconColor: '#10b981' }
@@ -37,7 +37,9 @@ Page({
     resultList: [],
     loading: false,
     searchState: 'idle',
-    statusBarHeight: 20
+    statusBarHeight: 20,
+    navBarHeight: 88,
+    navBarBodyHeight: 44
   },
 
   onLoad(options) {
@@ -50,7 +52,9 @@ Page({
       city,
       gpsLocation: app.globalData.gpsLocation || wx.getStorageSync('gpsLocation') || null,
       currentLocation: app.getCurrentLocation() || DEFAULT_LOCATION,
-      statusBarHeight: systemInfo.statusBarHeight || 20
+      statusBarHeight: systemInfo.statusBarHeight || 20,
+      navBarHeight: systemInfo.navBarHeight || 88,
+      navBarBodyHeight: systemInfo.navBarBodyHeight || 44
     })
   },
 

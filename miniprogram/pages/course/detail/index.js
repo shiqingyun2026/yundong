@@ -1,5 +1,5 @@
 const { fetchCourseDetail, fetchActiveGroup, createOrder } = require('../../../utils/course')
-const { loginWithWechat } = require('../../../utils/auth')
+const { loginAndStoreSession } = require('../../../utils/auth')
 const {
   buildActiveGroupViewModel,
   buildGroupPresentationState,
@@ -8,12 +8,7 @@ const {
 } = require('./detailHelpers')
 const SERVICE_DIALOG_BUTTONS = [
   {
-    text: '关闭',
-    extClass: 'dialog-button-cancel'
-  },
-  {
-    text: '我知道了',
-    extClass: 'dialog-button-confirm'
+    text: '关闭'
   }
 ]
 
@@ -31,9 +26,7 @@ Page({
     courseGroupList: [],
     loading: true,
     showServiceModal: false,
-    showLoginModal: false,
     loginLoading: false,
-    loginAgreementChecked: false,
     serviceDialogButtons: SERVICE_DIALOG_BUTTONS,
     creatingOrder: false,
     actionButtonMode: 'create',
@@ -67,53 +60,9 @@ Page({
     this.clearExpireTimer()
   },
 
-  promptLogin() {
-    this.setData({
-      showLoginModal: true,
-      loginAgreementChecked: false
-    })
-  },
-
-  handleCloseLoginModal() {
+  async handleLogin() {
     if (this.data.loginLoading) {
-      return
-    }
-
-    this.setData({
-      showLoginModal: false
-    })
-  },
-
-  handleOpenAgreement() {
-    wx.navigateTo({
-      url: '/pages/agreement-content/index?key=user'
-    })
-  },
-
-  handleOpenPrivacy() {
-    wx.navigateTo({
-      url: '/pages/agreement-content/index?key=privacy'
-    })
-  },
-
-  handleToggleLoginAgreement(event) {
-    const values = (event && event.detail && event.detail.value) || []
-    this.setData({
-      loginAgreementChecked: values.includes('agree')
-    })
-  },
-
-  async handleConfirmLogin() {
-    if (this.data.loginLoading) {
-      return
-    }
-
-    if (!this.data.loginAgreementChecked) {
-      wx.showToast({
-        title: '请先阅读并勾选用户协议',
-        icon: 'none'
-      })
-      return
+      return false
     }
 
     this.setData({
@@ -121,15 +70,7 @@ Page({
     })
 
     try {
-      const result = await loginWithWechat()
-      const app = getApp()
-
-      app.setUserInfo(result.userInfo)
-      app.setToken(result.token)
-
-      this.setData({
-        showLoginModal: false
-      })
+      await loginAndStoreSession()
 
       wx.showToast({
         title: '登录成功',
@@ -139,6 +80,7 @@ Page({
       if (this.data.courseId) {
         await this.loadPageData(this.data.courseId)
       }
+      return true
     } catch (error) {
       const message = error && error.message ? error.message : '登录未完成，请稍后再试'
 
@@ -146,6 +88,7 @@ Page({
         title: message,
         icon: 'none'
       })
+      return false
     } finally {
       this.setData({
         loginLoading: false
@@ -298,12 +241,14 @@ Page({
       return
     }
 
-    const token = wx.getStorageSync('token')
-    console.log('token:', token)
+    let token = wx.getStorageSync('token')
 
     if (!token) {
-      this.promptLogin()
-      return
+      const loggedIn = await this.handleLogin()
+      if (!loggedIn) {
+        return
+      }
+      token = wx.getStorageSync('token')
     }
 
     if (actionButtonMode === 'completed') {
@@ -365,7 +310,7 @@ Page({
           app.setToken('')
         }
 
-        this.promptLogin()
+        await this.handleLogin()
         return
       }
 

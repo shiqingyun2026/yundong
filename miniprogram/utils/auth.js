@@ -130,10 +130,30 @@ const login = async userInfo => {
 
 const loginWithWechat = async () => login()
 
+const loginAndStoreSession = async () => {
+  const result = await loginWithWechat()
+  const app = typeof getApp === 'function' ? getApp() : null
+
+  if (app && typeof app.setUserInfo === 'function') {
+    app.setUserInfo(result.userInfo)
+  } else {
+    wx.setStorageSync('userInfo', result.userInfo)
+  }
+
+  if (app && typeof app.setToken === 'function') {
+    app.setToken(result.token)
+  } else {
+    wx.setStorageSync('token', result.token)
+  }
+
+  return result
+}
+
 module.exports = {
   getUserProfile,
   login,
   loginWithWechat,
+  loginAndStoreSession,
   clearGeneratedUserInfo,
   authDebugConfig: {
     USE_MOCK_USER,

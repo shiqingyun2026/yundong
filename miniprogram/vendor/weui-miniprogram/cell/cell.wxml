@@ -1,4 +1,4 @@
-<view bindtap="navigateTo" class="weui-cell {{link ? 'weui-cell_access' : ''}} {{extClass}} {{outerClass}} {{inForm ? ' weui-cell-inform' : ''}}{{inline ? '' : 'weui-cell_label-block'}}" hover-class="{{hover ? 'weui-cell_active weui-active' : extHoverClass}}" aria-role="{{ariaRole}}">
+<view bindtap="navigateTo" class="weui-cell {{link ? 'weui-cell_access' : ''}} {{extClass}} {{outerClass}} {{inForm ? ' weui-cell-inform' : ''}}{{inline ? '' : 'weui-cell_label-block'}}" hover-class="{{hover ? 'weui-hover-active' : extHoverClass}}" aria-role="{{ariaRole}}">
     <view wx:if="{{hasHeader}}" class="weui-cell__hd {{iconClass}}">
         <block wx:if="{{icon}}">
             <image src="{{icon}}" class="weui-cell__icon" mode="aspectFit"/>

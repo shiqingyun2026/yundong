@@ -1,5 +1,5 @@
 <view class="page-shell mine-page">
-  <mp-toptips id="ui-toptips" />
+  <mp-toptips id="ui-toptips" root-portal="{{true}}" />
   <view class="weui-panel weui-ext-card profile-card card-shadow {{!userInfo ? 'profile-card-guest' : ''}}" bindtap="handleProfileTap">
     <view class="profile-main">
       <view class="avatar-box {{!userInfo ? 'avatar-box-guest' : ''}}">
@@ -14,7 +14,7 @@
         </view>
       </view>
       <view class="profile-info">
-        <view class="profile-name {{!userInfo ? 'profile-name-guest' : ''}}">{{userInfo ? userInfo.nickName : '立即登录'}}</view>
+        <view class="profile-name {{!userInfo ? 'profile-name-guest' : ''}}">{{userInfo ? userInfo.nickName : (loginLoading ? '登录中...' : '立即登录')}}</view>
       </view>
     </view>
 
@@ -48,6 +48,8 @@
   <mp-dialog
     show="{{showServiceModal}}"
     title="联系客服"
+    root-portal="{{true}}"
+    extClass="service-dialog"
     buttons="{{serviceDialogButtons}}"
     bind:close="handleCloseService"
     bind:buttontap="handleServiceDialogTap"
@@ -57,37 +59,4 @@
       <view class="service-tip">请使用微信扫码联系专属客服</view>
     </view>
   </mp-dialog>
-
-  <mp-half-screen-dialog show="{{showLoginModal}}" closabled="{{true}}" mask="{{true}}" ext-class="login-sheet-panel" bind:close="handleCloseLoginModal">
-    <view slot="desc" class="login-sheet">
-      <view class="login-sheet-icon">
-        <mp-icon extClass="login-sheet-bolt" icon="discover" type="filled" color="#12aab3" size="{{56}}" />
-      </view>
-      <view class="login-sheet-title">天天体育宝欢迎你</view>
-      <view class="login-sheet-subtitle">为了提供更好的服务，我们需要获取你的授权</view>
-      <view class="login-sheet-button-row">
-        <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--secondary login-sheet-secondary-button" disabled="{{loginLoading}}" bindtap="handleCloseLoginModal">
-          <view class="weui-ext-button__inner">稍后登录</view>
-        </button>
-        <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary login-sheet-button" loading="{{loginLoading}}" disabled="{{loginLoading}}" bindtap="handleConfirmLogin">
-          <view class="weui-ext-button__inner">微信一键登录</view>
-        </button>
-      </view>
-      <mp-cells extClass="login-sheet-consent-cells">
-        <mp-checkbox-group extClass="login-sheet-checkbox-group" bind:change="handleToggleLoginAgreement">
-          <mp-checkbox
-            extClass="login-sheet-checkbox-item"
-            value="agree"
-            checked="{{loginAgreementChecked}}"
-            label="我已阅读并同意"
-          />
-        </mp-checkbox-group>
-      </mp-cells>
-      <view class="login-sheet-agreement-links">
-        <text class="login-sheet-link" catchtap="handleOpenAgreement">用户协议</text>
-        <text class="login-sheet-link-separator">和</text>
-        <text class="login-sheet-link" catchtap="handleOpenPrivacy">隐私政策</text>
-      </view>
-    </view>
-  </mp-half-screen-dialog>
 </view>

@@ -141,6 +141,8 @@ Page({
     tabs: HOME_TABS,
     activeTab: 'all',
     statusBarHeight: 20,
+    navBarHeight: 88,
+    navBarBodyHeight: 44,
     locationText: '定位中...',
     locationSource: '',
     locationDenied: false,
@@ -160,7 +162,9 @@ Page({
     this._hasLoadedOnce = false
     this._currentLocationKey = ''
     this.setData({
-      statusBarHeight: (app.globalData.systemInfo && app.globalData.systemInfo.statusBarHeight) || 20
+      statusBarHeight: (app.globalData.systemInfo && app.globalData.systemInfo.statusBarHeight) || 20,
+      navBarHeight: (app.globalData.systemInfo && app.globalData.systemInfo.navBarHeight) || 88,
+      navBarBodyHeight: (app.globalData.systemInfo && app.globalData.systemInfo.navBarBodyHeight) || 44
     })
     this.initLocationAndCourses()
   },

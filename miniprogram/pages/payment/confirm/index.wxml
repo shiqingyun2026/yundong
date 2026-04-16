@@ -1,5 +1,5 @@
 <view class="payment-page">
-  <mp-toptips id="ui-toptips" />
+  <mp-toptips id="ui-toptips" root-portal="{{true}}" />
   <view wx:if="{{loading}}" class="page-loading">
     <mp-loading show="{{loading}}" type="dot-gray" />
     <text class="page-loading-text">支付信息加载中...</text>

@@ -1,5 +1,8 @@
-<view class="location-search-page">
-  <mp-toptips id="ui-toptips" />
+<view
+  class="location-search-page"
+  style="--location-nav-body-height: {{navBarBodyHeight}}px;"
+>
+  <mp-toptips id="ui-toptips" root-portal="{{true}}" />
   <view class="page-header">
     <mp-navigation-bar extClass="location-search-nav" background="#ffffff" color="#1f2329" back="{{false}}">
       <view slot="left" class="header-back" bindtap="handleBack">
@@ -39,7 +42,7 @@
 
     <view wx:if="{{searchState === 'loading'}}" class="state-panel">
       <view class="state-spinner">
-        <mp-icon extClass="state-spinner-icon" icon="refresh" type="outline" color="#18bcc5" size="{{72}}" />
+        <mp-icon extClass="state-spinner-icon" icon="refresh" type="outline" color="#1abcc5" size="{{72}}" />
       </view>
       <view class="state-title">正在搜索地址</view>
       <view class="state-desc">正在为您实时匹配{{city}}范围内的精准地理信息，请稍候...</view>
@@ -47,7 +50,7 @@
 
     <view wx:elif="{{searchState === 'empty'}}" class="state-panel">
       <view class="state-empty-icon">
-        <mp-icon extClass="state-empty-icon-image" icon="location" type="filled" color="#18bcc5" size="{{72}}" />
+        <mp-icon extClass="state-empty-icon-image" icon="location" type="filled" color="#1abcc5" size="{{72}}" />
       </view>
       <view class="state-title">未找到相关地址</view>
       <view class="state-desc">抱歉，我们没有找到关于“{{keyword}}”的任何结果，请尝试检查拼写或搜索更通用的名称。</view>

@@ -1,12 +1,13 @@
 {
   "scripts": {
     "icons:build": "node scripts/generate-icon-assets.js",
-    "weui:sync": "node scripts/sync-weui-vendor.js"
+    "weui:sync": "node scripts/sync-weui-vendor.js",
+    "weui:refresh": "npm run weui:sync && npm run icons:build"
   },
   "devDependencies": {
     "@resvg/resvg-js": "2.6.2"
   },
   "dependencies": {
-    "weui-miniprogram": "1.3.0"
+    "weui-miniprogram": "^1.5.6"
   }
 }

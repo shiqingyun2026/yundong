@@ -1,5 +1,8 @@
-<view class="page-shell home-page">
-  <mp-toptips id="ui-toptips" />
+<view
+  class="page-shell home-page"
+  style="--home-nav-body-height: {{navBarBodyHeight}}px;"
+>
+  <mp-toptips id="ui-toptips" root-portal="{{true}}" />
   <view class="home-navbar">
     <mp-navigation-bar extClass="home-nav-bar" background="transparent" color="#1f2329" back="{{false}}">
       <view slot="left" class="home-navbar-row">
@@ -12,15 +15,15 @@
   </view>
 
   <view class="weui-panel weui-ext-card hero-card card-shadow">
-    <view class="weui-navbar weui-ext-tabs weui-ext-tabs--wrap tab-row home-tabs">
+    <view class="hero-tabs">
       <view
         wx:for="{{tabs}}"
         wx:key="key"
-        class="weui-navbar__item weui-ext-tabs__item tab-item {{activeTab === item.key ? 'weui-bar__item_on weui-ext-tabs__item--active tab-item-active' : ''}}"
+        class="hero-tab {{activeTab === item.key ? 'hero-tab--active' : ''}}"
         data-key="{{item.key}}"
         bindtap="handleTabChange"
       >
-        {{item.label}}
+        <text class="hero-tab__label">{{item.label}}</text>
       </view>
     </view>
   </view>

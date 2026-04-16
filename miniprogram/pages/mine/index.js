@@ -1,14 +1,9 @@
-const { loginWithWechat } = require('../../utils/auth')
+const { loginAndStoreSession } = require('../../utils/auth')
 
-const SERVICE_QR_CODE = 'https://dummyimage.com/240x240/e8f8f9/18bcc5.png&text=%E5%AE%A2%E6%9C%8D%E4%BA%8C%E7%BB%B4%E7%A0%81'
+const SERVICE_QR_CODE = 'https://dummyimage.com/240x240/e8f8f9/1abcc5.png&text=%E5%AE%A2%E6%9C%8D%E4%BA%8C%E7%BB%B4%E7%A0%81'
 const SERVICE_DIALOG_BUTTONS = [
   {
-    text: '关闭',
-    extClass: 'dialog-button-cancel'
-  },
-  {
-    text: '我知道了',
-    extClass: 'dialog-button-confirm'
+    text: '关闭'
   }
 ]
 
@@ -16,8 +11,6 @@ Page({
   data: {
     userInfo: null,
     loginLoading: false,
-    showLoginModal: false,
-    loginAgreementChecked: false,
     showServiceModal: false,
     menuList: [
       {
@@ -49,33 +42,26 @@ Page({
     this.showTabBar()
   },
 
-  hideTabBar() {
-    wx.hideTabBar({
-      animation: false
-    })
-  },
-
   showTabBar() {
     wx.showTabBar({
       animation: false
     })
   },
 
-  handleProfileTap() {
+  async handleProfileTap() {
     if (!this.data.userInfo) {
-      this.handleLogin()
+      await this.handleLogin()
     }
   },
 
-  handleMenuTap(event) {
+  async handleMenuTap(event) {
     const { key } = event.currentTarget.dataset
     if (key === 'group-buy') {
       if (!this.data.userInfo) {
-        wx.showToast({
-          title: '请先登录',
-          icon: 'none'
-        })
-        return
+        const loggedIn = await this.handleLogin()
+        if (!loggedIn) {
+          return
+        }
       }
 
       wx.navigateTo({
@@ -98,59 +84,9 @@ Page({
     }
   },
 
-  handleLogin() {
+  async handleLogin() {
     if (this.data.loginLoading) {
-      return
-    }
-
-    this.setData({
-      showLoginModal: true,
-      loginAgreementChecked: false
-    })
-    this.hideTabBar()
-  },
-
-  handleCloseLoginModal() {
-    if (this.data.loginLoading) {
-      return
-    }
-
-    this.setData({
-      showLoginModal: false
-    })
-    this.showTabBar()
-  },
-
-  handleOpenAgreement() {
-    wx.navigateTo({
-      url: '/pages/agreement-content/index?key=user'
-    })
-  },
-
-  handleOpenPrivacy() {
-    wx.navigateTo({
-      url: '/pages/agreement-content/index?key=privacy'
-    })
-  },
-
-  handleToggleLoginAgreement(event) {
-    const values = (event && event.detail && event.detail.value) || []
-    this.setData({
-      loginAgreementChecked: values.includes('agree')
-    })
-  },
-
-  async handleConfirmLogin() {
-    if (this.data.loginLoading) {
-      return
-    }
-
-    if (!this.data.loginAgreementChecked) {
-      wx.showToast({
-        title: '请先阅读并勾选用户协议',
-        icon: 'none'
-      })
-      return
+      return false
     }
 
     this.setData({
@@ -158,22 +94,17 @@ Page({
     })
 
     try {
-      const result = await loginWithWechat()
-      const app = getApp()
-
-      app.setUserInfo(result.userInfo)
-      app.setToken(result.token)
+      const result = await loginAndStoreSession()
 
       this.setData({
-        userInfo: result.userInfo,
-        showLoginModal: false
+        userInfo: result.userInfo
       })
-      this.showTabBar()
 
       wx.showToast({
         title: '登录成功',
         icon: 'success'
       })
+      return true
     } catch (error) {
       const message = error && error.message ? error.message : '登录未完成，请稍后再试'
 
@@ -181,6 +112,7 @@ Page({
         title: message,
         icon: 'none'
       })
+      return false
     } finally {
       this.setData({
         loginLoading: false
@@ -195,12 +127,8 @@ Page({
 
     this.setData({
       userInfo: null,
-      showLoginModal: false,
-      loginAgreementChecked: false,
       loginLoading: false
     })
-
-    this.showTabBar()
 
     wx.showToast({
       title: '已退出登录',

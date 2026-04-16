@@ -3,10 +3,6 @@
   "usingComponents": {
     "mp-toptips": "../../../vendor/weui-miniprogram/toptips/toptips",
     "mp-dialog": "../../../vendor/weui-miniprogram/dialog/dialog",
-    "mp-half-screen-dialog": "../../../vendor/weui-miniprogram/half-screen-dialog/half-screen-dialog",
-    "mp-cells": "../../../vendor/weui-miniprogram/cells/cells",
-    "mp-checkbox-group": "../../../vendor/weui-miniprogram/checkbox-group/checkbox-group",
-    "mp-checkbox": "../../../vendor/weui-miniprogram/checkbox/checkbox",
     "mp-icon": "../../../vendor/weui-miniprogram/icon/icon",
     "mp-badge": "../../../vendor/weui-miniprogram/badge/badge",
     "mp-loading": "../../../vendor/weui-miniprogram/loading/loading"

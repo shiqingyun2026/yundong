@@ -12,7 +12,8 @@
 .header-back,
 .header-space {
   width: 64rpx;
-  height: 64rpx;
+  height: var(--location-nav-body-height);
+  box-sizing: border-box;
   display: flex;
   align-items: center;
 }
@@ -23,6 +24,11 @@
 }
 
 .header-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--location-nav-body-height);
+  box-sizing: border-box;
   font-size: 32rpx;
   font-weight: 700;
   color: #1f2329;
@@ -130,8 +136,8 @@
   width: 132rpx;
   height: 132rpx;
   border-radius: 36rpx;
-  background: radial-gradient(circle, rgba(24, 188, 197, 0.16) 0%, rgba(24, 188, 197, 0.06) 70%, rgba(24, 188, 197, 0) 100%);
-  box-shadow: 0 22rpx 56rpx rgba(24, 188, 197, 0.08);
+  background: radial-gradient(circle, rgba(26, 188, 197, 0.16) 0%, rgba(26, 188, 197, 0.06) 70%, rgba(26, 188, 197, 0) 100%);
+  box-shadow: 0 22rpx 56rpx rgba(26, 188, 197, 0.08);
 }
 
 .state-spinner-icon,

@@ -1,15 +1,15 @@
 @import 'vendor/weui-miniprogram/index.wxss';
 
 page {
-  --brand-primary: #18bcc5;
+  --brand-primary: #1abcc5;
   --brand-primary-strong: #12aab3;
   --brand-primary-light: #59d2d7;
   --brand-primary-soft: #e8f8f9;
   --brand-primary-soft-strong: #d8f2f4;
   --brand-primary-border: #cbeaec;
-  --brand-primary-shadow: rgba(24, 188, 197, 0.18);
-  --brand-primary-shadow-strong: rgba(24, 188, 197, 0.24);
-  --weui-BRAND: #18bcc5;
+  --brand-primary-shadow: rgba(26, 188, 197, 0.18);
+  --brand-primary-shadow-strong: rgba(26, 188, 197, 0.24);
+  --weui-BRAND: #1abcc5;
 
   min-height: 100%;
   background: #f7f8fa;
@@ -154,32 +154,6 @@ image {
   opacity: 0.6;
 }
 
-.weui-ext-tabs.weui-navbar {
-  display: flex;
-  margin: 0;
-  background: transparent;
-}
-
-.weui-ext-tabs--wrap {
-  flex-wrap: wrap;
-}
-
-.weui-ext-tabs--stretch .weui-ext-tabs__item {
-  flex: 1;
-}
-
-.weui-ext-tabs__item {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 72rpx;
-  box-sizing: border-box;
-}
-
-.weui-ext-tabs__item::before {
-  display: none;
-}
-
 .weui-ext-tag.weui-badge {
   display: inline-flex;
   align-items: center;
@@ -254,57 +228,7 @@ image {
   color: #5f6b7a;
 }
 
-.weui-dialog__root .weui-dialog__ft {
-  display: flex;
-  gap: 16rpx;
-  margin-top: 32rpx;
-  padding: 0;
-}
-
-.weui-dialog__root .weui-dialog__btn {
-  flex: 1;
-  height: 80rpx;
-  line-height: 80rpx;
-  border-radius: 999rpx;
-  font-size: 28rpx;
-  font-weight: 600;
-  text-align: center;
-}
-
-.weui-dialog__root .weui-dialog__btn::after {
-  display: none;
-}
-
-.weui-dialog__root .weui-dialog__btn + .weui-dialog__btn::after {
-  display: none;
-}
-
-.weui-dialog__root .dialog-button-cancel {
-  background: #f2f3f5;
-  color: #5f6b7a;
-}
-
-.weui-dialog__root .dialog-button-confirm {
-  background: var(--brand-primary);
-  color: #ffffff;
-}
-
-.weui-half-screen-dialog.login-sheet-panel {
-  max-width: 750rpx;
-  border-radius: 36rpx 36rpx 0 0;
-  box-shadow: 0 -16rpx 48rpx rgba(0, 0, 0, 0.18);
-  overflow: hidden;
-}
-
-.weui-half-screen-dialog.login-sheet-panel .weui-half-screen-dialog__hd {
-  display: none;
-}
-
-.weui-half-screen-dialog.login-sheet-panel .weui-half-screen-dialog__bd {
-  padding: 0;
-}
-
-.weui-half-screen-dialog.login-sheet-panel .weui-half-screen-dialog__ft {
+.weui-dialog__root .service-dialog .weui-dialog__ft::after {
   display: none;
 }
 
@@ -430,6 +354,8 @@ image {
   color: #1f2329;
 }
 
+.location-searchbar .weui-icon-search,
+.location-searchbar .weui-icon-clear,
 .location-searchbar .weui-search-bar__icon,
 .location-searchbar .weui-search-bar__clear-icon {
   width: 28rpx;

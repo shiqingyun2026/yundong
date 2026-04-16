@@ -12,7 +12,8 @@
 .home-navbar-row {
   display: flex;
   align-items: center;
-  min-height: 88rpx;
+  min-height: var(--home-nav-body-height);
+  box-sizing: border-box;
 }
 
 .hero-card {
@@ -25,6 +26,7 @@
 .location-pill {
   display: flex;
   align-items: center;
+  min-height: var(--home-nav-body-height);
   max-width: 520rpx;
   padding: 8rpx 0;
 }
@@ -51,26 +53,43 @@
   text-overflow: ellipsis;
 }
 
-.tab-row {
+.hero-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 16rpx;
 }
 
-.tab-item {
-  min-width: 150rpx;
-  padding: 18rpx 24rpx;
+.hero-tab {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 72rpx;
+  padding: 18rpx 0;
   border-radius: 999rpx;
   background: #eef2f7;
   color: #5f6b7a;
   text-align: center;
   font-size: 26rpx;
+  transition: background-color 160ms ease, box-shadow 160ms ease, color 160ms ease;
 }
 
-.tab-item-active {
-  background: var(--brand-primary);
+.hero-tab__label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  text-align: center;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.hero-tab--active {
+  background: #18bcc5;
   color: #ffffff;
   font-weight: 600;
+  box-shadow: 0 8rpx 18rpx rgba(24, 188, 197, 0.18);
 }
 
 .notice-card {

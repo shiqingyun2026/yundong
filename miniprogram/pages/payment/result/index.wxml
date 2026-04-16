@@ -1,5 +1,5 @@
 <view class="result-page">
-  <mp-toptips id="ui-toptips" />
+  <mp-toptips id="ui-toptips" root-portal="{{true}}" />
   <view class="weui-panel weui-ext-card result-card card-shadow">
     <view class="result-icon {{status === 'success' ? 'icon-success' : 'icon-fail'}}">
       <mp-icon

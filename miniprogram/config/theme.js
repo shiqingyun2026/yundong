@@ -1,4 +1,4 @@
-const BRAND_PRIMARY = '#18bcc5'
+const BRAND_PRIMARY = '#1abcc5'
 const BRAND_PRIMARY_STRONG = '#12aab3'
 const BRAND_PRIMARY_LIGHT = '#59d2d7'
 const BRAND_PRIMARY_SOFT = '#e8f8f9'
