@@ -2,16 +2,17 @@ const express = require('../lib/mini-express')
 
 const { env } = require('../config/env')
 const authenticate = require('../middleware/auth')
-const supabase = require('../utils/supabase')
+const { getSupabaseClient } = require('../utils/getSupabaseClient')
 const { fetchMiniProgramGroupDetail } = require('../shared/services/groupReaders')
 
 const router = express.Router()
+const resolveSupabase = () => (env.useMySqlRepositories ? null : getSupabaseClient())
 
 router.get('/:id', authenticate, async (req, res) => {
   try {
     return res.json(
       await fetchMiniProgramGroupDetail({
-        supabase: env.useMySqlRepositories ? null : supabase,
+        supabase: resolveSupabase(),
         groupId: req.params.id,
         userId: req.userId
       })

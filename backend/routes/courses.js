@@ -1,7 +1,7 @@
 const express = require('../lib/mini-express')
 
 const { env } = require('../config/env')
-const supabase = require('../utils/supabase')
+const { getSupabaseClient } = require('../utils/getSupabaseClient')
 const { resolveUserIdFromAuthorization } = require('../shared/utils/auth')
 const {
   fetchMiniProgramCourseActiveGroup,
@@ -10,12 +10,13 @@ const {
 } = require('../shared/services/courseReaders')
 
 const router = express.Router()
+const resolveSupabase = () => (env.useMySqlRepositories ? null : getSupabaseClient())
 
 router.get('/', async (req, res) => {
   try {
     return res.json(
       await fetchMiniProgramCourseList({
-        supabase: env.useMySqlRepositories ? null : supabase,
+        supabase: resolveSupabase(),
         page: req.query.page,
         pageSize: req.query.pageSize,
         sort: req.query.sort
@@ -32,7 +33,7 @@ router.get('/:id', async (req, res) => {
   try {
     return res.json(
       await fetchMiniProgramCourseDetail({
-        supabase: env.useMySqlRepositories ? null : supabase,
+        supabase: resolveSupabase(),
         courseId: req.params.id
       })
     )
@@ -47,7 +48,7 @@ router.get('/:id/active-group', async (req, res) => {
   try {
     return res.json(
       await fetchMiniProgramCourseActiveGroup({
-        supabase: env.useMySqlRepositories ? null : supabase,
+        supabase: resolveSupabase(),
         courseId: req.params.id,
         userId: resolveUserIdFromAuthorization(req.headers.authorization)
       })

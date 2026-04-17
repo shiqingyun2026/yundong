@@ -153,6 +153,35 @@ const findAdminByUsername = async username => {
   return normalizeAdmin(rows[0])
 }
 
+const findAdminsByIds = async adminIds => {
+  const ids = [...new Set((adminIds || []).filter(Boolean))]
+  if (!ids.length) {
+    return []
+  }
+
+  const placeholders = ids.map(() => '?').join(', ')
+  const rows = await query(
+    `
+      select
+        id,
+        email,
+        username,
+        password_hash,
+        role,
+        status,
+        last_login,
+        password_updated_at,
+        created_at,
+        updated_at
+      from admin_users
+      where id in (${placeholders})
+    `,
+    ids
+  )
+
+  return rows.map(normalizeAdmin)
+}
+
 const listAdmins = async ({ keyword = '', role = '', status = '', from = 0, size = 10 } = {}) => {
   const where = buildWhereClause({ keyword, role, status })
   const totalRows = await query(
@@ -245,6 +274,7 @@ module.exports = {
   createAdmin,
   deleteAdmin,
   findAdminById,
+  findAdminsByIds,
   findAdminByUsername,
   listAdmins,
   touchAdminLogin,

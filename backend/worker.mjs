@@ -1,11 +1,3 @@
-import app from './app.js'
-import courseLifecycleModule from './utils/courseLifecycle.js'
-import deliveryModule from './shared/services/groupResultNotificationDelivery.js'
-import supabase from './utils/supabase.js'
-
-const { syncAllCourseLifecycles } = courseLifecycleModule
-const { processPendingGroupResultNotificationJobs } = deliveryModule
-
 const bindEnv = env => {
   if (!env || typeof process === 'undefined' || !process.env) {
     return
@@ -14,14 +6,41 @@ const bindEnv = env => {
   Object.assign(process.env, env)
 }
 
+const loadRuntimeModules = async () => {
+  const [appModule, envModule, courseLifecycleModule, deliveryModule, getSupabaseClientModule] = await Promise.all([
+    import('./app.js'),
+    import('./config/env.js'),
+    import('./utils/courseLifecycle.js'),
+    import('./shared/services/groupResultNotificationDelivery.js'),
+    import('./utils/getSupabaseClient.js')
+  ])
+
+  return {
+    app: appModule.default || appModule,
+    configEnv: (envModule.default || envModule).env,
+    syncAllCourseLifecycles: (courseLifecycleModule.default || courseLifecycleModule).syncAllCourseLifecycles,
+    processPendingGroupResultNotificationJobs:
+      (deliveryModule.default || deliveryModule).processPendingGroupResultNotificationJobs,
+    getSupabaseClient: (getSupabaseClientModule.default || getSupabaseClientModule).getSupabaseClient
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     bindEnv(env)
+    const { app } = await loadRuntimeModules()
     return app.fetch(request, env, ctx)
   },
 
   async scheduled(controller, env, ctx) {
     bindEnv(env)
+    const {
+      configEnv,
+      syncAllCourseLifecycles,
+      processPendingGroupResultNotificationJobs,
+      getSupabaseClient
+    } = await loadRuntimeModules()
+    const supabase = configEnv.useMySqlRepositories ? null : getSupabaseClient()
     ctx.waitUntil(
       Promise.all([
         syncAllCourseLifecycles({

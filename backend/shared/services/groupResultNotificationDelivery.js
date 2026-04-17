@@ -1,3 +1,6 @@
+const { env } = require('../../config/env')
+const { groupResultNotificationJobsRepository, usersRepository } = require('../../repositories')
+
 const DEFAULT_BATCH_SIZE = 20
 const { sendGroupResultSubscribeMessage } = require('./wechatMiniProgramNotifications')
 
@@ -17,6 +20,13 @@ const resolveDeliveryMode = inputMode => {
 
 const listPendingJobs = async ({ supabase, limit = DEFAULT_BATCH_SIZE }) => {
   const safeLimit = Math.max(1, Math.min(100, Number(limit) || DEFAULT_BATCH_SIZE))
+
+  if (env.useMySqlRepositories) {
+    return groupResultNotificationJobsRepository.listPendingNotificationJobs({
+      limit: safeLimit
+    })
+  }
+
   const { data, error } = await supabase
     .from('group_result_notification_jobs')
     .select(
@@ -39,6 +49,14 @@ const fetchUsersByIds = async ({ supabase, userIds }) => {
     return {}
   }
 
+  if (env.useMySqlRepositories) {
+    const users = await usersRepository.listUsersByIds(ids)
+    return (users || []).reduce((result, item) => {
+      result[item.id] = item
+      return result
+    }, {})
+  }
+
   const { data, error } = await supabase
     .from('users')
     .select('id, openid')
@@ -55,6 +73,15 @@ const fetchUsersByIds = async ({ supabase, userIds }) => {
 }
 
 const updateJobStatus = async ({ supabase, jobId, status, sentAt, failureReason = '' }) => {
+  if (env.useMySqlRepositories) {
+    return groupResultNotificationJobsRepository.updateNotificationJobStatus({
+      jobId,
+      status,
+      sentAt,
+      failureReason
+    })
+  }
+
   const payload = {
     status,
     updated_at: new Date().toISOString(),

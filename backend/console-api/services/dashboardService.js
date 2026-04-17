@@ -1,6 +1,8 @@
 const supabase = require('../../utils/supabase')
+const { env } = require('../../config/env')
 const { COURSE_STATUS, getCourseLifecycleMap } = require('../../utils/courseLifecycle')
 const { AUTO_REFUND_REASON } = require('../../shared/constants/refunds')
+const { coursesRepository, groupMembersRepository, groupsRepository, ordersRepository } = require('../../repositories')
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -105,6 +107,121 @@ const buildMetric = (current, previous, allowCompare = true) => {
 
 const getDashboardOverview = async ({ query = {}, admin = {} }) => {
   const range = getRangeByKey(`${query.range || 'today'}`.trim() || 'today')
+
+  if (env.useMySqlRepositories) {
+    const [courses, groups, members, orders] = await Promise.all([
+      coursesRepository.listCourses(),
+      groupsRepository.listGroups(),
+      groupMembersRepository.listGroupMembers(),
+      ordersRepository.listOrders()
+    ])
+
+    const courseIds = (courses || []).map(item => item.id).filter(Boolean)
+    const lifecycleMap = await getCourseLifecycleMap(courseIds, {
+      operatorId: admin && admin.id
+    })
+
+    const groupingCourseCount = (courses || []).filter(
+      item => lifecycleMap[item.id] && lifecycleMap[item.id].status === COURSE_STATUS.GROUPING
+    ).length
+
+    const classCourseCount = (courses || []).filter(item => isWithinRange(item.start_time, range.current)).length
+    const previousClassCourseCount = (courses || []).filter(item => isWithinRange(item.start_time, range.previous)).length
+    const publishCourseCount = (courses || []).filter(item => isWithinRange(item.publish_time, range.current)).length
+    const previousPublishCourseCount = (courses || []).filter(item => isWithinRange(item.publish_time, range.previous)).length
+
+    const successGroupIds = new Set((groups || []).filter(item => item.status === 'success').map(item => item.id).filter(Boolean))
+    const successSummaryByGroup = (orders || [])
+      .filter(item => item.status === 'success' && item.group_id && successGroupIds.has(item.group_id))
+      .reduce((result, item) => {
+        const candidateTime = item.pay_time || item.created_at || ''
+        if (!result[item.group_id]) {
+          result[item.group_id] = {
+            success_time: candidateTime,
+            amount: 0
+          }
+        }
+
+        if (candidateTime && candidateTime > result[item.group_id].success_time) {
+          result[item.group_id].success_time = candidateTime
+        }
+
+        result[item.group_id].amount += Number(item.amount || 0)
+        return result
+      }, {})
+
+    const successGroupEntries = Object.values(successSummaryByGroup)
+    const successGroupCount = successGroupEntries.filter(item => isWithinRange(item.success_time, range.current)).length
+    const previousSuccessGroupCount = successGroupEntries.filter(item => isWithinRange(item.success_time, range.previous)).length
+    const successfulGroupAmount = successGroupEntries
+      .filter(item => isWithinRange(item.success_time, range.current))
+      .reduce((result, item) => result + Number(item.amount || 0), 0)
+    const previousSuccessfulGroupAmount = successGroupEntries
+      .filter(item => isWithinRange(item.success_time, range.previous))
+      .reduce((result, item) => result + Number(item.amount || 0), 0)
+
+    const groupMemberCount = (members || []).filter(item => isWithinRange(item.joined_at, range.current)).length
+    const previousGroupMemberCount = (members || []).filter(item => isWithinRange(item.joined_at, range.previous)).length
+    const autoRefundOrderCount = (orders || []).filter(
+      item => item.status === 'refunded' && item.refund_reason === AUTO_REFUND_REASON && isWithinRange(item.refund_time, range.current)
+    ).length
+
+    const memberCountByGroup = (members || []).reduce((result, item) => {
+      result[item.group_id] = (result[item.group_id] || 0) + 1
+      return result
+    }, {})
+
+    const ordersByGroup = (orders || []).reduce((result, item) => {
+      if (!result[item.group_id]) {
+        result[item.group_id] = []
+      }
+      result[item.group_id].push(item)
+      return result
+    }, {})
+
+    const failedGroupPendingRefundCount = (groups || []).filter(item => {
+      if (item.status !== 'failed') {
+        return false
+      }
+
+      return (ordersByGroup[item.id] || []).some(order => order.status !== 'refunded')
+    }).length
+
+    const expiredActiveGroupCount = (groups || []).filter(item => {
+      return item.status === 'active' && toTimestamp(item.expire_time) !== null && toTimestamp(item.expire_time) < Date.now()
+    }).length
+
+    const memberMismatchGroupCount = (groups || []).filter(item => {
+      return Number(item.current_count || 0) !== Number(memberCountByGroup[item.id] || 0)
+    }).length
+
+    return {
+      range: {
+        key: range.key,
+        label: range.label,
+        days: range.days,
+        compare_label: range.compare_label,
+        start_date: range.start_date,
+        end_date: range.end_date,
+        display_text: range.display_text
+      },
+      metrics: {
+        grouping_course_count: buildMetric(groupingCourseCount, 0, false),
+        class_course_count: buildMetric(classCourseCount, previousClassCourseCount),
+        publish_course_count: buildMetric(publishCourseCount, previousPublishCourseCount),
+        success_group_count: buildMetric(successGroupCount, previousSuccessGroupCount),
+        group_member_count: buildMetric(Number(groupMemberCount || 0), Number(previousGroupMemberCount || 0)),
+        successful_group_amount: buildMetric(successfulGroupAmount, previousSuccessfulGroupAmount)
+      },
+      anomalies: {
+        failed_group_pending_refund_count: failedGroupPendingRefundCount,
+        expired_active_group_count: expiredActiveGroupCount,
+        member_mismatch_group_count: memberMismatchGroupCount,
+        auto_refund_order_count: Number(autoRefundOrderCount || 0)
+      },
+      note: '成团数与成团金额按成功团内最后一笔支付成功时间近似统计；异常提醒为当前系统快照。'
+    }
+  }
 
   const { data: courses, error: courseError } = await supabase
     .from('courses')

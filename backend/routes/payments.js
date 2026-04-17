@@ -2,13 +2,14 @@ const express = require('../lib/mini-express')
 
 const { env } = require('../config/env')
 const authenticate = require('../middleware/auth')
-const supabase = require('../utils/supabase')
+const { getSupabaseClient } = require('../utils/getSupabaseClient')
 const { isServiceError, markOrderPaymentSuccess } = require('../shared/services/groupOrders')
 const { normalizeGroupStatus } = require('../shared/domain/groupRules')
 const { prepareOrderPayment, handleWechatPaymentCallback, markPaymentRecordPaid } = require('../shared/services/paymentShell')
 const { verifyWechatPayCallbackSignature } = require('../shared/services/wechatMiniProgram')
 
 const router = express.Router()
+const resolveSupabase = () => (env.useMySqlRepositories ? null : getSupabaseClient())
 
 router.post('/prepare', authenticate, async (req, res) => {
   const { orderId } = req.body || {}
@@ -22,7 +23,7 @@ router.post('/prepare', authenticate, async (req, res) => {
   try {
     return res.json(
       await prepareOrderPayment({
-        supabase: env.useMySqlRepositories ? null : supabase,
+        supabase: resolveSupabase(),
         userId: req.userId,
         orderId
       })
@@ -50,14 +51,14 @@ router.post('/mock-success', authenticate, async (req, res) => {
 
   try {
     const result = await markOrderPaymentSuccess({
-      supabase: env.useMySqlRepositories ? null : supabase,
+      supabase: resolveSupabase(),
       userId: req.userId,
       orderId,
       groupId
     })
 
     await markPaymentRecordPaid({
-      supabase: env.useMySqlRepositories ? null : supabase,
+      supabase: resolveSupabase(),
       orderId
     })
 
@@ -99,7 +100,7 @@ router.post('/notify/wechat', async (req, res) => {
     }
 
     const result = await handleWechatPaymentCallback({
-      supabase: env.useMySqlRepositories ? null : supabase,
+      supabase: resolveSupabase(),
       payload: req.body || {}
     })
 

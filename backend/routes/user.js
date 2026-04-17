@@ -3,16 +3,17 @@ const express = require('../lib/mini-express')
 const { env } = require('../config/env')
 const { groupResultSubscriptionsRepository } = require('../repositories')
 const authenticate = require('../middleware/auth')
-const supabase = require('../utils/supabase')
+const { getSupabaseClient } = require('../utils/getSupabaseClient')
 const { fetchMiniProgramUserGroupList } = require('../shared/services/groupReaders')
 
 const router = express.Router()
+const resolveSupabase = () => (env.useMySqlRepositories ? null : getSupabaseClient())
 
 router.get('/groups', authenticate, async (req, res) => {
   try {
     return res.json(
       await fetchMiniProgramUserGroupList({
-        supabase: env.useMySqlRepositories ? null : supabase,
+        supabase: resolveSupabase(),
         userId: req.userId,
         status: req.query.status,
         page: req.query.page,
@@ -81,6 +82,7 @@ router.post('/group-result-subscriptions', authenticate, async (req, res) => {
       updated_at: now
     }
 
+    const supabase = resolveSupabase()
     const { data, error } = await supabase
       .from('group_result_subscriptions')
       .upsert(payload, {

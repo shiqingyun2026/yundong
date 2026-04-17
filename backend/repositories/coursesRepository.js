@@ -1,5 +1,5 @@
 const { execute, query } = require('../config/db')
-const { buildInClause, parseJsonField, toDbDateTime } = require('./_helpers')
+const { buildInClause, createUuid, parseJsonField, toDbDateTime } = require('./_helpers')
 
 const COURSE_SELECT_FIELDS = `
   id,
@@ -81,13 +81,39 @@ const findCoursesByIds = async courseIds => {
   return rows.map(normalizeCourse)
 }
 
-const listCourses = async () => {
+const listCourses = async ({ keyword = '', category = '', startDateField = '', startDate, endDate } = {}) => {
+  const conditions = []
+  const params = []
+
+  if (keyword) {
+    conditions.push('name like ?')
+    params.push(`%${keyword}%`)
+  }
+
+  if (category) {
+    conditions.push('course_category = ?')
+    params.push(category)
+  }
+
+  if (startDateField && startDate) {
+    conditions.push(`${startDateField} >= ?`)
+    params.push(toDbDateTime(startDate))
+  }
+
+  if (startDateField && endDate) {
+    conditions.push(`${startDateField} <= ?`)
+    params.push(toDbDateTime(endDate))
+  }
+
+  const whereSql = conditions.length ? `where ${conditions.join(' and ')}` : ''
   const rows = await query(
     `
       select ${COURSE_SELECT_FIELDS}
       from courses
+      ${whereSql}
       order by start_time asc
-    `
+    `,
+    params
   )
 
   return rows.map(normalizeCourse)
@@ -97,10 +123,16 @@ const createCourse = async payload => {
   const now = toDbDateTime(new Date())
   const data = {
     ...payload,
+    id: payload.id || createUuid(),
     images: JSON.stringify(Array.isArray(payload.images) ? payload.images : []),
     coach_certificates: JSON.stringify(Array.isArray(payload.coach_certificates) ? payload.coach_certificates : []),
-    created_at: payload.created_at || now,
-    updated_at: payload.updated_at || now
+    publish_time: toDbDateTime(payload.publish_time),
+    unpublish_time: toDbDateTime(payload.unpublish_time),
+    deadline: toDbDateTime(payload.deadline),
+    start_time: toDbDateTime(payload.start_time),
+    end_time: toDbDateTime(payload.end_time),
+    created_at: toDbDateTime(payload.created_at) || now,
+    updated_at: toDbDateTime(payload.updated_at) || now
   }
 
   await execute(
@@ -184,11 +216,11 @@ const updateCourse = async (id, payload = {}) => {
   assign('latitude', payload.latitude, value => (value === '' ? null : value))
   assign('group_price', payload.group_price, value => Number(value || 0))
   assign('original_price', payload.original_price, value => Number(value || 0))
-  assign('publish_time', payload.publish_time)
-  assign('unpublish_time', payload.unpublish_time)
-  assign('deadline', payload.deadline)
-  assign('start_time', payload.start_time)
-  assign('end_time', payload.end_time)
+  assign('publish_time', payload.publish_time, value => toDbDateTime(value))
+  assign('unpublish_time', payload.unpublish_time, value => toDbDateTime(value))
+  assign('deadline', payload.deadline, value => toDbDateTime(value))
+  assign('start_time', payload.start_time, value => toDbDateTime(value))
+  assign('end_time', payload.end_time, value => toDbDateTime(value))
   assign('default_target_count', payload.default_target_count)
   assign('max_groups', payload.max_groups, value => Number(value || 0))
   assign('status', payload.status)

@@ -188,11 +188,19 @@
 当前进度：
 
 - 已完成 repository 目录骨架
-- 已完成首批真实实现：
+- 已完成核心表真实实现：
   - `usersRepository`
   - `adminUsersRepository`
   - `adminLogRepository`
-- 其他 repository 仍为占位实现
+  - `coursesRepository`
+  - `groupsRepository`
+  - `groupMembersRepository`
+  - `ordersRepository`
+  - `paymentRecordsRepository`
+  - `groupResultSubscriptionsRepository`
+  - `groupResultNotificationJobsRepository`
+- 已在小程序主链路、后台查询链路、通知任务链路中逐步接入
+- 仍待继续收敛部分 service 中保留的 Supabase fallback 分支
 
 #### T3.3 迁移用户与鉴权链路
 
@@ -215,6 +223,10 @@
   - 小程序登录已支持走 `usersRepository`
   - 后台管理员存储已支持走 `adminUsersRepository`
   - 后台日志写入已支持走 `adminLogRepository`
+- 已引入微信官方 CloudBase 模板参考实现思路：
+  - 参考项目：`.reference/miniprogram-3`
+  - 已按官方 `callContainer` / 云函数透传模式兼容 `X-WX-OPENID` / `X-WX-APPID` / `X-WX-UNIONID`
+  - 小程序登录服务已支持优先读取 CloudBase 透传身份，其次再回落到 `code2Session`
 - 仍待完成：
   - `USE_MYSQL_REPOSITORIES=true` 环境下联调
   - `console-api` 登录与账号接口实测
@@ -282,10 +294,16 @@
   - `/api/payments/notify/wechat`
   - `/api/user/group-result-subscriptions`
   - 支付成功/失败后通知任务入队
+- 已将通知任务消费链路切到 `USE_MYSQL_REPOSITORIES=true` 分支：
+  - `groupResultNotificationDelivery`
+  - Worker `scheduled` 定时投递入口
+  - `/internal/group-result-notifications/process`
 - 已支持小程序支付准备在 MySQL 模式下生成/更新 `payment_records`
+- 已补充通知任务消费最小测试：
+  - `backend/tests/group-result-notification-delivery.test.js`
 - 仍待完成：
-  - 通知任务消费链路切到 MySQL repository
   - 微信支付真实回调联调
+  - 微信订阅消息真实投递联调
   - 生产/测试环境支付密钥配置后的真链路验收
 
 #### T3.6 移除 Supabase 依赖
@@ -299,6 +317,55 @@
   - T3.3 ~ T3.5
 - 验收：
   - 后端启动与测试不再依赖 Supabase
+
+当前进度：
+
+- 已完成首批核心主链路的 MySQL repository 切换：
+  - 用户与管理员鉴权
+  - 课程、拼团、订单主链路
+  - 支付记录、订阅记录、通知任务入队与消费
+- 已去除部分定时任务与内部入口的 Supabase 主路径依赖：
+  - `utils/courseLifecycle.js`
+  - `routes/internal.js`
+  - `worker.mjs`
+- 已去除小程序主路由的 Supabase 顶层依赖：
+  - `routes/auth.js`
+  - `routes/courses.js`
+  - `routes/groups.js`
+  - `routes/orders.js`
+  - `routes/payments.js`
+  - `routes/user.js`
+- 已兼容 CloudBase `callContainer` 官方透传身份头：
+  - 登录支持直接读取 `X-WX-OPENID` / `X-WX-APPID` / `X-WX-UNIONID`
+  - 小程序鉴权中间件支持在 MySQL 模式下用 `X-WX-OPENID` 直连用户
+- 已补充 MySQL 模式专项验证：
+  - `backend/tests/course-lifecycle.mysql.test.js`
+  - `backend/tests/miniprogram-routes.mysql.test.js`
+  - `backend/tests/auth.middleware.cloudbase.test.js`
+- 已完成首批后台查询与看板服务的 MySQL repository 切换：
+  - `console-api/services/ordersService.js`
+  - `console-api/services/groupsService.js`
+  - `console-api/services/coursesService.js`
+  - `console-api/services/logService.js`
+  - `console-api/services/dashboardService.js`
+- 已补充后台 MySQL 模式专项验证：
+  - `backend/tests/console-api.mysql-services.test.js`
+- 已补充存储配置收敛：
+  - `backend/config/storage.js`
+  - 已统一 `STORAGE_PROVIDER`、COS 配置、上传大小限制等读取入口
+- 当前仍有部分后台与共享服务依赖 `supabase`：
+  - `console-api/services/storage/supabaseProvider.js` 与迁移期兼容签名接口
+  - `console-api/services/ordersService.js` / `groupsService.js` / `coursesService.js` / `dashboardService.js` / `logService.js` 的 Supabase fallback 与顶层依赖
+  - `shared/services/groupOrders.js` / `paymentShell.js` / `groupOrderStore.js` / `groupOrderParticipation.js`
+  - `shared/services/groupResultNotifications.js` / `groupResultNotificationDelivery.js`
+  - `utils/adminStore.js` 的 Supabase fallback 分支
+  - 路由层与 Worker 仍通过 `getSupabaseClient()` 保留旧链路兼容入口
+- 因此暂不建议直接删除 `@supabase/supabase-js` 与 `backend/utils/supabase.js`
+- 下一步建议：
+  - 继续把 `groupOrders` / `paymentShell` / `groupResultNotifications` 这一组核心 service 的 Supabase fallback 收敛到 repository
+  - 去掉 console-api 各 service 的 Supabase 顶层依赖，改为按分支延迟加载旧链路客户端
+  - 在测试/云托管环境完成 COS 真实上传联调后，再评估是否移除 Supabase storage provider
+  - 待 console-api 与定时任务链路全部完成迁移后，再执行依赖清理
 
 ### 阶段 4：云托管部署与环境配置
 
@@ -329,6 +396,17 @@
   - T4.1
 - 验收：
   - 小程序通过 `callContainer` 能调通登录与课程接口
+
+联调补充说明：
+
+- 小程序侧可直接参考 `.reference/miniprogram-3` 中 CloudBase 官方模板的调用方式：
+  - `wx.cloud.init({ env, traceUser: true })`
+  - `new wx.cloud.Cloud({ resourceEnv }).callContainer(...)`
+- 后端已兼容官方模板透传的微信身份头：
+  - `X-WX-OPENID`
+  - `X-WX-APPID`
+  - `X-WX-UNIONID`
+- 因此测试环境联调时，除 Bearer token 方案外，也应专项验证“仅依赖 CloudBase 透传头”的登录与鉴权路径
 
 #### T4.3 部署后台 API 服务
 
@@ -372,6 +450,14 @@
 - 验收：
   - 上传方案评审通过
 
+当前进度：
+
+- 已按设计文档确认第一阶段采用“服务端代理上传”
+- 原因：
+  - 当前 `mini-express` 对二进制请求体支持有限，直接透传文件风险较高
+  - 后台上传量预计较小，第一阶段优先降低前端直传签名复杂度
+  - 后续可在 provider 层替换为 COS/CloudBase 存储，不影响 console 前端调用
+
 #### T5.2 实现新的上传接口
 
 - 内容：
@@ -386,6 +472,28 @@
 - 验收：
   - 后台可上传封面、图集、教练证书
 
+当前进度：
+
+- 已新增代理上传接口：
+  - `POST /api/admin/upload/image`
+- 已保留旧签名接口用于迁移期兼容：
+  - `POST /api/admin/upload/sign`
+- 已将后台前端上传入口切到代理上传接口：
+  - [console/src/lib/api.ts](/Users/yun/lindong/console/src/lib/api.ts)
+- 已抽出存储 provider 入口：
+  - 当前默认 `STORAGE_PROVIDER=supabase`
+  - 已支持 `STORAGE_PROVIDER=cos`
+  - 后续切 CloudBase 时仅需新增 provider 实现
+- 已新增统一存储配置模块：
+  - `backend/config/storage.js`
+  - 已统一 provider 选择、COS 参数、上传大小限制配置，减少 `uploadService` / provider 层散落读取环境变量
+- 已补充上传 provider 最小测试：
+  - `backend/tests/upload-service.providers.test.js`
+- 仍待完成：
+  - 云托管环境配置 `STORAGE_PROVIDER`、`COS_BUCKET`、`COS_REGION`、`COS_SECRET_ID`、`COS_SECRET_KEY`
+  - 如需 CDN/自定义域名，补充 `COS_PUBLIC_BASE_URL`
+  - COS 真实图片上传联调
+
 #### T5.3 切换后台上传前端逻辑
 
 - 内容：
@@ -398,6 +506,14 @@
   - T5.2
 - 验收：
   - 后台表单上传与预览正常
+
+当前进度：
+
+- 已将 `uploadImage` 从“获取 Supabase 签名后前端 PUT 直传”切为“读取 base64 后调用后端代理上传”
+- 表单调用点无需改动，仍统一使用 `uploadImage(file, folder)`
+- 仍待完成：
+  - 后台页面真实上传与预览回归
+  - 大图上传失败、非图片文件、超限文件专项验证
 
 ### 阶段 6：联调、回归与灰度切换
 
@@ -419,6 +535,14 @@
   - T4.2
 - 验收：
   - 小程序主链路全部通过
+
+联调补充说明：
+
+- 小程序若基于 `.reference/miniprogram-3` 官方模板继续二次开发，建议优先验证以下路径：
+  - 通过 `callContainer` 触发登录接口，由 CloudBase 透传 `X-WX-OPENID`
+  - 登录后继续访问课程详情、活动拼团、创建订单、支付准备接口
+  - 已登录状态下访问“我的拼团”等受保护接口，确认后端可基于 CloudBase 透传身份完成鉴权
+- 如需兼容非 CloudBase 调用场景，仍保留 `code2Session + Bearer token` 路径作为兜底方案
 
 #### T6.2 后台联调
 

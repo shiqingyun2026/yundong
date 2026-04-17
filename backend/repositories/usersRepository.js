@@ -83,6 +83,29 @@ const listUsersByIds = async userIds => {
   return rows.map(normalizeUser)
 }
 
+const listUsers = async ({ keyword = '' } = {}) => {
+  const conditions = []
+  const params = []
+
+  if (keyword) {
+    conditions.push('(id like ? or nickname like ?)')
+    params.push(`%${keyword}%`, `%${keyword}%`)
+  }
+
+  const whereSql = conditions.length ? `where ${conditions.join(' and ')}` : ''
+  const rows = await query(
+    `
+      select id, openid, nickname, avatar_url, created_at, updated_at
+      from users
+      ${whereSql}
+      order by created_at desc
+    `,
+    params
+  )
+
+  return rows.map(normalizeUser)
+}
+
 const updateUserProfile = async ({ id, nickname, avatarUrl }) => {
   const updates = []
   const params = []
@@ -113,6 +136,7 @@ module.exports = {
   createUser,
   findUserById,
   findUserByOpenId,
+  listUsers,
   listUsersByIds,
   updateUserProfile
 }

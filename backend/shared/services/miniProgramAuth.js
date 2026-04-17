@@ -21,12 +21,26 @@ const resolveMiniProgramOpenId = ({ code, mockOpenId, openId }) => {
 
 const shouldUseWechatCodeExchange = ({ mockOpenId, openId }) => !mockOpenId && !openId
 
-const resolveWechatIdentity = async ({ code, mockOpenId, openId }) => {
+const resolveWechatIdentity = async ({ code, mockOpenId, openId, unionId = '', appId = '', sessionKey = '' }) => {
+  const resolvedOpenId = `${openId || ''}`.trim()
+  const resolvedUnionId = `${unionId || ''}`.trim()
+  const resolvedAppId = `${appId || ''}`.trim()
+
+  if (resolvedOpenId) {
+    return {
+      openId: resolvedOpenId,
+      unionId: resolvedUnionId,
+      appId: resolvedAppId,
+      sessionKey: `${sessionKey || ''}`.trim()
+    }
+  }
+
   if (shouldUseWechatCodeExchange({ mockOpenId, openId })) {
     const session = await exchangeCodeForSession(code)
     return {
       openId: session.openId,
       unionId: session.unionId,
+      appId: resolvedAppId,
       sessionKey: session.sessionKey
     }
   }
@@ -37,16 +51,20 @@ const resolveWechatIdentity = async ({ code, mockOpenId, openId }) => {
       mockOpenId,
       openId
     }),
-    unionId: '',
-    sessionKey: ''
+    unionId: resolvedUnionId,
+    appId: resolvedAppId,
+    sessionKey: `${sessionKey || ''}`.trim()
   }
 }
 
-const loginMiniProgramUser = async ({ supabase, code, mockOpenId, openId }) => {
+const loginMiniProgramUser = async ({ supabase, code, mockOpenId, openId, unionId = '', appId = '', sessionKey = '' }) => {
   const wechatIdentity = await resolveWechatIdentity({
     code,
     mockOpenId,
-    openId
+    openId,
+    unionId,
+    appId,
+    sessionKey
   })
   const resolvedOpenId = `${wechatIdentity.openId || ''}`.trim()
 

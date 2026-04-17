@@ -42,8 +42,13 @@ const env = {
     connectionLimit: toInt(process.env.MYSQL_CONNECTION_LIMIT, 10)
   },
   storage: {
+    provider: pickFirst(process.env.STORAGE_PROVIDER, 'supabase').toLowerCase(),
+    supabaseBucket: pickFirst(process.env.SUPABASE_STORAGE_BUCKET, 'course-images'),
     bucket: pickFirst(process.env.COS_BUCKET, process.env.CLOUDBASE_STORAGE_BUCKET),
-    region: pickFirst(process.env.COS_REGION, process.env.CLOUDBASE_STORAGE_REGION)
+    region: pickFirst(process.env.COS_REGION, process.env.CLOUDBASE_STORAGE_REGION),
+    publicBaseUrl: getOptionalEnv('COS_PUBLIC_BASE_URL'),
+    uploadExpiresSeconds: toInt(process.env.COS_UPLOAD_EXPIRES_SECONDS, 900),
+    maxUploadBytes: toInt(process.env.ADMIN_UPLOAD_MAX_BYTES, 5 * 1024 * 1024)
   }
 }
 

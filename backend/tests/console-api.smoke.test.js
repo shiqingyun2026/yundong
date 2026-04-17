@@ -115,6 +115,27 @@ mockModule('console-api/services/uploadService.js', {
       upload_url: 'https://example.com/storage/v1/signed',
       public_url: 'https://example.com/storage/v1/object/public/course-cover/2026-03-29/file.png'
     }
+  },
+  uploadImageByProxy: async ({ filename, fileBase64 }) => {
+    if (!filename || !fileBase64) {
+      throw createConsoleApiError({
+        responseCode: 5000,
+        statusCode: 400,
+        message: 'filename、contentType 和 fileBase64 不能为空'
+      })
+    }
+
+    if (filename === 'explode.png') {
+      throw new Error('storage unavailable')
+    }
+
+    return {
+      bucket: 'course-images',
+      path: 'course-cover/2026-03-29/file.png',
+      provider: 'supabase',
+      size: 128,
+      public_url: 'https://example.com/storage/v1/object/public/course-cover/2026-03-29/file.png'
+    }
   }
 })
 
@@ -536,7 +557,7 @@ test('console api smoke: accounts route requires super admin', async () => {
 })
 
 test('console api smoke: key authenticated routes stay wired', async () => {
-  const [accounts, logs, upload, courses, groups, groupOrders, refund, dashboard] = await Promise.all([
+  const [accounts, logs, uploadSign, uploadImage, courses, groups, groupOrders, refund, dashboard] = await Promise.all([
     requestJson({
       method: 'GET',
       path: '/api/admin/accounts',
@@ -555,6 +576,17 @@ test('console api smoke: key authenticated routes stay wired', async () => {
         filename: 'course.png',
         contentType: 'image/png',
         folder: 'course-cover'
+      }
+    }),
+    requestJson({
+      method: 'POST',
+      path: '/api/admin/upload/image',
+      token: adminToken,
+      body: {
+        filename: 'course.png',
+        contentType: 'image/png',
+        folder: 'course-cover',
+        fileBase64: 'data:image/png;base64,ZmFrZS1pbWFnZQ=='
       }
     }),
     requestJson({
@@ -594,9 +626,14 @@ test('console api smoke: key authenticated routes stay wired', async () => {
   assert.equal(logs.status, 200)
   assert.equal(logs.body.code, 0)
 
-  assert.equal(upload.status, 200)
-  assert.equal(upload.body.code, 0)
-  assert.equal(upload.body.data.bucket, 'course-images')
+  assert.equal(uploadSign.status, 200)
+  assert.equal(uploadSign.body.code, 0)
+  assert.equal(uploadSign.body.data.bucket, 'course-images')
+
+  assert.equal(uploadImage.status, 200)
+  assert.equal(uploadImage.body.code, 0)
+  assert.equal(uploadImage.body.data.provider, 'supabase')
+  assert.equal(uploadImage.body.data.public_url, 'https://example.com/storage/v1/object/public/course-cover/2026-03-29/file.png')
 
   assert.equal(courses.status, 200)
   assert.equal(courses.body.code, 0)
@@ -669,16 +706,35 @@ test('console api smoke: business errors keep declared status and code', async (
 test('console api smoke: unexpected service errors are wrapped as 5000', async () => {
   const response = await requestJson({
     method: 'POST',
-    path: '/api/admin/upload/sign',
+    path: '/api/admin/upload/image',
     token: adminToken,
     body: {
       filename: 'explode.png',
       contentType: 'image/png',
-      folder: 'course-cover'
+      folder: 'course-cover',
+      fileBase64: 'data:image/png;base64,ZmFrZS1pbWFnZQ=='
     }
   })
 
   assert.equal(response.status, 500)
   assert.equal(response.body.code, 5000)
   assert.equal(response.body.message, 'storage unavailable')
+})
+
+test('console api smoke: upload image validates required fields', async () => {
+  const response = await requestJson({
+    method: 'POST',
+    path: '/api/admin/upload/image',
+    token: adminToken,
+    body: {
+      filename: 'course.png',
+      contentType: 'image/png',
+      folder: 'course-cover',
+      fileBase64: ''
+    }
+  })
+
+  assert.equal(response.status, 400)
+  assert.equal(response.body.code, 5000)
+  assert.equal(response.body.message, 'filename、contentType 和 fileBase64 不能为空')
 })

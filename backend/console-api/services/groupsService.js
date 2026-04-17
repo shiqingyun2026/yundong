@@ -1,8 +1,10 @@
 const { formatDateTime, getPagination } = require('../routes/_helpers')
 const { ensureFound } = require('./_guards')
 const supabase = require('../../utils/supabase')
+const { env } = require('../../config/env')
 const { COURSE_STATUS, getSingleCourseLifecycle } = require('../../utils/courseLifecycle')
 const { AUTO_REFUND_REASON } = require('../../shared/constants/refunds')
+const { coursesRepository, groupMembersRepository, groupsRepository, ordersRepository, usersRepository } = require('../../repositories')
 
 const COURSE_STATUS_TEXT = {
   [COURSE_STATUS.PENDING_PUBLISH]: '待上架',
@@ -40,177 +42,105 @@ const toMap = (list = [], key = 'id') =>
     return result
   }, {})
 
-const applyGroupFilters = (query, { status = '', courseId = '', startDate = '', endDate = '', dateField = 'created_at' }) => {
-  if (status) {
-    query = query.eq('status', status)
-  }
-
-  if (courseId) {
-    query = query.eq('course_id', courseId)
-  }
-
-  if (dateField !== 'success_time' && dateField !== 'joined_at') {
-    if (startDate) {
-      query = query.gte(dateField, `${startDate}T00:00:00+08:00`)
-    }
-
-    if (endDate) {
-      query = query.lte(dateField, `${endDate}T23:59:59+08:00`)
-    }
-  }
-
-  return query
-}
-
 const buildDateRange = (startDate = '', endDate = '') => ({
   start: startDate ? `${startDate}T00:00:00+08:00` : '',
   end: endDate ? `${endDate}T23:59:59+08:00` : ''
 })
 
-const buildSuccessTimeMap = async (groupIds = [], { startDate = '', endDate = '' } = {}) => {
-  if (!groupIds.length) {
-    return {}
+const withinRange = (value, { start = '', end = '' } = {}) => {
+  if (!start && !end) {
+    return true
   }
 
-  let query = supabase
-    .from('orders')
-    .select('group_id, pay_time, created_at, status')
-    .in('group_id', groupIds)
-    .eq('status', 'success')
+  if (!value) {
+    return false
+  }
 
+  const timestamp = new Date(value).getTime()
+  if (!Number.isFinite(timestamp)) {
+    return false
+  }
+
+  if (start && timestamp < new Date(start).getTime()) {
+    return false
+  }
+
+  if (end && timestamp > new Date(end).getTime()) {
+    return false
+  }
+
+  return true
+}
+
+const listGroupsViaMySql = async ({ keyword = '', status = '', courseId = '', startDate = '', endDate = '', dateField = 'created_at' }) => {
+  const courses = keyword ? await coursesRepository.listCourses({ keyword }) : []
+  const matchedCourseIds = keyword ? courses.map(item => item.id).filter(Boolean) : []
+  const users = keyword ? await usersRepository.listUsers({ keyword }) : []
+  const matchedCreatorIds = keyword ? users.map(item => item.id).filter(Boolean) : []
   const range = buildDateRange(startDate, endDate)
-  if (range.start) {
-    query = query.gte('pay_time', range.start)
-  }
-  if (range.end) {
-    query = query.lte('pay_time', range.end)
-  }
 
-  const { data, error } = await query
+  const allGroups = await groupsRepository.listGroups({
+    courseIds: courseId ? [courseId] : [],
+    statuses: status ? [status] : []
+  })
 
-  if (error) {
-    throw error
-  }
-
-  return (data || []).reduce((result, item) => {
-    const candidate = item.pay_time || item.created_at || ''
-    if (!item.group_id) {
-      return result
+  let filteredData = (allGroups || []).filter(item => {
+    if (!keyword) {
+      return true
     }
 
-    if (!result[item.group_id] || candidate > result[item.group_id]) {
-      result[item.group_id] = candidate
-    }
-    return result
-  }, {})
-}
+    return item.id.includes(keyword) || matchedCourseIds.includes(item.course_id) || matchedCreatorIds.includes(item.creator_id)
+  })
 
-const buildJoinedGroupIdSet = async ({ startDate = '', endDate = '' } = {}) => {
-  let query = supabase.from('group_members').select('group_id')
-
-  const range = buildDateRange(startDate, endDate)
-  if (range.start) {
-    query = query.gte('joined_at', range.start)
-  }
-  if (range.end) {
-    query = query.lte('joined_at', range.end)
+  if (dateField === 'created_at' || dateField === 'expire_time') {
+    filteredData = filteredData.filter(item => withinRange(item[dateField], range))
   }
 
-  const { data, error } = await query
-
-  if (error) {
-    throw error
+  if (dateField === 'success_time') {
+    filteredData = filteredData.filter(item => withinRange(item.success_time, range))
   }
 
-  return new Set((data || []).map(item => item.group_id).filter(Boolean))
-}
-
-const buildKeywordOrClause = (keyword, courseIds = []) => {
-  const clauses = []
-
-  if (keyword) {
-    clauses.push(`id.ilike.%${keyword}%`)
+  if (dateField === 'joined_at') {
+    const memberships = await groupMembersRepository.listGroupMembers()
+    const joinedGroupIds = new Set(
+      memberships.filter(item => withinRange(item.joined_at, range)).map(item => item.group_id).filter(Boolean)
+    )
+    filteredData = filteredData.filter(item => joinedGroupIds.has(item.id))
   }
 
-  if (courseIds.length) {
-    clauses.push(`course_id.in.(${courseIds.join(',')})`)
+  filteredData.sort((left, right) => new Date(right.created_at || 0).getTime() - new Date(left.created_at || 0).getTime())
+
+  const courseIds = [...new Set(filteredData.map(item => item.course_id).filter(Boolean))]
+  const creatorIds = [...new Set(filteredData.map(item => item.creator_id).filter(Boolean))]
+  const [courseRows, creatorRows] = await Promise.all([
+    courseIds.length ? coursesRepository.findCoursesByIds(courseIds) : Promise.resolve([]),
+    creatorIds.length ? usersRepository.listUsersByIds(creatorIds) : Promise.resolve([])
+  ])
+
+  const coursesById = toMap(courseRows || [])
+  const creatorsById = toMap(creatorRows || [])
+  const summary = {
+    total: filteredData.length,
+    active: filteredData.filter(item => item.status === 'active').length,
+    success: filteredData.filter(item => item.status === 'success').length,
+    failed: filteredData.filter(item => item.status === 'failed').length
   }
 
-  return clauses.join(',')
-}
-
-const getListSummary = async (filters, matchedCourseIds = []) => {
-  const statuses = ['active', 'success', 'failed']
-  const results = await Promise.all(
-    statuses.map(async status => {
-      const keyword = filters.keyword || ''
-      let countQuery = supabase.from('groups').select('id', { count: 'exact', head: true })
-      countQuery = applyGroupFilters(countQuery, { ...filters, status })
-
-      if (keyword) {
-        const keywordOrClause = buildKeywordOrClause(keyword, matchedCourseIds)
-
-        if (keywordOrClause) {
-          countQuery = countQuery.or(keywordOrClause)
-        }
-      }
-
-      if (filters.dateField === 'success_time') {
-        const { data: groups, error: groupsError } = await supabase
-          .from('groups')
-          .select('id')
-          .eq('status', status)
-
-        if (groupsError) {
-          throw groupsError
-        }
-
-        const successTimeMap = await buildSuccessTimeMap(
-          (groups || []).map(item => item.id).filter(Boolean),
-          filters
-        )
-
-        return [status, Object.keys(successTimeMap).length]
-      }
-
-      if (filters.dateField === 'joined_at') {
-        let joinedGroupIds = await buildJoinedGroupIdSet(filters)
-
-        if (status) {
-          const { data: groups, error: groupsError } = await supabase
-            .from('groups')
-            .select('id')
-            .eq('status', status)
-
-          if (groupsError) {
-            throw groupsError
-          }
-
-          const allowedGroupIds = new Set((groups || []).map(item => item.id).filter(Boolean))
-          joinedGroupIds = new Set([...joinedGroupIds].filter(groupId => allowedGroupIds.has(groupId)))
-        }
-
-        return [status, joinedGroupIds.size]
-      }
-
-      const { count, error } = await countQuery
-
-      if (error) {
-        throw error
-      }
-
-      return [status, Number(count || 0)]
-    })
-  )
-
-  return results.reduce(
-    (result, [status, count]) => {
-      result.total += count
-      result[status] = count
-      return result
-    },
-    { total: 0, active: 0, success: 0, failed: 0 }
-  )
+  return {
+    matchedCourseIds,
+    list: filteredData.map(item => ({
+      id: item.id,
+      course_id: item.course_id || '',
+      course_title: (coursesById[item.course_id] && coursesById[item.course_id].name) || '',
+      status: mapGroupStatus(item.status),
+      current_count: Number(item.current_count || 0),
+      target_count: Number(item.target_count || 0),
+      creator_name: (creatorsById[item.creator_id] && creatorsById[item.creator_id].nickname) || '',
+      expire_time: formatDateTime(item.expire_time),
+      create_time: formatDateTime(item.created_at)
+    })),
+    summary
+  }
 }
 
 const listGroups = async ({ query = {} }) => {
@@ -223,6 +153,62 @@ const listGroups = async ({ query = {} }) => {
   const dateField = ['created_at', 'expire_time', 'success_time', 'joined_at'].includes(`${query.date_field || ''}`)
     ? `${query.date_field}`
     : 'created_at'
+
+  if (env.useMySqlRepositories) {
+    const result = await listGroupsViaMySql({
+      keyword,
+      status,
+      courseId,
+      startDate,
+      endDate,
+      dateField
+    })
+
+    return {
+      total: result.list.length,
+      list: result.list.slice(from, to + 1),
+      page,
+      size,
+      total_pages: Math.max(1, Math.ceil(result.list.length / size)),
+      summary: result.summary
+    }
+  }
+
+  const buildKeywordOrClause = (value, courseIds = []) => {
+    const clauses = []
+
+    if (value) {
+      clauses.push(`id.ilike.%${value}%`)
+    }
+
+    if (courseIds.length) {
+      clauses.push(`course_id.in.(${courseIds.join(',')})`)
+    }
+
+    return clauses.join(',')
+  }
+
+  const applyGroupFilters = (queryBuilder, { status: statusFilter = '', courseId: courseIdFilter = '', startDate: startDateFilter = '', endDate: endDateFilter = '', dateField: field = 'created_at' }) => {
+    if (statusFilter) {
+      queryBuilder = queryBuilder.eq('status', statusFilter)
+    }
+
+    if (courseIdFilter) {
+      queryBuilder = queryBuilder.eq('course_id', courseIdFilter)
+    }
+
+    if (field !== 'success_time' && field !== 'joined_at') {
+      if (startDateFilter) {
+        queryBuilder = queryBuilder.gte(field, `${startDateFilter}T00:00:00+08:00`)
+      }
+
+      if (endDateFilter) {
+        queryBuilder = queryBuilder.lte(field, `${endDateFilter}T23:59:59+08:00`)
+      }
+    }
+
+    return queryBuilder
+  }
 
   let matchedCourseIds = []
   if (keyword) {
@@ -258,18 +244,49 @@ const listGroups = async ({ query = {} }) => {
   }
 
   let filteredData = data || []
+  const range = buildDateRange(startDate, endDate)
 
   if (dateField === 'success_time') {
-    const successTimeMap = await buildSuccessTimeMap(
-      filteredData.map(item => item.id).filter(Boolean),
-      { startDate, endDate }
-    )
+    const { data: successOrders, error: successOrdersError } = await supabase
+      .from('orders')
+      .select('group_id, pay_time, created_at, status')
+      .in('group_id', filteredData.map(item => item.id).filter(Boolean))
+      .eq('status', 'success')
 
-    filteredData = filteredData.filter(item => successTimeMap[item.id])
+    if (successOrdersError) {
+      throw successOrdersError
+    }
+
+    const successTimeMap = (successOrders || []).reduce((result, item) => {
+      const candidate = item.pay_time || item.created_at || ''
+      if (!item.group_id) {
+        return result
+      }
+
+      if (!result[item.group_id] || candidate > result[item.group_id]) {
+        result[item.group_id] = candidate
+      }
+      return result
+    }, {})
+
+    filteredData = filteredData.filter(item => successTimeMap[item.id] && withinRange(successTimeMap[item.id], range))
   }
 
   if (dateField === 'joined_at') {
-    const joinedGroupIds = await buildJoinedGroupIdSet({ startDate, endDate })
+    let queryBuilder = supabase.from('group_members').select('group_id')
+    if (range.start) {
+      queryBuilder = queryBuilder.gte('joined_at', range.start)
+    }
+    if (range.end) {
+      queryBuilder = queryBuilder.lte('joined_at', range.end)
+    }
+
+    const { data: joinedMembers, error: joinedMembersError } = await queryBuilder
+    if (joinedMembersError) {
+      throw joinedMembersError
+    }
+
+    const joinedGroupIds = new Set((joinedMembers || []).map(item => item.group_id).filter(Boolean))
     filteredData = filteredData.filter(item => joinedGroupIds.has(item.id))
   }
 
@@ -290,7 +307,6 @@ const listGroups = async ({ query = {} }) => {
 
   const coursesById = toMap(courses || [])
   const creatorsById = toMap(creators || [])
-
   const list = pagedData.map(item => ({
     id: item.id,
     course_id: item.course_id || '',
@@ -303,16 +319,12 @@ const listGroups = async ({ query = {} }) => {
     create_time: formatDateTime(item.created_at)
   }))
 
-  const summary = await getListSummary(
-    {
-      keyword,
-      courseId,
-      startDate,
-      endDate,
-      dateField
-    },
-    matchedCourseIds
-  )
+  const summary = {
+    total: count,
+    active: filteredData.filter(item => item.status === 'active').length,
+    success: filteredData.filter(item => item.status === 'success').length,
+    failed: filteredData.filter(item => item.status === 'failed').length
+  }
 
   return {
     total: Number(count || 0),
@@ -325,20 +337,30 @@ const listGroups = async ({ query = {} }) => {
 }
 
 const listGroupOrders = async ({ groupId }) => {
-  const { data, error } = await supabase
-    .from('orders')
-    .select('id, order_no, user_id, amount, status, created_at, pay_time, refund_time, refund_reason, group_id')
-    .eq('group_id', groupId)
-    .order('created_at', { ascending: false })
+  const data = env.useMySqlRepositories
+    ? await ordersRepository.listOrdersByGroupId({ groupId })
+    : await (async () => {
+        const { data: rows, error } = await supabase
+          .from('orders')
+          .select('id, order_no, user_id, amount, status, created_at, pay_time, refund_time, refund_reason, group_id')
+          .eq('group_id', groupId)
+          .order('created_at', { ascending: false })
 
-  if (error) {
-    throw error
-  }
+        if (error) {
+          throw error
+        }
+
+        return rows || []
+      })()
 
   const userIds = [...new Set((data || []).map(item => item.user_id).filter(Boolean))]
-  const { data: users } = userIds.length
-    ? await supabase.from('users').select('id, nickname').in('id', userIds)
-    : { data: [] }
+  const users = env.useMySqlRepositories
+    ? await usersRepository.listUsersByIds(userIds)
+    : (
+        userIds.length
+          ? await supabase.from('users').select('id, nickname').in('id', userIds)
+          : { data: [] }
+      ).data || []
 
   const usersById = toMap(users || [])
 
@@ -357,49 +379,70 @@ const listGroupOrders = async ({ groupId }) => {
 }
 
 const getGroupDetail = async ({ groupId }) => {
-  const { data: group, error } = await supabase
-    .from('groups')
-    .select('id, course_id, creator_id, status, current_count, target_count, expire_time, created_at')
-    .eq('id', groupId)
-    .maybeSingle()
+  const group = env.useMySqlRepositories
+    ? await groupsRepository.findGroupById(groupId)
+    : await (async () => {
+        const { data, error } = await supabase
+          .from('groups')
+          .select('id, course_id, creator_id, status, current_count, target_count, expire_time, created_at')
+          .eq('id', groupId)
+          .maybeSingle()
 
-  if (error) {
-    throw error
-  }
+        if (error) {
+          throw error
+        }
+
+        return data
+      })()
 
   ensureFound(group, {
     responseCode: 2003,
     message: '拼团不存在'
   })
 
-  const [{ data: course }, { data: creator }, { data: members }, { data: orders }] = await Promise.all([
-    supabase
-      .from('courses')
-      .select('id, name, publish_time, unpublish_time, deadline, start_time, end_time, status')
-      .eq('id', group.course_id)
-      .maybeSingle(),
-    group.creator_id
-      ? supabase.from('users').select('id, nickname').eq('id', group.creator_id).maybeSingle()
-      : Promise.resolve({ data: null }),
-    supabase
-      .from('group_members')
-      .select('group_id, user_id, joined_at')
-      .eq('group_id', group.id)
-      .order('joined_at', { ascending: true }),
-    supabase
-      .from('orders')
-      .select('id, order_no, user_id, amount, status, created_at, pay_time, refund_time, refund_reason, group_id')
-      .eq('group_id', group.id)
-      .order('created_at', { ascending: false })
-  ])
+  const [course, creator, members, orders] = env.useMySqlRepositories
+    ? await Promise.all([
+        group.course_id ? coursesRepository.findCourseById(group.course_id) : Promise.resolve(null),
+        group.creator_id ? usersRepository.findUserById(group.creator_id) : Promise.resolve(null),
+        groupMembersRepository.listGroupMembers({ groupId: group.id }),
+        ordersRepository.listOrdersByGroupId({ groupId: group.id })
+      ])
+    : await Promise.all([
+        supabase
+          .from('courses')
+          .select('id, name, publish_time, unpublish_time, deadline, start_time, end_time, status')
+          .eq('id', group.course_id)
+          .maybeSingle(),
+        group.creator_id
+          ? supabase.from('users').select('id, nickname').eq('id', group.creator_id).maybeSingle()
+          : Promise.resolve({ data: null }),
+        supabase
+          .from('group_members')
+          .select('group_id, user_id, joined_at')
+          .eq('group_id', group.id)
+          .order('joined_at', { ascending: true }),
+        supabase
+          .from('orders')
+          .select('id, order_no, user_id, amount, status, created_at, pay_time, refund_time, refund_reason, group_id')
+          .eq('group_id', group.id)
+          .order('created_at', { ascending: false })
+      ]).then(([courseResult, creatorResult, membersResult, ordersResult]) => [
+        courseResult.data,
+        creatorResult.data,
+        membersResult.data || [],
+        ordersResult.data || []
+      ])
 
   const memberUserIds = [...new Set((members || []).map(item => item.user_id).filter(Boolean))]
   const orderUserIds = [...new Set((orders || []).map(item => item.user_id).filter(Boolean))]
   const userIds = [...new Set([...memberUserIds, ...orderUserIds])]
-
-  const { data: users } = userIds.length
-    ? await supabase.from('users').select('id, nickname, avatar_url').in('id', userIds)
-    : { data: [] }
+  const users = env.useMySqlRepositories
+    ? await usersRepository.listUsersByIds(userIds)
+    : (
+        userIds.length
+          ? await supabase.from('users').select('id, nickname, avatar_url').in('id', userIds)
+          : { data: [] }
+      ).data || []
 
   const usersById = toMap(users || [])
   const ordersByUserId = (orders || []).reduce((result, item) => {

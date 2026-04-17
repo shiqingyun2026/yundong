@@ -52,31 +52,39 @@ export const api = {
 
 type UploadFolder = 'course-cover' | 'course-gallery' | 'course-detail' | 'coach-cert'
 
-type UploadSignResponse = {
-  upload_url: string
+type UploadProxyResponse = {
   public_url: string
 }
 
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result)
+        return
+      }
+
+      reject(new Error('读取文件失败'))
+    }
+
+    reader.onerror = () => {
+      reject(reader.error || new Error('读取文件失败'))
+    }
+
+    reader.readAsDataURL(file)
+  })
+}
+
 export async function uploadImage(file: File, folder: UploadFolder) {
-  const signed = await api.post<UploadSignResponse>('/upload/sign', {
+  const fileBase64 = await readFileAsDataUrl(file)
+  const uploaded = await api.post<UploadProxyResponse>('/upload/image', {
     filename: file.name,
     contentType: file.type || 'application/octet-stream',
-    folder
+    folder,
+    fileBase64
   })
 
-  const uploadResponse = await fetch(signed.upload_url, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': file.type || 'application/octet-stream',
-      'x-upsert': 'false'
-    },
-    body: file
-  })
-
-  if (!uploadResponse.ok) {
-    const text = await uploadResponse.text()
-    throw new Error(text || '上传文件失败')
-  }
-
-  return signed.public_url
+  return uploaded.public_url
 }

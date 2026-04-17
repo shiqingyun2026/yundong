@@ -1,6 +1,6 @@
-const supabase = require('./supabase')
 const { env } = require('../config/env')
 const { coursesRepository, groupsRepository, ordersRepository } = require('../repositories')
+const { getSupabaseClient } = require('./getSupabaseClient')
 const { writeAdminLog } = require('./adminStore')
 const { AUTO_REFUND_REASON } = require('../shared/constants/refunds')
 
@@ -91,6 +91,8 @@ const summarizeGroupsByCourse = groups => {
   }, {})
 }
 
+const getLegacySupabaseClient = () => getSupabaseClient()
+
 const markFailedCourseRefunds = async ({ course, groupIds = [], operatorId = null, now = new Date() }) => {
   if (env.useMySqlRepositories) {
     let failedGroupCount = 0
@@ -130,6 +132,7 @@ const markFailedCourseRefunds = async ({ course, groupIds = [], operatorId = nul
   const timestamp = now.toISOString()
   let failedGroupCount = 0
   let refundedOrderCount = 0
+  const supabase = getLegacySupabaseClient()
 
   if (groupIds.length) {
     const { data: updatedGroups, error: groupError } = await supabase
@@ -257,6 +260,8 @@ const syncCourseLifecycle = async (courseIds = [], options = {}) => {
     return result
   }
 
+  const supabase = getLegacySupabaseClient()
+
   const { data: courses, error: courseError } = await supabase
     .from('courses')
     .select('id, publish_time, unpublish_time, deadline, start_time, end_time, status')
@@ -382,6 +387,7 @@ const syncAllCourseLifecycles = async (options = {}) => {
     return getCourseLifecycleMap(courseIds, options)
   }
 
+  const supabase = getLegacySupabaseClient()
   const { data, error } = await supabase.from('courses').select('id')
 
   if (error) {

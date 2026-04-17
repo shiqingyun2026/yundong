@@ -1,12 +1,15 @@
 const express = require('../lib/mini-express')
+const { env } = require('../config/env')
 
 const { syncAllCourseLifecycles } = require('../utils/courseLifecycle')
 const { ok, fail } = require('../console-api/routes/_helpers')
-const supabase = require('../utils/supabase')
 const { enqueueGroupResultNotifications } = require('../shared/services/groupResultNotifications')
 const { processPendingGroupResultNotificationJobs } = require('../shared/services/groupResultNotificationDelivery')
+const { getSupabaseClient } = require('../utils/getSupabaseClient')
 
 const router = express.Router()
+
+const resolveSupabase = () => (env.useMySqlRepositories ? null : getSupabaseClient())
 
 const validateCronSecret = req => {
   const expectedSecret = `${process.env.CRON_SECRET || ''}`.trim()
@@ -78,7 +81,7 @@ router.post('/group-result-notifications/enqueue', async (req, res) => {
 
   try {
     const result = await enqueueGroupResultNotifications({
-      supabase,
+      supabase: resolveSupabase(),
       groupId,
       resultType,
       now: req.body && req.body.now ? new Date(req.body.now) : new Date()
@@ -99,7 +102,7 @@ router.post('/group-result-notifications/process', async (req, res) => {
 
   try {
     const result = await processPendingGroupResultNotificationJobs({
-      supabase,
+      supabase: resolveSupabase(),
       limit: (req.body && req.body.limit) || (req.query && req.query.limit),
       mode: (req.body && req.body.mode) || (req.query && req.query.mode)
     })

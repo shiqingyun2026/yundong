@@ -1,9 +1,8 @@
-const {
-  getPagination,
-  parseShanghaiDateTimeInput
-} = require('../routes/_helpers')
+const { formatDateTime, getPagination, parseShanghaiDateTimeInput } = require('../routes/_helpers')
 const { ensureCondition, ensureFound } = require('./_guards')
 const supabase = require('../../utils/supabase')
+const { env } = require('../../config/env')
+const { coursesRepository, groupsRepository, usersRepository } = require('../../repositories')
 const { COURSE_STATUS, getCourseLifecycleMap, getSingleCourseLifecycle } = require('../../utils/courseLifecycle')
 const {
   geocodeCourseAddress,
@@ -27,34 +26,45 @@ const listCourses = async ({ query = {}, admin = {} }) => {
     ? `${query.date_field}`
     : 'start_time'
 
-  let listQuery = supabase
-    .from('courses')
-    .select(
-      'id, name, course_category, cover, address, location_district, location_detail, publish_time, unpublish_time, deadline, start_time, end_time, group_price, original_price, max_groups, default_target_count, status'
-    )
-    .order('start_time', { ascending: true })
+  const data = env.useMySqlRepositories
+    ? await coursesRepository.listCourses({
+        keyword,
+        category,
+        startDateField: dateField,
+        startDate: startDate ? parseShanghaiDateTimeInput(`${startDate} 00:00:00`) : '',
+        endDate: endDate ? parseShanghaiDateTimeInput(`${endDate} 23:59:59`) : ''
+      })
+    : await (async () => {
+        let listQuery = supabase
+          .from('courses')
+          .select(
+            'id, name, course_category, cover, address, location_district, location_detail, publish_time, unpublish_time, deadline, start_time, end_time, group_price, original_price, max_groups, default_target_count, status'
+          )
+          .order('start_time', { ascending: true })
 
-  if (keyword) {
-    listQuery = listQuery.ilike('name', `%${keyword}%`)
-  }
+        if (keyword) {
+          listQuery = listQuery.ilike('name', `%${keyword}%`)
+        }
 
-  if (category) {
-    listQuery = listQuery.eq('course_category', category)
-  }
+        if (category) {
+          listQuery = listQuery.eq('course_category', category)
+        }
 
-  if (startDate) {
-    listQuery = listQuery.gte(dateField, parseShanghaiDateTimeInput(`${startDate} 00:00:00`))
-  }
+        if (startDate) {
+          listQuery = listQuery.gte(dateField, parseShanghaiDateTimeInput(`${startDate} 00:00:00`))
+        }
 
-  if (endDate) {
-    listQuery = listQuery.lte(dateField, parseShanghaiDateTimeInput(`${endDate} 23:59:59`))
-  }
+        if (endDate) {
+          listQuery = listQuery.lte(dateField, parseShanghaiDateTimeInput(`${endDate} 23:59:59`))
+        }
 
-  const { data, error } = await listQuery
+        const { data: rows, error } = await listQuery
+        if (error) {
+          throw error
+        }
 
-  if (error) {
-    throw error
-  }
+        return rows || []
+      })()
 
   const courseIds = (data || []).map(item => item.id)
   const lifecycleMap = await getCourseLifecycleMap(courseIds, {
@@ -75,15 +85,21 @@ const listCourses = async ({ query = {}, admin = {} }) => {
 }
 
 const getCourseDetail = async ({ courseId, admin = {} }) => {
-  const { data, error } = await supabase
-    .from('courses')
-    .select('*')
-    .eq('id', courseId)
-    .maybeSingle()
+  const data = env.useMySqlRepositories
+    ? await coursesRepository.findCourseById(courseId)
+    : await (async () => {
+        const { data: row, error } = await supabase
+          .from('courses')
+          .select('*')
+          .eq('id', courseId)
+          .maybeSingle()
 
-  if (error) {
-    throw error
-  }
+        if (error) {
+          throw error
+        }
+
+        return row
+      })()
 
   ensureFound(data, {
     responseCode: 2001,
@@ -116,20 +132,30 @@ const searchCourseLocations = async ({ query = {} }) => {
 }
 
 const listCourseGroups = async ({ courseId }) => {
-  const { data, error } = await supabase
-    .from('groups')
-    .select('id, course_id, creator_id, status, current_count, target_count, expire_time, created_at')
-    .eq('course_id', courseId)
-    .order('created_at', { ascending: false })
+  const data = env.useMySqlRepositories
+    ? await groupsRepository.listGroupsByCourseId(courseId)
+    : await (async () => {
+        const { data: rows, error } = await supabase
+          .from('groups')
+          .select('id, course_id, creator_id, status, current_count, target_count, expire_time, created_at')
+          .eq('course_id', courseId)
+          .order('created_at', { ascending: false })
 
-  if (error) {
-    throw error
-  }
+        if (error) {
+          throw error
+        }
+
+        return rows || []
+      })()
 
   const creatorIds = [...new Set((data || []).map(item => item.creator_id).filter(Boolean))]
-  const { data: creators } = creatorIds.length
-    ? await supabase.from('users').select('id, nickname').in('id', creatorIds)
-    : { data: [] }
+  const creators = env.useMySqlRepositories
+    ? await usersRepository.listUsersByIds(creatorIds)
+    : (
+        creatorIds.length
+          ? await supabase.from('users').select('id, nickname').in('id', creatorIds)
+          : { data: [] }
+      ).data || []
 
   const creatorsById = (creators || []).reduce((result, item) => {
     result[item.id] = item
@@ -156,24 +182,35 @@ const createCourse = async ({ payload = {}, admin = {}, ip = null }) => {
     message: validationMessage || '课程参数不合法'
   })
 
-  const { data, error } = await supabase
-    .from('courses')
-    .insert({
-      ...mapPayloadToCourse(payload),
-      created_at: new Date().toISOString()
-    })
-    .select('id')
-    .single()
+  const created = env.useMySqlRepositories
+    ? await coursesRepository.createCourse({
+        ...mapPayloadToCourse(payload),
+        created_at: new Date().toISOString(),
+        created_by: admin.id || null,
+        updated_by: admin.id || null
+      })
+    : await (async () => {
+        const { data, error } = await supabase
+          .from('courses')
+          .insert({
+            ...mapPayloadToCourse(payload),
+            created_at: new Date().toISOString()
+          })
+          .select('id')
+          .single()
 
-  if (error) {
-    throw error
-  }
+        if (error) {
+          throw error
+        }
+
+        return data
+      })()
 
   await safeWriteAdminLog({
     adminId: admin.id,
     action: 'course_create',
     targetType: 'course',
-    targetId: data.id,
+    targetId: created.id,
     detail: {
       title: `${payload.title || ''}`.trim(),
       category: `${payload.category || ''}`.trim(),
@@ -184,19 +221,25 @@ const createCourse = async ({ payload = {}, admin = {}, ip = null }) => {
     ip
   })
 
-  return { id: data.id }
+  return { id: created.id }
 }
 
 const updateCourse = async ({ courseId, payload = {}, admin = {}, ip = null }) => {
-  const { data: existing, error: existingError } = await supabase
-    .from('courses')
-    .select('id, publish_time')
-    .eq('id', courseId)
-    .maybeSingle()
+  const existing = env.useMySqlRepositories
+    ? await coursesRepository.findCourseById(courseId)
+    : await (async () => {
+        const { data, error } = await supabase
+          .from('courses')
+          .select('id, publish_time')
+          .eq('id', courseId)
+          .maybeSingle()
 
-  if (existingError) {
-    throw existingError
-  }
+        if (error) {
+          throw error
+        }
+
+        return data
+      })()
 
   ensureFound(existing, {
     responseCode: 2001,
@@ -221,22 +264,31 @@ const updateCourse = async ({ courseId, payload = {}, admin = {}, ip = null }) =
     message: validationMessage || '课程参数不合法'
   })
 
-  const { data, error } = await supabase
-    .from('courses')
-    .update(mapPayloadToCourse(payload))
-    .eq('id', courseId)
-    .select('id')
-    .maybeSingle()
+  const updated = env.useMySqlRepositories
+    ? await coursesRepository.updateCourse(courseId, {
+        ...mapPayloadToCourse(payload),
+        updated_by: admin.id || null
+      })
+    : await (async () => {
+        const { data, error } = await supabase
+          .from('courses')
+          .update(mapPayloadToCourse(payload))
+          .eq('id', courseId)
+          .select('id')
+          .maybeSingle()
 
-  if (error) {
-    throw error
-  }
+        if (error) {
+          throw error
+        }
+
+        return data
+      })()
 
   await safeWriteAdminLog({
     adminId: admin.id,
     action: 'course_update',
     targetType: 'course',
-    targetId: data.id,
+    targetId: updated.id,
     detail: {
       title: `${payload.title || ''}`.trim(),
       category: `${payload.category || ''}`.trim(),
@@ -248,19 +300,25 @@ const updateCourse = async ({ courseId, payload = {}, admin = {}, ip = null }) =
     ip
   })
 
-  return { id: data.id }
+  return { id: updated.id }
 }
 
 const offlineCourse = async ({ courseId, admin = {}, ip = null }) => {
-  const { data: existing, error: existingError } = await supabase
-    .from('courses')
-    .select('id')
-    .eq('id', courseId)
-    .maybeSingle()
+  const existing = env.useMySqlRepositories
+    ? await coursesRepository.findCourseById(courseId)
+    : await (async () => {
+        const { data, error } = await supabase
+          .from('courses')
+          .select('id')
+          .eq('id', courseId)
+          .maybeSingle()
 
-  if (existingError) {
-    throw existingError
-  }
+        if (error) {
+          throw error
+        }
+
+        return data
+      })()
 
   ensureFound(existing, {
     responseCode: 2001,
@@ -281,25 +339,35 @@ const offlineCourse = async ({ courseId, admin = {}, ip = null }) => {
   )
 
   const offlineAt = new Date().toISOString()
-  const { data, error } = await supabase
-    .from('courses')
-    .update({
-      unpublish_time: offlineAt,
-      updated_at: offlineAt
-    })
-    .eq('id', courseId)
-    .select('id')
-    .maybeSingle()
+  const updated = env.useMySqlRepositories
+    ? await coursesRepository.updateCourse(courseId, {
+        unpublish_time: offlineAt,
+        updated_by: admin.id || null,
+        updated_at: offlineAt
+      })
+    : await (async () => {
+        const { data, error } = await supabase
+          .from('courses')
+          .update({
+            unpublish_time: offlineAt,
+            updated_at: offlineAt
+          })
+          .eq('id', courseId)
+          .select('id')
+          .maybeSingle()
 
-  if (error) {
-    throw error
-  }
+        if (error) {
+          throw error
+        }
+
+        return data
+      })()
 
   await safeWriteAdminLog({
     adminId: admin.id,
     action: 'course_offline',
     targetType: 'course',
-    targetId: data.id,
+    targetId: updated.id,
     detail: {
       previous_status: lifecycle.status,
       offline_at: offlineAt
@@ -307,7 +375,7 @@ const offlineCourse = async ({ courseId, admin = {}, ip = null }) => {
     ip
   })
 
-  return { id: data.id }
+  return { id: updated.id }
 }
 
 module.exports = {

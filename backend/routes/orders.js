@@ -2,12 +2,13 @@ const express = require('../lib/mini-express')
 
 const { env } = require('../config/env')
 const authenticate = require('../middleware/auth')
-const supabase = require('../utils/supabase')
+const { getSupabaseClient } = require('../utils/getSupabaseClient')
 const { createPendingOrder, isServiceError } = require('../shared/services/groupOrders')
 const { normalizeGroupStatus } = require('../shared/domain/groupRules')
 const { getOrderPaymentStatus } = require('../shared/services/paymentShell')
 
 const router = express.Router()
+const resolveSupabase = () => (env.useMySqlRepositories ? null : getSupabaseClient())
 
 router.post('/', authenticate, async (req, res) => {
   const { courseId, groupId } = req.body || {}
@@ -20,7 +21,7 @@ router.post('/', authenticate, async (req, res) => {
 
   try {
     const { group, order } = await createPendingOrder({
-      supabase: env.useMySqlRepositories ? null : supabase,
+      supabase: resolveSupabase(),
       userId: req.userId,
       courseId,
       groupId
@@ -52,7 +53,7 @@ router.get('/:id', authenticate, async (req, res) => {
   try {
     return res.json(
       await getOrderPaymentStatus({
-        supabase: env.useMySqlRepositories ? null : supabase,
+        supabase: resolveSupabase(),
         userId: req.userId,
         orderId: req.params.id
       })
