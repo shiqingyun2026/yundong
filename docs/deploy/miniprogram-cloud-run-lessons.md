@@ -240,9 +240,18 @@ Vercel 和 Cloudflare 本身不是“错”，但它们对应的是：
 
 不要压整个仓库，应该只上传云托管需要的后端最小代码包。
 
+截至 2026-04-18，这个最小代码包已经实际固化在：
+
+- [deploy-artifacts/lindong-api-deploy](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy)
+
+并且真实验证过：
+
+- CloudBase 控制台当前用“本地文件夹上传”部署时，应以上述目录为准
+- 如果只改 `backend/` 但不更新 `deploy-artifacts/lindong-api-deploy/`，重新部署不会带上最新修复
+
 ### 6.4 当前验证状态
 
-截至 2026-03-30，已经完成两层验证：
+截至 2026-04-18，已经完成两层验证：
 
 * 服务级联调通过：
   * 读链路
@@ -256,6 +265,33 @@ Vercel 和 Cloudflare 本身不是“错”，但它们对应的是：
   * 支付确认
   * 支付结果
   * 我的拼团
+* 真实 CloudBase + MySQL 环境联调通过：
+  * 登录
+  * 课程列表
+  * 课程详情
+  * 创建订单
+  * 支付准备
+  * mock 支付成功
+  * 我的拼团
+  * SQL 兜底补第二成员后，课程详情页显示已成团
+
+### 6.5 当前真实环境参数
+
+- AppID：
+  - `wxf18a9c72d851ef7a`
+- CloudBase 环境 ID：
+  - `tttiyubao-4g141829bdf6a28d`
+- 云托管服务名：
+  - `lindong-api`
+
+### 6.6 当前真实环境数据库初始化经验
+
+CloudBase SQL 窗口对复杂 DDL / upsert 组合语法兼容性一般，真实排障时优先用分步 SQL：
+
+- [mysql_step1_users.sql](/Users/yun/lindong/backend/migrations/mysql_step1_users.sql)
+- [mysql_step2_miniprogram_core.sql](/Users/yun/lindong/backend/migrations/mysql_step2_miniprogram_core.sql)
+- [mysql_step3_seed_visible_course.sql](/Users/yun/lindong/backend/migrations/mysql_step3_seed_visible_course.sql)
+- [mysql_step4_seed_second_member_success_split.sql](/Users/yun/lindong/backend/migrations/mysql_step4_seed_second_member_success_split.sql)
 
 ### 6.5 仓库已做的清理
 

@@ -10,9 +10,10 @@ const {
 const { resolveRuntimeInfo } = require('./utils/util')
 
 App({
-  onLaunch() {
+  async onLaunch() {
     this.initRuntimeEnv()
-    this.initCloud()
+    this._cloudInitPromise = this.initCloud()
+    await this._cloudInitPromise
     this.initSystemInfo()
     this.installUiFeedback()
     this.syncAgreementState()
@@ -35,18 +36,18 @@ App({
     this.globalData.subscribeTemplateIds = resolveSubscribeTemplateIdsByEnv(envVersion)
   },
 
-  initCloud() {
+  async initCloud() {
     const requiresCloudRuntime = this.globalData.apiTransport === 'container'
 
     if (!requiresCloudRuntime) {
       this.globalData.cloudReady = false
-      return
+      return false
     }
 
     if (!wx.cloud || typeof wx.cloud.init !== 'function') {
       console.warn('[app] wx.cloud is not available, fallback is required before enabling cloud transport')
       this.globalData.cloudReady = false
-      return
+      return false
     }
 
     try {
@@ -55,12 +56,27 @@ App({
         initOptions.env = this.globalData.cloudEnv
       }
 
-      wx.cloud.init(initOptions)
+      await wx.cloud.init(initOptions)
       this.globalData.cloudReady = true
+      return true
     } catch (error) {
       console.warn('[app] wx.cloud.init failed', error)
       this.globalData.cloudReady = false
+      return false
     }
+  },
+
+  async ensureCloudReady() {
+    if (this.globalData.cloudReady) {
+      return true
+    }
+
+    if (this._cloudInitPromise) {
+      return this._cloudInitPromise
+    }
+
+    this._cloudInitPromise = this.initCloud()
+    return this._cloudInitPromise
   },
 
   initSystemInfo() {

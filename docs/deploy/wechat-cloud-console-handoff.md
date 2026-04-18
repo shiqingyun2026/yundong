@@ -1,6 +1,6 @@
 # 小程序微信云托管 / Console 标准服务端 交接文档
 
-更新时间：2026-03-30
+更新时间：2026-04-18
 
 ## 1. 当前最终架构
 
@@ -49,7 +49,7 @@
 
 ## 3. 当前验证基线
 
-截至 2026-03-30，已通过：
+截至 2026-04-18，已通过：
 
 - `npm run verify:group-rules`
 - `npm run verify:console-api-smoke`
@@ -63,10 +63,86 @@
   - 创建订单通过
   - mock 支付成功通过
   - “我的拼团”同步通过
+  - 真实 CloudBase + MySQL 环境下课程列表通过
+  - 真实 CloudBase + MySQL 环境下课程详情通过
+  - 真实 CloudBase + MySQL 环境下“立即开团 -> 支付准备 -> 模拟支付成功”通过
+  - 真实 CloudBase + MySQL 环境下“我的拼团”通过
+  - 通过 SQL 兜底补第二成员后，课程详情页与团状态已同步显示“已成团”
 
-## 4. 今天额外沉淀
+## 4. 2026-04-18 真实环境最新状态
 
-### 4.1 页面主链路回归数据已脚本化
+### 4.1 当前真实环境配置
+
+- 微信小程序真实 AppID：
+  - `wxf18a9c72d851ef7a`
+- CloudBase 环境 ID：
+  - `tttiyubao-4g141829bdf6a28d`
+- 云托管服务名：
+  - `lindong-api`
+- 小程序 `develop / trial / release` 当前都已指向：
+  - `container`
+  - `tttiyubao-4g141829bdf6a28d`
+  - `lindong-api`
+
+对应文件：
+
+- [miniprogram/config/env.js](/Users/yun/lindong/miniprogram/config/env.js)
+- [project.config.json](/Users/yun/lindong/project.config.json)
+- [miniprogram/project.config.json](/Users/yun/lindong/miniprogram/project.config.json)
+
+### 4.2 当前真实环境部署方式
+
+CloudBase 控制台当前实际使用的是“本地文件夹上传”，不是直接拿 `backend/` 目录部署，而是部署最小代码包目录：
+
+- [deploy-artifacts/lindong-api-deploy](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy)
+
+已验证：
+
+- 如果只改 `backend/` 而不同步更新 `deploy-artifacts/lindong-api-deploy/`，重新部署后不会生效
+- 因此当前继续排障时，凡是要重新部署到 `lindong-api` 的改动，都必须同步到部署目录
+
+### 4.3 当前真实环境数据库初始化方式
+
+CloudBase SQL 执行器当前兼容性较弱，不适合一次性执行复杂 DDL 或带 `INSERT ... SELECT ... ON DUPLICATE KEY UPDATE` 的组合 SQL。
+
+这轮已经验证通过的最稳方式是拆步执行：
+
+1. 先建登录必需表：
+   - [mysql_step1_users.sql](/Users/yun/lindong/backend/migrations/mysql_step1_users.sql)
+2. 再建小程序主链路核心表：
+   - [mysql_step2_miniprogram_core.sql](/Users/yun/lindong/backend/migrations/mysql_step2_miniprogram_core.sql)
+3. 再插一门可见课程：
+   - [mysql_step3_seed_visible_course.sql](/Users/yun/lindong/backend/migrations/mysql_step3_seed_visible_course.sql)
+4. 如需兜底验证成团，可补第二成员并置成功团：
+   - [mysql_step4_seed_second_member_success_split.sql](/Users/yun/lindong/backend/migrations/mysql_step4_seed_second_member_success_split.sql)
+
+说明：
+
+- [mysql_init_schema.sql](/Users/yun/lindong/backend/migrations/mysql_init_schema.sql) 仍保留作为完整版结构草案
+- 但真实 CloudBase SQL 控制台里，优先使用上述分步脚本
+
+### 4.4 当前已确认打通的真实前台主链路
+
+在 `USE_MYSQL_REPOSITORIES=true`、CloudBase `callContainer`、真实 MySQL 环境下，已确认通过：
+
+- 小程序登录
+- 课程列表
+- 课程详情
+- 创建订单
+- 支付准备
+- mock 支付成功
+- 我的拼团
+- 成团状态同步到课程详情页
+
+仍未完成：
+
+- 第二个真实微信号的“去参团”真机链路
+- 后台 `console-api` 真实 MySQL 登录与账号联调
+- 正式微信支付、正式订阅通知联调
+
+## 5. 今天额外沉淀
+
+### 5.1 页面主链路回归数据已脚本化
 
 [create-test-course.js](/Users/yun/lindong/backend/scripts/create-test-course.js) 现在会稳定准备：
 
@@ -75,7 +151,7 @@
 
 默认 mock 用户 `seed0326_u02` 可直接完成“立即开团”和“去参团”两条页面主链路。
 
-### 4.2 旧云函数路线已清理
+### 5.2 旧云函数路线已清理
 
 已移除：
 
@@ -85,7 +161,7 @@
 - 小程序请求层中的 `callFunction` 兼容代码
 - 项目配置中的 `cloudfunctionRoot`
 
-## 5. 当前建议直接认的目录结构
+## 6. 当前建议直接认的目录结构
 
 ```text
 backend/
@@ -98,27 +174,37 @@ miniprogram/
 docs/
   deploy/
   miniprogram/
+deploy-artifacts/
+  lindong-api-deploy/
 ```
 
-## 6. 当前仍未完成的部分
+## 7. 当前仍未完成的部分
 
-### 6.1 Console
+### 7.1 Console
 
 - 还没有补课程或订单的真实写链路 live smoke
+- 还没有完成 `console-api` 的真实 MySQL 登录与账号联调
 
-### 6.2 部署层
+### 7.2 部署层
 
-- `trial / release` 还没有同步切到云托管
+- 需要把“源码改动 -> 更新 deploy-artifacts -> 上传部署”的流程沉淀成脚本，避免手工同步遗漏
 - 线上最终发布策略还没定版
 
-## 7. 接手建议
+### 7.3 真支付 / 真通知
 
-1. 继续先做 console 的真实写链路验证
-2. 最后再评估 `trial / release` 是否继续走云托管
+- 目前仍是 mock 支付成功验证
+- 真实微信支付、回调、订阅消息模板仍待接通
 
-## 8. 重要提醒
+## 8. 接手建议
+
+1. 先继续做 `console-api` 的真实 MySQL 登录与账号联调
+2. 再把 `deploy-artifacts/lindong-api-deploy` 的生成流程脚本化
+3. 最后再推进真支付、真通知链路
+
+## 9. 重要提醒
 
 - 小程序如果继续排障，优先看云托管服务 `lindong-api`，不要再回到旧云函数思路
 - Console 不要接入 `callContainer`
 - 所有业务规则继续收口在共享层，不要在入口层重新发散
 - Console 代码入口统一以 `backend/console-api/*` 为准，不再保留 `backend/routes/admin/*` 兼容壳
+- 真实 CloudBase 部署当前以 [lindong-api-deploy](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy) 为准，不要误以为直接部署 `backend/` 就会生效

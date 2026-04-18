@@ -172,6 +172,7 @@ const buildGroupPresentationState = ({ courseDetail, activeGroup }) => {
   const hasActiveGroup = !!(activeGroup && activeGroup.status === 'ongoing')
   const groupTargetCount = hasActiveGroup ? Number(activeGroup.targetCount) || 0 : 0
   const groupCurrentCount = hasActiveGroup ? Number(activeGroup.currentCount) || 0 : 0
+  const hasSuccessfulJoinedGroup = !!(activeGroup && activeGroup.status === 'success' && activeGroup.userJoined)
   const isUserJoined = !!(hasJoinableGroup && activeGroup.userJoined)
   const completedGroupsCount = Number(courseDetail && courseDetail.completedGroupsCount) || 0
   const maxGroups = Number(courseDetail && courseDetail.maxGroups) || 0
@@ -183,7 +184,11 @@ const buildGroupPresentationState = ({ courseDetail, activeGroup }) => {
   let actionButtonText = '立即开团'
   let actionButtonDisabled = false
 
-  if (activeGroup && activeGroup.status === 'success' && !canCreateGroup) {
+  if (hasSuccessfulJoinedGroup) {
+    actionButtonMode = 'completed'
+    actionButtonText = '已成团'
+    actionButtonDisabled = true
+  } else if (activeGroup && activeGroup.status === 'success' && !canCreateGroup) {
     actionButtonMode = 'completed'
     actionButtonText = '已成团'
     actionButtonDisabled = true
@@ -215,7 +220,7 @@ const buildGroupPresentationState = ({ courseDetail, activeGroup }) => {
     actionButtonText,
     actionButtonDisabled,
     emptyGroupText:
-      activeGroup && activeGroup.status === 'success' && !canCreateGroup
+      hasSuccessfulJoinedGroup || (activeGroup && activeGroup.status === 'success' && !canCreateGroup)
         ? '当前拼团已成团'
         : activeGroup && activeGroup.status === 'failed'
           ? canCreateGroup

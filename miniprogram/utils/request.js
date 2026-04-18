@@ -1,6 +1,7 @@
 const DEFAULT_ERROR_MESSAGE = '网络开小差了，请稍后再试'
 const DEFAULT_BASE_URL = 'http://127.0.0.1:8000'
-const CLOUD_CONTAINER_SERVICE_MISSING_MESSAGE = '请先配置云托管服务名'
+const { callContainerApi, resolveCloudContainerRuntime } = require('./callContainerApi')
+const { buildHttpFallbackHeaders, buildRequestHeaders, shouldAttachAuthorization } = require('./requestPolicy')
 
 const getRuntimeApp = () => {
   try {
@@ -38,21 +39,6 @@ const resolveEnvVersion = () => {
   }
 
   return 'develop'
-}
-
-const resolveCloudContainerServiceName = () => {
-  const app = getRuntimeApp()
-
-  if (app && app.globalData && app.globalData.cloudContainerServiceName) {
-    return app.globalData.cloudContainerServiceName
-  }
-
-  return ''
-}
-
-const isCloudReady = () => {
-  const app = getRuntimeApp()
-  return !!(app && app.globalData && app.globalData.cloudReady)
 }
 
 const showToast = message => {
@@ -136,24 +122,7 @@ const handleRequestError = (error, showErrorToast) => {
   }
 }
 
-const shouldRetryContainerWithHttp = error => {
-  if (!error) {
-    return false
-  }
-
-  if (error.statusCode || error.code) {
-    return false
-  }
-
-  const message = `${error.errMsg || error.message || ''}`.toLowerCase()
-
-  return (
-    message.indexOf('callcontainer:fail') >= 0 ||
-    message.indexOf('request timeout') >= 0 ||
-    message.indexOf('请求超时') >= 0 ||
-    message.indexOf('timeout') >= 0
-  )
-}
+const shouldRetryContainerWithHttp = () => false
 
 const httpRequest = ({ url, method, data, header, token }) =>
   new Promise((resolve, reject) => {
@@ -195,53 +164,27 @@ const httpRequest = ({ url, method, data, header, token }) =>
     })
   })
 
-const containerRequest = ({ url, method, data, header, token }) =>
+const containerRequest = ({ url, method, data, header }) =>
   new Promise((resolve, reject) => {
-    if (!wx.cloud || typeof wx.cloud.callContainer !== 'function') {
-      reject(new Error('当前基础库不支持云托管调用'))
-      return
-    }
-
-    if (!isCloudReady()) {
-      reject(new Error('云开发尚未初始化，请先完成云环境配置'))
-      return
-    }
-
-    const serviceName = resolveCloudContainerServiceName()
-
-    if (!serviceName) {
-      reject(new Error(CLOUD_CONTAINER_SERVICE_MISSING_MESSAGE))
-      return
-    }
-
-    const app = getRuntimeApp()
-    const cloudEnv = app && app.globalData ? app.globalData.cloudEnv : ''
+    const runtime = resolveCloudContainerRuntime()
 
     console.log('[request:container] start', {
-      serviceName,
-      cloudEnv,
+      serviceName: runtime.serviceName,
+      resourceEnv: runtime.resourceEnv,
       path: url,
       method,
-      data,
-      hasToken: !!token
+      data
     })
 
-    wx.cloud.callContainer({
-      config: cloudEnv
-        ? {
-            env: cloudEnv
-          }
-        : undefined,
+    callContainerApi({
       path: url,
       method,
-      header: {
-        ...header,
-        'X-WX-SERVICE': serviceName
-      },
+      header,
       data,
-      success(response) {
+    })
+      .then(response => {
         console.log('[request:container] success', {
-          serviceName,
+          serviceName: runtime.serviceName,
           path: url,
           statusCode: response && response.statusCode,
           data: response && response.data
@@ -252,16 +195,15 @@ const containerRequest = ({ url, method, data, header, token }) =>
         } catch (error) {
           reject(error)
         }
-      },
-      fail(error) {
+      })
+      .catch(error => {
         console.log('[request:container] fail', {
-          serviceName,
+          serviceName: runtime.serviceName,
           path: url,
           error
         })
         reject(error)
-      }
-    })
+      })
   })
 
 const request = options => {
@@ -272,7 +214,8 @@ const request = options => {
     header = {},
     showLoading = false,
     loadingText = '加载中',
-    showErrorToast = true
+    showErrorToast = true,
+    includeAuthorization
   } = options
 
   if (!url) {
@@ -289,14 +232,13 @@ const request = options => {
   const transport = resolveApiTransport()
   const envVersion = resolveEnvVersion()
   const token = wx.getStorageSync('token')
-  const requestHeader = {
-    'Content-Type': 'application/json',
-    ...header
-  }
-
-  if (token) {
-    requestHeader.Authorization = `Bearer ${token}`
-  }
+  const attachAuthorization = shouldAttachAuthorization({ transport, includeAuthorization })
+  const requestHeader = buildRequestHeaders({
+    header,
+    token,
+    transport,
+    includeAuthorization
+  })
 
   const requestPayload = {
     url,
@@ -305,6 +247,17 @@ const request = options => {
     header: requestHeader,
     token
   }
+  const httpFallbackPayload =
+    token && includeAuthorization !== false
+      ? {
+          ...requestPayload,
+          header: buildHttpFallbackHeaders({
+            requestHeader,
+            token,
+            includeAuthorization
+          })
+        }
+      : requestPayload
 
   const transportRequest = transport === 'container' ? containerRequest : httpRequest
 
@@ -314,10 +267,11 @@ const request = options => {
         console.warn('[request] container request failed in develop, retrying with http', {
           url,
           method,
+          attachAuthorization,
           error
         })
 
-        return httpRequest(requestPayload)
+        return httpRequest(httpFallbackPayload)
       }
 
       handleRequestError(error, showErrorToast)

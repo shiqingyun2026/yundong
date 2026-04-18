@@ -11,7 +11,7 @@
 
 当前已替换为：
 
-- `wx2cc3da65f3b6bd17`
+- `wxf18a9c72d851ef7a`
 
 ### 1.2 小程序 `release` 运行链路
 
@@ -20,7 +20,7 @@
 当前已切换为：
 
 - `release.transport = container`
-- `release.cloudEnv = cloud1-4glzoev0baf7b187`
+- `release.cloudEnv = tttiyubao-4g141829bdf6a28d`
 - `release.service = lindong-api`
 
 ### 1.3 Cloudflare Worker 非敏感生产变量
@@ -32,7 +32,7 @@
 - `PAYMENT_PROVIDER_MODE=wechat`
 - `GROUP_RESULT_NOTIFICATION_DELIVERY_MODE=wechat`
 - `GROUP_RESULT_NOTIFICATION_BATCH_SIZE=20`
-- `WX_MINIPROGRAM_APP_ID=wx2cc3da65f3b6bd17`
+- `WX_MINIPROGRAM_APP_ID=wxf18a9c72d851ef7a`
 - `WX_MINIPROGRAM_STATE=formal`
 - `WX_PAY_NOTIFY_URL=https://lindong-backend.shiqingyun2026.workers.dev/api/payments/notify/wechat`
 
@@ -126,7 +126,7 @@
 - `PAYMENT_PROVIDER_MODE=wechat`
 - `GROUP_RESULT_NOTIFICATION_DELIVERY_MODE=wechat`
 - `GROUP_RESULT_NOTIFICATION_BATCH_SIZE=20`
-- `WX_MINIPROGRAM_APP_ID=wx2cc3da65f3b6bd17`
+- `WX_MINIPROGRAM_APP_ID=wxf18a9c72d851ef7a`
 - `WX_MINIPROGRAM_APP_SECRET`
 - `WX_MINIPROGRAM_STATE=formal`
 - `WX_PAY_MCH_ID`
@@ -144,7 +144,7 @@
 
 ## 4. 上线前最后核对
 
-1. 微信公众平台确认正式 AppID 为 `wx2cc3da65f3b6bd17`
+1. 微信公众平台确认正式 AppID 为 `wxf18a9c72d851ef7a`
 2. 微信公众平台订阅消息模板已创建，模板 ID 已填入 [miniprogram/config/env.js](/Users/yun/lindong/miniprogram/config/env.js)
 3. 微信支付商户平台已配置回调地址：
    - `https://lindong-backend.shiqingyun2026.workers.dev/api/payments/notify/wechat`

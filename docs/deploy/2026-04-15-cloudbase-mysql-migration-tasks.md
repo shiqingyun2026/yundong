@@ -101,6 +101,29 @@
 - 验收：
   - 所有核心表均有对应 MySQL 建表定义
 
+当前进度：
+
+- 已新增初始化脚本：
+  - `backend/migrations/mysql_init_schema.sql`
+- 已补充更适合 CloudBase SQL 控制台分步执行的脚本：
+  - `backend/migrations/mysql_step1_users.sql`
+  - `backend/migrations/mysql_step2_miniprogram_core.sql`
+  - `backend/migrations/mysql_step3_seed_visible_course.sql`
+  - `backend/migrations/mysql_step4_seed_second_member_success_split.sql`
+- 已覆盖当前 repository 已接入的核心表：
+  - `users`
+  - `courses`
+  - `groups`
+  - `group_members`
+  - `orders`
+  - `payment_records`
+  - `admin_users`
+  - `admin_log`
+  - `group_result_subscriptions`
+  - `group_result_notification_jobs`
+- `mysql_init_schema.sql` 仍保留为完整版结构草案
+- 真实 CloudBase SQL 控制台中，优先使用上述分步脚本，成功率明显高于一次性执行完整大 SQL
+
 #### T2.2 条件唯一约束替代方案确认
 
 - 内容：
@@ -116,6 +139,14 @@
   - T2.1
 - 验收：
   - 创建 pending 订单的唯一性方案明确
+
+当前进度：
+
+- 已在 `backend/migrations/mysql_init_schema.sql` 中采用 MySQL 生成列方案替代 PostgreSQL 条件唯一索引：
+  - `orders.pending_user_course_key`
+  - 唯一键：`uniq_orders_pending_user_course`
+- 语义保持为：
+  - 同一用户 + 同一课程，同一时刻只允许保留一笔 `pending` 订单
 
 #### T2.3 全量迁移脚本准备
 
@@ -169,7 +200,9 @@
   - `backend/config/db.js`
   - `backend/config/env.js`
 - 已补充 MySQL 依赖与环境变量模板
-- 仍待在真实环境完成连接验证
+- 已在真实 CloudBase 环境 `tttiyubao-4g141829bdf6a28d` 的 `lindong-api` 服务中验证 MySQL 连通
+- 当前在 CloudBase 个人版场景下，已确认采用“公网可访问 MySQL”方案，而非 VPC / 私网方案
+- 当前真实运行时以 CloudBase 控制台环境变量为准，本地 `backend/.env` 仅作为开发参考，可能不是最新值
 
 #### T3.2 抽离 repository 层
 
@@ -227,9 +260,24 @@
   - 参考项目：`.reference/miniprogram-3`
   - 已按官方 `callContainer` / 云函数透传模式兼容 `X-WX-OPENID` / `X-WX-APPID` / `X-WX-UNIONID`
   - 小程序登录服务已支持优先读取 CloudBase 透传身份，其次再回落到 `code2Session`
+- 已新增可选小程序身份解析入口：
+  - `backend/shared/utils/miniProgramIdentity.js`
+  - 读取链路优先使用 CloudBase 透传身份头解析用户，Bearer token 仅作为非 CloudBase 场景兜底
+- 已增加可信 CloudBase 入口校验策略：
+  - 新增 `TRUST_CLOUDBASE_MINIPROGRAM_IDENTITY`，默认 `false`
+  - `backend/miniprogram-container/app.js` 默认启用该信任入口，综合后端/后台公开 HTTP 入口默认不启用
+  - `X-WX-*` 身份头仅在信任开关开启且请求带 `X-WX-SERVICE` 的 `callContainer` 场景下解析；其他场景回退到 Bearer token 或按未登录处理
+  - 已补充伪造 `X-WX-OPENID` 不应绕过鉴权的单元测试
+- 已新增可选联调观测开关：
+  - `ENABLE_MINIPROGRAM_IDENTITY_LOGS=false` 默认关闭
+  - 打开后会在登录、课程 active-group、拼团详情、创建订单、支付准备、mock 支付成功、“我的拼团”、订阅记录接口输出 `cloudbase` / `bearer` / `anonymous` 身份来源
+  - 日志不输出完整 openid，仅输出是否存在用户、是否存在 Bearer、是否存在微信身份头等低敏感字段
+- 已补充后台 `console-api` 路由级 MySQL 验证：
+  - `backend/tests/console-api.mysql-routes.test.js`
+  - 已覆盖 `/api/admin/login`、`/api/admin/accounts`、超级管理员权限边界
+  - 已明确后台链路继续保持标准 HTTP + Bearer token，不接入 CloudBase 小程序身份头
 - 仍待完成：
-  - `USE_MYSQL_REPOSITORIES=true` 环境下联调
-  - `console-api` 登录与账号接口实测
+  - 测试/云托管环境的 `console-api` 登录与账号接口真实账号联调
 
 #### T3.4 迁移课程、拼团、订单主链路
 
@@ -260,11 +308,41 @@
   - 活跃拼团读取
   - 创建 pending 订单
   - mock 支付成功后的成团更新
+- 已将课程/拼团读取链路继续接入 CloudBase 透传身份：
+  - `/api/courses/:id/active-group` 会优先根据 `X-WX-OPENID` 查用户并计算 `userJoined`
+  - `/api/groups/:id` 已验证可仅依赖 `X-WX-OPENID` 通过鉴权，不再要求同时携带 Bearer token
+- 已补齐无 Bearer 的 CloudBase 透传身份专项路由测试：
+  - `/api/orders`
+  - `/api/orders/:id`
+  - `/api/payments/prepare`
+  - `/api/payments/mock-success`
+  - `/api/user/groups`
+  - `/api/user/group-result-subscriptions`
+- 已确认小程序前端主链路通过统一 `request/get/post` 封装走 `callContainer` transport，container 模式默认不主动拼接 `Authorization`
+- 已明确当前仍需要 Bearer token 的入口边界：
+  - 小程序 `callContainer` 主链路默认不依赖 Bearer token
+  - 小程序 HTTP fallback / 本地调试回退仍会携带 Bearer token
+  - `console-api` / 后台管理接口继续仅走标准 HTTP + Bearer token，不接入 CloudBase 身份头
+  - 已将上述规则抽到 `miniprogram/utils/requestPolicy.js`，并补充自动化测试防止后续回归
+- 已补充 CORS 允许头：
+  - `X-WX-OPENID`
+  - `X-WX-APPID`
+  - `X-WX-UNIONID`
+  - `X-WX-SERVICE`
 - 已补齐课程生命周期在 MySQL 模式下的状态计算与自动退款分支，避免创建订单前校验仍回落到 Supabase
+- 已在真实 CloudBase + MySQL 环境验证通过：
+  - 小程序登录
+  - 课程列表
+  - 课程详情
+  - 创建订单
+  - 支付准备
+  - mock 支付成功
+  - 我的拼团
+- 已通过 SQL 兜底补第二成员，验证成团状态可同步到详情页与我的拼团
+- 已修复 MySQL 中 `groups` 表名导致的 SQL 兼容问题，并同步到真实部署目录代码
 - 仍待完成：
-  - 真 MySQL 数据库联调
-  - 小程序真机从课程详情进入支付确认页的完整回归
-  - 支付成功后“我的拼团”列表页专项验证
+  - 第二个真实微信号“去参团”真机链路
+  - console 侧课程、订单真实写链路 live smoke
 
 #### T3.5 迁移支付记录与通知任务链路
 
@@ -301,6 +379,7 @@
 - 已支持小程序支付准备在 MySQL 模式下生成/更新 `payment_records`
 - 已补充通知任务消费最小测试：
   - `backend/tests/group-result-notification-delivery.test.js`
+- 已在真实 CloudBase + MySQL 环境验证 mock 支付成功后支付主链路可继续走通
 - 仍待完成：
   - 微信支付真实回调联调
   - 微信订阅消息真实投递联调
@@ -385,6 +464,17 @@
 - 验收：
   - 测试环境服务可启动并通过 `/health`
 
+当前进度：
+
+- 已确认 CloudBase 控制台当前真实采用“本地文件夹上传”部署
+- 当前真实部署目录不是直接用 `backend/`，而是：
+  - `deploy-artifacts/lindong-api-deploy`
+- 已验证该目录可成功部署并拉起 `lindong-api`
+- 已明确当前排障约束：
+  - 如果只修改 `backend/` 而不更新 `deploy-artifacts/lindong-api-deploy/`，重新部署不会带上最新修复
+- 仍待完成：
+  - 把“源码改动 -> 更新 deploy-artifacts -> 上传部署”流程脚本化，避免手工同步遗漏
+
 #### T4.2 部署小程序 API 服务
 
 - 内容：
@@ -397,6 +487,23 @@
 - 验收：
   - 小程序通过 `callContainer` 能调通登录与课程接口
 
+当前进度：
+
+- 已在真实环境完成服务部署：
+  - CloudBase 环境 ID：`tttiyubao-4g141829bdf6a28d`
+  - 服务名：`lindong-api`
+  - 小程序真实 AppID：`wxf18a9c72d851ef7a`
+- 已完成 `wx.cloud.init` 与 `callContainer` 主链路接通
+- 已验证真实小程序可通过 `callContainer` 调通：
+  - `/api/auth/login`
+  - `/api/courses`
+  - 课程详情、创建订单、支付准备、mock 支付成功、我的拼团
+- 已解决此前联调中出现的典型问题：
+  - `wx.cloud.init` 未初始化
+  - 小程序与 CloudBase 环境未关联
+  - `INVALID_HOST`
+  - MySQL 连通与表缺失
+
 联调补充说明：
 
 - 小程序侧可直接参考 `.reference/miniprogram-3` 中 CloudBase 官方模板的调用方式：
@@ -406,7 +513,26 @@
   - `X-WX-OPENID`
   - `X-WX-APPID`
   - `X-WX-UNIONID`
-- 因此测试环境联调时，除 Bearer token 方案外，也应专项验证“仅依赖 CloudBase 透传头”的登录与鉴权路径
+- 因此测试环境联调时，应优先专项验证“仅依赖 CloudBase 透传头”的登录、课程 active-group 与拼团详情路径；Bearer token 方案仅作为非 CloudBase 调用兜底
+
+仍待补齐的官方模板接入任务：
+
+- 后端安全：
+  - 已通过 `TRUST_CLOUDBASE_MINIPROGRAM_IDENTITY` 将 `X-WX-*` 身份头限制在小程序云托管入口，公开后台域名或非 CloudBase 域名请求默认不信任客户端自带身份头
+  - 已要求可信身份头请求同时带 `X-WX-SERVICE`，并补充伪造身份头不应绕过鉴权测试
+- 后端路由：
+  - 已为 `/api/orders`、`/api/orders/:id`、`/api/payments/prepare`、`/api/payments/mock-success`、`/api/user/groups`、`/api/user/group-result-subscriptions` 补充“仅可信 `X-WX-OPENID`、无 Bearer token”测试
+  - 继续保留 Bearer token 回退测试，作为非 CloudBase 调用和本地调试兜底
+- 小程序前端：
+  - 已将主链路请求封装成官方模板风格的 `wx.cloud.Cloud({ resourceEnv }).callContainer(...)`
+  - 已新增 `miniprogram/utils/callContainerApi.js`
+  - 已调整 `miniprogram/utils/request.js`，CloudBase container transport 默认不再主动拼接 `Authorization`
+  - 登录返回 token 仍作为兼容字段保留；HTTP fallback / 本地调试仍可使用 Bearer token
+  - 对 develop/trial/release 分环境配置 `env`、`resourceEnv`、服务名和路径前缀
+- 联调验收：
+  - 在 CloudBase 测试环境用真机验证 `X-WX-OPENID` 是否由平台自动透传到后端
+  - 用服务端日志确认登录、课程 active-group、拼团详情、创建订单、支付准备、“我的拼团”均命中 CloudBase 身份路径
+  - 验证缺失或伪造 `X-WX-OPENID` 的公开请求会被拒绝或回退到 Bearer token
 
 #### T4.3 部署后台 API 服务
 
@@ -432,6 +558,16 @@
   - T1.3
 - 验收：
   - 服务启动时无配置缺失
+
+当前进度：
+
+- CloudBase `lindong-api` 已完成真实运行所需的 MySQL 连接配置，并验证登录可用
+- 当前个人版实际采用公网 MySQL 连接方案
+- 当前真实运行时应以 CloudBase 控制台环境变量为准，不应以本地 `backend/.env` 是否最新作为判断依据
+- 仍待补齐：
+  - 正式微信支付密钥
+  - 正式订阅消息模板配置
+  - console 侧若独立部署所需的对应环境变量
 
 ### 阶段 5：存储与上传迁移
 
@@ -536,13 +672,42 @@
 - 验收：
   - 小程序主链路全部通过
 
+当前进度：
+
+- 已在真实 CloudBase + MySQL 环境完成主链路联调：
+  - 登录
+  - 首页课程列表
+  - 课程详情
+  - 创建订单
+  - 支付准备
+  - mock 支付成功
+  - 我的拼团
+- 已通过 SQL 兜底补第二成员，验证成团状态可被页面正确读出
+- 当前剩余缺口：
+  - 第二个真实微信号“去参团”真机回归
+  - 真支付、真通知链路
+
 联调补充说明：
 
 - 小程序若基于 `.reference/miniprogram-3` 官方模板继续二次开发，建议优先验证以下路径：
   - 通过 `callContainer` 触发登录接口，由 CloudBase 透传 `X-WX-OPENID`
-  - 登录后继续访问课程详情、活动拼团、创建订单、支付准备接口
-  - 已登录状态下访问“我的拼团”等受保护接口，确认后端可基于 CloudBase 透传身份完成鉴权
+  - 登录后继续访问课程详情、活动拼团、创建订单、支付准备接口，其中活动拼团读取应优先通过 `X-WX-OPENID` 计算当前用户参与状态
+  - 已登录状态下访问拼团详情、“我的拼团”等受保护接口，确认后端可仅基于 CloudBase 透传身份完成鉴权
 - 如需兼容非 CloudBase 调用场景，仍保留 `code2Session + Bearer token` 路径作为兜底方案
+
+官方模板接入剩余任务：
+
+- 小程序调用层：
+  - 已抽出统一 `callContainerApi` 封装，集中处理 `resourceEnv`、服务名、路径、method、data、错误提示
+  - 已通过现有 `get/post/request` 封装将课程列表、课程详情、活跃拼团、拼团详情、创建订单、订单状态、支付准备、mock 支付成功、“我的拼团”、订阅结果接口统一接入 container transport
+  - 保留旧 HTTP + Bearer 调用开关，便于本地调试和回滚，但默认不再作为 CloudBase 小程序主链路
+- 后端联调观测：
+  - 已新增 `ENABLE_MINIPROGRAM_IDENTITY_LOGS` 开关，在登录、课程 active-group、拼团详情、创建订单、支付准备、mock 支付成功、“我的拼团”、订阅结果接口按需记录身份来源：`cloudbase` / `bearer` / `anonymous`
+  - 日志默认关闭，开启后仅输出低噪声结构化字段，避免输出完整 openid 等敏感标识
+- 真机验收：
+  - develop 环境先跑完整链路，再推进 trial/release
+  - 验证首次登录自动建用户、老用户按 openid 命中原用户、无 token 访问受保护接口仍可用
+  - 验证非 CloudBase 请求伪造 `X-WX-OPENID` 不会绕过鉴权
 
 #### T6.2 后台联调
 
@@ -590,6 +755,16 @@
 - 验收：
   - 输出测试环境回归报告
 
+当前进度：
+
+- 尚未完成严格意义上的“全量导数”
+- 当前已完成的是真实 CloudBase MySQL 空库分步初始化与最小回归数据注入：
+  - `mysql_step1_users.sql`
+  - `mysql_step2_miniprogram_core.sql`
+  - `mysql_step3_seed_visible_course.sql`
+  - `mysql_step4_seed_second_member_success_split.sql`
+- 已基于上述最小数据集完成真实小程序主链路回归
+
 #### T6.5 灰度切流方案确认
 
 - 内容：
@@ -630,6 +805,17 @@
   - T7.1
 - 验收：
   - 真机主链路通过
+
+当前进度：
+
+- 仓库内 `release` 已指向真实 CloudBase 环境与服务：
+  - `release.transport = container`
+  - `release.cloudEnv = tttiyubao-4g141829bdf6a28d`
+  - `release.service = lindong-api`
+- 项目配置中的正式 AppID 已更新为：
+  - `wxf18a9c72d851ef7a`
+- 当前仍待：
+  - 真支付、真通知联调后再做最终正式发布确认
 
 #### T7.3 切换后台 API
 

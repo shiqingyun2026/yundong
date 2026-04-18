@@ -20,6 +20,10 @@ const loadAppForMySqlRoutes = () => {
     'config/env.js',
     'utils/getSupabaseClient.js',
     'middleware/auth.js',
+    'repositories/index.js',
+    'repositories/usersRepository.js',
+    'shared/utils/miniProgramIdentity.js',
+    'shared/utils/wechatIdentity.js',
     'shared/services/miniProgramAuth.js',
     'shared/services/courseReaders.js',
     'shared/services/groupReaders.js',
@@ -44,7 +48,9 @@ const loadAppForMySqlRoutes = () => {
 
   mockModule('config/env.js', {
     env: {
-      useMySqlRepositories: true
+      useMySqlRepositories: true,
+      trustCloudBaseMiniProgramIdentity: true,
+      enableMiniProgramIdentityLogs: false
     }
   })
 
@@ -54,9 +60,23 @@ const loadAppForMySqlRoutes = () => {
     }
   })
 
-  mockModule('middleware/auth.js', (req, res, next) => {
-    req.userId = 'user-1'
-    return next()
+  mockModule('repositories/usersRepository.js', {
+    findUserByOpenId: async openId => {
+      if (openId === 'wx-openid-1') {
+        return {
+          id: 'user-from-cloudbase',
+          openid: openId
+        }
+      }
+
+      return null
+    }
+  })
+
+  mockModule('repositories/index.js', {
+    groupResultSubscriptionsRepository: {
+      upsertSubscription: async payload => payload
+    }
   })
 
   mockModule('shared/services/miniProgramAuth.js', {
@@ -99,7 +119,7 @@ const loadAppForMySqlRoutes = () => {
   })
 
   mockModule('shared/services/groupOrders.js', {
-    createPendingOrder: async ({ supabase, courseId }) => ({
+    createPendingOrder: async ({ supabase, courseId, userId }) => ({
       group: { id: 'group-1', status: 'active' },
       order: {
         id: 'order-1',
@@ -107,13 +127,15 @@ const loadAppForMySqlRoutes = () => {
         group_id: 'group-1',
         amount: 99
       },
+      userId,
       supabaseWasPassed: supabase
     }),
-    markOrderPaymentSuccess: async ({ supabase, orderId, groupId }) => ({
+    markOrderPaymentSuccess: async ({ supabase, orderId, groupId, userId }) => ({
       order: {
         id: orderId,
         course_id: 'course-1'
       },
+      userId,
       groupId: groupId || 'group-1',
       currentCount: 1,
       targetCount: 2,
@@ -223,30 +245,30 @@ test('mini program routes work in mysql mode without supabase client', async () 
       requestJson({
         app,
         pathname: '/api/groups/group-1',
-        headers: { Authorization: 'Bearer token' }
+        headers: { 'x-wx-openid': 'wx-openid-1', 'x-wx-service': 'lindong-api' }
       }),
       requestJson({
         app,
         method: 'POST',
         pathname: '/api/orders',
-        headers: { Authorization: 'Bearer token' },
+        headers: { 'x-wx-openid': 'wx-openid-1', 'x-wx-service': 'lindong-api' },
         body: { courseId: 'course-1' }
       }),
       requestJson({
         app,
         pathname: '/api/orders/order-1',
-        headers: { Authorization: 'Bearer token' }
+        headers: { 'x-wx-openid': 'wx-openid-1', 'x-wx-service': 'lindong-api' }
       }),
       requestJson({
         app,
         pathname: '/api/user/groups',
-        headers: { Authorization: 'Bearer token' }
+        headers: { 'x-wx-openid': 'wx-openid-1', 'x-wx-service': 'lindong-api' }
       }),
       requestJson({
         app,
         method: 'POST',
         pathname: '/api/payments/prepare',
-        headers: { Authorization: 'Bearer token' },
+        headers: { 'x-wx-openid': 'wx-openid-1', 'x-wx-service': 'lindong-api' },
         body: { orderId: 'order-1' }
       })
     ])
@@ -289,7 +311,8 @@ test('mini program login accepts cloudbase identity headers in mysql mode', asyn
     headers: {
       'x-wx-openid': 'wx-openid-1',
       'x-wx-unionid': 'wx-unionid-1',
-      'x-wx-appid': 'wx-appid-1'
+      'x-wx-appid': 'wx-appid-1',
+      'x-wx-service': 'lindong-api'
     },
     body: {}
   })
@@ -299,4 +322,97 @@ test('mini program login accepts cloudbase identity headers in mysql mode', asyn
   assert.equal(login.body.openId, 'wx-openid-1')
   assert.equal(login.body.unionId, 'wx-unionid-1')
   assert.equal(login.body.appId, 'wx-appid-1')
+})
+
+test('course active group resolves optional user from cloudbase headers before bearer token', async () => {
+  const app = loadAppForMySqlRoutes()
+
+  const activeGroup = await requestJson({
+    app,
+    pathname: '/api/courses/course-1/active-group',
+    headers: {
+      'x-wx-openid': 'wx-openid-1',
+      'x-wx-service': 'lindong-api',
+      Authorization: 'Bearer token'
+    }
+  })
+
+  assert.equal(activeGroup.status, 200)
+  assert.equal(activeGroup.body.supabaseWasPassed, null)
+  assert.equal(activeGroup.body.courseId, 'course-1')
+  assert.equal(activeGroup.body.userId, 'user-from-cloudbase')
+})
+
+test('protected mini program routes accept trusted cloudbase identity without bearer token', async () => {
+  const app = loadAppForMySqlRoutes()
+  const cloudbaseHeaders = {
+    'x-wx-openid': 'wx-openid-1',
+    'x-wx-service': 'lindong-api'
+  }
+
+  const createOrder = await requestJson({
+    app,
+    method: 'POST',
+    pathname: '/api/orders',
+    headers: cloudbaseHeaders,
+    body: { courseId: 'course-1' }
+  })
+  const orderStatus = await requestJson({
+    app,
+    pathname: '/api/orders/order-1',
+    headers: cloudbaseHeaders
+  })
+  const paymentPrepare = await requestJson({
+    app,
+    method: 'POST',
+    pathname: '/api/payments/prepare',
+    headers: cloudbaseHeaders,
+    body: { orderId: 'order-1' }
+  })
+  const mockSuccess = await requestJson({
+    app,
+    method: 'POST',
+    pathname: '/api/payments/mock-success',
+    headers: cloudbaseHeaders,
+    body: { orderId: 'order-1', groupId: 'group-1' }
+  })
+  const userGroups = await requestJson({
+    app,
+    pathname: '/api/user/groups',
+    headers: cloudbaseHeaders
+  })
+  const subscription = await requestJson({
+    app,
+    method: 'POST',
+    pathname: '/api/user/group-result-subscriptions',
+    headers: cloudbaseHeaders,
+    body: {
+      groupId: 'group-1',
+      courseId: 'course-1',
+      decision: 'accept',
+      status: 'subscribed'
+    }
+  })
+
+  assert.equal(createOrder.status, 200)
+  assert.equal(createOrder.body.orderId, 'order-1')
+
+  assert.equal(orderStatus.status, 200)
+  assert.equal(orderStatus.body.userId, 'user-from-cloudbase')
+  assert.equal(orderStatus.body.supabaseWasPassed, null)
+
+  assert.equal(paymentPrepare.status, 200)
+  assert.equal(paymentPrepare.body.userId, 'user-from-cloudbase')
+  assert.equal(paymentPrepare.body.supabaseWasPassed, null)
+
+  assert.equal(mockSuccess.status, 200)
+  assert.equal(mockSuccess.body.orderId, 'order-1')
+
+  assert.equal(userGroups.status, 200)
+  assert.equal(userGroups.body.userId, 'user-from-cloudbase')
+  assert.equal(userGroups.body.supabaseWasPassed, null)
+
+  assert.equal(subscription.status, 200)
+  assert.equal(subscription.body.user_id, 'user-from-cloudbase')
+  assert.equal(subscription.body.group_id, 'group-1')
 })

@@ -14,10 +14,17 @@ const mockModule = (relativePath, exports) => {
   }
 }
 
-const loadAuthenticate = ({ useMySqlRepositories = true, user = null } = {}) => {
+const loadAuthenticate = ({
+  useMySqlRepositories = true,
+  trustCloudBaseMiniProgramIdentity = true,
+  enableMiniProgramIdentityLogs = false,
+  user = null
+} = {}) => {
   const targets = [
     'middleware/auth.js',
     'config/env.js',
+    'shared/utils/miniProgramIdentityLog.js',
+    'shared/utils/wechatIdentity.js',
     'repositories/usersRepository.js'
   ].map(relativePath => require.resolve(path.join(backendRoot, relativePath)))
 
@@ -27,7 +34,9 @@ const loadAuthenticate = ({ useMySqlRepositories = true, user = null } = {}) => 
 
   mockModule('config/env.js', {
     env: {
-      useMySqlRepositories
+      useMySqlRepositories,
+      trustCloudBaseMiniProgramIdentity,
+      enableMiniProgramIdentityLogs
     }
   })
 
@@ -72,7 +81,8 @@ test('auth middleware resolves mysql user from cloudbase openid headers', async 
     headers: {
       'x-wx-openid': 'wx-openid-1',
       'x-wx-unionid': 'wx-unionid-1',
-      'x-wx-appid': 'wx-appid-1'
+      'x-wx-appid': 'wx-appid-1',
+      'x-wx-service': 'lindong-api'
     }
   }
   const res = createResponse()
@@ -99,7 +109,8 @@ test('auth middleware rejects unknown cloudbase openid headers in mysql mode', a
 
   const req = {
     headers: {
-      'x-wx-openid': 'wx-openid-missing'
+      'x-wx-openid': 'wx-openid-missing',
+      'x-wx-service': 'lindong-api'
     }
   }
   const res = createResponse()
@@ -114,4 +125,131 @@ test('auth middleware rejects unknown cloudbase openid headers in mysql mode', a
   assert.deepEqual(res.payload, {
     message: 'Unauthorized'
   })
+})
+
+test('auth middleware ignores forged cloudbase identity headers when trust is disabled', async () => {
+  const authenticate = loadAuthenticate({
+    useMySqlRepositories: true,
+    trustCloudBaseMiniProgramIdentity: false,
+    user: {
+      id: 'user-1',
+      openid: 'wx-openid-1'
+    }
+  })
+
+  const req = {
+    headers: {
+      'x-wx-openid': 'wx-openid-1',
+      'x-wx-service': 'lindong-api'
+    }
+  }
+  const res = createResponse()
+  let nextCalled = false
+
+  await authenticate(req, res, () => {
+    nextCalled = true
+  })
+
+  assert.equal(nextCalled, false)
+  assert.equal(res.statusCode, 401)
+  assert.deepEqual(res.payload, {
+    message: 'Unauthorized'
+  })
+})
+
+test('auth middleware ignores cloudbase openid headers without callContainer service marker', async () => {
+  const authenticate = loadAuthenticate({
+    useMySqlRepositories: true,
+    trustCloudBaseMiniProgramIdentity: true,
+    user: {
+      id: 'user-1',
+      openid: 'wx-openid-1'
+    }
+  })
+
+  const req = {
+    headers: {
+      'x-wx-openid': 'wx-openid-1'
+    }
+  }
+  const res = createResponse()
+  let nextCalled = false
+
+  await authenticate(req, res, () => {
+    nextCalled = true
+  })
+
+  assert.equal(nextCalled, false)
+  assert.equal(res.statusCode, 401)
+  assert.deepEqual(res.payload, {
+    message: 'Unauthorized'
+  })
+})
+
+test('groups route accepts cloudbase identity headers without bearer token', async () => {
+  const targets = [
+    'routes/groups.js',
+    'middleware/auth.js',
+    'config/env.js',
+    'utils/getSupabaseClient.js',
+    'repositories/usersRepository.js',
+    'shared/utils/miniProgramIdentityLog.js',
+    'shared/utils/wechatIdentity.js',
+    'shared/services/groupReaders.js'
+  ].map(relativePath => require.resolve(path.join(backendRoot, relativePath)))
+
+  targets.forEach(modulePath => {
+    delete require.cache[modulePath]
+  })
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true,
+      trustCloudBaseMiniProgramIdentity: true,
+      enableMiniProgramIdentityLogs: false
+    }
+  })
+
+  mockModule('utils/getSupabaseClient.js', {
+    getSupabaseClient: () => {
+      throw new Error('supabase should not be requested in mysql mode')
+    }
+  })
+
+  mockModule('repositories/usersRepository.js', {
+    findUserByOpenId: async openId => {
+      if (openId === 'wx-openid-1') {
+        return {
+          id: 'user-from-cloudbase',
+          openid: openId
+        }
+      }
+
+      return null
+    }
+  })
+
+  mockModule('shared/services/groupReaders.js', {
+    fetchMiniProgramGroupDetail: async ({ supabase, groupId, userId }) => ({
+      supabaseWasPassed: supabase,
+      groupId,
+      userId
+    })
+  })
+
+  const groupsRoutes = require(path.join(backendRoot, 'routes/groups.js'))
+  const response = await groupsRoutes.fetch(
+    new Request('http://127.0.0.1/group-1', {
+      headers: {
+        'x-wx-openid': 'wx-openid-1',
+        'x-wx-service': 'lindong-api'
+      }
+    })
+  )
+  const body = await response.json()
+
+  assert.equal(response.status, 200)
+  assert.equal(body.supabaseWasPassed, null)
+  assert.equal(body.groupId, 'group-1')
+  assert.equal(body.userId, 'user-from-cloudbase')
 })

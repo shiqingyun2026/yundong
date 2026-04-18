@@ -15,9 +15,9 @@ const CLOUD_CONTAINER_SERVICE_PLACEHOLDER = 'TODO_CLOUD_RUN_SERVICE'
 const CLOUD_LOCATION_FUNCTION_PLACEHOLDER = 'TODO_CLOUD_LOCATION_FUNCTION'
 
 const ENV_CLOUD_ENVS = {
-  develop: 'cloud1-4glzoev0baf7b187',
-  trial: 'cloud1-4glzoev0baf7b187',
-  release: 'cloud1-4glzoev0baf7b187'
+  develop: 'tttiyubao-4g141829bdf6a28d',
+  trial: 'tttiyubao-4g141829bdf6a28d',
+  release: 'tttiyubao-4g141829bdf6a28d'
 }
 
 const ENV_CLOUD_CONTAINER_SERVICE_NAMES = {
