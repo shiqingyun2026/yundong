@@ -32,7 +32,7 @@ const createPool = () => {
     connectionLimit: config.connectionLimit,
     waitForConnections: true,
     namedPlaceholders: true,
-    timezone: 'Z'
+    timezone: '+08:00'
   })
 }
 

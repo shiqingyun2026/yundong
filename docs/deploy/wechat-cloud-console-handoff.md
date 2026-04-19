@@ -1,6 +1,6 @@
 # 小程序微信云托管 / Console 标准服务端 交接文档
 
-更新时间：2026-04-18
+更新时间：2026-04-19
 
 ## 1. 当前最终架构
 
@@ -107,6 +107,8 @@ CloudBase SQL 执行器当前兼容性较弱，不适合一次性执行复杂 DD
 
 这轮已经验证通过的最稳方式是拆步执行：
 
+0. 如需先打通后台管理员登录，可先建后台管理员表并插入默认管理员：
+   - [mysql_step0_admin_users.sql](/Users/yun/lindong/backend/migrations/mysql_step0_admin_users.sql)
 1. 先建登录必需表：
    - [mysql_step1_users.sql](/Users/yun/lindong/backend/migrations/mysql_step1_users.sql)
 2. 再建小程序主链路核心表：
@@ -137,7 +139,7 @@ CloudBase SQL 执行器当前兼容性较弱，不适合一次性执行复杂 DD
 仍未完成：
 
 - 第二个真实微信号的“去参团”真机链路
-- 后台 `console-api` 真实 MySQL 登录与账号联调
+- 后台 `console-api` 真实 MySQL 课程、订单写链路 live smoke
 - 正式微信支付、正式订阅通知联调
 
 ## 5. 今天额外沉淀
@@ -183,7 +185,13 @@ deploy-artifacts/
 ### 7.1 Console
 
 - 还没有补课程或订单的真实写链路 live smoke
-- 还没有完成 `console-api` 的真实 MySQL 登录与账号联调
+- 已完成 `console-api` 真实 MySQL 登录联调：
+  - `POST /api/admin/login` 返回 `code=0` 与管理员 token
+  - `GET /api/admin/accounts` 返回管理员账号列表
+  - `GET /api/admin/logs` 返回登录日志
+- 已修复 MySQL `DATETIME` 读取时区偏移：
+  - `backend/config/db.js` 使用 `timezone: '+08:00'`
+  - 操作日志页面显示时间已确认恢复为北京时间
 
 ### 7.2 部署层
 
@@ -197,7 +205,7 @@ deploy-artifacts/
 
 ## 8. 接手建议
 
-1. 先继续做 `console-api` 的真实 MySQL 登录与账号联调
+1. 先继续做 `console-api` 的真实 MySQL 课程、订单写链路 smoke
 2. 再把 `deploy-artifacts/lindong-api-deploy` 的生成流程脚本化
 3. 最后再推进真支付、真通知链路
 

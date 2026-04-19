@@ -106,6 +106,7 @@
 - 已新增初始化脚本：
   - `backend/migrations/mysql_init_schema.sql`
 - 已补充更适合 CloudBase SQL 控制台分步执行的脚本：
+  - `backend/migrations/mysql_step0_admin_users.sql`
   - `backend/migrations/mysql_step1_users.sql`
   - `backend/migrations/mysql_step2_miniprogram_core.sql`
   - `backend/migrations/mysql_step3_seed_visible_course.sql`
@@ -276,8 +277,15 @@
   - `backend/tests/console-api.mysql-routes.test.js`
   - 已覆盖 `/api/admin/login`、`/api/admin/accounts`、超级管理员权限边界
   - 已明确后台链路继续保持标准 HTTP + Bearer token，不接入 CloudBase 小程序身份头
+- 已完成本地 `console-api` 直连真实 CloudBase MySQL 联调：
+  - `POST /api/admin/login` 返回 `code=0`
+  - `GET /api/admin/accounts` 返回管理员账号列表
+  - `GET /api/admin/logs` 返回登录日志
+- 已修复 MySQL `DATETIME` 读取时区偏移：
+  - `backend/config/db.js` 使用 `timezone: '+08:00'`
+  - 操作日志页面已确认显示北京时间
 - 仍待完成：
-  - 测试/云托管环境的 `console-api` 登录与账号接口真实账号联调
+  - 测试/云托管环境的 `console-api` 课程、订单真实写链路联调
 
 #### T3.4 迁移课程、拼团、订单主链路
 
@@ -564,6 +572,9 @@
 - CloudBase `lindong-api` 已完成真实运行所需的 MySQL 连接配置，并验证登录可用
 - 当前个人版实际采用公网 MySQL 连接方案
 - 当前真实运行时应以 CloudBase 控制台环境变量为准，不应以本地 `backend/.env` 是否最新作为判断依据
+- 已补充后台管理员初始化脚本：
+  - `backend/migrations/mysql_step0_admin_users.sql`
+- `console-api` 在 MySQL 模式下已补上“登录前确保 bootstrap 管理员存在”的运行时兜底
 - 仍待补齐：
   - 正式微信支付密钥
   - 正式订阅消息模板配置

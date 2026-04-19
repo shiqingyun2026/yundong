@@ -1,7 +1,9 @@
 const jwt = require('jsonwebtoken')
+const { env } = require('../../config/env')
 
 const { ensureCondition } = require('./_guards')
 const {
+  ensureBootstrapAdminExists,
   findAdminByUsername,
   hasAdminPasswordColumn,
   touchAdminLogin,
@@ -18,6 +20,10 @@ const assertValidCredentials = condition =>
 
 const loginAdmin = async ({ username, password, ip = null }) => {
   assertValidCredentials(!!username && !!password)
+
+  if (env.useMySqlRepositories) {
+    await ensureBootstrapAdminExists()
+  }
 
   const admin = await findAdminByUsername(username)
   const usePasswordHash = !!admin && (await hasAdminPasswordColumn()) && !!admin.password_hash

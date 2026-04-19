@@ -22,6 +22,8 @@ const isMySqlRepositoryMode = () => env.useMySqlRepositories
 
 const isTableMissingError = error => error && error.code === 'PGRST205'
 const isColumnMissingError = error => error && (error.code === 'PGRST204' || error.code === '42703')
+const isMySqlTableMissingError = error =>
+  error && (error.code === 'ER_NO_SUCH_TABLE' || Number(error.errno) === 1146)
 
 const hashPassword = password => {
   const salt = crypto.randomBytes(16).toString('hex')
@@ -459,14 +461,23 @@ const touchAdminLogin = async adminId => {
 
 const writeAdminLog = async ({ adminId, action, targetType = '', targetId = '', detail = {}, ip = null }) => {
   if (isMySqlRepositoryMode()) {
-    await adminLogRepository.createAdminLog({
-      adminId,
-      action,
-      targetType,
-      targetId,
-      detail,
-      ip
-    })
+    try {
+      await adminLogRepository.createAdminLog({
+        adminId,
+        action,
+        targetType,
+        targetId,
+        detail,
+        ip
+      })
+    } catch (error) {
+      if (isMySqlTableMissingError(error)) {
+        console.warn('[adminStore] admin_log table is missing; skipped admin log write')
+        return
+      }
+
+      throw error
+    }
     return
   }
 
@@ -615,6 +626,93 @@ const ensureBootstrapAdmin = async () => {
   }
 }
 
+const ensureBootstrapAdminExists = async () => {
+  const fallbackAdmin = getBootstrapAdmin()
+
+  if (isMySqlRepositoryMode()) {
+    const existing = await adminUsersRepository.findAdminByUsername(fallbackAdmin.username)
+
+    if (existing) {
+      return {
+        mode: 'existing',
+        admin: {
+          ...fallbackAdmin,
+          id: existing.id
+        }
+      }
+    }
+
+    const created = await adminUsersRepository.createAdmin({
+      id: fallbackAdmin.id === '00000000-0000-0000-0000-000000000001' ? crypto.randomUUID() : fallbackAdmin.id,
+      email: buildInternalAdminEmail(fallbackAdmin.username),
+      username: fallbackAdmin.username,
+      role: fallbackAdmin.role,
+      status: fallbackAdmin.status,
+      passwordHash: hashPassword(fallbackAdmin.password),
+      passwordUpdatedAt: new Date().toISOString().slice(0, 19).replace('T', ' ')
+    })
+
+    return {
+      mode: 'created',
+      admin: {
+        ...fallbackAdmin,
+        id: created.id
+      }
+    }
+  }
+
+  if (!(await hasAdminUsersTable())) {
+    return {
+      mode: 'fallback',
+      admin: fallbackAdmin
+    }
+  }
+
+  const existing = await findAdminByUsername(fallbackAdmin.username)
+
+  if (existing) {
+    return {
+      mode: 'existing',
+      admin: {
+        ...fallbackAdmin,
+        id: existing.id
+      }
+    }
+  }
+
+  const payload = {
+    id:
+      fallbackAdmin.id === '00000000-0000-0000-0000-000000000001'
+        ? crypto.randomUUID()
+        : fallbackAdmin.id,
+    email: buildInternalAdminEmail(fallbackAdmin.username),
+    username: fallbackAdmin.username,
+    role: fallbackAdmin.role,
+    status: fallbackAdmin.status,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+
+  if (await hasAdminPasswordColumn()) {
+    payload.password_hash = hashPassword(fallbackAdmin.password)
+    payload.password_updated_at = new Date().toISOString()
+  }
+
+  const { error } = await supabase.from('admin_users').insert(payload)
+
+  if (error) {
+    throw error
+  }
+
+  return {
+    mode: 'created',
+    admin: {
+      ...fallbackAdmin,
+      id: payload.id
+    }
+  }
+}
+
 module.exports = {
   getBootstrapAdmin,
   hasAdminUsersTable,
@@ -629,5 +727,6 @@ module.exports = {
   deleteAdmin,
   touchAdminLogin,
   writeAdminLog,
-  ensureBootstrapAdmin
+  ensureBootstrapAdmin,
+  ensureBootstrapAdminExists
 }
