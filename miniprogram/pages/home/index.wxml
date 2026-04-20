@@ -15,6 +15,11 @@
   </view>
 
   <view class="weui-panel weui-ext-card hero-card card-shadow">
+    <view class="hero-copy">
+      <view class="hero-kicker">邻动体适能</view>
+      <view class="hero-title">5次课包拼团</view>
+      <view class="hero-desc">支持多种成团人数，拼成后自动锁定连续 5 周上课时间。</view>
+    </view>
     <view class="hero-tabs">
       <view
         wx:for="{{tabs}}"
@@ -37,61 +42,60 @@
 
   <view wx:if="{{initialLoading}}" class="page-loading">
     <mp-loading show="{{initialLoading}}" type="dot-gray" />
-    <text class="page-loading-text">课程加载中...</text>
+    <text class="page-loading-text">课包加载中...</text>
   </view>
 
-  <view wx:if="{{!initialLoading && courseList.length}}" class="course-list">
+  <view wx:if="{{!initialLoading && packageList.length}}" class="course-list">
     <view
       class="weui-panel weui-ext-card course-card card-shadow"
-      wx:for="{{courseList}}"
+      wx:for="{{packageList}}"
       wx:key="id"
       data-id="{{item.id}}"
       bind:tap="handleCourseTap"
     >
       <view class="cover-wrap">
         <image class="course-cover" src="{{item.cover}}" mode="aspectFill"></image>
-        <mp-badge wx:if="{{item.soonGroup}}" extClass="weui-ext-tag group-tag" content="即将成团" />
+        <mp-badge wx:if="{{item.activeGroupCount > 0}}" extClass="weui-ext-tag group-tag" content="{{item.activeGroupText}}" />
       </view>
 
       <view class="course-content">
         <view class="course-title-row">
-          <view class="course-title">{{item.title}}</view>
-          <mp-badge wx:if="{{activeTab === 'all'}}" extClass="weui-ext-tag distance-text" content="{{item.distanceText}}" />
+          <view class="course-title">{{item.name}}</view>
+          <mp-badge
+            wx:if="{{item.distanceText || item.locationDistrict}}"
+            extClass="weui-ext-tag distance-text"
+            content="{{item.distanceText || item.locationDistrict}}"
+          />
         </view>
 
-        <view class="course-meta">{{item.timeText}}</view>
         <view class="course-meta">{{item.locationText}}</view>
-        <mp-badge wx:if="{{item.showActiveGroupCountdown}}" extClass="weui-ext-tag countdown-pill" content="{{item.activeGroup.expireTimeText}}" />
+        <view class="course-meta">{{item.activeGroupText}}</view>
 
         <view class="course-footer">
           <view class="price-group">
-            <view class="group-price">¥{{item.groupPriceText}}</view>
-            <view class="original-price">¥{{item.originalPriceText}}</view>
+            <view class="group-price">{{item.perMemberText}}</view>
           </view>
-          <view class="footer-status">
-            <view wx:if="{{item.showSuccessBadge}}" class="success-text">已拼团成功</view>
-            <view wx:if="{{item.showJoinedCount}}" class="joined-text">已拼 {{item.displayJoinedCount}} 人</view>
-          </view>
+          <view class="joined-text">立即查看</view>
         </view>
       </view>
     </view>
   </view>
 
-  <view wx:if="{{!initialLoading && !courseList.length}}" class="page-empty">
+  <view wx:if="{{!initialLoading && !packageList.length}}" class="page-empty">
     <view class="page-empty-illustration"></view>
     <mp-msg
       extClass="page-empty-msg"
-      title="暂无可展示课程"
-      desc="下拉刷新后再试，或稍后切换筛选条件查看。"
+      title="暂无可展示课包"
+      desc="下拉刷新后再试，或切换筛选条件查看。"
     />
   </view>
 
-  <view wx:if="{{!initialLoading && courseList.length}}" class="list-footer">
+  <view wx:if="{{!initialLoading && packageList.length}}" class="list-footer">
     <block wx:if="{{loading}}">
       <view class="footer-text">加载中...</view>
     </block>
     <block wx:elif="{{!hasMore}}">
-      <view class="footer-text">没有更多课程了</view>
+      <view class="footer-text">没有更多课包了</view>
     </block>
     <block wx:else>
       <view class="footer-text">上拉加载更多</view>

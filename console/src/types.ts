@@ -234,6 +234,13 @@ export interface DashboardMetric {
   direction: 'up' | 'down' | 'flat' | 'none'
 }
 
+export interface DashboardAnomalies {
+  failed_group_pending_refund_count: number
+  expired_active_group_count: number
+  member_mismatch_group_count: number
+  auto_refund_order_count: number
+}
+
 export interface DashboardOverview {
   range: {
     key: 'today' | '7d' | '30d'
@@ -252,11 +259,112 @@ export interface DashboardOverview {
     group_member_count: DashboardMetric
     successful_group_amount: DashboardMetric
   }
-  anomalies: {
-    failed_group_pending_refund_count: number
-    expired_active_group_count: number
-    member_mismatch_group_count: number
-    auto_refund_order_count: number
+  anomalies: DashboardAnomalies
+  package_metrics?: {
+    active_package_count: DashboardMetric
+    created_package_count: DashboardMetric
+    success_group_count: DashboardMetric
+    paid_member_count: DashboardMetric
+    paid_amount: DashboardMetric
+    refunded_order_count: DashboardMetric
   }
+  package_anomalies?: DashboardAnomalies
   note: string
+}
+
+export interface PackageListItem {
+  id: string
+  name: string
+  cover: string
+  total_price_fen: number
+  total_price_text: string
+  package_category: CourseCategory
+  supported_people: number[]
+  location_text: string
+  location_district: string
+  location_community: string
+  location_detail: string
+  coach_name: string
+  status: 'active' | 'inactive'
+  deadline_hours: number
+  create_time: string
+  update_time: string
+}
+
+export interface PackageDetail extends PackageListItem {
+  images: string[]
+  longitude: number | null
+  latitude: number | null
+  coach_intro: string
+  coach_certificates: string[]
+  description: string
+}
+
+export interface PackageListResponse {
+  total: number
+  page: number
+  size: number
+  total_pages: number
+  list: PackageListItem[]
+}
+
+export interface PackageGroupListItem {
+  id: string
+  package_id: string
+  package_name: string
+  creator_id: string
+  status: 'active' | 'success' | 'failed'
+  target_count: number
+  current_count: number
+  member_amount_fen: number
+  member_amount_text: string
+  deadline: string
+  remaining_seconds: number
+  weekday: number
+  hour: number
+  schedule_text: string
+  first_class_time: string | null
+  schedule_list: string[]
+  create_time: string
+  success_time: string
+}
+
+export interface PackageGroupListResponse {
+  total: number
+  page: number
+  size: number
+  total_pages: number
+  list: PackageGroupListItem[]
+}
+
+export interface PackageOrderListItem {
+  id: string
+  order_no: string
+  user_id: string
+  nickname: string
+  phone: string
+  avatar_url: string
+  package_id: string
+  package_name: string
+  package_group_id: string
+  package_group_status: '' | 'active' | 'success' | 'failed'
+  amount_fen: number
+  amount_text: string
+  status: string
+  order_type: number
+  action: '' | 'start' | 'join'
+  refund_reason: string
+  refund_type: '' | 'system' | 'manual'
+  create_time: string
+  update_time: string
+  pay_time: string
+  refund_time: string
+}
+
+export interface PackageOrderListResponse {
+  total: number
+  page: number
+  size: number
+  total_pages: number
+  list: PackageOrderListItem[]
 }

@@ -2,8 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 const username = process.env.CONSOLE_PROD_USERNAME
 const password = process.env.CONSOLE_PROD_PASSWORD
-const seededCourseKeyword = process.env.CONSOLE_PROD_COURSE_KEYWORD || '南山'
-const seededCourseCategory = process.env.CONSOLE_PROD_COURSE_CATEGORY || '体适能'
+const seededPackageKeyword = process.env.CONSOLE_PROD_PACKAGE_KEYWORD || '课包'
 
 test.beforeEach(() => {
   test.skip(!username || !password, 'Set CONSOLE_PROD_USERNAME and CONSOLE_PROD_PASSWORD before running console prod smoke.')
@@ -22,54 +21,61 @@ async function loginAsAdmin(page: Page) {
   await expect(page.getByRole('heading', { name: '概览' })).toBeVisible()
 }
 
-test('console prod smoke: login and dashboard render successfully', async ({ page }) => {
+test('console prod smoke: login and package dashboard render successfully', async ({ page }) => {
   await loginAsAdmin(page)
 
-  await expect(page.getByText('数据概括')).toBeVisible()
-  await expect(page.getByText('异常提示')).toBeVisible()
+  await expect(page.getByText('课包经营数据')).toBeVisible()
+  await expect(page.getByText('异常提醒')).toBeVisible()
+  await expect(page.getByRole('link', { name: '课包管理' })).toBeVisible()
 })
 
-test('console prod smoke: course list renders category column and category filter', async ({ page }) => {
+test('console prod smoke: package list renders package columns and status filter', async ({ page }) => {
   await loginAsAdmin(page)
 
-  await page.goto('/courses')
+  await page.goto('/packages')
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
-  await expect(page.getByRole('columnheader', { name: '课程类别' })).toBeVisible()
-  await expect(page.getByLabel('课程类别')).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: '课包名称' })).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: '支持人数' })).toBeVisible()
+  await expect(page.getByLabel('课包状态')).toBeVisible()
 
-  await page.getByPlaceholder('按课程名称搜索').fill(seededCourseKeyword)
-  await page.getByLabel('课程类别').selectOption(seededCourseCategory)
+  await page.getByPlaceholder('按课包名称搜索').fill(seededPackageKeyword)
+  await page.getByLabel('课包状态').selectOption('active')
   await page.getByRole('button', { name: '查询' }).click()
 
   await expect(page).toHaveURL(/keyword=/)
-  await expect(page).toHaveURL(/category=/)
+  await expect(page).toHaveURL(/status=active/)
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
   await expect(page.locator('tbody tr').first()).toBeVisible()
-  await expect(page.locator('tbody tr td').nth(1)).not.toHaveText('-')
 })
 
-test('console prod smoke: course detail renders category field', async ({ page }) => {
+test('console prod smoke: package detail renders package field set', async ({ page }) => {
   await loginAsAdmin(page)
 
-  await page.goto('/courses')
+  await page.goto('/packages')
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
 
   const firstRow = page.locator('tbody tr').first()
   await expect(firstRow).toBeVisible()
   await firstRow.getByRole('link', { name: '查看' }).click()
 
-  await expect(page.getByRole('heading', { name: '课程详情' })).toBeVisible()
-  await expect(page.getByLabel('课程类别')).toBeVisible()
-  await expect(page.getByLabel('课程类别')).not.toHaveValue('')
+  await expect(page.getByRole('heading', { name: '课包详情' })).toBeVisible()
+  await expect(page.getByLabel(/课包名称/)).toBeVisible()
+  await expect(page.getByLabel(/支持人数/)).toBeVisible()
+  await expect(page.getByLabel(/教练简介/)).toBeVisible()
 })
 
-test('console prod smoke: orders and logs pages are reachable after login', async ({ page }) => {
+test('console prod smoke: package groups orders and logs pages are reachable after login', async ({ page }) => {
   await loginAsAdmin(page)
 
-  await page.goto('/orders')
+  await page.goto('/package-groups')
+  await expect(page.getByRole('columnheader', { name: '拼团 ID' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '查询' })).toBeVisible()
+
+  await page.goto('/package-orders')
   await expect(page.getByRole('heading', { name: '订单详情' })).toBeVisible()
 
   await page.goto('/logs')
   await expect(page.getByRole('columnheader', { name: '管理员' })).toBeVisible()
   await expect(page.getByRole('button', { name: '查询' })).toBeVisible()
 })
+

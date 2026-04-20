@@ -13,14 +13,11 @@
     <mp-msg
       extClass="payment-result-msg"
       title="{{status === 'success' ? '支付成功' : '支付失败'}}"
-      desc="{{status === 'success' ? '订单已提交，可前往查看当前拼团详情。' : '本次支付未完成，你可以重新支付或返回首页。'}}"
+      desc="{{status === 'success' ? '订单已提交，可前往查看当前课包拼团详情。' : '本次支付未完成，你可以重新支付或返回首页。'}}"
     >
       <view wx:if="{{status === 'success'}}" slot="extend" class="weui-panel weui-ext-card subscribe-card">
-        <view class="subscribe-title">拼团结果通知</view>
-        <view class="subscribe-desc">{{subscribeHintText}}</view>
-        <view wx:if="{{subscribeStatusText}}" class="subscribe-status {{subscribeStatusClassName}}">
-          {{subscribeStatusText}}
-        </view>
+        <view class="subscribe-title">后续安排</view>
+        <view class="subscribe-desc">成团后会自动锁定首课日期，失败则原路退款。你也可以在“我的拼团”中随时查看进度。</view>
       </view>
       <view slot="handle">
         <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary result-button" bindtap="handlePrimaryAction">

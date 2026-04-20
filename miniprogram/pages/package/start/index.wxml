@@ -1,0 +1,77 @@
+<view class="start-page">
+  <mp-toptips id="ui-toptips" root-portal="{{true}}" />
+
+  <view wx:if="{{loading}}" class="page-loading">
+    <mp-loading show="{{loading}}" type="dot-gray" />
+    <text class="page-loading-text">开团信息加载中...</text>
+  </view>
+
+  <scroll-view wx:if="{{!loading && packageDetail}}" class="start-scroll" scroll-y>
+    <view class="page-shell">
+      <view class="weui-panel weui-ext-card page-section card-shadow">
+        <view class="section-title">{{packageDetail.name}}</view>
+        <view class="section-desc">总价 ¥{{packageDetail.totalPriceText}}</view>
+      </view>
+
+      <view class="weui-panel weui-ext-card page-section card-shadow">
+        <view class="section-title">选择目标人数</view>
+        <view class="target-grid">
+          <view
+            wx:for="{{packageDetail.supportedPeople}}"
+            wx:key="*this"
+            class="target-chip {{selectedTargetCount === item ? 'target-chip--active' : ''}}"
+            data-value="{{item}}"
+            bindtap="handleTargetSelect"
+          >
+            {{item}} 人团
+          </view>
+        </view>
+      </view>
+
+      <view class="weui-panel weui-ext-card page-section card-shadow">
+        <view class="section-title">选择每周上课时间</view>
+        <view class="picker-label">星期</view>
+        <picker mode="selector" range="{{weekdayOptions}}" range-key="label" value="{{selectedWeekdayIndex}}" bindchange="handleWeekdayChange">
+          <view class="picker-value">{{weekdayOptions[selectedWeekdayIndex].label}}</view>
+        </picker>
+
+        <view class="picker-label picker-label-second">整点</view>
+        <picker mode="selector" range="{{hourOptions}}" range-key="label" value="{{selectedHourIndex}}" bindchange="handleHourChange">
+          <view class="picker-value">{{hourOptions[selectedHourIndex].label}}</view>
+        </picker>
+
+        <view class="section-desc">系统会在成团后自动锁定首课日期，并连续生成 5 次课时。</view>
+      </view>
+
+      <view class="weui-panel weui-ext-card page-section card-shadow">
+        <view class="section-title">支付预估</view>
+        <view class="amount-text">每人 ¥{{memberAmountText}}</view>
+        <view class="section-desc">金额按总价平摊后向下取整到分，差额由平台承担。</view>
+      </view>
+
+      <view class="weui-panel weui-ext-card page-section card-shadow">
+        <mp-cells extClass="payment-agreement-cells">
+          <mp-checkbox-group bind:change="handleAgreementChange">
+            <mp-checkbox
+              extClass="payment-agreement-item"
+              value="agree"
+              checked="{{agreementChecked}}"
+              label="我已阅读并同意《课程服务协议》"
+            />
+          </mp-checkbox-group>
+        </mp-cells>
+        <view class="payment-agreement-links">
+          <text class="agreement-link" bindtap="handleOpenAgreement">查看协议全文</text>
+        </view>
+      </view>
+
+      <view class="bottom-placeholder"></view>
+    </view>
+  </scroll-view>
+
+  <view wx:if="{{!loading && packageDetail}}" class="payment-bar">
+    <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary payment-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="handleSubmit">
+      <view class="weui-ext-button__inner">确认开团并支付</view>
+    </button>
+  </view>
+</view>

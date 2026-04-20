@@ -58,10 +58,11 @@ Page({
     const { key } = event.currentTarget.dataset
     if (key === 'group-buy') {
       if (!this.data.userInfo) {
-        const loggedIn = await this.handleLogin()
-        if (!loggedIn) {
-          return
-        }
+        wx.showToast({
+          title: '请先登录',
+          icon: 'none'
+        })
+        return
       }
 
       wx.navigateTo({

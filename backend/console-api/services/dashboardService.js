@@ -2,7 +2,14 @@ const supabase = require('../../utils/supabase')
 const { env } = require('../../config/env')
 const { COURSE_STATUS, getCourseLifecycleMap } = require('../../utils/courseLifecycle')
 const { AUTO_REFUND_REASON } = require('../../shared/constants/refunds')
-const { coursesRepository, groupMembersRepository, groupsRepository, ordersRepository } = require('../../repositories')
+const {
+  coursePackagesRepository,
+  coursesRepository,
+  groupMembersRepository,
+  groupsRepository,
+  ordersRepository,
+  packageGroupsRepository
+} = require('../../repositories')
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -105,15 +112,109 @@ const buildMetric = (current, previous, allowCompare = true) => {
   }
 }
 
+const getPackageDashboardSnapshot = ({ packages = [], packageGroups = [], packageOrders = [], range }) => {
+  const activePackageCount = (packages || []).filter(item => Number(item.status) === 1).length
+  const previousActivePackageCount = activePackageCount
+
+  const createdPackageCount = (packages || []).filter(item => isWithinRange(item.created_at, range.current)).length
+  const previousCreatedPackageCount = (packages || []).filter(item => isWithinRange(item.created_at, range.previous)).length
+
+  const successGroups = (packageGroups || []).filter(item => item.status === 'success')
+  const successGroupCount = successGroups.filter(item => isWithinRange(item.success_time, range.current)).length
+  const previousSuccessGroupCount = successGroups.filter(item => isWithinRange(item.success_time, range.previous)).length
+
+  const paidOrders = (packageOrders || []).filter(item => item.status === 'success')
+  const paidMemberCount = paidOrders.filter(item => isWithinRange(item.pay_time, range.current)).length
+  const previousPaidMemberCount = paidOrders.filter(item => isWithinRange(item.pay_time, range.previous)).length
+
+  const paidAmount = paidOrders
+    .filter(item => isWithinRange(item.pay_time, range.current))
+    .reduce((result, item) => result + Number(item.amount || 0), 0)
+  const previousPaidAmount = paidOrders
+    .filter(item => isWithinRange(item.pay_time, range.previous))
+    .reduce((result, item) => result + Number(item.amount || 0), 0)
+
+  const refundedOrderCount = (packageOrders || []).filter(
+    item => item.status === 'refunded' && isWithinRange(item.refund_time, range.current)
+  ).length
+  const previousRefundedOrderCount = (packageOrders || []).filter(
+    item => item.status === 'refunded' && isWithinRange(item.refund_time, range.previous)
+  ).length
+
+  const groupPaidOrderMap = (packageOrders || []).reduce((result, item) => {
+    if (!item.package_group_id) {
+      return result
+    }
+
+    if (!result[item.package_group_id]) {
+      result[item.package_group_id] = []
+    }
+
+    if (item.status === 'success') {
+      result[item.package_group_id].push(item)
+    }
+    return result
+  }, {})
+
+  const failedGroupPendingRefundCount = (packageGroups || []).filter(item => {
+    if (item.status !== 'failed') {
+      return false
+    }
+
+    return (packageOrders || []).some(order => order.package_group_id === item.id && order.status === 'success')
+  }).length
+
+  const expiredActiveGroupCount = (packageGroups || []).filter(item => {
+    return item.status === 'active' && toTimestamp(item.deadline) !== null && toTimestamp(item.deadline) < Date.now()
+  }).length
+
+  const memberMismatchGroupCount = (packageGroups || []).filter(item => {
+    return Number(item.current_count || 0) !== Number((groupPaidOrderMap[item.id] || []).length)
+  }).length
+
+  const autoRefundOrderCount = (packageOrders || []).filter(
+    item => item.status === 'refunded' && item.refund_reason === AUTO_REFUND_REASON && isWithinRange(item.refund_time, range.current)
+  ).length
+
+  return {
+    metrics: {
+      active_package_count: buildMetric(activePackageCount, previousActivePackageCount, false),
+      created_package_count: buildMetric(createdPackageCount, previousCreatedPackageCount),
+      success_group_count: buildMetric(successGroupCount, previousSuccessGroupCount),
+      paid_member_count: buildMetric(paidMemberCount, previousPaidMemberCount),
+      paid_amount: buildMetric(paidAmount, previousPaidAmount),
+      refunded_order_count: buildMetric(refundedOrderCount, previousRefundedOrderCount)
+    },
+    anomalies: {
+      failed_group_pending_refund_count: failedGroupPendingRefundCount,
+      expired_active_group_count: expiredActiveGroupCount,
+      member_mismatch_group_count: memberMismatchGroupCount,
+      auto_refund_order_count: Number(autoRefundOrderCount || 0)
+    },
+    note: '课包概览按课包订单与课包团实时聚合；支付金额以实际支付金额为准，异常提醒为当前系统快照。'
+  }
+}
+
 const getDashboardOverview = async ({ query = {}, admin = {} }) => {
   const range = getRangeByKey(`${query.range || 'today'}`.trim() || 'today')
 
   if (env.useMySqlRepositories) {
-    const [courses, groups, members, orders] = await Promise.all([
+    const [courses, groups, members, orders, packages, packageGroups, packageOrders] = await Promise.all([
       coursesRepository.listCourses(),
       groupsRepository.listGroups(),
       groupMembersRepository.listGroupMembers(),
-      ordersRepository.listOrders()
+      ordersRepository.listOrders({
+        orderType: 1
+      }),
+      coursePackagesRepository && coursePackagesRepository.listPackages
+        ? coursePackagesRepository.listPackages()
+        : Promise.resolve([]),
+      packageGroupsRepository && packageGroupsRepository.listPackageGroups
+        ? packageGroupsRepository.listPackageGroups()
+        : Promise.resolve([]),
+      ordersRepository.listOrders({
+        orderType: 2
+      })
     ])
 
     const courseIds = (courses || []).map(item => item.id).filter(Boolean)
@@ -195,6 +296,13 @@ const getDashboardOverview = async ({ query = {}, admin = {} }) => {
       return Number(item.current_count || 0) !== Number(memberCountByGroup[item.id] || 0)
     }).length
 
+    const packageSnapshot = getPackageDashboardSnapshot({
+      packages,
+      packageGroups,
+      packageOrders,
+      range
+    })
+
     return {
       range: {
         key: range.key,
@@ -219,7 +327,9 @@ const getDashboardOverview = async ({ query = {}, admin = {} }) => {
         member_mismatch_group_count: memberMismatchGroupCount,
         auto_refund_order_count: Number(autoRefundOrderCount || 0)
       },
-      note: '成团数与成团金额按成功团内最后一笔支付成功时间近似统计；异常提醒为当前系统快照。'
+      package_metrics: packageSnapshot.metrics,
+      package_anomalies: packageSnapshot.anomalies,
+      note: packageSnapshot.note
     }
   }
 
@@ -259,8 +369,9 @@ const getDashboardOverview = async ({ query = {}, admin = {} }) => {
   const { data: successOrders, error: successOrderError } = successGroupIds.length
     ? await supabase
         .from('orders')
-        .select('id, group_id, amount, pay_time, created_at, status')
+        .select('id, group_id, amount, pay_time, created_at, status, order_type')
         .in('group_id', successGroupIds)
+        .eq('order_type', 1)
         .eq('status', 'success')
     : { data: [], error: null }
 
@@ -323,6 +434,7 @@ const getDashboardOverview = async ({ query = {}, admin = {} }) => {
   const { count: autoRefundOrderCount, error: autoRefundOrderError } = await supabase
     .from('orders')
     .select('id', { count: 'exact', head: true })
+    .eq('order_type', 1)
     .eq('status', 'refunded')
     .eq('refund_reason', AUTO_REFUND_REASON)
     .gte('refund_time', range.current.start)
@@ -336,7 +448,7 @@ const getDashboardOverview = async ({ query = {}, admin = {} }) => {
     await Promise.all([
       supabase.from('groups').select('id, status, current_count, target_count, expire_time'),
       supabase.from('group_members').select('group_id'),
-      supabase.from('orders').select('group_id, status')
+      supabase.from('orders').select('group_id, status, order_type').eq('order_type', 1)
     ])
 
   if (groupsError) {

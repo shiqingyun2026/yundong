@@ -2,8 +2,11 @@ const express = require('../lib/mini-express')
 
 const { env } = require('../config/env')
 const authenticate = require('../middleware/auth')
+const { ordersRepository } = require('../repositories')
 const { getSupabaseClient } = require('../utils/getSupabaseClient')
 const { isServiceError, markOrderPaymentSuccess } = require('../shared/services/groupOrders')
+const { markPackageOrderPaymentSuccess } = require('../shared/services/packageOrders')
+const { isPackageServiceError } = require('../shared/services/packageServiceError')
 const { normalizeGroupStatus } = require('../shared/domain/groupRules')
 const { prepareOrderPayment, handleWechatPaymentCallback, markPaymentRecordPaid } = require('../shared/services/paymentShell')
 const { verifyWechatPayCallbackSignature } = require('../shared/services/wechatMiniProgram')
@@ -72,17 +75,41 @@ router.post('/mock-success', authenticate, async (req, res) => {
       }
     })
 
-    const result = await markOrderPaymentSuccess({
-      supabase: resolveSupabase(),
-      userId: req.userId,
-      orderId,
-      groupId
-    })
+    const existingOrder =
+      env.useMySqlRepositories && ordersRepository && typeof ordersRepository.findOrderForUser === 'function'
+        ? await ordersRepository.findOrderForUser({ userId: req.userId, orderId })
+        : null
+    const isPackageOrder = existingOrder && Number(existingOrder.order_type) === 2
+    const result = isPackageOrder
+      ? await markPackageOrderPaymentSuccess({
+          supabase: resolveSupabase(),
+          userId: req.userId,
+          orderId
+        })
+      : await markOrderPaymentSuccess({
+          supabase: resolveSupabase(),
+          userId: req.userId,
+          orderId,
+          groupId
+        })
 
     await markPaymentRecordPaid({
       supabase: resolveSupabase(),
       orderId
     })
+
+    if (isPackageOrder) {
+      return res.json({
+        code: 0,
+        message: 'ok',
+        data: {
+          orderId: result.order.id,
+          status: result.status,
+          packageGroupId: result.packageGroupId,
+          groupStatus: result.groupStatus
+        }
+      })
+    }
 
     return res.json({
       orderId: result.order.id,
@@ -99,7 +126,8 @@ router.post('/mock-success', authenticate, async (req, res) => {
       userId: req.userId,
       error
     })
-    return res.status(isServiceError(error) ? error.status : 500).json({
+    const status = isPackageServiceError(error) ? error.status : isServiceError(error) ? error.status : 500
+    return res.status(status).json({
       message: error.message || 'failed to mark payment success'
     })
   }

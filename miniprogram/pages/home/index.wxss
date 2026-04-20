@@ -20,7 +20,31 @@
   margin-bottom: 24rpx;
   padding: 24rpx;
   border-radius: 32rpx;
-  background: linear-gradient(180deg, #ffffff 0%, var(--brand-primary-soft) 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #fff8ef 48%, var(--brand-primary-soft) 100%);
+}
+
+.hero-copy {
+  margin-bottom: 20rpx;
+}
+
+.hero-kicker {
+  font-size: 22rpx;
+  letter-spacing: 2rpx;
+  color: #8f96a3;
+}
+
+.hero-title {
+  margin-top: 12rpx;
+  font-size: 42rpx;
+  font-weight: 700;
+  color: #1f2329;
+}
+
+.hero-desc {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  line-height: 1.7;
+  color: #5f6b7a;
 }
 
 .location-pill {
@@ -143,6 +167,7 @@
   position: absolute;
   top: 20rpx;
   left: 20rpx;
+  max-width: calc(100% - 40rpx);
   padding: 10rpx 18rpx;
   border-radius: 999rpx;
   background: rgba(255, 122, 0, 0.92);
@@ -186,30 +211,6 @@
   color: #8f96a3;
 }
 
-.countdown-pill {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  margin-top: 16rpx;
-  padding: 10rpx 16rpx 10rpx 38rpx;
-  border-radius: 999rpx;
-  background: linear-gradient(180deg, #fff7ed 0%, #fff1df 100%);
-  color: #c96a10;
-  font-size: 22rpx;
-  font-weight: 600;
-}
-
-.countdown-pill::before {
-  content: '';
-  position: absolute;
-  left: 16rpx;
-  width: 12rpx;
-  height: 12rpx;
-  border-radius: 50%;
-  background: #ff7a00;
-  box-shadow: 0 0 0 6rpx rgba(255, 122, 0, 0.12);
-}
-
 .course-footer {
   display: flex;
   align-items: flex-end;
@@ -221,39 +222,19 @@
 .price-group {
   display: flex;
   align-items: flex-end;
-  gap: 12rpx;
+  gap: 0;
 }
 
 .group-price {
   color: #ff7a00;
-  font-size: 36rpx;
+  font-size: 30rpx;
   font-weight: 700;
-  line-height: 1;
-}
-
-.original-price {
-  padding-bottom: 4rpx;
-  color: #b6bdc8;
-  font-size: 24rpx;
-  text-decoration: line-through;
+  line-height: 1.4;
 }
 
 .joined-text {
   color: var(--brand-primary);
   font-size: 24rpx;
-  font-weight: 600;
-}
-
-.footer-status {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8rpx;
-}
-
-.success-text {
-  color: #18a058;
-  font-size: 22rpx;
   font-weight: 600;
 }
 

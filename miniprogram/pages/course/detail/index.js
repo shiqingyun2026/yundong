@@ -1,11 +1,6 @@
-const { fetchCourseDetail, fetchActiveGroup, createOrder } = require('../../../utils/course')
+const { fetchPackageDetail } = require('../../../utils/package')
 const { loginAndStoreSession } = require('../../../utils/auth')
-const {
-  buildActiveGroupViewModel,
-  buildGroupPresentationState,
-  buildSharePayload,
-  normalizeCourseDetail
-} = require('./detailHelpers')
+
 const SERVICE_DIALOG_BUTTONS = [
   {
     text: '关闭'
@@ -14,142 +9,34 @@ const SERVICE_DIALOG_BUTTONS = [
 
 Page({
   data: {
-    courseId: '',
-    sharedGroupId: '',
-    courseDetail: null,
-    activeGroup: null,
-    hasActiveGroup: false,
-    groupTargetCount: 0,
-    groupCurrentCount: 0,
-    displayJoinedCount: 0,
-    showJoinedCount: false,
-    courseGroupList: [],
+    packageId: '',
+    packageDetail: null,
     loading: true,
     showServiceModal: false,
     loginLoading: false,
-    serviceDialogButtons: SERVICE_DIALOG_BUTTONS,
-    creatingOrder: false,
-    actionButtonMode: 'create',
-    actionButtonText: '立即开团',
-    actionButtonDisabled: false,
-    emptyGroupText: '暂无进行中的拼团，立即开团吧'
+    serviceDialogButtons: SERVICE_DIALOG_BUTTONS
   },
 
   async onLoad(options) {
-    this._expireTimer = null
-    this._expireStartTimer = null
-    this._hasLoadedOnce = false
-    const courseId = options.id || ''
+    const packageId = options.id || ''
     this.setData({
-      courseId,
-      sharedGroupId: options.groupId || ''
+      packageId
     })
-
-    await this.loadPageData(courseId)
+    await this.loadPageData(packageId)
   },
 
   async onShow() {
-    if (!this._hasLoadedOnce || !this.data.courseId) {
+    if (!this.data.packageId) {
       return
     }
 
-    await this.loadPageData(this.data.courseId)
+    await this.loadPageData(this.data.packageId)
   },
 
-  onUnload() {
-    this.clearExpireTimer()
-  },
-
-  async handleLogin() {
-    if (this.data.loginLoading) {
-      return false
-    }
-
-    this.setData({
-      loginLoading: true
-    })
-
-    try {
-      await loginAndStoreSession()
-
+  async loadPageData(packageId) {
+    if (!packageId) {
       wx.showToast({
-        title: '登录成功',
-        icon: 'success'
-      })
-
-      if (this.data.courseId) {
-        await this.loadPageData(this.data.courseId)
-      }
-      return true
-    } catch (error) {
-      const message = error && error.message ? error.message : '登录未完成，请稍后再试'
-
-      wx.showToast({
-        title: message,
-        icon: 'none'
-      })
-      return false
-    } finally {
-      this.setData({
-        loginLoading: false
-      })
-    }
-  },
-
-  clearExpireTimer() {
-    if (this._expireStartTimer) {
-      clearTimeout(this._expireStartTimer)
-      this._expireStartTimer = null
-    }
-
-    if (this._expireTimer) {
-      clearInterval(this._expireTimer)
-      this._expireTimer = null
-    }
-  },
-
-  updateGroupPresentation(courseDetail, activeGroup) {
-    this.setData(buildGroupPresentationState({ courseDetail, activeGroup }))
-  },
-
-  scheduleExpireTimer() {
-    this.clearExpireTimer()
-
-    if (this.data.loading || !this.data.activeGroup || !this.data.activeGroup.expireTime) {
-      return
-    }
-
-    this._expireStartTimer = setTimeout(() => {
-      this._expireStartTimer = null
-      this.startExpireTimer()
-    }, 300)
-  },
-
-  startExpireTimer() {
-    if (!this.data.activeGroup || !this.data.activeGroup.expireTime) {
-      return
-    }
-
-    this._expireTimer = setInterval(() => {
-      const { activeGroup } = this.data
-      if (!activeGroup) {
-        this.clearExpireTimer()
-        return
-      }
-
-      const nextActiveGroup = buildActiveGroupViewModel(activeGroup)
-      this.updateGroupPresentation(this.data.courseDetail, nextActiveGroup)
-
-      if (nextActiveGroup.expireTimeText === '已结束') {
-        this.clearExpireTimer()
-      }
-    }, 1000)
-  },
-
-  async loadPageData(courseId) {
-    if (!courseId) {
-      wx.showToast({
-        title: '课程信息不存在',
+        title: '课包信息不存在',
         icon: 'none'
       })
       return
@@ -160,49 +47,64 @@ Page({
     })
 
     try {
-      const [courseDetail, activeGroup] = await Promise.all([
-        fetchCourseDetail(courseId),
-        fetchActiveGroup(courseId)
-      ])
-
-      const normalizedCourseDetail = normalizeCourseDetail(courseDetail)
+      const packageDetail = await fetchPackageDetail(packageId)
 
       this.setData({
-        courseDetail: normalizedCourseDetail
+        packageDetail
       })
-
-      this.updateGroupPresentation(normalizedCourseDetail, buildActiveGroupViewModel(activeGroup))
     } catch (error) {
       wx.showToast({
-        title: '课程详情加载失败',
+        title: '课包详情加载失败',
         icon: 'none'
       })
     } finally {
-      this._hasLoadedOnce = true
-
-      if (!this.data.activeGroup) {
-        this.clearExpireTimer()
-      }
-
       this.setData({
         loading: false
       })
+    }
+  },
 
-      this.scheduleExpireTimer()
+  async ensureLogin() {
+    const token = wx.getStorageSync('token')
+    if (token) {
+      return true
+    }
+
+    if (this.data.loginLoading) {
+      return false
+    }
+
+    this.setData({
+      loginLoading: true
+    })
+
+    try {
+      await loginAndStoreSession()
+      return true
+    } catch (error) {
+      wx.showToast({
+        title: (error && error.message) || '登录失败，请稍后再试',
+        icon: 'none'
+      })
+      return false
+    } finally {
+      this.setData({
+        loginLoading: false
+      })
     }
   },
 
   handlePreviewCertificate(event) {
     const { url } = event.currentTarget.dataset
-    const { courseDetail } = this.data
+    const { packageDetail } = this.data
 
-    if (!url || !courseDetail || !courseDetail.coach) {
+    if (!url || !packageDetail || !packageDetail.coachCertificates.length) {
       return
     }
 
     wx.previewImage({
       current: url,
-      urls: courseDetail.coach.certificates
+      urls: packageDetail.coachCertificates
     })
   },
 
@@ -222,106 +124,38 @@ Page({
     this.handleCloseService()
   },
 
-  onShareAppMessage() {
-    return buildSharePayload(this.data)
+  async handleStartGroup() {
+    if (!(await this.ensureLogin())) {
+      return
+    }
+
+    wx.navigateTo({
+      url: `/pages/package/start/index?packageId=${this.data.packageId}`
+    })
   },
 
-  async handleGoPayment() {
-    const { courseId, courseDetail, activeGroup, creatingOrder, sharedGroupId, actionButtonMode } = this.data
-
-    if (creatingOrder) {
+  async handleJoinGroup(event) {
+    const { groupId } = event.currentTarget.dataset
+    if (!groupId) {
       return
     }
 
-    if (!courseId) {
-      wx.showToast({
-        title: '课程信息不存在',
-        icon: 'none'
-      })
+    if (!(await this.ensureLogin())) {
       return
     }
 
-    let token = wx.getStorageSync('token')
-
-    if (!token) {
-      const loggedIn = await this.handleLogin()
-      if (!loggedIn) {
-        return
-      }
-      token = wx.getStorageSync('token')
-    }
-
-    if (actionButtonMode === 'completed') {
-      wx.showToast({
-        title: '当前拼团已成团',
-        icon: 'none'
-      })
-      return
-    }
-
-    if (actionButtonMode === 'joined') {
-      wx.showToast({
-        title: '你已参团，请等待成团',
-        icon: 'none'
-      })
-      return
-    }
-
-    if (actionButtonMode === 'full') {
-      wx.showToast({
-        title: '课程已满员，暂不可开团',
-        icon: 'none'
-      })
-      return
-    }
-
-    const joinableGroup = activeGroup && !activeGroup.isExpired ? activeGroup : null
-    const groupId =
-      joinableGroup && sharedGroupId && sharedGroupId === joinableGroup.groupId
-        ? sharedGroupId
-        : joinableGroup
-          ? joinableGroup.groupId
-          : ''
-
-    this.setData({
-      creatingOrder: true
+    wx.navigateTo({
+      url: `/pages/payment/confirm/index?action=join&packageId=${this.data.packageId}&packageGroupId=${groupId}`
     })
+  },
 
-    try {
-      const order = await createOrder({
-        courseId,
-        groupId,
-        totalFee: courseDetail ? parseInt(courseDetail.groupPriceFen, 10) : 0
-      })
+  onShareAppMessage() {
+    const { packageDetail, packageId } = this.data
 
-      const nextGroupId = order && order.groupId ? order.groupId : groupId
-      const orderId = order && order.orderId ? order.orderId : ''
-
-      getApp().globalData.pendingOrder = order || null
-
-      wx.navigateTo({
-        url: `/pages/payment/confirm/index?courseId=${courseId}&groupId=${nextGroupId}&orderId=${orderId}`
-      })
-    } catch (error) {
-      if (error && error.statusCode === 401) {
-        wx.removeStorageSync('token')
-        const app = getApp()
-        if (app && typeof app.setToken === 'function') {
-          app.setToken('')
-        }
-
-        await this.handleLogin()
-        return
-      }
-
-      wx.showToast({
-        title: (error && error.message) || '下单失败，请稍后再试',
-        icon: 'none'
-      })
-    } finally {
-      this.setData({
-        creatingOrder: false
-      })
+    return {
+      title: packageDetail ? `邀请你一起拼「${packageDetail.name}」` : '邻动体适能课包拼团',
+      path: `/pages/course/detail/index?id=${packageId}`,
+      imageUrl: packageDetail && packageDetail.cover ? packageDetail.cover : ''
     }
   }
 })

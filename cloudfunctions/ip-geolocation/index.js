@@ -1,5 +1,6 @@
 'use strict';
 
+const https = require('https');
 const cloudbase = require('@cloudbase/node-sdk');
 
 const app = cloudbase.init({
@@ -59,18 +60,39 @@ function buildCoordinateCacheKey(coordinates) {
   return `geo:${coordinates.latitude.toFixed(GEO_PRECISION)},${coordinates.longitude.toFixed(GEO_PRECISION)}`;
 }
 
+function requestJson(url) {
+  return new Promise((resolve, reject) => {
+    https
+      .get(url, response => {
+        let raw = '';
+
+        response.setEncoding('utf8');
+        response.on('data', chunk => {
+          raw += chunk;
+        });
+        response.on('end', () => {
+          if (response.statusCode < 200 || response.statusCode >= 300) {
+            reject(new Error(`HTTP请求失败，状态码: ${response.statusCode}`));
+            return;
+          }
+
+          try {
+            resolve(JSON.parse(raw || '{}'));
+          } catch (error) {
+            reject(new Error(`解析腾讯地图响应失败: ${error.message}`));
+          }
+        });
+      })
+      .on('error', reject);
+  });
+}
+
 async function searchPlaceFromTencentMap({ keyword, city, key }) {
   const url =
     `https://apis.map.qq.com/ws/place/v1/search?keyword=${encodeURIComponent(keyword)}` +
     `&boundary=region(${encodeURIComponent(city)},0)&orderby=_distance&key=${key}`;
 
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`HTTP请求失败，状态码: ${response.status}`);
-  }
-
-  const data = await response.json();
+  const data = await requestJson(url);
 
   if (data.status !== 0) {
     throw new Error(data.message || '腾讯地图API返回错误');
@@ -91,14 +113,8 @@ async function searchPlaceFromTencentMap({ keyword, city, key }) {
 // 腾讯地图IP定位API
 async function getLocationFromTencentMap(ip, key) {
   const url = `https://apis.map.qq.com/ws/location/v1/ip?ip=${encodeURIComponent(ip)}&key=${key}`;
-  
-  const response = await fetch(url);
-  
-  if (!response.ok) {
-    throw new Error(`HTTP请求失败，状态码: ${response.status}`);
-  }
-  
-  const data = await response.json();
+
+  const data = await requestJson(url);
   
   if (data.status !== 0) {
     throw new Error(data.message || '腾讯地图API返回错误');
@@ -122,13 +138,7 @@ async function reverseGeocodeFromTencentMap(coordinates, key) {
     `https://apis.map.qq.com/ws/geocoder/v1/?location=${encodeURIComponent(`${latitude},${longitude}`)}` +
     `&get_poi=0&key=${key}`;
 
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`HTTP请求失败，状态码: ${response.status}`);
-  }
-
-  const data = await response.json();
+  const data = await requestJson(url);
 
   if (data.status !== 0) {
     throw new Error(data.message || '腾讯地图API返回错误');
@@ -229,9 +239,9 @@ exports.main = async (event, context) => {
 
     // 1. 尝试从缓存获取
     const cacheResult = await db.collection(CACHE_COLLECTION_NAME).doc(cacheKey).get();
+    const cachedRecord = cacheResult && cacheResult.data ? cacheResult.data : null;
 
-    if (cacheResult.data && cacheResult.data.length > 0) {
-      const cachedRecord = cacheResult.data[0];
+    if (cachedRecord) {
       const isExpired = Date.now() - new Date(cachedRecord.updatedAt).getTime() > CACHE_TTL_MS;
 
       if (!isExpired) {

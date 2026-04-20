@@ -128,6 +128,8 @@ const upsertPaymentRecord = async ({ supabase, order, paymentMode, payload, now 
     user_id: order.user_id,
     course_id: order.course_id,
     group_id: order.group_id,
+    package_id: order.package_id,
+    package_group_id: order.package_group_id,
     provider: 'wechat',
     channel: 'mini_program',
     payment_mode: paymentMode,
@@ -255,7 +257,9 @@ const prepareWechatPayment = async ({ supabase, order, now = new Date() }) => {
     payload: {
       orderId: order.id,
       courseId: order.course_id,
-      groupId: order.group_id
+      groupId: order.group_id,
+      packageId: order.package_id,
+      packageGroupId: order.package_group_id
     },
     now
   })
@@ -327,7 +331,9 @@ const prepareOrderPayment = async ({ supabase, userId, orderId, now = new Date()
       payload: {
         orderId: order.id,
         courseId: order.course_id,
-        groupId: order.group_id
+        groupId: order.group_id,
+        packageId: order.package_id,
+        packageGroupId: order.package_group_id
       },
       now
     })
@@ -339,6 +345,8 @@ const prepareOrderPayment = async ({ supabase, userId, orderId, now = new Date()
     orderId: order.id,
     courseId: order.course_id,
     groupId: order.group_id,
+    packageId: order.package_id,
+    packageGroupId: order.package_group_id,
     amount: Number(order.amount) || 0,
     orderStatus: order.status,
     paymentMode,
@@ -557,8 +565,26 @@ const markPaymentRecordPaid = async ({ supabase, orderId, transactionId = '', no
   }
 
   const timestamp = now.toISOString()
+  const order = await getOrderById({
+    supabase,
+    orderId
+  })
+  const relationPayload = order
+    ? {
+        course_id: order.course_id || null,
+        group_id: order.group_id || null,
+        ...(env.useMySqlRepositories
+          ? {
+              package_id: order.package_id || null,
+              package_group_id: order.package_group_id || null
+            }
+          : {})
+      }
+    : {}
+
   if (env.useMySqlRepositories) {
     return paymentRecordsRepository.updatePaymentRecord(paymentRecord.id, {
+      ...relationPayload,
       status: 'paid',
       callback_status: paymentRecord.callback_status || 'MOCK_SUCCESS',
       transaction_id: transactionId || paymentRecord.transaction_id || '',
@@ -570,12 +596,76 @@ const markPaymentRecordPaid = async ({ supabase, orderId, transactionId = '', no
   const { data, error } = await supabase
     .from('payment_records')
     .update({
+      ...relationPayload,
       status: 'paid',
       callback_status: paymentRecord.callback_status || 'MOCK_SUCCESS',
       transaction_id: transactionId || paymentRecord.transaction_id || '',
       paid_at: paymentRecord.paid_at || timestamp,
       updated_at: timestamp
     })
+    .eq('id', paymentRecord.id)
+    .select('*')
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+const markPaymentRecordRefunded = async ({ supabase, orderId, reason = '', now = new Date() }) => {
+  const paymentRecord = await getPaymentRecordByOrderId({
+    supabase,
+    orderId
+  })
+
+  if (!paymentRecord) {
+    return null
+  }
+
+  const timestamp = now.toISOString()
+  const order = await getOrderById({
+    supabase,
+    orderId
+  })
+  const existingCallbackPayload =
+    paymentRecord.callback_payload && typeof paymentRecord.callback_payload === 'object'
+      ? paymentRecord.callback_payload
+      : {}
+  const nextPayload = {
+    ...(order
+      ? {
+          course_id: order.course_id || null,
+          group_id: order.group_id || null,
+          ...(env.useMySqlRepositories
+            ? {
+                package_id: order.package_id || null,
+                package_group_id: order.package_group_id || null
+              }
+            : {})
+        }
+      : {}),
+    status: 'refunded',
+    callback_status: 'REFUNDED',
+    callback_payload: {
+      ...existingCallbackPayload,
+      refund: {
+        reason: `${reason || ''}`.trim(),
+        refunded_at: timestamp
+      }
+    },
+    closed_at: paymentRecord.closed_at || timestamp,
+    updated_at: timestamp
+  }
+
+  if (env.useMySqlRepositories) {
+    return paymentRecordsRepository.updatePaymentRecord(paymentRecord.id, nextPayload)
+  }
+
+  const { data, error } = await supabase
+    .from('payment_records')
+    .update(nextPayload)
     .eq('id', paymentRecord.id)
     .select('*')
     .single()
@@ -594,5 +684,6 @@ module.exports = {
   prepareOrderPayment,
   getOrderPaymentStatus,
   handleWechatPaymentCallback,
-  markPaymentRecordPaid
+  markPaymentRecordPaid,
+  markPaymentRecordRefunded
 }

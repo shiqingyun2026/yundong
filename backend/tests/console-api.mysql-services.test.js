@@ -263,6 +263,96 @@ const loadMysqlConsoleServices = () => {
         refund_reason: '报名截止前未成团，系统自动退款',
         refund_operator_id: 'admin-1',
         transaction_id: ''
+      },
+      {
+        id: 'pkg-order-1',
+        order_no: 'PKG-ORD-1',
+        user_id: 'user-1',
+        order_type: 2,
+        package_id: 'pkg-1',
+        package_group_id: 'package-group-1',
+        package_action: 'start',
+        amount: 500,
+        status: 'success',
+        created_at: '2026-04-15T02:00:00.000Z',
+        updated_at: '2026-04-15T02:00:00.000Z',
+        pay_time: '2026-04-15T02:05:00.000Z',
+        refund_time: null,
+        refund_reason: '',
+        refund_operator_id: null,
+        transaction_id: ''
+      },
+      {
+        id: 'pkg-order-2',
+        order_no: 'PKG-ORD-2',
+        user_id: 'user-2',
+        order_type: 2,
+        package_id: 'pkg-1',
+        package_group_id: 'package-group-2',
+        package_action: 'join',
+        amount: 250,
+        status: 'success',
+        created_at: '2026-04-10T02:00:00.000Z',
+        updated_at: '2026-04-10T02:00:00.000Z',
+        pay_time: '2026-04-10T02:05:00.000Z',
+        refund_time: null,
+        refund_reason: '',
+        refund_operator_id: null,
+        transaction_id: ''
+      },
+      {
+        id: 'pkg-order-3',
+        order_no: 'PKG-ORD-3',
+        user_id: 'user-3',
+        order_type: 2,
+        package_id: 'pkg-1',
+        package_group_id: 'package-group-2',
+        package_action: 'join',
+        amount: 250,
+        status: 'refunded',
+        created_at: '2026-04-10T02:08:00.000Z',
+        updated_at: '2026-04-15T03:00:00.000Z',
+        pay_time: '2026-04-10T02:10:00.000Z',
+        refund_time: '2026-04-15T03:12:00.000Z',
+        refund_reason: '报名截止前未成团，系统自动退款',
+        refund_operator_id: 'admin-1',
+        transaction_id: ''
+      },
+      {
+        id: 'pkg-order-4',
+        order_no: 'PKG-ORD-4',
+        user_id: 'user-1',
+        order_type: 2,
+        package_id: 'pkg-2',
+        package_group_id: 'package-group-3',
+        package_action: 'start',
+        amount: 600,
+        status: 'success',
+        created_at: '2026-04-14T02:00:00.000Z',
+        updated_at: '2026-04-14T02:00:00.000Z',
+        pay_time: '2026-04-14T02:06:00.000Z',
+        refund_time: null,
+        refund_reason: '',
+        refund_operator_id: null,
+        transaction_id: ''
+      },
+      {
+        id: 'pkg-order-5',
+        order_no: 'PKG-ORD-5',
+        user_id: 'user-2',
+        order_type: 2,
+        package_id: 'pkg-2',
+        package_group_id: 'package-group-3',
+        package_action: 'join',
+        amount: 600,
+        status: 'success',
+        created_at: '2026-04-14T02:08:00.000Z',
+        updated_at: '2026-04-14T02:08:00.000Z',
+        pay_time: '2026-04-14T02:10:00.000Z',
+        refund_time: null,
+        refund_reason: '',
+        refund_operator_id: null,
+        transaction_id: ''
       }
     ]),
     users: clone([
@@ -287,6 +377,59 @@ const loadMysqlConsoleServices = () => {
     ]),
     adminLogWrites: [],
     rollbackCalls: [],
+    packages: clone([
+      {
+        id: 'pkg-1',
+        name: '周末体适能5次课包',
+        total_price: 1000,
+        supported_people: [2, 4],
+        status: 1,
+        created_at: '2026-04-14T00:00:00.000Z'
+      },
+      {
+        id: 'pkg-2',
+        name: '平衡进阶5次课包',
+        total_price: 1200,
+        supported_people: [2, 6],
+        status: 0,
+        created_at: '2026-04-08T00:00:00.000Z'
+      }
+    ]),
+    packageGroups: clone([
+      {
+        id: 'package-group-1',
+        package_id: 'pkg-1',
+        creator_id: 'user-1',
+        target_count: 2,
+        current_count: 1,
+        status: 'active',
+        deadline: '2026-04-16T10:00:00.000Z',
+        created_at: '2026-04-15T01:00:00.000Z',
+        success_time: null
+      },
+      {
+        id: 'package-group-2',
+        package_id: 'pkg-1',
+        creator_id: 'user-2',
+        target_count: 4,
+        current_count: 2,
+        status: 'failed',
+        deadline: '2026-04-10T10:00:00.000Z',
+        created_at: '2026-04-10T01:00:00.000Z',
+        success_time: null
+      },
+      {
+        id: 'package-group-3',
+        package_id: 'pkg-2',
+        creator_id: 'user-1',
+        target_count: 2,
+        current_count: 2,
+        status: 'success',
+        deadline: '2026-04-14T10:00:00.000Z',
+        created_at: '2026-04-14T01:00:00.000Z',
+        success_time: '2026-04-14T02:10:00.000Z'
+      }
+    ]),
     lifecycleMap: {
       'course-1': { status: 1 },
       'course-2': { status: 3 }
@@ -421,11 +564,14 @@ const loadMysqlConsoleServices = () => {
           .sort((left, right) => new Date(left.joined_at || 0).getTime() - new Date(right.joined_at || 0).getTime())
     },
     ordersRepository: {
-      listOrders: async ({ userId, courseId, groupId, status, statuses = [] } = {}) =>
+      listOrders: async ({ userId, courseId, groupId, packageId, packageGroupId, orderType, status, statuses = [] } = {}) =>
         state.orders
           .filter(item => !userId || item.user_id === userId)
+          .filter(item => orderType === undefined || Number(item.order_type || 1) === Number(orderType))
           .filter(item => !courseId || item.course_id === courseId)
           .filter(item => !groupId || item.group_id === groupId)
+          .filter(item => !packageId || item.package_id === packageId)
+          .filter(item => !packageGroupId || item.package_group_id === packageGroupId)
           .filter(item => !status || item.status === status)
           .filter(item => !statuses.length || statuses.includes(item.status))
           .sort((left, right) => new Date(right.created_at || 0).getTime() - new Date(left.created_at || 0).getTime()),
@@ -449,6 +595,17 @@ const loadMysqlConsoleServices = () => {
 
         return state.orders[index]
       }
+    },
+    coursePackagesRepository: {
+      listPackages: async () => state.packages,
+      findPackagesByIds: async ids => filterByIds(state.packages, ids)
+    },
+    packageGroupsRepository: {
+      listPackageGroups: async ({ packageId, status } = {}) =>
+        state.packageGroups
+          .filter(item => !packageId || item.package_id === packageId)
+          .filter(item => !status || item.status === status),
+      findPackageGroupsByIds: async ids => filterByIds(state.packageGroups, ids)
     },
     usersRepository: {
       listUsersByIds: async ids => filterByIds(state.users, ids),
@@ -641,6 +798,14 @@ test('console api mysql dashboard overview uses repositories', async () => {
     assert.equal(overview.metrics.grouping_course_count.current, 1)
     assert.equal(overview.metrics.success_group_count.current, 1)
     assert.equal(overview.metrics.successful_group_amount.current, 240)
+    assert.equal(overview.package_metrics.active_package_count.current, 1)
+    assert.equal(overview.package_metrics.created_package_count.current, 1)
+    assert.equal(overview.package_metrics.success_group_count.current, 1)
+    assert.equal(overview.package_metrics.paid_member_count.current, 4)
+    assert.equal(overview.package_metrics.paid_amount.current, 1950)
+    assert.equal(overview.package_metrics.refunded_order_count.current, 1)
+    assert.equal(overview.package_anomalies.failed_group_pending_refund_count, 1)
+    assert.equal(overview.package_anomalies.auto_refund_order_count, 1)
     assert.equal(overview.anomalies.failed_group_pending_refund_count, 1)
     assert.equal(overview.anomalies.auto_refund_order_count, 1)
   })

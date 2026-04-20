@@ -10,6 +10,11 @@ const DEFAULT_LOCATION = {
   source: 'default'
 }
 
+const LOCATION_RESOLUTION_FALLBACK_REASON = {
+  cloudFunctionUnavailable: 'cloud-function-unavailable',
+  cloudFunctionFailed: 'cloud-function-failed'
+}
+
 const getRuntimeApp = () => {
   try {
     return getApp()
@@ -176,6 +181,8 @@ const resolveLocationDetails = async ({ latitude, longitude }) => {
     longitude,
     name: DEFAULT_LOCATION_NAME,
     address: '',
+    city: '',
+    district: '',
     source: 'coordinates'
   }
 
@@ -193,7 +200,14 @@ const resolveLocationDetails = async ({ latitude, longitude }) => {
     return normalizeLocation(payload, fallbackLocation, payload.source || 'gps')
   } catch (error) {
     console.warn('[location] cloud function resolve failed', error)
-    return fallbackLocation
+    return {
+      ...fallbackLocation,
+      resolutionError: error && error.message ? error.message : '云函数定位失败',
+      resolutionFallbackReason:
+        error && /基础库不支持云函数调用/i.test(error.message || '')
+          ? LOCATION_RESOLUTION_FALLBACK_REASON.cloudFunctionUnavailable
+          : LOCATION_RESOLUTION_FALLBACK_REASON.cloudFunctionFailed
+    }
   }
 }
 
@@ -249,6 +263,7 @@ module.exports = {
   DEFAULT_CITY,
   DEFAULT_LOCATION,
   DEFAULT_LOCATION_NAME,
+  LOCATION_RESOLUTION_FALLBACK_REASON,
   normalizeLocation,
   resolveLocationDetails,
   searchLocationPOI

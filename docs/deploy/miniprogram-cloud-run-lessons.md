@@ -244,6 +244,12 @@ Vercel 和 Cloudflare 本身不是“错”，但它们对应的是：
 
 - [deploy-artifacts/lindong-api-deploy](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy)
 
+**这就是当前 CloudBase 线上实际在跑的部署包。**
+
+- 真机看到的接口行为，最终以这里的代码为准
+- `backend/` 只是开发源码，没同步到这里就不会生效
+- 这轮已经确认过，很多问题都不是代码没改，而是部署包里还停留在旧版本
+
 并且真实验证过：
 
 - CloudBase 控制台当前用“本地文件夹上传”部署时，应以上述目录为准

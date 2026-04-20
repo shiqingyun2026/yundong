@@ -96,10 +96,54 @@ CloudBase 控制台当前实际使用的是“本地文件夹上传”，不是�
 
 - [deploy-artifacts/lindong-api-deploy](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy)
 
+**这里是当前线上真实部署包的唯一真源。**
+
+- 真机、小程序云托管、CloudBase 控制台实际跑的都是这个目录里的代码
+- 只修改 `backend/` 不会自动影响线上
+- 交接、排障、真机验证前，必须先确认 `deploy-artifacts/lindong-api-deploy/` 已同步到最新版本
+- 这轮很多“接口明明改了但线上没变化”的坑，根因都是部署包里还是旧代码
+
 已验证：
 
 - 如果只改 `backend/` 而不同步更新 `deploy-artifacts/lindong-api-deploy/`，重新部署后不会生效
 - 因此当前继续排障时，凡是要重新部署到 `lindong-api` 的改动，都必须同步到部署目录
+- 2026-04-20 课包拼团真机回归中已再次踩到“部署包文件仍是旧版”的问题，至少出现过以下漏同步文件：
+  - `repositories/ordersRepository.js`
+  - `routes/user.js`
+  - `routes/payments.js`
+  - `shared/services/paymentShell.js`
+  - `repositories/paymentRecordsRepository.js`
+- 其中支付主链路最容易被旧文件卡住，真机支付前至少要核对：
+  - [routes/payments.js](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy/routes/payments.js)
+  - [shared/services/paymentShell.js](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy/shared/services/paymentShell.js)
+  - [repositories/paymentRecordsRepository.js](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy/repositories/paymentRecordsRepository.js)
+  - [repositories/ordersRepository.js](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy/repositories/ordersRepository.js)
+  - [routes/user.js](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy/routes/user.js)
+
+### 4.2.1 首页定位链路额外提醒
+
+首页定位和地址搜索不走 `lindong-api` 云托管服务，而是继续依赖微信云函数：
+
+- 云函数目录：
+  - [cloudfunctions/ip-geolocation](/Users/yun/lindong/cloudfunctions/ip-geolocation)
+- 小程序当前配置：
+  - [miniprogram/config/env.js](/Users/yun/lindong/miniprogram/config/env.js)
+
+真机如果出现“首页定位不可用 / 地址搜索失败 / 一直回落默认深圳”，优先检查下面三件事：
+
+- `ip-geolocation` 云函数是否已经部署到当前 CloudBase 环境 `tttiyubao-4g141829bdf6a28d`
+- 云函数环境变量 `TENCENT_MAP_KEY` 是否已配置
+- 云开发数据库集合 `ip_location_cache` 是否已创建
+
+这条链路和 `deploy-artifacts/lindong-api-deploy` 是两套独立部署物：
+
+- 后端接口改动要同步 `deploy-artifacts/lindong-api-deploy`
+- 首页定位 / POI 搜索改动要同步微信云函数 `cloudfunctions/ip-geolocation`
+
+2026-04-20 已补前端兜底：
+
+- 当 `ip-geolocation` 不可用时，首页不再静默装作成功，而会提示“地址解析暂不可用”
+- 地址选择页增加“地图选点”兜底入口，即使云函数没配好也能手动切换位置继续回归
 
 ### 4.3 当前真实环境数据库初始化方式
 
@@ -216,3 +260,4 @@ deploy-artifacts/
 - 所有业务规则继续收口在共享层，不要在入口层重新发散
 - Console 代码入口统一以 `backend/console-api/*` 为准，不再保留 `backend/routes/admin/*` 兼容壳
 - 真实 CloudBase 部署当前以 [lindong-api-deploy](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy) 为准，不要误以为直接部署 `backend/` 就会生效
+- 真机验收前先核对部署包版本，避免拿旧包代码做回归

@@ -1,118 +1,28 @@
-const { fetchCourseList } = require('../../utils/course')
+const { fetchPackageList } = require('../../utils/package')
 const {
   DEFAULT_LOCATION,
-  DEFAULT_LOCATION_NAME,
+  LOCATION_RESOLUTION_FALLBACK_REASON,
   resolveLocationDetails
 } = require('../../utils/location')
 
-const safeDate = value => {
-  if (!value) {
-    return null
-  }
-
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? null : date
-}
-
-const formatExpireTime = expireTime => {
-  const expireDate = safeDate(expireTime)
-  if (!expireDate) {
-    return ''
-  }
-
-  const diff = expireDate.getTime() - Date.now()
-  if (diff <= 0) {
-    return '已结束'
-  }
-
-  const totalMinutes = Math.floor(diff / 60000)
-  const totalHours = Math.floor(diff / 3600000)
-  const days = Math.floor(totalHours / 24)
-
-  if (days >= 1) {
-    return `剩余 ${days} 天 ${totalHours % 24} 小时`
-  }
-
-  if (totalHours >= 1) {
-    return `剩余 ${totalHours} 小时`
-  }
-
-  if (totalMinutes >= 1) {
-    return `剩余 ${totalMinutes} 分钟`
-  }
-
-  return '已结束'
-}
-
-const buildCourseCard = item => {
-  const activeGroup = item && item.activeGroup
-    ? {
-        ...item.activeGroup,
-        expireTimeText: formatExpireTime(item.activeGroup.expireTime)
-      }
-    : null
-  const completedGroupsCount = Number(item && item.completedGroupsCount) || 0
-  const maxGroups = Number(item && item.maxGroups) || 0
-  const successJoinedCount = Number(item && item.successJoinedCount) || 0
-  const canCreateGroup = maxGroups <= 0 || completedGroupsCount < maxGroups
-  const courseSoldOut = !activeGroup && !canCreateGroup
-  const displayJoinedCount = activeGroup ? Number(item.joinedCount) || 0 : successJoinedCount
-
-  return {
-    ...item,
-    activeGroup,
-    showActiveGroupCountdown: !!(activeGroup && activeGroup.expireTimeText && activeGroup.expireTimeText !== '已结束'),
-    courseSoldOut,
-    showSuccessBadge: courseSoldOut && completedGroupsCount > 0,
-    displayJoinedCount,
-    showJoinedCount: !courseSoldOut && displayJoinedCount > 0
-  }
-}
-
-const resolveCourseCategory = item => {
-  const rawCategory = `${(item && (item.category || item.courseCategory || item.course_category)) || ''}`.trim()
-  if (rawCategory) {
-    return rawCategory
-  }
-
-  const title = `${(item && item.title) || ''}`
-  if (/跳绳|跳跃|绳/i.test(title)) {
-    return 'jump_rope'
-  }
-
-  return 'fitness'
-}
-
-const filterCourseListByTab = (list, activeTab) => {
-  if (activeTab === 'fitness') {
-    return (list || []).filter(item => resolveCourseCategory(item) === 'fitness')
-  }
-
-  if (activeTab === 'rope') {
-    return (list || []).filter(item => resolveCourseCategory(item) === 'jump_rope')
-  }
-
-  return list || []
-}
-
 const HOME_TABS = [
-  { key: 'all', label: '全部课程', sort: 'distance' },
-  { key: 'recent', label: '最近开课', sort: 'time' },
-  { key: 'fitness', label: '体适能', sort: 'distance' },
-  { key: 'rope', label: '跳绳', sort: 'distance' }
+  { key: 'all', label: '全部' },
+  { key: 'fitness', label: '体适能', category: '体适能' },
+  { key: 'jump_rope', label: '跳绳', category: '跳绳' }
 ]
 
 const LOCATION_TIMEOUT_MS = 5000
+
 const buildLocationKey = location =>
   location ? `${location.latitude || ''}:${location.longitude || ''}:${location.source || ''}:${location.name || ''}` : ''
-const escapeRegExp = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
 const trimLocationDisplay = value => `${value || ''}`.replace(/^[\s·,，、\-]+|[\s·,，、\-]+$/g, '').trim()
+
 const formatHomeLocationText = location => {
   if (!location) {
     return '定位中...'
   }
 
-  const source = location.source || ''
   const name = trimLocationDisplay(location.name || '')
   const district = trimLocationDisplay(location.district || '')
 
@@ -120,20 +30,62 @@ const formatHomeLocationText = location => {
     return '定位中...'
   }
 
-  if (!/^(manual|gps|coordinates)$/.test(source) || !district) {
-    return name
+  if (district && name.indexOf(district) === 0) {
+    return trimLocationDisplay(name.slice(district.length)) || name
   }
 
-  const prefixMatch = name.match(new RegExp(`^.*?${escapeRegExp(district)}`))
-  if (prefixMatch) {
-    const suffix = trimLocationDisplay(name.slice(prefixMatch[0].length))
-    if (suffix) {
-      return suffix
+  return name
+}
+
+const buildLocationFallbackFeedback = location => {
+  if (!location || location.source !== 'coordinates') {
+    return {
+      denied: false,
+      tip: '',
+      toast: ''
     }
   }
 
-  const withoutDistrict = trimLocationDisplay(name.replace(new RegExp(escapeRegExp(district), 'g'), ''))
-  return withoutDistrict || name
+  if (location.resolutionFallbackReason === LOCATION_RESOLUTION_FALLBACK_REASON.cloudFunctionUnavailable) {
+    return {
+      denied: false,
+      tip: '当前微信基础库不支持云函数逆地理编码，已先使用坐标定位。可点击顶部定位栏手动选址。',
+      toast: '已获取坐标位置，可手动补充地址'
+    }
+  }
+
+  return {
+    denied: false,
+    tip: '当前位置坐标已获取，但地址解析服务暂不可用。可点击顶部定位栏手动选址或重试。',
+    toast: '定位成功，但地址解析失败'
+  }
+}
+
+const buildPackageCard = item => ({
+  ...item,
+  locationText: [item.locationCommunity, item.locationDetail].filter(Boolean).join(' '),
+  perMemberText: item.maxSupportedPeople ? `${item.maxSupportedPeople}人团人均¥${item.minMemberAmountText}` : `人均¥${item.minMemberAmountText}`,
+  activeGroupText: Number(item.activeGroupCount) > 0 ? `${item.activeGroupCount} 个团进行中` : '支持立即开团',
+  distanceText:
+    Number.isFinite(item.distanceMeters) && Number(item.distanceMeters) >= 0
+      ? Number(item.distanceMeters) >= 1000
+        ? `${(Number(item.distanceMeters) / 1000).toFixed(1)}km`
+        : `${Math.round(Number(item.distanceMeters))}m`
+      : ''
+})
+
+const filterPackageListByTab = (list, activeTab) => {
+  const source = list || []
+
+  if (activeTab === 'fitness') {
+    return source.filter(item => (item.packageCategory || '体适能') === '体适能')
+  }
+
+  if (activeTab === 'jump_rope') {
+    return source.filter(item => item.packageCategory === '跳绳')
+  }
+
+  return source
 }
 
 Page({
@@ -144,10 +96,9 @@ Page({
     navBarHeight: 88,
     navBarBodyHeight: 44,
     locationText: '定位中...',
-    locationSource: '',
     locationDenied: false,
     locationTip: '',
-    courseList: [],
+    packageList: [],
     page: 1,
     pageSize: 10,
     hasMore: true,
@@ -157,8 +108,6 @@ Page({
 
   onLoad() {
     const app = getApp()
-    this._countdownTimer = null
-    this._countdownStartTimer = null
     this._hasLoadedOnce = false
     this._currentLocationKey = ''
     this.setData({
@@ -166,37 +115,20 @@ Page({
       navBarHeight: (app.globalData.systemInfo && app.globalData.systemInfo.navBarHeight) || 88,
       navBarBodyHeight: (app.globalData.systemInfo && app.globalData.systemInfo.navBarBodyHeight) || 44
     })
-    this.initLocationAndCourses()
+    this.initLocationAndPackages()
   },
 
   onShow() {
-    if (this._hasLoadedOnce) {
-      const previousLocationKey = this._currentLocationKey
-      const location = this.syncCurrentLocationFromStore()
-      if (buildLocationKey(location) !== previousLocationKey) {
-        this.loadCourseList({
-          page: 1,
-          showLoading: false
-        })
-        return
-      }
-
-      this.loadCourseList({
-        page: 1,
-        showLoading: false
-      })
+    if (!this._hasLoadedOnce) {
       return
     }
 
-    this.scheduleCountdownTimer()
-  },
+    const previousLocationKey = this._currentLocationKey
+    const location = this.syncCurrentLocationFromStore()
 
-  onHide() {
-    this.clearCountdownTimer()
-  },
-
-  onUnload() {
-    this.clearCountdownTimer()
+    if (buildLocationKey(location) !== previousLocationKey) {
+      this.loadPackageList({ page: 1, showLoading: false })
+    }
   },
 
   onReachBottom() {
@@ -204,20 +136,21 @@ Page({
       return
     }
 
-    this.loadCourseList({
-      page: this.data.page + 1
+    this.loadPackageList({
+      page: this.data.page + 1,
+      showLoading: false
     })
   },
 
   async onPullDownRefresh() {
-    await this.loadCourseList({
+    await this.loadPackageList({
       page: 1,
       showLoading: false
     })
     wx.stopPullDownRefresh()
   },
 
-  async initLocationAndCourses() {
+  async initLocationAndPackages() {
     const location = this.syncCurrentLocationFromStore()
 
     if (!location || location.source === 'default') {
@@ -226,7 +159,7 @@ Page({
       })
     }
 
-    await this.loadCourseList({
+    await this.loadPackageList({
       page: 1
     })
     this._hasLoadedOnce = true
@@ -242,9 +175,9 @@ Page({
     app.globalData.gpsLocation = gpsLocation
     app.globalData.location = nextLocation
 
+    this._currentLocationKey = buildLocationKey(nextLocation)
     this.setData({
-      locationText: formatHomeLocationText(nextLocation),
-      locationSource: nextLocation.source
+      locationText: formatHomeLocationText(nextLocation)
     })
 
     return nextLocation
@@ -253,26 +186,29 @@ Page({
   tryGetLocation({ applyToSelected = false } = {}) {
     return new Promise(resolve => {
       let settled = false
-      const finishWithLocation = (location, { denied = false, tip = '', toast } = {}) => {
+      const finishWithLocation = (location, { denied = false, tip = '', toast = '' } = {}) => {
         if (settled) {
           return
         }
 
         settled = true
         clearTimeout(timeoutId)
+
         const app = getApp()
         const normalizedLocation = {
           ...DEFAULT_LOCATION,
           ...location
         }
+
         app.setGpsLocation(normalizedLocation)
         if (applyToSelected || !app.globalData.selectedLocation) {
           app.setSelectedLocation(normalizedLocation)
         }
-        this._currentLocationKey = buildLocationKey(app.getCurrentLocation() || normalizedLocation)
+
+        const currentLocation = app.getCurrentLocation() || normalizedLocation
+        this._currentLocationKey = buildLocationKey(currentLocation)
         this.setData({
-          locationText: formatHomeLocationText(app.getCurrentLocation() || normalizedLocation),
-          locationSource: (app.getCurrentLocation() || normalizedLocation).source,
+          locationText: formatHomeLocationText(currentLocation),
           locationDenied: denied,
           locationTip: tip
         })
@@ -289,7 +225,7 @@ Page({
 
       const timeoutId = setTimeout(() => {
         finishWithLocation(DEFAULT_LOCATION, {
-          tip: '定位超时，已按默认位置展示课程。',
+          tip: '定位超时，已按默认区域展示课包。',
           toast: '定位超时，已切换默认位置'
         })
       }, LOCATION_TIMEOUT_MS)
@@ -302,17 +238,14 @@ Page({
             longitude: res.longitude
           })
 
-          finishWithLocation(location, {
-            tip: location.source === 'coordinates' ? '已获取真实经纬度，但云函数地址解析未返回，先按当前位置展示课程。' : ''
-          })
+          const fallbackFeedback = buildLocationFallbackFeedback(location)
+          finishWithLocation(location, fallbackFeedback)
         },
         fail: error => {
           const denied = /auth deny|auth denied|authorize no response|permission/i.test(error.errMsg || '')
           finishWithLocation(DEFAULT_LOCATION, {
             denied,
-            tip: denied
-              ? '定位未授权，已按默认位置展示课程，可点击顶部定位栏重新定位或手动选择位置。'
-              : '定位获取失败，已按默认位置展示课程。',
+            tip: denied ? '定位未授权，已按默认区域展示课包，可点击顶部定位栏手动选择。' : '定位失败，已按默认区域展示课包。',
             toast: denied ? '未开启定位，已按默认位置展示' : '定位失败，已切换默认位置'
           })
         }
@@ -320,45 +253,35 @@ Page({
     })
   },
 
-  async loadCourseList({ page = 1, showLoading = true } = {}) {
-    const app = getApp()
-    const currentTab = this.data.tabs.find(item => item.key === this.data.activeTab) || this.data.tabs[0]
-    const currentLocation = app.getCurrentLocation() || DEFAULT_LOCATION
-    this._currentLocationKey = buildLocationKey(currentLocation)
-
-    this.setData({
-      locationText: formatHomeLocationText(currentLocation),
-      locationSource: currentLocation.source
-    })
-
+  async loadPackageList({ page = 1, showLoading = true } = {}) {
     this.setData({
       loading: true,
       initialLoading: page === 1 ? showLoading : this.data.initialLoading
     })
 
     try {
-      const result = await fetchCourseList({
-        lat: currentLocation.latitude,
-        lng: currentLocation.longitude,
-        sort: currentTab.sort,
+      const app = getApp()
+      const currentLocation = app.getCurrentLocation() || DEFAULT_LOCATION
+      const activeTabMeta = this.data.tabs.find(item => item.key === this.data.activeTab) || this.data.tabs[0]
+      const response = await fetchPackageList({
         page,
-        pageSize: this.data.pageSize
+        pageSize: this.data.pageSize,
+        category: activeTabMeta && activeTabMeta.category ? activeTabMeta.category : '',
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude
       })
-
-      const mergedList = page === 1 ? result.list : this.data.courseList.concat(result.list)
-      const nextList = filterCourseListByTab(mergedList, this.data.activeTab).map(buildCourseCard)
+      const nextPageList = page === 1 ? response.list : this.data.packageList.concat(response.list)
+      const filteredList = filterPackageListByTab(nextPageList, this.data.activeTab).map(buildPackageCard)
 
       this.setData({
-        courseList: nextList,
+        packageList: filteredList,
         page,
-        hasMore: result.hasMore,
+        hasMore: response.hasMore,
         initialLoading: false
       })
-
-      this.scheduleCountdownTimer()
     } catch (error) {
       wx.showToast({
-        title: '课程加载失败，请稍后再试',
+        title: '课包加载失败，请稍后再试',
         icon: 'none'
       })
       this.setData({
@@ -371,113 +294,85 @@ Page({
     }
   },
 
-  clearCountdownTimer() {
-    if (this._countdownStartTimer) {
-      clearTimeout(this._countdownStartTimer)
-      this._countdownStartTimer = null
-    }
-
-    if (this._countdownTimer) {
-      clearInterval(this._countdownTimer)
-      this._countdownTimer = null
-    }
-  },
-
-  scheduleCountdownTimer() {
-    this.clearCountdownTimer()
-
-    if (this.data.loading || this.data.initialLoading) {
-      return
-    }
-
-    if (!this.data.courseList.some(item => item.activeGroup && item.activeGroup.expireTime)) {
-      return
-    }
-
-    this._countdownStartTimer = setTimeout(() => {
-      this._countdownStartTimer = null
-      this.startCountdownTimer()
-    }, 300)
-  },
-
-  startCountdownTimer() {
-    if (!this.data.courseList.some(item => item.activeGroup && item.activeGroup.expireTime)) {
-      return
-    }
-
-    this._countdownTimer = setInterval(() => {
-      const nextList = this.data.courseList.map(buildCourseCard)
-      if (!nextList.some(item => item.showActiveGroupCountdown)) {
-        this.clearCountdownTimer()
-      }
-      this.setData({
-        courseList: nextList
-      })
-    }, 1000)
-  },
-
   handleTabChange(event) {
-    const key = (event.detail && event.detail.key) || (event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.key)
+    const key = (event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.key) || ''
     if (!key || key === this.data.activeTab) {
       return
     }
 
     this.setData({
-      activeTab: key
+      activeTab: key,
+      page: 1,
+      hasMore: true
     })
 
-    this.loadCourseList({
-      page: 1
+    this.loadPackageList({
+      page: 1,
+      showLoading: false
     })
   },
 
   async handleLocationTap() {
-    if (this.data.locationDenied) {
-      wx.navigateTo({
-        url: `/pages/location-search/index?city=${encodeURIComponent(DEFAULT_LOCATION.city)}`
-      })
-      return
-    }
-
-    const currentLocation = getApp().getCurrentLocation() || DEFAULT_LOCATION
     wx.navigateTo({
-      url: `/pages/location-search/index?city=${encodeURIComponent(currentLocation.city || DEFAULT_LOCATION.city)}`
+      url: `/pages/location-search/index?city=${encodeURIComponent(DEFAULT_LOCATION.city || '深圳')}`
     })
   },
 
   handleManualLocationTip() {
     if (!this.data.locationDenied) {
-      wx.navigateTo({
-        url: `/pages/location-search/index?city=${encodeURIComponent(
-          (getApp().getCurrentLocation() || DEFAULT_LOCATION).city || DEFAULT_LOCATION.city
-        )}`
-      })
+      this.handleLocationTap()
       return
     }
 
-    wx.openSetting({
-      success: async res => {
+    wx.getSetting({
+      success: res => {
         const authSetting = (res && res.authSetting) || {}
         if (authSetting['scope.userLocation']) {
-          await this.tryGetLocation({
-            applyToSelected: !getApp().globalData.selectedLocation
-          })
-          await this.loadCourseList({
-            page: 1
+          this.tryGetLocation({
+            applyToSelected: true
+          }).then(() => {
+            this.loadPackageList({
+              page: 1,
+              showLoading: false
+            })
           })
           return
         }
 
-        wx.showToast({
-          title: '仍未开启定位权限',
-          icon: 'none'
+        wx.openSetting({
+          success: openRes => {
+            const nextAuthSetting = (openRes && openRes.authSetting) || {}
+            if (nextAuthSetting['scope.userLocation']) {
+              this.tryGetLocation({
+                applyToSelected: true
+              }).then(() => {
+                this.loadPackageList({
+                  page: 1,
+                  showLoading: false
+                })
+              })
+              return
+            }
+
+            this.handleLocationTap()
+          },
+          fail: () => {
+            this.handleLocationTap()
+          }
         })
+      },
+      fail: () => {
+        this.handleLocationTap()
       }
     })
   },
 
   handleCourseTap(event) {
     const { id } = event.currentTarget.dataset
+    if (!id) {
+      return
+    }
+
     wx.navigateTo({
       url: `/pages/course/detail/index?id=${id}`
     })

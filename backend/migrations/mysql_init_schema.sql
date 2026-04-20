@@ -73,6 +73,36 @@ CREATE TABLE IF NOT EXISTS `courses` (
   CONSTRAINT fk_courses_updated_by FOREIGN KEY (updated_by) REFERENCES `admin_users`(id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `course_packages` (
+  id CHAR(36) NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  cover VARCHAR(1024) NOT NULL DEFAULT '',
+  images JSON NULL,
+  total_price INT NOT NULL DEFAULT 0,
+  package_category VARCHAR(20) NOT NULL DEFAULT '体适能',
+  supported_people VARCHAR(32) NOT NULL DEFAULT '',
+  location_district VARCHAR(50) NOT NULL DEFAULT '',
+  location_community VARCHAR(50) NOT NULL DEFAULT '',
+  location_detail VARCHAR(100) NOT NULL DEFAULT '',
+  longitude DECIMAL(10, 7) NULL,
+  latitude DECIMAL(10, 7) NULL,
+  coach_name VARCHAR(50) NOT NULL DEFAULT '',
+  coach_intro TEXT NULL,
+  coach_certificates JSON NULL,
+  description MEDIUMTEXT NULL,
+  deadline_hours INT NOT NULL DEFAULT 48,
+  status TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  created_by CHAR(36) NULL,
+  updated_by CHAR(36) NULL,
+  PRIMARY KEY (id),
+  KEY idx_course_packages_status (status),
+  KEY idx_course_packages_created_at (created_at),
+  CONSTRAINT fk_course_packages_created_by FOREIGN KEY (created_by) REFERENCES `admin_users`(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_course_packages_updated_by FOREIGN KEY (updated_by) REFERENCES `admin_users`(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `groups` (
   id CHAR(36) NOT NULL,
   course_id CHAR(36) NOT NULL,
@@ -91,6 +121,27 @@ CREATE TABLE IF NOT EXISTS `groups` (
   CONSTRAINT fk_groups_creator_id FOREIGN KEY (creator_id) REFERENCES `users`(id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `package_groups` (
+  id CHAR(36) NOT NULL,
+  package_id CHAR(36) NOT NULL,
+  creator_id CHAR(36) NULL,
+  target_count INT NOT NULL DEFAULT 0,
+  current_count INT NOT NULL DEFAULT 0,
+  status VARCHAR(20) NOT NULL DEFAULT 'active',
+  weekday TINYINT UNSIGNED NOT NULL,
+  hour TINYINT UNSIGNED NOT NULL,
+  first_class_time DATETIME NULL,
+  deadline DATETIME NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  success_time DATETIME NULL,
+  PRIMARY KEY (id),
+  KEY idx_package_groups_package_status_deadline (package_id, status, deadline),
+  KEY idx_package_groups_creator_id (creator_id),
+  KEY idx_package_groups_created_at (created_at),
+  CONSTRAINT fk_package_groups_package_id FOREIGN KEY (package_id) REFERENCES `course_packages`(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_package_groups_creator_id FOREIGN KEY (creator_id) REFERENCES `users`(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `group_members` (
   group_id CHAR(36) NOT NULL,
   user_id CHAR(36) NOT NULL,
@@ -106,8 +157,13 @@ CREATE TABLE IF NOT EXISTS `orders` (
   id CHAR(36) NOT NULL,
   order_no VARCHAR(32) NOT NULL,
   user_id CHAR(36) NOT NULL,
-  course_id CHAR(36) NOT NULL,
+  order_type TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  course_id CHAR(36) NULL,
   group_id CHAR(36) NULL,
+  package_id CHAR(36) NULL,
+  package_group_id CHAR(36) NULL,
+  package_action VARCHAR(10) NULL,
+  package_context JSON NULL,
   amount INT NOT NULL DEFAULT 0,
   status VARCHAR(20) NOT NULL DEFAULT 'pending',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -120,20 +176,33 @@ CREATE TABLE IF NOT EXISTS `orders` (
   pending_user_course_key VARCHAR(73)
     GENERATED ALWAYS AS (
       CASE
-        WHEN status = 'pending' THEN CONCAT(user_id, ':', course_id)
+        WHEN order_type = 1 AND status = 'pending' AND course_id IS NOT NULL THEN CONCAT(user_id, ':', course_id)
+        ELSE NULL
+      END
+    ) STORED,
+  pending_user_package_key VARCHAR(73)
+    GENERATED ALWAYS AS (
+      CASE
+        WHEN order_type = 2 AND status = 'pending' AND package_id IS NOT NULL THEN CONCAT(user_id, ':', package_id)
         ELSE NULL
       END
     ) STORED,
   PRIMARY KEY (id),
   UNIQUE KEY uniq_orders_order_no (order_no),
   UNIQUE KEY uniq_orders_pending_user_course (pending_user_course_key),
+  UNIQUE KEY uniq_orders_pending_user_package (pending_user_package_key),
   KEY idx_orders_user_status_created_at (user_id, status, created_at),
+  KEY idx_orders_order_type_status_created_at (order_type, status, created_at),
   KEY idx_orders_course_status_created_at (course_id, status, created_at),
   KEY idx_orders_group_status_created_at (group_id, status, created_at),
+  KEY idx_orders_package_status_created_at (package_id, status, created_at),
+  KEY idx_orders_package_group_status_created_at (package_group_id, status, created_at),
   KEY idx_orders_created_at (created_at),
   CONSTRAINT fk_orders_user_id FOREIGN KEY (user_id) REFERENCES `users`(id) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT fk_orders_course_id FOREIGN KEY (course_id) REFERENCES `courses`(id) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT fk_orders_group_id FOREIGN KEY (group_id) REFERENCES `groups`(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_orders_package_id FOREIGN KEY (package_id) REFERENCES `course_packages`(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_orders_package_group_id FOREIGN KEY (package_group_id) REFERENCES `package_groups`(id) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT fk_orders_refund_operator_id FOREIGN KEY (refund_operator_id) REFERENCES `admin_users`(id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -141,8 +210,10 @@ CREATE TABLE IF NOT EXISTS `payment_records` (
   id CHAR(36) NOT NULL,
   order_id CHAR(36) NOT NULL,
   user_id CHAR(36) NOT NULL,
-  course_id CHAR(36) NOT NULL,
+  course_id CHAR(36) NULL,
   group_id CHAR(36) NULL,
+  package_id CHAR(36) NULL,
+  package_group_id CHAR(36) NULL,
   provider VARCHAR(20) NOT NULL DEFAULT 'wechat',
   channel VARCHAR(30) NOT NULL DEFAULT 'mini_program',
   payment_mode VARCHAR(20) NOT NULL DEFAULT 'mock',
@@ -163,10 +234,14 @@ CREATE TABLE IF NOT EXISTS `payment_records` (
   KEY idx_payment_records_status (status),
   KEY idx_payment_records_user_id (user_id),
   KEY idx_payment_records_group_id (group_id),
+  KEY idx_payment_records_package_id (package_id),
+  KEY idx_payment_records_package_group_id (package_group_id),
   CONSTRAINT fk_payment_records_order_id FOREIGN KEY (order_id) REFERENCES `orders`(id) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT fk_payment_records_user_id FOREIGN KEY (user_id) REFERENCES `users`(id) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT fk_payment_records_course_id FOREIGN KEY (course_id) REFERENCES `courses`(id) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT fk_payment_records_group_id FOREIGN KEY (group_id) REFERENCES `groups`(id) ON DELETE SET NULL ON UPDATE CASCADE
+  CONSTRAINT fk_payment_records_group_id FOREIGN KEY (group_id) REFERENCES `groups`(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_payment_records_package_id FOREIGN KEY (package_id) REFERENCES `course_packages`(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_payment_records_package_group_id FOREIGN KEY (package_group_id) REFERENCES `package_groups`(id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `group_result_subscriptions` (

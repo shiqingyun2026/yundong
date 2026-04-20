@@ -33,19 +33,9 @@
 }
 
 .group-card {
-  display: flex;
-  gap: 20rpx;
   padding: 24rpx;
   background: #ffffff;
   border-radius: 28rpx;
-}
-
-.group-cover {
-  width: 180rpx;
-  height: 180rpx;
-  flex-shrink: 0;
-  border-radius: 24rpx;
-  background: #eef2f7;
 }
 
 .group-content {
@@ -80,6 +70,11 @@
   font-size: 24rpx;
   line-height: 1.7;
   color: #8f96a3;
+}
+
+.group-price-text {
+  color: #ff7a00;
+  font-weight: 600;
 }
 
 .status-tag {

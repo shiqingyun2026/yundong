@@ -2,12 +2,12 @@
   <mp-toptips id="ui-toptips" root-portal="{{true}}" />
   <view wx:if="{{loading}}" class="page-loading">
     <mp-loading show="{{loading}}" type="dot-gray" />
-    <text class="page-loading-text">详情加载中...</text>
+    <text class="page-loading-text">课包详情加载中...</text>
   </view>
 
-  <scroll-view wx:if="{{!loading && courseDetail}}" class="detail-scroll" scroll-y>
+  <scroll-view wx:if="{{!loading && packageDetail}}" class="detail-scroll" scroll-y>
     <swiper class="hero-swiper" indicator-dots autoplay circular>
-      <swiper-item wx:for="{{courseDetail.images}}" wx:key="*this">
+      <swiper-item wx:for="{{packageDetail.images}}" wx:key="*this">
         <image class="hero-image" src="{{item}}" mode="aspectFill"></image>
       </swiper-item>
     </swiper>
@@ -15,49 +15,38 @@
     <view class="detail-content">
       <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="title-row">
-          <view class="course-title">{{courseDetail.title}}</view>
-          <mp-badge wx:if="{{hasActiveGroup}}" extClass="weui-ext-tag group-chip" content="{{groupTargetCount}}人成团" />
+          <view class="course-title">{{packageDetail.name}}</view>
+          <mp-badge wx:if="{{packageDetail.supportedPeopleText}}" extClass="weui-ext-tag group-chip" content="{{packageDetail.supportedPeopleText}}" />
         </view>
 
         <view class="price-row">
-          <view class="group-price">¥{{courseDetail.groupPriceText}}</view>
-          <view class="original-price">¥{{courseDetail.originalPriceText}}</view>
-          <mp-badge wx:if="{{showJoinedCount}}" extClass="weui-ext-tag joined-chip" content="已拼 {{displayJoinedCount}} 人" />
+          <view class="group-price">总价 ¥{{packageDetail.totalPriceText}}</view>
         </view>
 
         <view class="info-list">
           <view class="info-item">
-            <view class="info-label">上课时间</view>
-            <view class="info-value">{{courseDetail.timeText}}</view>
+            <view class="info-label">支持拼团</view>
+            <view class="info-value">{{packageDetail.supportedPeopleText}}</view>
           </view>
           <view class="info-item">
             <view class="info-label">上课地点</view>
-            <view class="info-value">{{courseDetail.locationText}}</view>
-          </view>
-          <view class="info-item">
-            <view class="info-label">适用年龄</view>
-            <view class="info-value">{{courseDetail.ageRange}}</view>
+            <view class="info-value">{{packageDetail.locationText}}</view>
           </view>
         </view>
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">课程介绍</view>
-        <rich-text class="rich-text" nodes="{{courseDetail.descriptionHtml || courseDetail.descriptionNodes}}"></rich-text>
-      </view>
-
-      <view class="weui-panel weui-ext-card page-section card-shadow">
-        <view class="section-title">拼团规则</view>
-        <rich-text class="rich-text" nodes="{{courseDetail.groupRuleNodes}}"></rich-text>
+        <rich-text class="rich-text" nodes="{{packageDetail.description}}"></rich-text>
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">教练信息</view>
-        <view class="coach-name">{{courseDetail.coach.name}}</view>
-        <view class="coach-intro">{{courseDetail.coach.intro}}</view>
+        <view class="coach-name">{{packageDetail.coachName}}</view>
+        <view class="coach-intro">{{packageDetail.coachIntro}}</view>
         <view class="certificate-list">
           <image
-            wx:for="{{courseDetail.coach.certificates}}"
+            wx:for="{{packageDetail.coachCertificates}}"
             wx:key="*this"
             class="certificate-image"
             src="{{item}}"
@@ -70,30 +59,36 @@
 
       <view class="weui-panel weui-ext-card page-section card-shadow insurance-card">
         <view class="section-title">保险说明</view>
-        <view class="section-desc insurance-text">{{courseDetail.insuranceText}}</view>
+        <view class="section-desc insurance-text">{{packageDetail.insuranceDesc}}</view>
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
-        <view class="section-title">当前拼团状态</view>
-        <view wx:if="{{courseGroupList.length}}" class="group-panel">
-          <view wx:for="{{courseGroupList}}" wx:key="groupId" class="weui-panel weui-ext-card group-item-card">
+        <view class="section-title">当前进行中的拼团</view>
+        <view wx:if="{{packageDetail.activeGroups.length}}" class="group-panel">
+          <view wx:for="{{packageDetail.activeGroups}}" wx:key="id" class="weui-panel weui-ext-card group-item-card">
             <view class="group-item-header">
-              <view class="group-item-title">第{{item.index}}个团</view>
-              <mp-badge extClass="weui-ext-tag group-item-status group-item-status-{{item.statusClass}}" content="{{item.statusText}}" />
+              <view class="group-item-title">{{item.targetCount}}人成团</view>
+              <mp-badge extClass="weui-ext-tag group-item-status group-item-status-ongoing" content="{{item.remainingText}}" />
             </view>
 
             <view class="group-progress-row">
               <view class="group-progress-text">当前进度 {{item.progressText}}</view>
-              <view class="group-progress-caption">{{item.caption}}</view>
+              <view class="group-progress-caption">每人 ¥{{item.memberAmountText}}</view>
             </view>
-            <view class="progress-track">
-              <view class="progress-bar" style="width: {{item.progressPercent}};"></view>
-            </view>
+            <view class="group-progress-caption group-schedule">{{item.scheduleText}}</view>
+            <button
+              class="weui-btn weui-ext-button weui-ext-button--medium weui-ext-button--secondary join-button"
+              data-group-id="{{item.id}}"
+              disabled="{{!item.canJoin}}"
+              bindtap="handleJoinGroup"
+            >
+              <view class="weui-ext-button__inner">{{item.canJoin ? '去参团' : '已满员'}}</view>
+            </button>
           </view>
         </view>
 
         <view wx:else class="group-empty">
-          <view class="section-desc">{{emptyGroupText}}</view>
+          <view class="section-desc">暂无进行中的拼团，立即开团吧。</view>
         </view>
       </view>
 
@@ -101,7 +96,7 @@
     </view>
   </scroll-view>
 
-  <view wx:if="{{!loading && courseDetail}}" class="bottom-bar">
+  <view wx:if="{{!loading && packageDetail}}" class="bottom-bar">
     <view class="service-entry" bindtap="handleOpenService">
       <view class="service-icon">
         <mp-icon extClass="service-icon-image" icon="contacts" type="filled" color="#1abcc5" size="{{28}}" />
@@ -110,16 +105,16 @@
     </view>
     <button
       class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary bottom-action"
-      bindtap="handleGoPayment"
-      loading="{{creatingOrder}}"
-      disabled="{{creatingOrder || actionButtonDisabled}}"
+      bindtap="handleStartGroup"
+      loading="{{loginLoading}}"
+      disabled="{{loginLoading}}"
     >
-      <view class="weui-ext-button__inner">{{actionButtonText}}</view>
+      <view class="weui-ext-button__inner">立即开团</view>
     </button>
   </view>
 
   <mp-dialog
-    wx:if="{{courseDetail}}"
+    wx:if="{{packageDetail}}"
     show="{{showServiceModal}}"
     title="联系客服"
     root-portal="{{true}}"
@@ -129,8 +124,7 @@
     bind:buttontap="handleServiceDialogTap"
   >
     <view class="service-modal-content">
-      <image class="service-qrcode" src="{{courseDetail.serviceQrCode}}" mode="aspectFit"></image>
-      <view class="service-tip">请使用微信扫码联系专属客服</view>
+      <view class="service-tip">请联系运营同学获取企业微信二维码。</view>
     </view>
   </mp-dialog>
 </view>

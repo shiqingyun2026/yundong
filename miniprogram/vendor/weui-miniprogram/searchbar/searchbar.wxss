@@ -1,4 +1,4 @@
-.weui-search-bar__label text {
+.weui-search-bar__label .weui-search-bar__text {
   display: inline-block;
   font-size: 14px;
   vertical-align: middle;
@@ -20,5 +20,4 @@
   width: 22.578px;
   height: 22.578px;
 }
-
 

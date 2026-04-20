@@ -21,26 +21,24 @@
     <view
       class="weui-panel weui-ext-card group-card card-shadow"
       wx:for="{{groupList}}"
-      wx:key="groupId"
-      data-group-id="{{item.groupId}}"
+      wx:key="packageGroupId"
+      data-group-id="{{item.packageGroupId}}"
       bind:tap="handleOpenDetail"
     >
-      <image class="group-cover" src="{{item.cover}}" mode="aspectFill"></image>
-
       <view class="group-content">
         <view class="group-title-row">
-          <view class="group-title">{{item.title}}</view>
+          <view class="group-title">{{item.packageName}}</view>
           <view class="status-group">
             <mp-badge
-              extClass="weui-ext-tag status-tag {{item.status === 'ongoing' ? 'status-ongoing' : item.status === 'success' ? 'status-success' : 'status-failed'}}"
-              content="{{item.statusText}}"
+              extClass="weui-ext-tag status-tag {{item.status === 'active' ? 'status-ongoing' : item.status === 'success' ? 'status-success' : 'status-failed'}}"
+              content="{{item.status === 'active' ? '进行中' : item.status === 'success' ? '已成团' : '已失败'}}"
             />
-            <mp-badge wx:if="{{item.courseStatusText}}" extClass="weui-ext-tag status-tag status-stage" content="{{item.courseStatusText}}" />
           </view>
         </view>
 
-        <view class="group-meta">{{item.timeText}}</view>
+        <view class="group-meta">{{item.displayTimeText}}</view>
         <view class="group-meta">{{item.locationText}}</view>
+        <view class="group-meta group-price-text">每人 ¥{{item.memberAmountText}}</view>
       </view>
     </view>
   </view>

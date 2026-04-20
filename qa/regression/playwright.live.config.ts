@@ -33,7 +33,7 @@ export default defineConfig({
       timeout: 120000
     },
     {
-      command: `VITE_API_BASE_URL=http://127.0.0.1:${consoleApiPort}/api/admin npx vite --port ${consolePort} --host 0.0.0.0`,
+      command: `VITE_API_BASE_URL=http://127.0.0.1:${consoleApiPort}/api/admin npx vite --port ${consolePort} --host 127.0.0.1`,
       cwd: '../../console',
       url: `http://127.0.0.1:${consolePort}`,
       reuseExistingServer: !process.env.CI,

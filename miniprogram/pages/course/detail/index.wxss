@@ -65,17 +65,9 @@
 
 .group-price {
   color: #ff7a00;
-  font-size: 42rpx;
+  font-size: 36rpx;
   font-weight: 700;
-  line-height: 1;
-}
-
-.original-price {
-  flex: 1;
-  padding-bottom: 6rpx;
-  color: #b6bdc8;
-  font-size: 24rpx;
-  text-decoration: line-through;
+  line-height: 1.3;
 }
 
 .info-list {
@@ -264,6 +256,10 @@
   margin-top: 24rpx;
 }
 
+.group-schedule {
+  margin-top: 16rpx;
+}
+
 .group-progress-text {
   font-size: 26rpx;
   font-weight: 600;
@@ -288,6 +284,11 @@
   height: 100%;
   border-radius: 999rpx;
   background: linear-gradient(90deg, var(--brand-primary) 0%, var(--brand-primary-light) 100%);
+}
+
+.join-button {
+  width: 100%;
+  margin-top: 20rpx;
 }
 
 .member-list {

@@ -5,35 +5,41 @@
     <text class="page-loading-text">支付信息加载中...</text>
   </view>
 
-  <scroll-view wx:if="{{!loading && courseDetail}}" class="payment-scroll" scroll-y>
+  <scroll-view wx:if="{{!loading && packageDetail}}" class="payment-scroll" scroll-y>
     <view class="payment-content">
       <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">订单信息</view>
-        <view class="order-title">{{courseDetail.title}}</view>
-        <view class="order-item">
-          <view class="order-label">上课时间</view>
-          <view class="order-value">{{courseDetail.timeText}}</view>
-        </view>
+        <view class="order-title">{{packageDetail.name}}</view>
         <view class="order-item">
           <view class="order-label">上课地点</view>
-          <view class="order-value">{{courseDetail.locationText}}</view>
+          <view class="order-value">{{packageDetail.locationText}}</view>
+        </view>
+        <view class="order-item">
+          <view class="order-label">开团方式</view>
+          <view class="order-value">{{action === 'start' ? '发起开团' : '参与现有拼团'}}</view>
+        </view>
+        <view class="order-item">
+          <view class="order-label">目标人数</view>
+          <view class="order-value">{{targetCount}} 人团</view>
         </view>
         <view class="order-item price-item">
           <view class="order-label">支付金额</view>
-          <view class="payment-price">¥{{courseDetail.groupPriceText}}</view>
+          <view class="payment-price">¥{{paymentAmountText}}</view>
         </view>
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">拼团说明</view>
-        <view class="section-desc">满 {{courseDetail.targetCount}} 人成团</view>
+        <view class="section-desc">满 {{targetCount}} 人成团</view>
         <view class="section-desc">
-          拼团截止时间：{{groupDetail && groupDetail.deadlineText ? groupDetail.deadlineText : '开课前 12 小时'}}
+          拼团截止时间：{{packageGroupDetail ? packageGroupDetail.remainingText : '开团成功后 48 小时'}}
         </view>
         <view class="section-desc">
-          未成团退款规则：{{groupDetail && groupDetail.refundDesc ? groupDetail.refundDesc : '未成团将自动原路退款'}}
+          未成团退款规则：48 小时内未成团将自动原路退款
         </view>
-        <rich-text class="rich-text" nodes="{{courseDetail.paymentGroupNoteNodes}}"></rich-text>
+        <view class="section-desc">
+          {{action === 'start' ? '支付成功后才会真正创建拼团，系统会在成团后锁定首课日期。' : '支付成功后即加入该团，达到目标人数后自动成团。'}}
+        </view>
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
@@ -56,7 +62,7 @@
     </view>
   </scroll-view>
 
-  <view wx:if="{{!loading && courseDetail}}" class="payment-bar">
+  <view wx:if="{{!loading && packageDetail}}" class="payment-bar">
     <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary payment-button" loading="{{paying}}" disabled="{{paying}}" bindtap="handleConfirmPay">
       <view class="weui-ext-button__inner">确认支付</view>
     </button>

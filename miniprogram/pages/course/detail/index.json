@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "课程详情",
+  "navigationBarTitleText": "课包详情",
   "usingComponents": {
     "mp-toptips": "../../../vendor/weui-miniprogram/toptips/toptips",
     "mp-dialog": "../../../vendor/weui-miniprogram/dialog/dialog",

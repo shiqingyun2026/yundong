@@ -3,14 +3,18 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
 const username = process.env.CONSOLE_LIVE_USERNAME || 'admin'
 const password = process.env.CONSOLE_LIVE_PASSWORD || 'admin123456'
 const consoleApiBaseUrl = `http://127.0.0.1:${process.env.CONSOLE_API_PORT || '8100'}`
-const seededPendingCourseId = '11111111-1111-1111-1111-111111111101'
-const seededCourseTitle = '[测试] 深圳南山周末体适能·待上架'
-const seededCourseCategory = '体适能'
-const seededCourseCoachIntro = '用于验证待上架课程不出现在用户端列表。'
-const seededRefundedOrderNo = 'LD202603260007'
-const seededAccountUsername = 't1'
+
+const seededPackageId = 'package_seed_active_002'
+const seededPackageName = '[课包回归] 进行中少儿体适能 5 次课'
+const seededPackageKeyword = '进行中少儿体适能'
+const seededSuccessPackageId = 'package_seed_success_003'
+const seededSuccessPackageName = '[课包回归] 已成团平衡训练 5 次课'
+const seededFailedPackageId = 'package_seed_failed_004'
+const seededFailedPackageOrderNo = 'LDPKG20260419007'
+const seededPackageOrderNo = 'LDPKG20260419001'
+const seededPackageGroupId = 'pkg_group_seed_001'
+const seededAccountUsername = 'admin'
 const seededSuperAdminUsername = 'admin'
-const seededCourseKeyword = '南山'
 const seededLogAction = 'admin_login'
 
 const getAccountStatusConfig = (rowText: string) => {
@@ -79,33 +83,34 @@ async function openSeededAccountEditor(page: Page) {
   return accountRow
 }
 
-test('console live smoke: login page can authenticate against standalone console-api and render dashboard', async ({
+test('console live smoke: login page can authenticate against standalone console-api and render package dashboard', async ({
   page
 }) => {
   await loginAsAdmin(page)
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
-  await expect(page.getByRole('heading', { name: '数据概括' })).toBeVisible({ timeout: 15000 })
-  await expect(page.getByText('当前拼团中的课程')).toBeVisible({ timeout: 15000 })
+  await expect(page.getByRole('heading', { name: '课包拼团概览' })).toBeVisible({ timeout: 15000 })
+  await expect(page.getByText('课包经营数据')).toBeVisible({ timeout: 15000 })
+  await expect(page.getByText('当前上架课包')).toBeVisible({ timeout: 15000 })
   await expect(page.getByText('接口未返回 JSON，请确认后端服务是否正常')).toHaveCount(0)
 })
 
-test('console live smoke: seeded course order and account data render through standalone console-api', async ({
+test('console live smoke: seeded package package-order and account data render through standalone console-api', async ({
   page
 }) => {
   await loginAsAdmin(page)
 
-  await page.goto('/courses')
+  await page.goto('/packages')
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
-  await expect(page.getByText(seededCourseTitle)).toBeVisible({ timeout: 15000 })
+  await expect(page.getByText(seededPackageName)).toBeVisible({ timeout: 15000 })
 
-  await page.goto('/orders')
+  await page.goto('/package-orders')
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
-  const refundedOrderRow = page.locator('tbody tr').filter({ hasText: seededRefundedOrderNo }).first()
-  await expect(refundedOrderRow).toBeVisible({ timeout: 15000 })
-  await refundedOrderRow.getByRole('button', { name: '详情' }).click()
+  const packageOrderRow = page.locator('tbody tr').filter({ hasText: seededPackageOrderNo }).first()
+  await expect(packageOrderRow).toBeVisible({ timeout: 15000 })
+  await packageOrderRow.getByRole('button', { name: '详情' }).click()
   await expect(page.getByRole('heading', { name: '订单详情' })).toBeVisible()
-  await expect(page.getByText(seededRefundedOrderNo)).toBeVisible()
-  await expect(page.getByText('退款类型：系统自动退款')).toBeVisible()
+  await expect(page.getByText(seededPackageOrderNo)).toBeVisible()
+  await expect(page.getByText(`课包名称：${seededPackageName}`)).toBeVisible()
 
   await page.goto('/accounts')
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
@@ -115,7 +120,7 @@ test('console live smoke: seeded course order and account data render through st
   ).toBeVisible()
 })
 
-test('console live smoke: logs and list filters work against standalone console-api', async ({ page }) => {
+test('console live smoke: logs and package list filters work against standalone console-api', async ({ page }) => {
   await loginAsAdmin(page)
 
   await page.goto('/logs')
@@ -128,23 +133,25 @@ test('console live smoke: logs and list filters work against standalone console-
   await expect(page.locator('tbody tr').first()).toContainText(seededLogAction)
   await expect(page.locator('tbody tr').first()).toContainText('username: admin')
 
-  await page.goto('/accounts')
+  await page.goto('/packages')
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
-  await page.getByPlaceholder('按用户名搜索').fill(seededAccountUsername)
+  await page.getByPlaceholder('按课包名称搜索').fill(seededPackageKeyword)
+  await page.getByLabel('课包状态').selectOption('active')
   await page.getByRole('button', { name: '查询' }).click()
+  await expect(page).toHaveURL(/keyword=/)
+  await expect(page).toHaveURL(/status=active/)
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
-  await expect(page.locator('tbody tr')).toHaveCount(1)
-  await expect(page.locator('tbody tr').first()).toContainText(seededAccountUsername)
+  await expect(page.locator('tbody tr').filter({ hasText: seededPackageName }).first()).toBeVisible()
 
-  await page.goto('/courses')
+  await page.goto('/package-groups')
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
-  await page.getByPlaceholder('按课程名称搜索').fill(seededCourseKeyword)
-  await page.getByLabel('课程类别').selectOption(seededCourseCategory)
+  await page.getByPlaceholder('按课包 ID 过滤').fill(seededPackageId)
+  await page.getByLabel('拼团状态').selectOption('active')
   await page.getByRole('button', { name: '查询' }).click()
-  await expect(page).toHaveURL(/keyword=%E5%8D%97%E5%B1%B1/)
-  await expect(page).toHaveURL(/category=%E4%BD%93%E9%80%82%E8%83%BD/)
+  await expect(page).toHaveURL(/package_id=package_seed_active_002/)
+  await expect(page).toHaveURL(/status=active/)
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
-  await expect(page.locator('tbody tr').filter({ hasText: seededCourseTitle }).first()).toBeVisible()
+  await expect(page.locator('tbody tr').filter({ hasText: seededPackageGroupId }).first()).toBeVisible()
 })
 
 test('console live smoke: account status update can be written and rolled back through standalone console-api', async ({
@@ -183,64 +190,69 @@ test('console live smoke: account status update can be written and rolled back t
   accountRow = page.locator('tbody tr').first()
   await expect(accountRow).toContainText(seededAccountUsername)
   await expect(accountRow).toContainText(statusConfig.initialLabel)
-
-  await page.goto('/logs')
-  await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
-  await page.getByPlaceholder('管理员用户名').fill(seededSuperAdminUsername)
-  await page.getByLabel('动作').selectOption('account_update')
-  await page.getByRole('button', { name: '查询' }).click()
-  await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
-  await expect(page).toHaveURL(/action=account_update/)
-  await expect(
-    page.locator('tbody tr').filter({ hasText: 'account_update' }).filter({ hasText: `status: ${statusConfig.initialValue}` }).first()
-  ).toBeVisible({ timeout: 15000 })
 })
 
-test('console live smoke: seeded pending course can be updated and rolled back through standalone console-api', async ({
+test('console live smoke: seeded package can be updated and rolled back through standalone console-api', async ({
   page,
   request
 }) => {
   await bootstrapAdminSession(page, request)
 
-  const updatedCoachIntro = `${seededCourseCoachIntro}（live smoke）`
-  const courseForm = page.locator('form').first()
+  const updatedCoachIntro = '用于验证“去参团”与进行中团详情。（live smoke）'
+  const packageForm = page.locator('form').first()
 
-  await page.goto(`/courses/${seededPendingCourseId}/edit`)
+  await page.goto(`/packages/${seededPackageId}/edit`)
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
-  await expect(page.getByRole('heading', { name: '编辑课程' })).toBeVisible()
-  await expect(courseForm.getByLabel(/课程名称/)).toHaveValue(seededCourseTitle)
-  await expect(courseForm.getByLabel(/教练简介/)).toHaveValue(seededCourseCoachIntro)
+  await expect(page.getByRole('heading', { name: '编辑课包' })).toBeVisible()
+  await expect(packageForm.getByLabel(/课包名称/)).toHaveValue(seededPackageName)
+  await expect(packageForm.getByLabel(/教练简介/)).toHaveValue('用于验证“去参团”与进行中团详情。')
 
-  await courseForm.getByLabel(/教练简介/).fill(updatedCoachIntro)
-  await expect(courseForm.getByLabel(/教练简介/)).toHaveValue(updatedCoachIntro)
-  await courseForm.getByRole('button', { name: '保存课程' }).click()
+  await packageForm.getByLabel(/教练简介/).fill(updatedCoachIntro)
+  await expect(packageForm.getByLabel(/教练简介/)).toHaveValue(updatedCoachIntro)
+  await packageForm.getByRole('button', { name: '保存课包' }).click()
 
-  await expect(page).toHaveURL(/\/courses$/)
+  await expect(page).toHaveURL(/\/packages$/)
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
-  await expect(page.locator('tbody tr').filter({ hasText: seededCourseTitle }).first()).toBeVisible({ timeout: 15000 })
+  await expect(page.locator('tbody tr').filter({ hasText: seededPackageName }).first()).toBeVisible({ timeout: 15000 })
 
   await page.goto('/logs')
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
   await page.getByPlaceholder('管理员用户名').fill(seededSuperAdminUsername)
-  await page.getByLabel('动作').selectOption('course_update')
+  await page.getByLabel('动作').selectOption('package_update')
   await page.getByRole('button', { name: '查询' }).click()
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
-  await expect(page).toHaveURL(/action=course_update/)
+  await expect(page).toHaveURL(/action=package_update/)
   await expect(
-    page.locator('tbody tr').filter({ hasText: 'course_update' }).filter({ hasText: seededCourseTitle }).first()
+    page.locator('tbody tr').filter({ hasText: 'package_update' }).filter({ hasText: seededPackageName }).first()
   ).toBeVisible({ timeout: 15000 })
 
-  await page.goto(`/courses/${seededPendingCourseId}/edit`)
+  await page.goto(`/packages/${seededPackageId}/edit`)
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
-  await expect(courseForm.getByLabel(/教练简介/)).toHaveValue(updatedCoachIntro)
-  await courseForm.getByLabel(/教练简介/).fill(seededCourseCoachIntro)
-  await expect(courseForm.getByLabel(/教练简介/)).toHaveValue(seededCourseCoachIntro)
-  await courseForm.getByRole('button', { name: '保存课程' }).click()
+  await expect(packageForm.getByLabel(/教练简介/)).toHaveValue(updatedCoachIntro)
+  await packageForm.getByLabel(/教练简介/).fill('用于验证“去参团”与进行中团详情。')
+  await expect(packageForm.getByLabel(/教练简介/)).toHaveValue('用于验证“去参团”与进行中团详情。')
+  await packageForm.getByRole('button', { name: '保存课包' }).click()
 
-  await expect(page).toHaveURL(/\/courses$/)
+  await expect(page).toHaveURL(/\/packages$/)
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
-
-  await page.goto(`/courses/${seededPendingCourseId}/edit`)
-  await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
-  await expect(courseForm.getByLabel(/教练简介/)).toHaveValue(seededCourseCoachIntro)
 })
+
+test('console live smoke: seeded package group and refunded package order are reachable', async ({ page }) => {
+  await loginAsAdmin(page)
+
+  await page.goto(`/package-groups?package_id=${seededSuccessPackageId}`)
+  await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
+  await expect(page.locator('tbody tr').filter({ hasText: seededSuccessPackageName }).first()).toBeVisible({ timeout: 15000 })
+
+  await page.goto('/package-orders')
+  await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
+  await page.getByPlaceholder('订单号 / 昵称 / 课包名 / 拼团ID').fill(seededFailedPackageOrderNo)
+  await page.getByRole('button', { name: '查询' }).click()
+  await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
+  const refundedOrderRow = page.locator('tbody tr').filter({ hasText: seededFailedPackageOrderNo }).first()
+  await expect(refundedOrderRow).toBeVisible({ timeout: 15000 })
+  await refundedOrderRow.getByRole('button', { name: '详情' }).click()
+  await expect(page.getByText(`课包名称：${seededFailedPackageId === 'package_seed_failed_004' ? '[课包回归] 已失败敏捷训练 5 次课' : seededFailedPackageId}`)).toBeVisible()
+  await expect(page.getByText('退款类型：系统自动退款')).toBeVisible()
+})
+

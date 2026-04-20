@@ -1,12 +1,17 @@
 const { execute, query } = require('../config/db')
-const { buildInClause, buildOrderNo, createUuid, toDbDateTime } = require('./_helpers')
+const { buildInClause, buildOrderNo, createUuid, parseJsonField, stringifyJsonField, toDbDateTime } = require('./_helpers')
 
 const ORDER_SELECT_FIELDS = `
   id,
   order_no,
   user_id,
+  order_type,
   course_id,
   group_id,
+  package_id,
+  package_group_id,
+  package_action,
+  package_context,
   amount,
   status,
   created_at,
@@ -27,8 +32,13 @@ const normalizeOrder = row => {
     id: row.id,
     order_no: row.order_no || '',
     user_id: row.user_id,
-    course_id: row.course_id,
+    order_type: Number(row.order_type) || 1,
+    course_id: row.course_id || '',
     group_id: row.group_id || '',
+    package_id: row.package_id || '',
+    package_group_id: row.package_group_id || '',
+    package_action: row.package_action || '',
+    package_context: parseJsonField(row.package_context),
     amount: Number(row.amount) || 0,
     status: row.status || 'pending',
     created_at: row.created_at || null,
@@ -45,8 +55,13 @@ const createOrder = async ({
   id = createUuid(),
   order_no,
   user_id,
+  order_type = 1,
   course_id,
   group_id,
+  package_id,
+  package_group_id,
+  package_action = null,
+  package_context = null,
   amount = 0,
   status = 'pending',
   created_at = new Date(),
@@ -65,16 +80,21 @@ const createOrder = async ({
   await execute(
     `
       insert into orders (
-        id, order_no, user_id, course_id, group_id, amount, status,
+        id, order_no, user_id, order_type, course_id, group_id, package_id, package_group_id, package_action, package_context, amount, status,
         created_at, updated_at, pay_time, refund_time, refund_reason, refund_operator_id, transaction_id
-      ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       resolvedId,
       resolvedOrderNo,
       user_id,
-      course_id,
+      Number(order_type) || 1,
+      course_id || null,
       group_id || null,
+      package_id || null,
+      package_group_id || null,
+      package_action || null,
+      stringifyJsonField(package_context),
       Number(amount) || 0,
       status,
       createdAt,
@@ -119,13 +139,18 @@ const findOrderForUser = async ({ userId, orderId }) => {
   return normalizeOrder(rows[0])
 }
 
-const listOrders = async ({ userId, courseId, groupId, status, statuses = [] } = {}) => {
+const listOrders = async ({ userId, orderType, courseId, groupId, packageId, packageGroupId, packageAction, status, statuses = [] } = {}) => {
   const conditions = []
   const params = []
 
   if (userId) {
     conditions.push('user_id = ?')
     params.push(userId)
+  }
+
+  if (orderType !== undefined && orderType !== null && orderType !== '') {
+    conditions.push('order_type = ?')
+    params.push(Number(orderType))
   }
 
   if (courseId) {
@@ -136,6 +161,21 @@ const listOrders = async ({ userId, courseId, groupId, status, statuses = [] } =
   if (groupId) {
     conditions.push('group_id = ?')
     params.push(groupId)
+  }
+
+  if (packageId) {
+    conditions.push('package_id = ?')
+    params.push(packageId)
+  }
+
+  if (packageGroupId) {
+    conditions.push('package_group_id = ?')
+    params.push(packageGroupId)
+  }
+
+  if (packageAction) {
+    conditions.push('package_action = ?')
+    params.push(packageAction)
   }
 
   if (status) {
@@ -165,7 +205,17 @@ const listOrders = async ({ userId, courseId, groupId, status, statuses = [] } =
 
 const listOrdersByGroupId = async ({ groupId, status, statuses = [] } = {}) => {
   return listOrders({
+    orderType: 1,
     groupId,
+    status,
+    statuses
+  })
+}
+
+const listOrdersByPackageGroupId = async ({ packageGroupId, status, statuses = [] } = {}) => {
+  return listOrders({
+    orderType: 2,
+    packageGroupId,
     status,
     statuses
   })
@@ -177,10 +227,27 @@ const listPendingOrderIdsByUserAndCourse = async ({ userId, courseId }) => {
       select id
       from orders
       where user_id = ?
+        and order_type = 1
         and course_id = ?
         and status = 'pending'
     `,
     [userId, courseId]
+  )
+
+  return rows.map(item => item.id).filter(Boolean)
+}
+
+const listPendingOrderIdsByUserAndPackage = async ({ userId, packageId }) => {
+  const rows = await query(
+    `
+      select id
+      from orders
+      where user_id = ?
+        and order_type = 2
+        and package_id = ?
+        and status = 'pending'
+    `,
+    [userId, packageId]
   )
 
   return rows.map(item => item.id).filter(Boolean)
@@ -231,8 +298,13 @@ const updateOrder = async (id, payload = {}) => {
 
   assign('order_no', payload.order_no)
   assign('user_id', payload.user_id)
+  assign('order_type', payload.order_type, value => Number(value) || 1)
   assign('course_id', payload.course_id)
   assign('group_id', payload.group_id)
+  assign('package_id', payload.package_id)
+  assign('package_group_id', payload.package_group_id)
+  assign('package_action', payload.package_action)
+  assign('package_context', payload.package_context, stringifyJsonField)
   assign('amount', payload.amount, value => Number(value) || 0)
   assign('status', payload.status)
   assign('pay_time', payload.pay_time, value => (value ? toDbDateTime(value) : null))
@@ -264,6 +336,8 @@ module.exports = {
   findOrderForUser,
   listOrders,
   listOrdersByGroupId,
+  listOrdersByPackageGroupId,
   listPendingOrderIdsByUserAndCourse,
+  listPendingOrderIdsByUserAndPackage,
   updateOrder
 }

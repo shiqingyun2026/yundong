@@ -1,0 +1,10 @@
+{
+  "navigationBarTitleText": "发起开团",
+  "usingComponents": {
+    "mp-toptips": "../../../vendor/weui-miniprogram/toptips/toptips",
+    "mp-cells": "../../../vendor/weui-miniprogram/cells/cells",
+    "mp-checkbox-group": "../../../vendor/weui-miniprogram/checkbox-group/checkbox-group",
+    "mp-checkbox": "../../../vendor/weui-miniprogram/checkbox/checkbox",
+    "mp-loading": "../../../vendor/weui-miniprogram/loading/loading"
+  }
+}

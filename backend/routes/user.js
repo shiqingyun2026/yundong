@@ -5,7 +5,10 @@ const { groupResultSubscriptionsRepository } = require('../repositories')
 const authenticate = require('../middleware/auth')
 const { getSupabaseClient } = require('../utils/getSupabaseClient')
 const { fetchMiniProgramUserGroupList } = require('../shared/services/groupReaders')
+const { fetchMiniProgramUserPackageGroupList } = require('../shared/services/packageReaders')
+const { isPackageServiceError } = require('../shared/services/packageServiceError')
 const { logMiniProgramIdentity } = require('../shared/utils/miniProgramIdentityLog')
+const { ok, fail } = require('./_helpers')
 
 const router = express.Router()
 const resolveSupabase = () => (env.useMySqlRepositories ? null : getSupabaseClient())
@@ -35,6 +38,23 @@ router.get('/groups', authenticate, async (req, res) => {
     return res.status(500).json({
       message: error.message || 'failed to fetch user groups'
     })
+  }
+})
+
+router.get('/package-groups', authenticate, async (req, res) => {
+  try {
+    return ok(
+      res,
+      await fetchMiniProgramUserPackageGroupList({
+        supabase: resolveSupabase(),
+        userId: req.userId,
+        status: req.query.status,
+        page: req.query.page,
+        pageSize: req.query.pageSize
+      })
+    )
+  } catch (error) {
+    return fail(res, isPackageServiceError(error) ? error.code : 5000, error.message || 'failed to fetch user package groups', error.status || 500)
   }
 })
 

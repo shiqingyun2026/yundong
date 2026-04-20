@@ -11,9 +11,9 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { to: '/dashboard', label: '概览' },
-  { to: '/courses', label: '课程管理' },
-  { to: '/groups', label: '拼团管理' },
-  { to: '/orders', label: '订单管理' },
+  { to: '/packages', label: '课包管理' },
+  { to: '/package-groups', label: '课包拼团' },
+  { to: '/package-orders', label: '课包订单' },
   { to: '/accounts', label: '账号管理', roles: ['super_admin'] as const },
   { to: '/logs', label: '操作日志' }
 ]
@@ -34,7 +34,7 @@ export function AdminLayout() {
         <div className="brand-block">
           <p className="brand-kicker">Neighbor Move</p>
           <h1>邻动体适能</h1>
-          <p className="brand-subtitle">运营后台骨架</p>
+          <p className="brand-subtitle">课包拼团运营后台</p>
         </div>
         <nav className="nav">
           {visibleNavItems.map(item => (

@@ -6,13 +6,12 @@ import { AdminLayout } from './components/AdminLayout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AccountListPage } from './pages/AccountListPage'
 import { AdminLogPage } from './pages/AdminLogPage'
-import { CourseFormPage } from './pages/CourseFormPage'
-import { CourseListPage } from './pages/CourseListPage'
 import { DashboardPage } from './pages/DashboardPage'
-import { GroupDetailPage } from './pages/GroupDetailPage'
-import { GroupListPage } from './pages/GroupListPage'
 import { LoginPage } from './pages/LoginPage'
-import { OrderListPage } from './pages/OrderListPage'
+import { PackageFormPage } from './pages/PackageFormPage'
+import { PackageGroupListPage } from './pages/PackageGroupListPage'
+import { PackageListPage } from './pages/PackageListPage'
+import { PackageOrderListPage } from './pages/PackageOrderListPage'
 import { authStore } from './lib/auth'
 
 function SuperAdminRoute({ children }: { children: ReactNode }) {
@@ -39,13 +38,12 @@ export default function App() {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="courses" element={<CourseListPage />} />
-        <Route path="courses/new" element={<CourseFormPage mode="create" />} />
-        <Route path="courses/:id" element={<CourseFormPage mode="view" />} />
-        <Route path="courses/:id/edit" element={<CourseFormPage mode="edit" />} />
-        <Route path="groups" element={<GroupListPage />} />
-        <Route path="groups/:id" element={<GroupDetailPage />} />
-        <Route path="orders" element={<OrderListPage />} />
+        <Route path="packages" element={<PackageListPage />} />
+        <Route path="packages/new" element={<PackageFormPage mode="create" />} />
+        <Route path="packages/:id" element={<PackageFormPage mode="view" />} />
+        <Route path="packages/:id/edit" element={<PackageFormPage mode="edit" />} />
+        <Route path="package-groups" element={<PackageGroupListPage />} />
+        <Route path="package-orders" element={<PackageOrderListPage />} />
         <Route
           path="accounts"
           element={

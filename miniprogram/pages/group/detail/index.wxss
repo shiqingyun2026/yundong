@@ -89,17 +89,9 @@
 
 .group-price {
   color: #ff7a00;
-  font-size: 42rpx;
+  font-size: 36rpx;
   font-weight: 700;
-  line-height: 1;
-}
-
-.original-price {
-  flex: 1;
-  padding-bottom: 6rpx;
-  color: #b6bdc8;
-  font-size: 24rpx;
-  text-decoration: line-through;
+  line-height: 1.3;
 }
 
 .info-list {
@@ -150,6 +142,59 @@
 
 .progress-desc {
   margin-top: 18rpx;
+}
+
+.member-list-block {
+  margin-top: 20rpx;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.member-item + .member-item {
+  margin-top: 16rpx;
+}
+
+.member-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: #eef2f7;
+}
+
+.member-avatar--placeholder {
+  background: linear-gradient(135deg, var(--brand-primary-soft) 0%, #eef2f7 100%);
+}
+
+.member-name {
+  font-size: 28rpx;
+  color: #1f2329;
+}
+
+.schedule-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-top: 18rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 20rpx;
+  background: #f8fafc;
+}
+
+.schedule-index {
+  font-size: 24rpx;
+  color: #8f96a3;
+}
+
+.schedule-text {
+  flex: 1;
+  text-align: right;
+  font-size: 26rpx;
+  color: #1f2329;
 }
 
 .bottom-space {

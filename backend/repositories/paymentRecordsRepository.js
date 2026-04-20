@@ -7,6 +7,8 @@ const PAYMENT_RECORD_SELECT_FIELDS = `
   user_id,
   course_id,
   group_id,
+  package_id,
+  package_group_id,
   provider,
   channel,
   payment_mode,
@@ -32,8 +34,10 @@ const normalizePaymentRecord = row => {
     id: row.id,
     order_id: row.order_id,
     user_id: row.user_id,
-    course_id: row.course_id,
+    course_id: row.course_id || '',
     group_id: row.group_id || '',
+    package_id: row.package_id || '',
+    package_group_id: row.package_group_id || '',
     provider: row.provider || 'wechat',
     channel: row.channel || 'mini_program',
     payment_mode: row.payment_mode || 'mock',
@@ -57,6 +61,8 @@ const createPaymentRecord = async ({
   user_id,
   course_id,
   group_id,
+  package_id,
+  package_group_id,
   provider = 'wechat',
   channel = 'mini_program',
   payment_mode = 'mock',
@@ -75,17 +81,19 @@ const createPaymentRecord = async ({
   await execute(
     `
       insert into payment_records (
-        id, order_id, user_id, course_id, group_id, provider, channel, payment_mode, out_trade_no,
+        id, order_id, user_id, course_id, group_id, package_id, package_group_id, provider, channel, payment_mode, out_trade_no,
         transaction_id, amount, status, callback_status, prepare_payload, callback_payload,
         paid_at, closed_at, created_at, updated_at
-      ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       id,
       order_id,
       user_id,
-      course_id,
+      course_id || null,
       group_id || null,
+      package_id || null,
+      package_group_id || null,
       provider,
       channel,
       payment_mode,
@@ -165,6 +173,8 @@ const updatePaymentRecord = async (id, payload = {}) => {
   assign('user_id', payload.user_id)
   assign('course_id', payload.course_id)
   assign('group_id', payload.group_id)
+  assign('package_id', payload.package_id)
+  assign('package_group_id', payload.package_group_id)
   assign('provider', payload.provider)
   assign('channel', payload.channel)
   assign('payment_mode', payload.payment_mode)

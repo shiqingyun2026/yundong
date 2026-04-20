@@ -1,4 +1,12 @@
-const { fetchCourseDetail, fetchActiveGroup, createOrder, preparePayment, mockPaymentSuccess } = require('../../../utils/course')
+const {
+  createPackageJoinOrder,
+  createPackageStartOrder,
+  fetchPackageDetail,
+  fetchPackageGroupDetail,
+  mockPaymentSuccess,
+  preparePayment
+} = require('../../../utils/package')
+const { loginAndStoreSession } = require('../../../utils/auth')
 
 const invokeWechatPayment = paymentParams =>
   new Promise((resolve, reject) => {
@@ -20,13 +28,16 @@ const invokeWechatPayment = paymentParams =>
 
 Page({
   data: {
-    courseId: '',
-    groupId: '',
+    action: 'start',
+    packageId: '',
+    packageGroupId: '',
     orderId: '',
-    courseDetail: null,
-    groupDetail: null,
-    paymentParams: null,
-    paymentMode: 'mock',
+    targetCount: 0,
+    weekday: 6,
+    hour: 10,
+    packageDetail: null,
+    packageGroupDetail: null,
+    paymentAmountText: '0.00',
     agreementChecked: true,
     loading: true,
     paying: false
@@ -34,31 +45,22 @@ Page({
 
   async onLoad(options) {
     this._isAlive = true
-    this._timers = []
-
-    const courseId = options.courseId || ''
-    const groupId = options.groupId || ''
-    const orderId = options.orderId || ''
-    const pendingOrder = getApp().globalData.pendingOrder || null
-
-    this.safeSetData({
-      courseId,
-      groupId,
-      orderId,
-      paymentParams:
-        pendingOrder &&
-        (!orderId || pendingOrder.orderId === orderId) &&
-        pendingOrder.courseId === courseId
-          ? pendingOrder.paymentParams || {}
-          : null
+    this.setData({
+      action: options.action || 'start',
+      packageId: options.packageId || '',
+      packageGroupId: options.packageGroupId || '',
+      orderId: options.orderId || '',
+      targetCount: Number(options.targetCount) || 0,
+      weekday: Number(options.weekday) || 6,
+      hour: Number(options.hour) || 10
     })
 
-    await this.loadPageData(courseId, groupId)
+    await this.ensureLogin()
+    await this.loadPageData()
   },
 
   onUnload() {
     this._isAlive = false
-    this.clearTimers()
   },
 
   safeSetData(payload) {
@@ -69,53 +71,34 @@ Page({
     this.setData(payload)
   },
 
-  clearTimers() {
-    ;(this._timers || []).forEach(timerId => clearTimeout(timerId))
-    this._timers = []
-  },
-
-  async loadPageData(courseId, groupId) {
-    if (!courseId) {
-      if (!this._isAlive) {
-        return
-      }
-
-      wx.showToast({
-        title: '课程信息不存在',
-        icon: 'none'
-      })
-      return
-    }
-
+  async loadPageData() {
     this.safeSetData({
       loading: true
     })
 
     try {
-      const tasks = [fetchCourseDetail(courseId)]
-      if (groupId) {
-        tasks.push(fetchActiveGroup(courseId))
+      const tasks = [fetchPackageDetail(this.data.packageId)]
+
+      if (this.data.packageGroupId) {
+        tasks.push(fetchPackageGroupDetail(this.data.packageGroupId))
       }
 
-      const [courseDetail, activeGroup] = await Promise.all(tasks)
-      const groupDetail =
-        groupId && activeGroup && activeGroup.groupId === groupId
-          ? activeGroup
-          : null
-
-      if (!this._isAlive) {
-        return
-      }
+      const [packageDetail, packageGroupDetail] = await Promise.all(tasks)
+      const nextTargetCount = this.data.action === 'join' && packageGroupDetail ? packageGroupDetail.targetCount : this.data.targetCount
+      const amountFen =
+        this.data.action === 'join' && packageGroupDetail
+          ? packageGroupDetail.memberAmountFen
+          : nextTargetCount > 0
+            ? Math.floor((Number(packageDetail.totalPriceFen) || 0) / nextTargetCount)
+            : 0
 
       this.safeSetData({
-        courseDetail,
-        groupDetail: groupDetail || null
+        packageDetail,
+        packageGroupDetail: packageGroupDetail || null,
+        targetCount: nextTargetCount,
+        paymentAmountText: (amountFen / 100).toFixed(2)
       })
     } catch (error) {
-      if (!this._isAlive) {
-        return
-      }
-
       wx.showToast({
         title: '支付信息加载失败',
         icon: 'none'
@@ -140,6 +123,42 @@ Page({
     })
   },
 
+  async ensureLogin() {
+    if (wx.getStorageSync('token')) {
+      return true
+    }
+
+    try {
+      await loginAndStoreSession()
+      return true
+    } catch (error) {
+      return false
+    }
+  },
+
+  async createOrderIfNeeded() {
+    if (this.data.orderId) {
+      return {
+        orderId: this.data.orderId,
+        packageGroupId: this.data.packageGroupId
+      }
+    }
+
+    if (this.data.action === 'join') {
+      return createPackageJoinOrder({
+        packageId: this.data.packageId,
+        packageGroupId: this.data.packageGroupId
+      })
+    }
+
+    return createPackageStartOrder({
+      packageId: this.data.packageId,
+      targetCount: this.data.targetCount,
+      weekday: this.data.weekday,
+      hour: this.data.hour
+    })
+  },
+
   async handleConfirmPay() {
     if (!this.data.agreementChecked) {
       wx.showToast({
@@ -153,110 +172,60 @@ Page({
       return
     }
 
+    if (!(await this.ensureLogin())) {
+      wx.showToast({
+        title: '请先完成登录',
+        icon: 'none'
+      })
+      return
+    }
+
     this.safeSetData({
       paying: true
     })
 
-    let order = null
-
-    if (this.data.orderId) {
-      order = {
-        orderId: this.data.orderId,
-        groupId: this.data.groupId,
-        paymentParams: this.data.paymentParams || {}
-      }
-    } else {
-      try {
-        order = await createOrder({
-          courseId: this.data.courseId,
-          groupId: this.data.groupId,
-          totalFee: this.data.courseDetail ? parseInt(this.data.courseDetail.groupPriceFen, 10) : 0
-        })
-      } catch (error) {
-        wx.showToast({
-          title: (error && error.message) || '下单失败，请稍后再试',
-          icon: 'none'
-        })
-
-        this.safeSetData({
-          paying: false
-        })
-        return
-      }
-    }
-
-    if (!this._isAlive) {
-      return
-    }
-
     try {
+      const order = await this.createOrderIfNeeded()
+      const orderId = order.orderId || ''
+
+      if (!orderId) {
+        throw new Error('订单创建失败')
+      }
+
       const paymentPreparation = await preparePayment({
-        orderId: order.orderId
+        orderId
       })
-
-      if (!this._isAlive) {
-        return
-      }
-
-      this.safeSetData({
-        paymentParams: (paymentPreparation && paymentPreparation.paymentParams) || null,
-        paymentMode: (paymentPreparation && paymentPreparation.paymentMode) || 'mock'
-      })
-
-      getApp().globalData.pendingOrder = {
-        orderId: order.orderId,
-        courseId: this.data.courseId,
-        groupId: order.groupId || this.data.groupId,
-        paymentMode: (paymentPreparation && paymentPreparation.paymentMode) || 'mock',
-        paymentParams: (paymentPreparation && paymentPreparation.paymentParams) || null,
-        outTradeNo: (paymentPreparation && paymentPreparation.outTradeNo) || ''
-      }
+      let nextPackageGroupId = this.data.packageGroupId || order.packageGroupId || ''
 
       if (paymentPreparation && paymentPreparation.canUseRequestPayment) {
-        try {
-          await invokeWechatPayment((paymentPreparation && paymentPreparation.paymentParams) || {})
-          getApp().globalData.pendingOrder = null
-          this.navigateToPaymentResult('success', order.groupId || this.data.groupId)
-          return
-        } catch (paymentError) {
-          const message = `${paymentError && (paymentError.errMsg || paymentError.message || '')}`.toLowerCase()
-
-          if (message.includes('cancel')) {
-            wx.showToast({
-              title: '已取消支付',
-              icon: 'none'
-            })
-          } else {
-            wx.showToast({
-              title: '支付失败，请稍后重试',
-              icon: 'none'
-            })
-          }
-
-          return
-        }
+        await invokeWechatPayment(paymentPreparation.paymentParams || {})
+      } else {
+        const paymentResult = await mockPaymentSuccess({
+          orderId
+        })
+        nextPackageGroupId = (paymentResult && paymentResult.packageGroupId) || nextPackageGroupId
       }
 
-      const paymentResult = await mockPaymentSuccess({
-        orderId: order.orderId,
-        groupId: order.groupId || this.data.groupId
+      wx.redirectTo({
+        url:
+          `/pages/payment/result/index?status=success` +
+          `&packageId=${this.data.packageId}` +
+          `&packageGroupId=${encodeURIComponent(nextPackageGroupId)}`
       })
-
-      if (!this._isAlive) {
-        return
-      }
-
-      getApp().globalData.pendingOrder = null
-      this.navigateToPaymentResult('success', paymentResult.groupId || order.groupId || this.data.groupId)
     } catch (error) {
-      if (!this._isAlive) {
-        return
-      }
+      const message = `${error && (error.errMsg || error.message || '')}`.toLowerCase()
 
-      wx.showToast({
-        title: '支付确认失败，请稍后重试',
-        icon: 'none'
-      })
+      if (message.includes('cancel')) {
+        wx.showToast({
+          title: '已取消支付',
+          icon: 'none'
+        })
+      } else {
+        wx.showToast({
+          title: (error && error.message) || '支付失败，请稍后重试',
+          icon: 'none'
+        })
+      }
     } finally {
       this.safeSetData({
         paying: false
@@ -265,25 +234,15 @@ Page({
   },
 
   handleMockFail() {
-    if (!this.data.agreementChecked) {
-      wx.showToast({
-        title: '请先同意课程服务协议',
-        icon: 'none'
-      })
-      return
-    }
-
-    const groupId = this.data.groupId || `mock-group-${this.data.courseId}`
-    this.navigateToPaymentResult('fail', groupId)
-  },
-
-  navigateToPaymentResult(status, groupId) {
-    if (!this._isAlive) {
-      return
-    }
-
     wx.redirectTo({
-      url: `/pages/payment/result/index?status=${status}&courseId=${this.data.courseId}&groupId=${groupId}`
+      url:
+        `/pages/payment/result/index?status=fail` +
+        `&packageId=${this.data.packageId}` +
+        `&packageGroupId=${encodeURIComponent(this.data.packageGroupId || '')}` +
+        `&action=${this.data.action}` +
+        `&targetCount=${this.data.targetCount}` +
+        `&weekday=${this.data.weekday}` +
+        `&hour=${this.data.hour}`
     })
   }
 })

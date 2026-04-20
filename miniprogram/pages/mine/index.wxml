@@ -21,7 +21,7 @@
     <button
       wx:if="{{userInfo}}"
       class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--secondary logout-button"
-      bindtap="handleLogout"
+      catchtap="handleLogout"
     >
       <view class="weui-ext-button__inner">退出登录</view>
     </button>

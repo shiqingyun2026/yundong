@@ -62,7 +62,9 @@ const matchesDateRange = ({ value, startDate = '', endDate = '' }) => {
 }
 
 const listOrdersViaMySql = async () => {
-  const data = await ordersRepository.listOrders()
+  const data = await ordersRepository.listOrders({
+    orderType: 1
+  })
   const userIds = [...new Set((data || []).map(item => item.user_id).filter(Boolean))]
   const courseIds = [...new Set((data || []).map(item => item.course_id).filter(Boolean))]
 
@@ -105,7 +107,8 @@ const listOrdersViaMySql = async () => {
 const listOrdersViaSupabase = async () => {
   const { data, error } = await supabase
     .from('orders')
-    .select('id, order_no, user_id, course_id, group_id, amount, status, created_at, pay_time, refund_time, refund_reason')
+    .select('id, order_no, user_id, order_type, course_id, group_id, amount, status, created_at, pay_time, refund_time, refund_reason')
+    .eq('order_type', 1)
     .order('created_at', { ascending: false })
 
   if (error) {

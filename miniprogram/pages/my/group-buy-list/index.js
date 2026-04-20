@@ -1,8 +1,8 @@
-const { fetchUserGroupList } = require('../../../utils/course')
+const { fetchUserPackageGroupList } = require('../../../utils/package')
 
 const TAB_LIST = [
   { key: 'all', label: '全部' },
-  { key: 'ongoing', label: '进行中' },
+  { key: 'active', label: '进行中' },
   { key: 'success', label: '已成团' },
   { key: 'failed', label: '已失败' }
 ]
@@ -46,7 +46,7 @@ Page({
     })
 
     try {
-      const result = await fetchUserGroupList({
+      const result = await fetchUserPackageGroupList({
         status: this.data.activeTab,
         page,
         pageSize: this.data.pageSize
@@ -92,7 +92,7 @@ Page({
     }
 
     wx.navigateTo({
-      url: `/pages/group/detail/index?groupId=${groupId}`
+      url: `/pages/group/detail/index?packageGroupId=${groupId}`
     })
   }
 })

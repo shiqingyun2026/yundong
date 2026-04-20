@@ -11,6 +11,9 @@ const ACTION_OPTIONS = [
   { value: 'account_create', label: '创建账号' },
   { value: 'account_update', label: '更新账号' },
   { value: 'account_delete', label: '删除账号' },
+  { value: 'package_create', label: '创建课包' },
+  { value: 'package_update', label: '编辑课包' },
+  { value: 'package_order_refund', label: '课包订单退款' },
   { value: 'course_create', label: '创建课程' },
   { value: 'course_update', label: '编辑课程' },
   { value: 'course_offline', label: '下架课程' },
@@ -22,6 +25,7 @@ const ACTION_OPTIONS = [
 const TARGET_TYPE_OPTIONS = [
   { value: '', label: '全部对象' },
   { value: 'admin_user', label: '管理员账号' },
+  { value: 'course_package', label: '课包' },
   { value: 'course', label: '课程' },
   { value: 'order', label: '订单' }
 ]
