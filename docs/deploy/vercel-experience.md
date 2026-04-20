@@ -49,6 +49,12 @@ Vercel Cron 触发的是 HTTP `GET` 请求，所以内部同步接口已兼容 `
 
 ## 3. 部署 console
 
+说明：
+
+* 本文档保留 Vercel 体验版方案，仅作为历史参考。
+* 当前正式建议已经切到 CloudBase 静态托管，详见：
+  * [console-cloudbase-hosting.md](/Users/yun/lindong/docs/deploy/console-cloudbase-hosting.md)
+
 如果部署到 Cloudflare Pages：
 
 * Root Directory: `console`

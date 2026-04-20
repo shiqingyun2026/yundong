@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --port=3100 --host=0.0.0.0",
     "build": "vite build",
+    "build:cloudbase": "VITE_APP_BASE=/lindong_console/ vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit"
   },

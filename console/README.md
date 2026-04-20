@@ -27,3 +27,37 @@
 3. 退款、上传签名、管理员持久化账号仍待数据库迁移完成后再补齐。
 4. 如果前端要直连独立 `console-api`，请在 `console/.env` 中把 `VITE_API_BASE_URL` 配成 `http://127.0.0.1:8100/api/admin`。
 5. 可用 `cd /Users/yun/lindong/qa/regression && npm run test:console-live` 验证“前端 + 独立 console-api”本地真实登录与 dashboard 联调。
+
+## 生产发布
+
+当前建议将运营后台前端发布到 CloudBase 静态托管。
+
+发布前本地检查：
+
+1. `npm run lint`
+2. `npm run build:cloudbase`
+
+构建产物目录：
+
+* `console/dist`
+
+CloudBase 静态托管建议配置：
+
+* 部署目录：`console`
+* 构建命令：`npm install && npm run build:cloudbase`
+* 输出目录：`dist`
+* 生产环境变量：`VITE_API_BASE_URL`
+
+当前生产接口地址定义在：
+
+* [console/.env.production](/Users/yun/lindong/console/.env.production)
+
+完成 Console 后端 CloudBase 云托管切换后，建议填写：
+
+* `VITE_API_BASE_URL=https://<console-api-cloudbase-domain>/api/admin`
+
+注意事项：
+
+1. CloudBase 静态托管只负责后台前端页面，不负责 `console-api` 或小程序云托管接口。
+2. React Router 刷新子路由时，需要在 CloudBase 控制台把错误文档或回退文档指向 `index.html`，否则会出现 404。
+3. 正式环境建议使用自定义域名，不建议长期依赖默认测试域名。

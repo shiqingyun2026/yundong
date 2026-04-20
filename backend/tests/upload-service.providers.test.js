@@ -20,7 +20,7 @@ const clearModules = relativePaths => {
   })
 }
 
-test('upload service uses supabase provider for proxy upload by default', async () => {
+test('upload service uses supabase provider for proxy upload when explicitly configured', async () => {
   const targets = [
     'console-api/services/uploadService.js',
     'console-api/services/storage/supabaseProvider.js',

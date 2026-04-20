@@ -55,6 +55,16 @@ npm run dev
 
 默认开发端口为 `3100`。
 
+生产发布当前建议使用 CloudBase 静态托管：
+
+```bash
+cd console
+npm run lint
+npm run build:cloudbase
+```
+
+发布产物目录为 `console/dist`。
+
 ### 微信小程序
 
 目录：`miniprogram/`
@@ -115,6 +125,7 @@ npm run icons:build
 ```bash
 cd console
 npm run lint
+npm run build:cloudbase
 ```
 
 - 后端改动：运行对应 `verify:*` 或 smoke 命令。

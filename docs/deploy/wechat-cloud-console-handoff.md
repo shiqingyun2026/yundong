@@ -4,10 +4,11 @@
 
 ## 1. 当前最终架构
 
-当前项目已经明确收口为两条入口：
+当前项目已经明确收口为三条入口：
 
 - 小程序：`wx.cloud.callContainer -> 云托管服务 lindong-api`
-- Console：继续走标准 HTTP 服务端
+- Console 前端：CloudBase 静态托管
+- Console 接口：CloudBase 云托管 `lindong-console-api`
 - 两端：继续共用 `backend/shared/*` 里的业务规则和同一套主数据
 
 这次收口后，不再继续维护“小程序 -> 云函数 -> 外部 HTTP”的试错路径。
@@ -46,6 +47,28 @@
 - [app.js](/Users/yun/lindong/backend/console-api/app.js)
 - [server.js](/Users/yun/lindong/backend/console-api/server.js)
 - [routes](/Users/yun/lindong/backend/console-api/routes)
+
+### 2.4 Console 后端云托管部署包
+
+当前建议将后台接口部署到独立 CloudBase 云托管服务：
+
+- 部署目录：
+  - [deploy-artifacts/lindong-console-api-deploy](/Users/yun/lindong/deploy-artifacts/lindong-console-api-deploy)
+- 建议服务名：
+  - `lindong-console-api`
+- 发布说明：
+  - [console-cloudbase-cutover.md](/Users/yun/lindong/docs/deploy/console-cloudbase-cutover.md)
+
+### 2.5 Console 前端静态托管
+
+当前建议将后台前端统一发布到 CloudBase 静态托管：
+
+- 源码目录：
+  - [console](/Users/yun/lindong/console)
+- 构建产物：
+  - [console/dist](/Users/yun/lindong/console/dist)
+- 发布说明：
+  - [console-cloudbase-hosting.md](/Users/yun/lindong/docs/deploy/console-cloudbase-hosting.md)
 
 ## 3. 当前验证基线
 
@@ -102,6 +125,13 @@ CloudBase 控制台当前实际使用的是“本地文件夹上传”，不是�
 - 只修改 `backend/` 不会自动影响线上
 - 交接、排障、真机验证前，必须先确认 `deploy-artifacts/lindong-api-deploy/` 已同步到最新版本
 - 这轮很多“接口明明改了但线上没变化”的坑，根因都是部署包里还是旧代码
+
+Console 后端现在也建议采用完全一致的思路：
+
+- 独立部署目录：
+  - [deploy-artifacts/lindong-console-api-deploy](/Users/yun/lindong/deploy-artifacts/lindong-console-api-deploy)
+- 只修改 `backend/console-api` 不会自动影响 CloudBase 线上
+- 发布前必须同步该目录
 
 已验证：
 
@@ -222,6 +252,7 @@ docs/
   miniprogram/
 deploy-artifacts/
   lindong-api-deploy/
+  lindong-console-api-deploy/
 ```
 
 ## 7. 当前仍未完成的部分
