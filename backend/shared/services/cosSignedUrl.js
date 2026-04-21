@@ -83,7 +83,17 @@ const signCosImageList = list => {
   return list.map(item => signCosPublicUrl(item)).filter(Boolean)
 }
 
+const signCosUrlsInText = value => {
+  const text = `${value || ''}`
+  if (!text) {
+    return ''
+  }
+
+  return text.replace(/https?:\/\/[^\s"'<>]+/gi, matched => signCosPublicUrl(matched))
+}
+
 module.exports = {
   signCosImageList,
-  signCosPublicUrl
+  signCosPublicUrl,
+  signCosUrlsInText
 }

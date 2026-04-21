@@ -47,7 +47,7 @@
       <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">教练信息</view>
         <view class="coach-name">{{packageDetail.coachName}}</view>
-        <view class="coach-intro">{{packageDetail.coachIntro}}</view>
+        <rich-text class="rich-text" nodes="{{packageDetail.coachIntro}}"></rich-text>
         <view class="certificate-list">
           <image
             wx:for="{{packageDetail.coachCertificates}}"

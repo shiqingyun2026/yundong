@@ -9,7 +9,7 @@ const {
   formatScheduleTextWithLockNote
 } = require('./packageSchedule')
 const { cleanupExpiredPackageGroups } = require('./packageGroupStore')
-const { signCosImageList, signCosPublicUrl } = require('./cosSignedUrl')
+const { signCosImageList, signCosPublicUrl, signCosUrlsInText } = require('./cosSignedUrl')
 
 const formatFenText = amountFen => (Number(amountFen || 0) / 100).toFixed(2)
 
@@ -258,9 +258,9 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
     location_community: pkg.location_community,
     location_detail: pkg.location_detail,
     coach_name: pkg.coach_name,
-    coach_intro: pkg.coach_intro,
-    coach_certificates: pkg.coach_certificates || [],
-    description: pkg.description || '',
+    coach_intro: signCosUrlsInText(pkg.coach_intro || ''),
+    coach_certificates: signCosImageList(pkg.coach_certificates || []),
+    description: signCosUrlsInText(pkg.description || ''),
     insurance_desc: '课程期间统一赠送基础运动意外险，具体保障范围以投保说明为准。',
     active_groups: (activeGroups || [])
       .sort((left, right) => new Date(left.deadline).getTime() - new Date(right.deadline).getTime())
