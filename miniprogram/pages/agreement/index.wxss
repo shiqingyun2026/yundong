@@ -1,8 +1,10 @@
 .agreement-page {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  padding: 36rpx 24rpx 44rpx;
+  height: 100vh;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 36rpx 24rpx calc(24rpx + env(safe-area-inset-bottom));
   background:
     radial-gradient(circle at top left, rgba(26, 188, 197, 0.12), transparent 36%),
     linear-gradient(180deg, #f5f9ff 0%, #f7f8fa 38%, #f3f5f8 100%);
@@ -57,6 +59,7 @@
 
 .agreement-content {
   flex: 1;
+  height: 0;
   min-height: 0;
   padding: 32rpx;
   border-radius: 32rpx;
@@ -99,7 +102,16 @@
 }
 
 .agreement-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  flex-shrink: 0;
   padding-top: 24rpx;
+  padding-bottom: calc(8rpx + env(safe-area-inset-bottom));
+  margin: 0 -24rpx calc(-24rpx - env(safe-area-inset-bottom));
+  padding-left: 24rpx;
+  padding-right: 24rpx;
+  background: linear-gradient(180deg, rgba(243, 245, 248, 0) 0%, rgba(243, 245, 248, 0.92) 20%, #f3f5f8 48%);
 }
 
 .agreement-consent-cells.weui-cells__group {

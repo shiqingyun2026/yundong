@@ -14,7 +14,7 @@
         </view>
       </view>
       <view class="profile-info">
-        <view class="profile-name {{!userInfo ? 'profile-name-guest' : ''}}">{{userInfo ? userInfo.nickName : (loginLoading ? '登录中...' : '立即登录')}}</view>
+        <view class="profile-name {{!userInfo ? 'profile-name-guest' : ''}}">{{userInfo ? userInfo.nickName : '立即登录'}}</view>
       </view>
     </view>
 
@@ -59,4 +59,10 @@
       <view class="service-tip">请使用微信扫码联系专属客服</view>
     </view>
   </mp-dialog>
+
+  <login-sheet
+    show="{{showLoginSheet}}"
+    bind:close="handleCloseLoginSheet"
+    bind:success="handleLoginSheetSuccess"
+  />
 </view>

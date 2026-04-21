@@ -106,8 +106,6 @@
     <button
       class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary bottom-action"
       bindtap="handleStartGroup"
-      loading="{{loginLoading}}"
-      disabled="{{loginLoading}}"
     >
       <view class="weui-ext-button__inner">立即开团</view>
     </button>
@@ -127,4 +125,10 @@
       <view class="service-tip">请联系运营同学获取企业微信二维码。</view>
     </view>
   </mp-dialog>
+
+  <login-sheet
+    show="{{showLoginSheet}}"
+    bind:close="handleCloseLoginSheet"
+    bind:success="handleLoginSheetSuccess"
+  />
 </view>

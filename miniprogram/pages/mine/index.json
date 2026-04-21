@@ -5,6 +5,7 @@
     "mp-cells": "../../vendor/weui-miniprogram/cells/cells",
     "mp-cell": "../../vendor/weui-miniprogram/cell/cell",
     "mp-icon": "../../vendor/weui-miniprogram/icon/icon",
-    "mp-dialog": "../../vendor/weui-miniprogram/dialog/dialog"
+    "mp-dialog": "../../vendor/weui-miniprogram/dialog/dialog",
+    "login-sheet": "../../components/login-sheet/index"
   }
 }

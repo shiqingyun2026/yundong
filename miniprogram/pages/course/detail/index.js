@@ -1,5 +1,4 @@
 const { fetchPackageDetail } = require('../../../utils/package')
-const { loginAndStoreSession } = require('../../../utils/auth')
 
 const SERVICE_DIALOG_BUTTONS = [
   {
@@ -13,7 +12,8 @@ Page({
     packageDetail: null,
     loading: true,
     showServiceModal: false,
-    loginLoading: false,
+    showLoginSheet: false,
+    pendingLoginAction: null,
     serviceDialogButtons: SERVICE_DIALOG_BUTTONS
   },
 
@@ -26,11 +26,19 @@ Page({
   },
 
   async onShow() {
+    if (!this.data.showLoginSheet) {
+      this.showTabBar()
+    }
+
     if (!this.data.packageId) {
       return
     }
 
     await this.loadPageData(this.data.packageId)
+  },
+
+  onUnload() {
+    this.showTabBar()
   },
 
   async loadPageData(packageId) {
@@ -60,36 +68,6 @@ Page({
     } finally {
       this.setData({
         loading: false
-      })
-    }
-  },
-
-  async ensureLogin() {
-    const token = wx.getStorageSync('token')
-    if (token) {
-      return true
-    }
-
-    if (this.data.loginLoading) {
-      return false
-    }
-
-    this.setData({
-      loginLoading: true
-    })
-
-    try {
-      await loginAndStoreSession()
-      return true
-    } catch (error) {
-      wx.showToast({
-        title: (error && error.message) || '登录失败，请稍后再试',
-        icon: 'none'
-      })
-      return false
-    } finally {
-      this.setData({
-        loginLoading: false
       })
     }
   },
@@ -124,28 +102,96 @@ Page({
     this.handleCloseService()
   },
 
-  async handleStartGroup() {
-    if (!(await this.ensureLogin())) {
-      return
-    }
-
-    wx.navigateTo({
-      url: `/pages/package/start/index?packageId=${this.data.packageId}`
+  showTabBar() {
+    wx.showTabBar({
+      animation: false
     })
   },
 
-  async handleJoinGroup(event) {
+  hideTabBar() {
+    wx.hideTabBar({
+      animation: false
+    })
+  },
+
+  openLoginSheet(action) {
+    this.hideTabBar()
+    this.setData({
+      showLoginSheet: true,
+      pendingLoginAction: action || null
+    })
+  },
+
+  handleCloseLoginSheet() {
+    this.showTabBar()
+    this.setData({
+      showLoginSheet: false,
+      pendingLoginAction: null
+    })
+  },
+
+  handleLoginSheetSuccess() {
+    const pendingLoginAction = this.data.pendingLoginAction
+
+    this.showTabBar()
+
+    this.setData({
+      showLoginSheet: false,
+      pendingLoginAction: null
+    })
+
+    this.continuePendingLoginAction(pendingLoginAction)
+  },
+
+  continuePendingLoginAction(action) {
+    if (!action || !action.type) {
+      return
+    }
+
+    if (action.type === 'start-group') {
+      wx.navigateTo({
+        url: `/pages/package/start/index?packageId=${this.data.packageId}`
+      })
+      return
+    }
+
+    if (action.type === 'join-group' && action.groupId) {
+      wx.navigateTo({
+        url: `/pages/payment/confirm/index?action=join&packageId=${this.data.packageId}&packageGroupId=${action.groupId}`
+      })
+    }
+  },
+
+  handleStartGroup() {
+    if (!wx.getStorageSync('token')) {
+      this.openLoginSheet({
+        type: 'start-group'
+      })
+      return
+    }
+
+    this.continuePendingLoginAction({
+      type: 'start-group'
+    })
+  },
+
+  handleJoinGroup(event) {
     const { groupId } = event.currentTarget.dataset
     if (!groupId) {
       return
     }
 
-    if (!(await this.ensureLogin())) {
+    if (!wx.getStorageSync('token')) {
+      this.openLoginSheet({
+        type: 'join-group',
+        groupId
+      })
       return
     }
 
-    wx.navigateTo({
-      url: `/pages/payment/confirm/index?action=join&packageId=${this.data.packageId}&packageGroupId=${groupId}`
+    this.continuePendingLoginAction({
+      type: 'join-group',
+      groupId
     })
   },
 

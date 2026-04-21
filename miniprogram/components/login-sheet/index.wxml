@@ -1,0 +1,53 @@
+<view wx:if="{{wrapperShow}}" class="login-sheet-root">
+  <view class="login-sheet-mask {{innerShow ? 'login-sheet-mask--show' : ''}}" bindtap="handleMaskTap" catchtouchmove="noop"></view>
+
+  <view class="login-sheet-panel {{innerShow ? 'login-sheet-panel--show' : 'login-sheet-panel--hide'}}" catchtap="noop" catchtouchmove="noop">
+    <view class="login-sheet-close" bindtap="handleLaterTap">
+      <view class="login-sheet-close-icon"></view>
+    </view>
+
+    <view class="login-sheet-brand">
+      <view class="login-sheet-brand-badge">
+        <view class="login-sheet-brand-ring">
+          <view class="login-sheet-brand-mark">
+            <view class="login-sheet-brand-mark-dot"></view>
+            <view class="login-sheet-brand-mark-line login-sheet-brand-mark-line--top"></view>
+            <view class="login-sheet-brand-mark-line login-sheet-brand-mark-line--middle"></view>
+            <view class="login-sheet-brand-mark-line login-sheet-brand-mark-line--bottom"></view>
+          </view>
+          <view class="login-sheet-brand-name">天天体育宝</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="login-sheet-header">
+      <view class="login-sheet-title">天天体育宝欢迎你</view>
+    </view>
+
+    <view class="login-sheet-action-group">
+      <button
+        class="weui-btn weui-ext-button weui-ext-button--block weui-ext-button--large weui-ext-button--primary login-sheet-primary"
+        bindtap="handleLoginTap"
+        loading="{{loginLoading}}"
+        disabled="{{loginLoading}}"
+      >
+        <view class="weui-ext-button__inner">微信一键登录</view>
+      </button>
+    </view>
+
+    <view class="login-sheet-agreement-row" bindtap="toggleAgreement">
+      <view class="login-sheet-checkbox {{agreed ? 'login-sheet-checkbox--checked' : ''}}">
+        <view wx:if="{{agreed}}" class="login-sheet-checkbox-tick"></view>
+      </view>
+
+      <view class="login-sheet-agreement-copy">
+        <text>我已阅读并同意</text>
+        <text class="login-sheet-agreement-link" data-key="user" catchtap="handleOpenAgreement">《用户协议》</text>
+        <text>和</text>
+        <text class="login-sheet-agreement-link" data-key="privacy" catchtap="handleOpenAgreement">《隐私政策》</text>
+      </view>
+    </view>
+
+    <view class="login-sheet-home-indicator"></view>
+  </view>
+</view>

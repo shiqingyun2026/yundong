@@ -1,5 +1,3 @@
-const { loginAndStoreSession } = require('../../utils/auth')
-
 const SERVICE_QR_CODE = 'https://dummyimage.com/240x240/e8f8f9/1abcc5.png&text=%E5%AE%A2%E6%9C%8D%E4%BA%8C%E7%BB%B4%E7%A0%81'
 const SERVICE_DIALOG_BUTTONS = [
   {
@@ -10,7 +8,8 @@ const SERVICE_DIALOG_BUTTONS = [
 Page({
   data: {
     userInfo: null,
-    loginLoading: false,
+    showLoginSheet: false,
+    pendingLoginAction: '',
     showServiceModal: false,
     menuList: [
       {
@@ -32,7 +31,9 @@ Page({
 
   onShow() {
     const app = getApp()
-    this.showTabBar()
+    if (!this.data.showLoginSheet) {
+      this.showTabBar()
+    }
     this.setData({
       userInfo: app.globalData.userInfo || wx.getStorageSync('userInfo') || null
     })
@@ -48,26 +49,27 @@ Page({
     })
   },
 
+  hideTabBar() {
+    wx.hideTabBar({
+      animation: false
+    })
+  },
+
   async handleProfileTap() {
     if (!this.data.userInfo) {
-      await this.handleLogin()
+      this.openLoginSheet()
     }
   },
 
-  async handleMenuTap(event) {
+  handleMenuTap(event) {
     const { key } = event.currentTarget.dataset
     if (key === 'group-buy') {
       if (!this.data.userInfo) {
-        wx.showToast({
-          title: '请先登录',
-          icon: 'none'
-        })
+        this.openLoginSheet('group-buy')
         return
       }
 
-      wx.navigateTo({
-        url: '/pages/my/group-buy-list/index'
-      })
+      this.openGroupBuyList()
       return
     }
 
@@ -85,40 +87,55 @@ Page({
     }
   },
 
-  async handleLogin() {
-    if (this.data.loginLoading) {
-      return false
-    }
+  openLoginSheet(action = '') {
+    this.hideTabBar()
+    this.setData({
+      showLoginSheet: true,
+      pendingLoginAction: action
+    })
+  },
+
+  handleCloseLoginSheet() {
+    this.showTabBar()
+    this.setData({
+      showLoginSheet: false,
+      pendingLoginAction: ''
+    })
+  },
+
+  handleLoginSheetSuccess(event) {
+    const app = getApp()
+    const result = event.detail && event.detail.result
+    const userInfo =
+      (result && result.userInfo) ||
+      app.globalData.userInfo ||
+      wx.getStorageSync('userInfo') ||
+      null
+    const pendingLoginAction = this.data.pendingLoginAction
+
+    this.showTabBar()
 
     this.setData({
-      loginLoading: true
+      userInfo,
+      showLoginSheet: false,
+      pendingLoginAction: ''
     })
 
-    try {
-      const result = await loginAndStoreSession()
-
-      this.setData({
-        userInfo: result.userInfo
-      })
-
-      wx.showToast({
-        title: '登录成功',
-        icon: 'success'
-      })
-      return true
-    } catch (error) {
-      const message = error && error.message ? error.message : '登录未完成，请稍后再试'
-
-      wx.showToast({
-        title: message,
-        icon: 'none'
-      })
-      return false
-    } finally {
-      this.setData({
-        loginLoading: false
-      })
+    if (pendingLoginAction === 'group-buy') {
+      this.openGroupBuyList()
+      return
     }
+
+    wx.showToast({
+      title: '登录成功',
+      icon: 'success'
+    })
+  },
+
+  openGroupBuyList() {
+    wx.navigateTo({
+      url: '/pages/my/group-buy-list/index'
+    })
   },
 
   handleLogout() {
@@ -126,9 +143,12 @@ Page({
     app.setUserInfo(null)
     app.setToken('')
 
+    this.showTabBar()
+
     this.setData({
       userInfo: null,
-      loginLoading: false
+      showLoginSheet: false,
+      pendingLoginAction: ''
     })
 
     wx.showToast({
