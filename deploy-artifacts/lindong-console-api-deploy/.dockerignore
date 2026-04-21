@@ -5,6 +5,7 @@
 .wrangler
 node_modules
 tests
+miniprogram-cloud
 migrations
 scripts
 api
@@ -12,4 +13,3 @@ vercel.json
 worker.mjs
 wrangler.jsonc
 pnpm-lock.yaml
-miniprogram-container

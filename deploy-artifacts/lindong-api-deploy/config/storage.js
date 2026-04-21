@@ -1,6 +1,6 @@
 const { pickFirst, toInt } = require('./env')
 
-const getStorageProviderName = () => pickFirst(process.env.STORAGE_PROVIDER, 'supabase').toLowerCase()
+const getStorageProviderName = () => pickFirst(process.env.STORAGE_PROVIDER, 'cos').toLowerCase()
 
 const getSupabaseStorageConfig = () => ({
   provider: 'supabase',

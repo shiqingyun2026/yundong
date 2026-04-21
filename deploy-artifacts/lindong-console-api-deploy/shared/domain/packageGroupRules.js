@@ -6,7 +6,38 @@ const PACKAGE_GROUP_STATUS = {
   FAILED: 'failed'
 }
 
-const calculatePackageMemberAmountFen = ({ totalPrice, targetCount }) => {
+const normalizeGroupPriceConfig = value => {
+  const items = Array.isArray(value) ? value : []
+
+  return items
+    .map(item => ({
+      target_count: Number(item && item.target_count) || 0,
+      price_fen: Number(item && item.price_fen) || 0
+    }))
+    .filter(item => item.target_count > 0 && item.price_fen > 0)
+    .sort((left, right) => left.target_count - right.target_count)
+}
+
+const findGroupPriceFen = ({ groupPriceConfig = [], targetCount }) => {
+  const normalizedTargetCount = Number(targetCount) || 0
+  if (normalizedTargetCount <= 0) {
+    return 0
+  }
+
+  const matched = normalizeGroupPriceConfig(groupPriceConfig).find(item => item.target_count === normalizedTargetCount)
+  return matched ? matched.price_fen : 0
+}
+
+const calculatePackageMemberAmountFen = ({ totalPrice, targetCount, groupPriceConfig = [] }) => {
+  const matchedPriceFen = findGroupPriceFen({
+    groupPriceConfig,
+    targetCount
+  })
+
+  if (matchedPriceFen > 0) {
+    return matchedPriceFen
+  }
+
   const normalizedTotalPrice = Number(totalPrice) || 0
   const normalizedTargetCount = Number(targetCount) || 0
 
@@ -111,5 +142,6 @@ module.exports = {
   calculatePackageMemberAmountFen,
   calculatePackagePlatformSubsidyFen,
   computePackageGroupNextStatus,
+  findGroupPriceFen,
   isPackageGroupJoinable
 }

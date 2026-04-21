@@ -1,5 +1,7 @@
 {
   "pages": [
+    "pages/home/index",
+    "pages/mine/index",
     "pages/agreement/index",
     "pages/agreement-list/index",
     "pages/agreement-content/index",
@@ -10,9 +12,7 @@
     "pages/payment/confirm/index",
     "pages/payment/result/index",
     "pages/group/detail/index",
-    "pages/my/group-buy-list/index",
-    "pages/home/index",
-    "pages/mine/index"
+    "pages/my/group-buy-list/index"
   ],
   "window": {
     "navigationBarTextStyle": "black",

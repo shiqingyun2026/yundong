@@ -2,7 +2,7 @@
   <mp-toptips id="ui-toptips" root-portal="{{true}}" />
   <view wx:if="{{loading}}" class="page-loading">
     <mp-loading show="{{loading}}" type="dot-gray" />
-    <text class="page-loading-text">课包详情加载中...</text>
+    <text class="page-loading-text">课程详情加载中...</text>
   </view>
 
   <scroll-view wx:if="{{!loading && packageDetail}}" class="detail-scroll" scroll-y>
@@ -16,21 +16,25 @@
       <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="title-row">
           <view class="course-title">{{packageDetail.name}}</view>
-          <mp-badge wx:if="{{packageDetail.supportedPeopleText}}" extClass="weui-ext-tag group-chip" content="{{packageDetail.supportedPeopleText}}" />
         </view>
 
-        <view class="price-row">
-          <view class="group-price">总价 ¥{{packageDetail.totalPriceText}}</view>
+        <view wx:if="{{packageDetail.featureTags.length}}" class="feature-tag-list">
+          <view wx:for="{{packageDetail.featureTags}}" wx:key="*this" class="feature-tag">{{item}}</view>
         </view>
 
         <view class="info-list">
           <view class="info-item">
-            <view class="info-label">支持拼团</view>
-            <view class="info-value">{{packageDetail.supportedPeopleText}}</view>
-          </view>
-          <view class="info-item">
             <view class="info-label">上课地点</view>
             <view class="info-value">{{packageDetail.locationText}}</view>
+          </view>
+          <view class="info-item">
+            <view class="info-label">支持拼团</view>
+            <view wx:if="{{packageDetail.supportedGroupPriceList.length}}" class="group-price-list">
+              <view wx:for="{{packageDetail.supportedGroupPriceList}}" wx:key="count" class="group-price-item">
+                <text>{{item.count}}人团</text>
+                <text>，每人¥{{item.memberAmountText}}</text>
+              </view>
+            </view>
           </view>
         </view>
       </view>
@@ -67,23 +71,24 @@
         <view wx:if="{{packageDetail.activeGroups.length}}" class="group-panel">
           <view wx:for="{{packageDetail.activeGroups}}" wx:key="id" class="weui-panel weui-ext-card group-item-card">
             <view class="group-item-header">
-              <view class="group-item-title">{{item.targetCount}}人成团</view>
+              <view class="group-item-title">
+                <text>{{item.targetCount}}人成团</text>
+                <text>，每人¥{{item.memberAmountText}}</text>
+              </view>
               <mp-badge extClass="weui-ext-tag group-item-status group-item-status-ongoing" content="{{item.remainingText}}" />
             </view>
 
-            <view class="group-progress-row">
-              <view class="group-progress-text">当前进度 {{item.progressText}}</view>
-              <view class="group-progress-caption">每人 ¥{{item.memberAmountText}}</view>
+            <view class="group-item-footer">
+              <view class="group-progress-caption group-schedule">{{item.scheduleText}}</view>
+              <button
+                class="weui-btn weui-ext-button weui-ext-button--medium weui-ext-button--secondary join-button"
+                data-group-id="{{item.id}}"
+                disabled="{{!item.canJoin}}"
+                bindtap="handleJoinGroup"
+              >
+                <view class="weui-ext-button__inner">{{item.joinButtonText}}</view>
+              </button>
             </view>
-            <view class="group-progress-caption group-schedule">{{item.scheduleText}}</view>
-            <button
-              class="weui-btn weui-ext-button weui-ext-button--medium weui-ext-button--secondary join-button"
-              data-group-id="{{item.id}}"
-              disabled="{{!item.canJoin}}"
-              bindtap="handleJoinGroup"
-            >
-              <view class="weui-ext-button__inner">{{item.canJoin ? '去参团' : '已满员'}}</view>
-            </button>
           </view>
         </view>
 

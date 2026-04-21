@@ -43,7 +43,7 @@ Page({
   async loadPackageDetail(packageId) {
     if (!packageId) {
       wx.showToast({
-        title: '课包信息不存在',
+        title: '课程信息不存在',
         icon: 'none'
       })
       return

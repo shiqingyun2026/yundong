@@ -117,7 +117,7 @@ Page({
     const { groupDetail } = this.data
     if (!groupDetail) {
       return {
-        title: '邻动体适能课包拼团',
+        title: '邻动体适能课程拼团',
         path: '/pages/home/index'
       }
     }

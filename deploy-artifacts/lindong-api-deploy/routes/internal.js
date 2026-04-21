@@ -5,6 +5,7 @@ const { syncAllCourseLifecycles } = require('../utils/courseLifecycle')
 const { ok, fail } = require('../console-api/routes/_helpers')
 const { enqueueGroupResultNotifications } = require('../shared/services/groupResultNotifications')
 const { processPendingGroupResultNotificationJobs } = require('../shared/services/groupResultNotificationDelivery')
+const { cleanupExpiredPackageGroups } = require('../shared/services/packageGroupStore')
 const { getSupabaseClient } = require('../utils/getSupabaseClient')
 
 const router = express.Router()
@@ -64,6 +65,43 @@ const handleCourseLifecycleSync = async (req, res) => {
 
 router.get('/course-lifecycle/sync', handleCourseLifecycleSync)
 router.post('/course-lifecycle/sync', handleCourseLifecycleSync)
+
+const handlePackageGroupsCleanup = async (req, res) => {
+  const validation = validateCronSecret(req)
+
+  if (!validation.ok) {
+    return fail(res, 1004, validation.reason, validation.reason.includes('未配置') ? 500 : 401)
+  }
+
+  try {
+    const startedAt = new Date().toISOString()
+    const packageId = (req.body && req.body.packageId) || (req.query && (req.query.packageId || req.query.package_id)) || ''
+    const nowInput = (req.body && req.body.now) || (req.query && req.query.now) || ''
+    const now = nowInput ? new Date(nowInput) : new Date()
+
+    if (Number.isNaN(now.getTime())) {
+      return fail(res, 1001, 'now 参数错误', 400)
+    }
+
+    const result = await cleanupExpiredPackageGroups({
+      packageId,
+      now
+    })
+
+    return ok(res, {
+      started_at: startedAt,
+      finished_at: new Date().toISOString(),
+      trigger_method: req.method,
+      package_id: packageId || '',
+      ...result
+    })
+  } catch (error) {
+    return fail(res, 5004, error.message || '课包拼团到期清理失败', 500)
+  }
+}
+
+router.get('/package-groups/cleanup-expired', handlePackageGroupsCleanup)
+router.post('/package-groups/cleanup-expired', handlePackageGroupsCleanup)
 
 router.post('/group-result-notifications/enqueue', async (req, res) => {
   const validation = validateCronSecret(req)

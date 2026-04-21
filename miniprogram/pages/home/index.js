@@ -6,9 +6,36 @@ const {
 } = require('../../utils/location')
 
 const HOME_TABS = [
-  { key: 'all', label: '全部' },
+  { key: 'all', label: '全部课程' },
   { key: 'fitness', label: '体适能', category: '体适能' },
   { key: 'jump_rope', label: '跳绳', category: '跳绳' }
+]
+
+const HOME_BANNERS = [
+  {
+    id: 'banner-1',
+    theme: 'teal',
+    title: '体适能春季课程',
+    kicker: 'PROMOTIONAL WORK',
+    desc: '本次先以展位图形式占位，后续可替换为真实 Banner 数据源。',
+    image: ''
+  },
+  {
+    id: 'banner-2',
+    theme: 'cream',
+    title: '连续 5 次训练计划',
+    kicker: 'PACKAGE HOME',
+    desc: '支持多人拼团与周度排课，首页重点展示当前主推课程。',
+    image: ''
+  },
+  {
+    id: 'banner-3',
+    theme: 'blue',
+    title: '品牌活动位预留',
+    kicker: 'BRAND BANNER',
+    desc: '后续可接入运营配置，按活动、门店或地区动态切换内容。',
+    image: ''
+  }
 ]
 
 const LOCATION_TIMEOUT_MS = 5000
@@ -64,8 +91,7 @@ const buildLocationFallbackFeedback = location => {
 const buildPackageCard = item => ({
   ...item,
   locationText: [item.locationCommunity, item.locationDetail].filter(Boolean).join(' '),
-  perMemberText: item.maxSupportedPeople ? `${item.maxSupportedPeople}人团人均¥${item.minMemberAmountText}` : `人均¥${item.minMemberAmountText}`,
-  activeGroupText: Number(item.activeGroupCount) > 0 ? `${item.activeGroupCount} 个团进行中` : '支持立即开团',
+  perMemberText: `¥${item.minMemberAmountText}起`,
   distanceText:
     Number.isFinite(item.distanceMeters) && Number(item.distanceMeters) >= 0
       ? Number(item.distanceMeters) >= 1000
@@ -91,6 +117,7 @@ const filterPackageListByTab = (list, activeTab) => {
 Page({
   data: {
     tabs: HOME_TABS,
+    bannerList: HOME_BANNERS,
     activeTab: 'all',
     statusBarHeight: 20,
     navBarHeight: 88,
@@ -225,7 +252,7 @@ Page({
 
       const timeoutId = setTimeout(() => {
         finishWithLocation(DEFAULT_LOCATION, {
-          tip: '定位超时，已按默认区域展示课包。',
+          tip: '定位超时，已按默认区域展示课程。',
           toast: '定位超时，已切换默认位置'
         })
       }, LOCATION_TIMEOUT_MS)
@@ -245,7 +272,7 @@ Page({
           const denied = /auth deny|auth denied|authorize no response|permission/i.test(error.errMsg || '')
           finishWithLocation(DEFAULT_LOCATION, {
             denied,
-            tip: denied ? '定位未授权，已按默认区域展示课包，可点击顶部定位栏手动选择。' : '定位失败，已按默认区域展示课包。',
+            tip: denied ? '定位未授权，已按默认区域展示课程，可点击顶部定位栏手动选择。' : '定位失败，已按默认区域展示课程。',
             toast: denied ? '未开启定位，已按默认位置展示' : '定位失败，已切换默认位置'
           })
         }
@@ -281,7 +308,7 @@ Page({
       })
     } catch (error) {
       wx.showToast({
-        title: '课包加载失败，请稍后再试',
+        title: '课程加载失败，请稍后再试',
         icon: 'none'
       })
       this.setData({

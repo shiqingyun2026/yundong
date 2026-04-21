@@ -34,6 +34,42 @@ const formatFenText = value => {
   return (amountFen / 100).toFixed(2)
 }
 
+const buildPackageFeatureTags = payload => {
+  const tags = []
+  const classCount = Number(payload.class_count || payload.classCount || 5)
+  const duration = Number(payload.class_duration_minutes || payload.classDurationMinutes || 60)
+
+  if (classCount > 0) {
+    tags.push(`包含${classCount}节课`)
+  }
+
+  if (duration > 0) {
+    tags.push(`课时长${duration}分钟`)
+  }
+
+  tags.push('上课时间家长定')
+
+  return tags
+}
+
+const buildSupportedGroupPriceList = payload => {
+  const displayPriceMap = {
+    4: '500',
+    6: '400',
+    8: '300'
+  }
+  const supportedPeople = Array.isArray(payload.supported_people)
+    ? payload.supported_people.map(item => Number(item)).filter(Boolean)
+    : [4, 6, 8]
+
+  return supportedPeople
+    .filter(count => displayPriceMap[count])
+    .map(count => ({
+      count,
+      memberAmountText: displayPriceMap[count]
+    }))
+}
+
 const safeDate = value => {
   if (!value) {
     return null
@@ -84,7 +120,7 @@ const formatScheduleList = scheduleList =>
   }))
 
 const normalizePackageCard = item => ({
-  id: item.id || '',
+  id: item.package_id || item.packageId || item.id || '',
   name: item.name || '',
   cover: item.cover || '',
   packageCategory: item.package_category || '体适能',
@@ -96,24 +132,32 @@ const normalizePackageCard = item => ({
   locationDetail: item.location_detail || '',
   locationText: [item.location_community, item.location_detail].filter(Boolean).join(' '),
   activeGroupCount: Number(item.active_group_count) || 0,
-  groupCountText: Number(item.active_group_count) > 0 ? `${item.active_group_count} 个团进行中` : '支持随时开团',
   distanceMeters: Number.isFinite(Number(item.distance_meters)) ? Number(item.distance_meters) : null,
   createdAt: item.created_at || ''
 })
 
-const normalizeActiveGroup = item => ({
-  id: item.id || '',
-  targetCount: Number(item.target_count) || 0,
-  currentCount: Number(item.current_count) || 0,
-  status: item.status || 'active',
-  remainingSeconds: Math.max(0, Number(item.remaining_seconds) || 0),
-  remainingText: formatCountdownText(item.remaining_seconds),
-  memberAmountFen: Number(item.member_amount_fen) || 0,
-  memberAmountText: `${item.member_amount_text || formatFenText(item.member_amount_fen)}`,
-  scheduleText: item.schedule_text || '时间待定',
-  progressText: `${Number(item.current_count) || 0}/${Number(item.target_count) || 0}`,
-  canJoin: (item.status || 'active') === 'active' && Number(item.current_count) < Number(item.target_count)
-})
+const normalizeActiveGroup = item => {
+  const targetCount = Number(item.target_count) || 0
+  const currentCount = Number(item.current_count) || 0
+  const missingCount = Math.max(0, targetCount - currentCount)
+  const canJoin = (item.status || 'active') === 'active' && currentCount < targetCount
+
+  return {
+    id: item.id || '',
+    targetCount,
+    currentCount,
+    status: item.status || 'active',
+    remainingSeconds: Math.max(0, Number(item.remaining_seconds) || 0),
+    remainingText: formatCountdownText(item.remaining_seconds),
+    memberAmountFen: Number(item.member_amount_fen) || 0,
+    memberAmountText: `${item.member_amount_text || formatFenText(item.member_amount_fen)}`,
+    scheduleText: item.schedule_text || '时间待定',
+    progressText: `${currentCount}/${targetCount}`,
+    missingCount,
+    joinButtonText: canJoin ? `还缺${missingCount}人，立即拼` : '已满员',
+    canJoin
+  }
+}
 
 const normalizePackageDetail = payload => ({
   id: payload.id || '',
@@ -124,6 +168,8 @@ const normalizePackageDetail = payload => ({
   totalPriceText: `${payload.total_price_text || formatFenText(payload.total_price_fen)}`,
   supportedPeople: Array.isArray(payload.supported_people) ? payload.supported_people.map(item => Number(item)).filter(Boolean) : [],
   supportedPeopleText: Array.isArray(payload.supported_people) ? payload.supported_people.map(item => `${item}人团`).join(' | ') : '',
+  featureTags: buildPackageFeatureTags(payload),
+  supportedGroupPriceList: buildSupportedGroupPriceList(payload),
   locationDistrict: payload.location_district || '',
   locationCommunity: payload.location_community || '',
   locationDetail: payload.location_detail || '',

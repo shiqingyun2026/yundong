@@ -276,16 +276,22 @@ export interface PackageListItem {
   id: string
   name: string
   cover: string
-  total_price_fen: number
-  total_price_text: string
   package_category: CourseCategory
+  class_count: number
+  class_duration_minutes: number
+  group_price_config: Array<{
+    target_count: number
+    price_fen: number
+  }>
   supported_people: number[]
   location_text: string
   location_district: string
   location_community: string
   location_detail: string
   coach_name: string
-  status: 'active' | 'inactive'
+  publish_time: string
+  unpublish_time: string
+  status: 'pending' | 'active' | 'inactive'
   deadline_hours: number
   create_time: string
   update_time: string

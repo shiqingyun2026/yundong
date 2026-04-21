@@ -16,37 +16,6 @@
   box-sizing: border-box;
 }
 
-.hero-card {
-  margin-bottom: 24rpx;
-  padding: 24rpx;
-  border-radius: 32rpx;
-  background: linear-gradient(180deg, #ffffff 0%, #fff8ef 48%, var(--brand-primary-soft) 100%);
-}
-
-.hero-copy {
-  margin-bottom: 20rpx;
-}
-
-.hero-kicker {
-  font-size: 22rpx;
-  letter-spacing: 2rpx;
-  color: #8f96a3;
-}
-
-.hero-title {
-  margin-top: 12rpx;
-  font-size: 42rpx;
-  font-weight: 700;
-  color: #1f2329;
-}
-
-.hero-desc {
-  margin-top: 12rpx;
-  font-size: 24rpx;
-  line-height: 1.7;
-  color: #5f6b7a;
-}
-
 .location-pill {
   display: flex;
   align-items: center;
@@ -77,43 +46,100 @@
   text-overflow: ellipsis;
 }
 
-.hero-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16rpx;
+.banner-panel {
+  position: relative;
+  margin-bottom: 24rpx;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 36rpx;
+  background: #ffffff;
 }
 
-.hero-tab {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
-  min-height: 72rpx;
-  padding: 18rpx 0;
-  border-radius: 999rpx;
-  background: #eef2f7;
-  color: #5f6b7a;
-  text-align: center;
-  font-size: 26rpx;
-  transition: background-color 160ms ease, box-shadow 160ms ease, color 160ms ease;
-}
-
-.hero-tab__label {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.banner-swiper {
   width: 100%;
-  text-align: center;
-  line-height: 1.2;
-  white-space: nowrap;
+  height: 304rpx;
 }
 
-.hero-tab--active {
-  background: #18bcc5;
+.banner-slide {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 36rpx;
+  background: linear-gradient(135deg, #d8efff 0%, #eef7ff 100%);
+}
+
+.banner-slide--teal {
+  background: linear-gradient(135deg, #17b4b9 0%, #5ad0d4 55%, #c9f2f1 100%);
+}
+
+.banner-slide--cream {
+  background: linear-gradient(135deg, #feeccc 0%, #fdf7ea 100%);
+}
+
+.banner-slide--blue {
+  background: linear-gradient(135deg, #dae9ff 0%, #f4f8ff 100%);
+}
+
+.banner-image {
+  width: 100%;
+  height: 100%;
+}
+
+.banner-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 36rpx 40rpx;
+  background:
+    linear-gradient(90deg, rgba(18, 28, 45, 0.26) 0%, rgba(18, 28, 45, 0.08) 44%, rgba(18, 28, 45, 0) 100%);
   color: #ffffff;
-  font-weight: 600;
-  box-shadow: 0 8rpx 18rpx rgba(24, 188, 197, 0.18);
+}
+
+.banner-kicker {
+  font-size: 20rpx;
+  letter-spacing: 4rpx;
+  opacity: 0.86;
+}
+
+.banner-title {
+  margin-top: 14rpx;
+  font-size: 40rpx;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.banner-desc {
+  margin-top: 14rpx;
+  max-width: 420rpx;
+  font-size: 22rpx;
+  line-height: 1.6;
+  opacity: 0.9;
+}
+
+.banner-dots {
+  position: absolute;
+  left: 50%;
+  bottom: 18rpx;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  transform: translateX(-50%);
+}
+
+.banner-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.46);
+  transition: all 180ms ease;
+}
+
+.banner-dot--active {
+  width: 30rpx;
+  background: #ffffff;
 }
 
 .notice-card {
@@ -140,6 +166,48 @@
   font-weight: 600;
 }
 
+.content-panel {
+  padding: 18rpx;
+  border-radius: 36rpx;
+  background: linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%);
+}
+
+.tab-scroll {
+  width: 100%;
+}
+
+.course-tabs {
+  display: inline-flex;
+  min-width: 100%;
+  gap: 16rpx;
+  padding: 8rpx 6rpx 22rpx;
+}
+
+.course-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 150rpx;
+  min-height: 74rpx;
+  padding: 0 32rpx;
+  border-radius: 999rpx;
+  background: #f0f2f6;
+  color: #667085;
+  transition: background-color 160ms ease, box-shadow 160ms ease, color 160ms ease;
+}
+
+.course-tab__label {
+  font-size: 28rpx;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.course-tab--active {
+  background: var(--brand-primary);
+  color: #ffffff;
+  box-shadow: 0 10rpx 24rpx rgba(26, 188, 197, 0.22);
+}
+
 .course-list {
   display: flex;
   flex-direction: column;
@@ -150,6 +218,8 @@
   overflow: hidden;
   border-radius: 32rpx;
   background: #ffffff;
+  border: 2rpx solid #f3f4f6;
+  box-shadow: 0 10rpx 26rpx rgba(31, 35, 41, 0.05);
 }
 
 .cover-wrap {
@@ -169,9 +239,9 @@
   left: 20rpx;
   max-width: calc(100% - 40rpx);
   padding: 10rpx 18rpx;
-  border-radius: 999rpx;
-  background: rgba(255, 122, 0, 0.92);
-  color: #ffffff;
+  border-radius: 14rpx;
+  background: rgba(34, 40, 49, 0.12);
+  color: #434b57;
   font-size: 22rpx;
   font-weight: 600;
 }

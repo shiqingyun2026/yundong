@@ -21,9 +21,7 @@ App({
     wx.removeStorageSync('phoneNumber')
   },
 
-  onShow() {
-    this.ensureAgreementAccepted()
-  },
+  onShow() {},
 
   initRuntimeEnv() {
     const envVersion = getMiniProgramEnvVersion()
@@ -154,8 +152,7 @@ App({
   },
 
   syncAgreementState() {
-    const hasAgreed = !!wx.getStorageSync('agreementAccepted')
-    this.globalData.agreementAccepted = hasAgreed
+    this.globalData.agreementAccepted = true
   },
 
   syncLocationState() {
@@ -165,7 +162,7 @@ App({
   },
 
   hasAgreedAgreement() {
-    return !!this.globalData.agreementAccepted
+    return true
   },
 
   setAgreementAccepted(accepted) {
@@ -175,29 +172,7 @@ App({
     wx.setStorageSync('agreementAcceptedAt', agreementAccepted ? Date.now() : '')
   },
 
-  ensureAgreementAccepted() {
-    const pages = getCurrentPages()
-    const currentPage = pages[pages.length - 1]
-    const currentRoute = currentPage ? `/${currentPage.route}` : ''
-    const agreementRoute = '/pages/agreement/index'
-
-    if (this.hasAgreedAgreement()) {
-      if (currentRoute === agreementRoute) {
-        wx.switchTab({
-          url: '/pages/home/index'
-        })
-      }
-      return
-    }
-
-    if (currentRoute === agreementRoute) {
-      return
-    }
-
-    wx.reLaunch({
-      url: agreementRoute
-    })
-  },
+  ensureAgreementAccepted() {},
 
   setUserInfo(userInfo) {
     this.globalData.userInfo = userInfo || null

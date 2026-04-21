@@ -5,7 +5,10 @@ const {
   packageGroupsRepository,
   usersRepository
 } = require('../../repositories')
-const { calculatePackageMemberAmountFen } = require('../../shared/domain/packageGroupRules')
+const {
+  calculatePackageMemberAmountFen,
+  findGroupPriceFen
+} = require('../../shared/domain/packageGroupRules')
 const { AUTO_REFUND_REASON } = require('../../shared/constants/refunds')
 const { cleanupExpiredPackageGroups, closePendingPackageOrdersByIds } = require('../../shared/services/packageGroupStore')
 const {
@@ -17,7 +20,14 @@ const { buildAdminLocationText, formatFenText } = require('../../shared/services
 const { markPaymentRecordRefunded } = require('../../shared/services/paymentShell')
 const { writeAdminLog } = require('../../utils/adminStore')
 const { formatDateTime, getPagination } = require('../routes/_helpers')
+const { geocodeAddressWithTencentMap, searchPlacesWithTencentMap } = require('./tencentMapService')
 const { ensureCondition, ensureFound } = require('./_guards')
+
+const PACKAGE_STATUS = {
+  INACTIVE: 0,
+  ACTIVE: 1,
+  PENDING: 2
+}
 
 const ensureMySqlMode = () => {
   ensureCondition(env.useMySqlRepositories, {
@@ -56,22 +66,40 @@ const normalizeOptionalNumber = value => {
   return Number.isFinite(number) ? number : null
 }
 
-const normalizePackageStatus = (value, fallback = 1) => {
+const normalizeDateTimeValue = value => {
+  if (value === undefined) {
+    return undefined
+  }
+
+  if (value === null || value === '') {
+    return null
+  }
+
+  const date = value instanceof Date ? value : new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date.toISOString()
+}
+
+const normalizePackageStatus = (value, fallback = PACKAGE_STATUS.PENDING) => {
   if (value === undefined || value === null || value === '') {
     return fallback
   }
 
   if (typeof value === 'number') {
-    return value === 1 ? 1 : 0
+    if (value === PACKAGE_STATUS.INACTIVE || value === PACKAGE_STATUS.ACTIVE || value === PACKAGE_STATUS.PENDING) {
+      return value
+    }
+    return fallback
   }
 
   const normalized = `${value}`.trim().toLowerCase()
-  if (['1', 'active', 'online', 'enabled', '上架'].includes(normalized)) {
-    return 1
-  }
-
   if (['0', 'inactive', 'offline', 'disabled', '下架'].includes(normalized)) {
-    return 0
+    return PACKAGE_STATUS.INACTIVE
+  }
+  if (['1', 'active', 'online', 'enabled', '上架'].includes(normalized)) {
+    return PACKAGE_STATUS.ACTIVE
+  }
+  if (['2', 'pending', '待上架'].includes(normalized)) {
+    return PACKAGE_STATUS.PENDING
   }
 
   return fallback
@@ -82,12 +110,58 @@ const normalizePackageStatusFilter = value => {
     return ''
   }
 
-  return normalizePackageStatus(value, 1)
+  return normalizePackageStatus(value)
 }
 
-const mapPackageStatus = value => (Number(value) === 1 ? 'active' : 'inactive')
+const resolvePackageStatus = ({ status, publishTime, unpublishTime, now = new Date() }) => {
+  const normalizedStatus = normalizePackageStatus(status)
+  if (normalizedStatus === PACKAGE_STATUS.INACTIVE) {
+    return PACKAGE_STATUS.INACTIVE
+  }
+
+  if (unpublishTime) {
+    const unpublishDate = new Date(unpublishTime)
+    if (!Number.isNaN(unpublishDate.getTime()) && unpublishDate.getTime() <= now.getTime()) {
+      return PACKAGE_STATUS.INACTIVE
+    }
+  }
+
+  const publishDate = publishTime ? new Date(publishTime) : null
+  if (!publishDate || Number.isNaN(publishDate.getTime())) {
+    return PACKAGE_STATUS.PENDING
+  }
+
+  return publishDate.getTime() > now.getTime() ? PACKAGE_STATUS.PENDING : PACKAGE_STATUS.ACTIVE
+}
+
+const canOfflinePackage = status => {
+  const resolvedStatus = normalizePackageStatus(status)
+  return resolvedStatus === PACKAGE_STATUS.PENDING || resolvedStatus === PACKAGE_STATUS.ACTIVE
+}
+
+const mapPackageStatus = value => {
+  const normalized = normalizePackageStatus(value)
+  if (normalized === PACKAGE_STATUS.ACTIVE) return 'active'
+  if (normalized === PACKAGE_STATUS.PENDING) return 'pending'
+  return 'inactive'
+}
+
+const mapPackageStatusText = value => {
+  const status = mapPackageStatus(value)
+  if (status === 'active') return '已上架'
+  if (status === 'pending') return '待上架'
+  return '已下架'
+}
 
 const normalizeSupportedPeople = value => coursePackagesRepository.normalizeSupportedPeople(value)
+const normalizeGroupPriceConfig = value => coursePackagesRepository.normalizeGroupPriceConfig(value)
+const deriveSupportedPeopleFromGroupPriceConfig = config =>
+  normalizeSupportedPeople(normalizeGroupPriceConfig(config).map(item => item.target_count))
+const deriveTotalPriceFromGroupPriceConfig = config =>
+  normalizeGroupPriceConfig(config).reduce(
+    (maxAmount, item) => Math.max(maxAmount, (Number(item.target_count) || 0) * (Number(item.price_fen) || 0)),
+    0
+  )
 const PACKAGE_CATEGORIES = (coursePackagesRepository && coursePackagesRepository.PACKAGE_CATEGORIES) || ['体适能', '跳绳']
 const normalizePackageCategory = value =>
   coursePackagesRepository && typeof coursePackagesRepository.normalizePackageCategory === 'function'
@@ -104,9 +178,9 @@ const validatePackagePayload = (payload = {}, { partial = false } = {}) => {
     ['location_district', '所在区域不能为空'],
     ['location_community', '小区名称不能为空'],
     ['location_detail', '详细地点不能为空'],
-    ['coach_name', '教练姓名不能为空'],
     ['coach_intro', '教练简介不能为空'],
-    ['description', '课程介绍不能为空']
+    ['description', '课程介绍不能为空'],
+    ['publish_time', '上架时间不能为空']
   ]
 
   requiredFields.forEach(([field, message]) => {
@@ -129,26 +203,41 @@ const validatePackagePayload = (payload = {}, { partial = false } = {}) => {
     })
   }
 
-  if (!partial || payload.total_price_fen !== undefined || payload.total_price !== undefined) {
-    const totalPrice = Number(payload.total_price_fen ?? payload.total_price)
-    ensureCondition(Number.isFinite(totalPrice) && totalPrice > 0, {
+  if (!partial || payload.class_count !== undefined) {
+    const classCount = Number(payload.class_count)
+    ensureCondition(Number.isInteger(classCount) && classCount > 0, {
       responseCode: 1001,
       statusCode: 400,
-      message: '课包总价必须大于 0'
+      message: '课程节数必须大于 0'
     })
   }
 
-  if (!partial || payload.supported_people !== undefined) {
-    const supportedPeople = normalizeSupportedPeople(payload.supported_people)
-    ensureCondition(supportedPeople.length > 0, {
+  if (!partial || payload.class_duration_minutes !== undefined) {
+    const duration = Number(payload.class_duration_minutes)
+    ensureCondition(Number.isInteger(duration) && duration > 0, {
       responseCode: 1001,
       statusCode: 400,
-      message: '支持的几人团选项不能为空'
+      message: '单节课时长必须大于 0'
+    })
+  }
+
+  if (!partial || payload.group_price_config !== undefined) {
+    const config = normalizeGroupPriceConfig(payload.group_price_config)
+    ensureCondition(config.length > 0, {
+      responseCode: 1001,
+      statusCode: 400,
+      message: '团型售价配置不能为空'
+    })
+
+    ensureCondition(new Set(config.map(item => item.target_count)).size === config.length, {
+      responseCode: 1001,
+      statusCode: 400,
+      message: '团型人数不能重复'
     })
   }
 }
 
-const mapPackagePayloadToDb = ({ payload = {}, admin = {}, create = false }) => {
+const mapPackagePayloadToDb = ({ payload = {}, admin = {}, create = false, existing = null, now = new Date() }) => {
   const dbPayload = {}
   const assign = (target, source = target, transform = current => current) => {
     if (payload[source] === undefined) {
@@ -161,10 +250,15 @@ const mapPackagePayloadToDb = ({ payload = {}, admin = {}, create = false }) => 
   assign('name', 'name', normalizeText)
   assign('package_category', 'package_category', normalizePackageCategory)
   assign('cover', 'cover', normalizeText)
-  assign('images', 'images', value => (Array.isArray(value) ? value : []))
+  assign('images', 'images', value => {
+    const items = Array.isArray(value) ? value.filter(Boolean) : []
+    return items.length ? items : payload.cover ? [normalizeText(payload.cover)] : existing && existing.cover ? [existing.cover] : []
+  })
   assign('total_price', 'total_price_fen', value => Number(value) || 0)
   assign('total_price', 'total_price', value => Number(value) || 0)
-  assign('supported_people', 'supported_people', normalizeSupportedPeople)
+  assign('class_count', 'class_count', value => Number(value) || 0)
+  assign('class_duration_minutes', 'class_duration_minutes', value => Number(value) || 0)
+  assign('group_price_config', 'group_price_config', normalizeGroupPriceConfig)
   assign('location_district', 'location_district', normalizeText)
   assign('location_community', 'location_community', normalizeText)
   assign('location_detail', 'location_detail', normalizeText)
@@ -172,44 +266,104 @@ const mapPackagePayloadToDb = ({ payload = {}, admin = {}, create = false }) => 
   assign('latitude', 'latitude', normalizeOptionalNumber)
   assign('coach_name', 'coach_name', normalizeText)
   assign('coach_intro', 'coach_intro', normalizeText)
-  assign('coach_certificates', 'coach_certificates', value => (Array.isArray(value) ? value : []))
+  assign('coach_certificates', 'coach_certificates', value => (Array.isArray(value) ? value.filter(Boolean) : []))
   assign('description', 'description', normalizeText)
   assign('deadline_hours', 'deadline_hours', value => Number(value) || 48)
-  assign('status', 'status', value => normalizePackageStatus(value, create ? 1 : 0))
+  assign('publish_time', 'publish_time', normalizeDateTimeValue)
+  assign('unpublish_time', 'unpublish_time', normalizeDateTimeValue)
 
-  if (create && dbPayload.status === undefined) {
-    dbPayload.status = 1
+  const nextGroupPriceConfig =
+    dbPayload.group_price_config !== undefined
+      ? dbPayload.group_price_config
+      : existing && existing.group_price_config
+        ? normalizeGroupPriceConfig(existing.group_price_config)
+        : []
+
+  if (dbPayload.group_price_config !== undefined || payload.supported_people !== undefined || create) {
+    dbPayload.supported_people = deriveSupportedPeopleFromGroupPriceConfig(nextGroupPriceConfig)
+  }
+
+  if (dbPayload.group_price_config !== undefined || create) {
+    dbPayload.total_price = deriveTotalPriceFromGroupPriceConfig(nextGroupPriceConfig)
+  } else if (payload.total_price_fen !== undefined || payload.total_price !== undefined) {
+    dbPayload.total_price = Number(payload.total_price_fen ?? payload.total_price) || 0
   }
 
   if (create) {
+    const publishTime = dbPayload.publish_time !== undefined ? dbPayload.publish_time : payload.publish_time
+    const unpublishTime = dbPayload.unpublish_time !== undefined ? dbPayload.unpublish_time : payload.unpublish_time
+    dbPayload.status = resolvePackageStatus({
+      status: PACKAGE_STATUS.PENDING,
+      publishTime,
+      unpublishTime,
+      now
+    })
     dbPayload.created_by = admin.id || null
+  } else {
+    const currentStatus = existing ? existing.status : PACKAGE_STATUS.PENDING
+    const publishTime =
+      dbPayload.publish_time !== undefined
+        ? dbPayload.publish_time
+        : existing
+          ? existing.publish_time
+          : payload.publish_time
+    const unpublishTime =
+      dbPayload.unpublish_time !== undefined
+        ? dbPayload.unpublish_time
+        : existing
+          ? existing.unpublish_time
+          : payload.unpublish_time
+
+    if (normalizePackageStatus(currentStatus) !== PACKAGE_STATUS.INACTIVE) {
+      dbPayload.status = resolvePackageStatus({
+        status: currentStatus,
+        publishTime,
+        unpublishTime,
+        now
+      })
+    }
   }
 
   dbPayload.updated_by = admin.id || null
   return dbPayload
 }
 
-const mapPackageListItem = item => ({
-  id: item.id,
-  name: item.name,
-  cover: item.cover || '',
-  total_price_fen: Number(item.total_price) || 0,
-  total_price_text: formatFenText(item.total_price),
-  package_category: item.package_category || '体适能',
-  supported_people: item.supported_people || [],
-  location_text: buildAdminLocationText(item),
-  location_district: item.location_district || '',
-  location_community: item.location_community || '',
-  location_detail: item.location_detail || '',
-  coach_name: item.coach_name || '',
-  status: mapPackageStatus(item.status),
-  deadline_hours: Number(item.deadline_hours) || 48,
-  create_time: formatDateTime(item.created_at),
-  update_time: formatDateTime(item.updated_at)
-})
+const mapPackageListItem = (item, { now = new Date() } = {}) => {
+  const resolvedStatus = resolvePackageStatus({
+    status: item.status,
+    publishTime: item.publish_time,
+    unpublishTime: item.unpublish_time,
+    now
+  })
 
-const mapPackageDetail = item => ({
-  ...mapPackageListItem(item),
+  return {
+    id: item.id,
+    name: item.name,
+    cover: item.cover || '',
+    total_price_fen: Number(item.total_price) || 0,
+    total_price_text: formatFenText(item.total_price),
+    package_category: item.package_category || '体适能',
+    class_count: Number(item.class_count) || 0,
+    class_duration_minutes: Number(item.class_duration_minutes) || 0,
+    group_price_config: item.group_price_config || [],
+    supported_people: item.supported_people || [],
+    location_text: buildAdminLocationText(item),
+    location_district: item.location_district || '',
+    location_community: item.location_community || '',
+    location_detail: item.location_detail || '',
+    coach_name: item.coach_name || '',
+    publish_time: formatDateTime(item.publish_time),
+    unpublish_time: formatDateTime(item.unpublish_time),
+    status: mapPackageStatus(resolvedStatus),
+    status_text: mapPackageStatusText(resolvedStatus),
+    deadline_hours: Number(item.deadline_hours) || 48,
+    create_time: formatDateTime(item.created_at),
+    update_time: formatDateTime(item.updated_at)
+  }
+}
+
+const mapPackageDetail = (item, { now = new Date() } = {}) => ({
+  ...mapPackageListItem(item, { now }),
   images: item.images || [],
   longitude: item.longitude,
   latitude: item.latitude,
@@ -220,27 +374,39 @@ const mapPackageDetail = item => ({
   updated_by: item.updated_by || ''
 })
 
-const listAdminPackages = async ({ query = {} }) => {
+const listAdminPackages = async ({ query = {}, now = new Date() }) => {
   ensureMySqlMode()
 
   const { page, size, from, to } = getPagination(query)
   const status = normalizePackageStatusFilter(query.status)
   const packages = await coursePackagesRepository.listPackages({
     keyword: normalizeText(query.keyword),
-    category: normalizeText(query.package_category),
-    status
+    category: normalizeText(query.package_category)
+  })
+
+  const filteredPackages = packages.filter(item => {
+    if (status === '') {
+      return true
+    }
+
+    return resolvePackageStatus({
+      status: item.status,
+      publishTime: item.publish_time,
+      unpublishTime: item.unpublish_time,
+      now
+    }) === status
   })
 
   return {
-    total: packages.length,
+    total: filteredPackages.length,
     page,
     size,
-    total_pages: Math.max(1, Math.ceil(packages.length / size)),
-    list: packages.slice(from, to + 1).map(mapPackageListItem)
+    total_pages: Math.max(1, Math.ceil(filteredPackages.length / size)),
+    list: filteredPackages.slice(from, to + 1).map(item => mapPackageListItem(item, { now }))
   }
 }
 
-const getAdminPackageDetail = async ({ packageId }) => {
+const getAdminPackageDetail = async ({ packageId, now = new Date() }) => {
   ensureMySqlMode()
 
   const pkg = await coursePackagesRepository.findPackageById(packageId)
@@ -249,10 +415,10 @@ const getAdminPackageDetail = async ({ packageId }) => {
     message: '课包不存在'
   })
 
-  return mapPackageDetail(pkg)
+  return mapPackageDetail(pkg, { now })
 }
 
-const createAdminPackage = async ({ payload = {}, admin = {}, ip = null }) => {
+const createAdminPackage = async ({ payload = {}, admin = {}, ip = null, now = new Date() }) => {
   ensureMySqlMode()
   validatePackagePayload(payload)
 
@@ -260,7 +426,8 @@ const createAdminPackage = async ({ payload = {}, admin = {}, ip = null }) => {
     mapPackagePayloadToDb({
       payload,
       admin,
-      create: true
+      create: true,
+      now
     })
   )
 
@@ -272,17 +439,28 @@ const createAdminPackage = async ({ payload = {}, admin = {}, ip = null }) => {
     detail: {
       name: created.name,
       package_category: created.package_category || '体适能',
-      status: mapPackageStatus(created.status),
+      status: mapPackageStatus(
+        resolvePackageStatus({
+          status: created.status,
+          publishTime: created.publish_time,
+          unpublishTime: created.unpublish_time,
+          now
+        })
+      ),
       total_price_fen: Number(created.total_price) || 0,
-      supported_people: created.supported_people || []
+      class_count: Number(created.class_count) || 0,
+      class_duration_minutes: Number(created.class_duration_minutes) || 0,
+      group_price_config: created.group_price_config || [],
+      supported_people: created.supported_people || [],
+      publish_time: formatDateTime(created.publish_time)
     },
     ip
   })
 
-  return mapPackageDetail(created)
+  return mapPackageDetail(created, { now })
 }
 
-const updateAdminPackage = async ({ packageId, payload = {}, admin = {}, ip = null }) => {
+const updateAdminPackage = async ({ packageId, payload = {}, admin = {}, ip = null, now = new Date() }) => {
   ensureMySqlMode()
 
   const existing = await coursePackagesRepository.findPackageById(packageId)
@@ -296,7 +474,9 @@ const updateAdminPackage = async ({ packageId, payload = {}, admin = {}, ip = nu
     packageId,
     mapPackagePayloadToDb({
       payload,
-      admin
+      admin,
+      existing,
+      now
     })
   )
 
@@ -308,15 +488,105 @@ const updateAdminPackage = async ({ packageId, payload = {}, admin = {}, ip = nu
     detail: {
       name: updated.name,
       package_category: updated.package_category || '体适能',
-      previous_status: mapPackageStatus(existing.status),
-      next_status: mapPackageStatus(updated.status),
+      previous_status: mapPackageStatus(
+        resolvePackageStatus({
+          status: existing.status,
+          publishTime: existing.publish_time,
+          unpublishTime: existing.unpublish_time,
+          now
+        })
+      ),
+      next_status: mapPackageStatus(
+        resolvePackageStatus({
+          status: updated.status,
+          publishTime: updated.publish_time,
+          unpublishTime: updated.unpublish_time,
+          now
+        })
+      ),
       total_price_fen: Number(updated.total_price) || 0,
-      supported_people: updated.supported_people || []
+      class_count: Number(updated.class_count) || 0,
+      class_duration_minutes: Number(updated.class_duration_minutes) || 0,
+      group_price_config: updated.group_price_config || [],
+      supported_people: updated.supported_people || [],
+      publish_time: formatDateTime(updated.publish_time)
     },
     ip
   })
 
-  return mapPackageDetail(updated)
+  return mapPackageDetail(updated, { now })
+}
+
+const offlineAdminPackage = async ({ packageId, admin = {}, ip = null, now = new Date() }) => {
+  ensureMySqlMode()
+
+  const existing = await coursePackagesRepository.findPackageById(packageId)
+  ensureFound(existing, {
+    responseCode: 2001,
+    message: '课包不存在'
+  })
+
+  const currentStatus = resolvePackageStatus({
+    status: existing.status,
+    publishTime: existing.publish_time,
+    unpublishTime: existing.unpublish_time,
+    now
+  })
+
+  ensureCondition(canOfflinePackage(currentStatus), {
+    responseCode: 1001,
+    statusCode: 400,
+    message: '当前课包状态不支持下架'
+  })
+
+  const offlinedAt = now.toISOString()
+  const updated = await coursePackagesRepository.updatePackage(packageId, {
+    status: PACKAGE_STATUS.INACTIVE,
+    unpublish_time: offlinedAt,
+    updated_by: admin.id || null,
+    updated_at: offlinedAt
+  })
+
+  await safeWriteAdminLog({
+    adminId: admin.id,
+    action: 'package_offline',
+    targetType: 'course_package',
+    targetId: updated.id,
+    detail: {
+      name: updated.name,
+      previous_status: mapPackageStatus(currentStatus),
+      next_status: mapPackageStatus(PACKAGE_STATUS.INACTIVE),
+      offline_at: formatDateTime(offlinedAt),
+      unpublish_time: formatDateTime(updated.unpublish_time)
+    },
+    ip
+  })
+
+  return mapPackageDetail(updated, { now })
+}
+
+const searchPackageLocations = async ({ query = {} }) => {
+  ensureMySqlMode()
+
+  const keyword = normalizeText(query.keyword)
+  const district = normalizeText(query.district)
+  const limit = Number(query.limit) || 8
+  const list = await searchPlacesWithTencentMap({
+    keyword,
+    district,
+    limit
+  })
+
+  return { list }
+}
+
+const geocodePackageAddress = async ({ district, detail }) => {
+  ensureMySqlMode()
+
+  return geocodeAddressWithTencentMap({
+    district: normalizeText(district),
+    detail: normalizeText(detail)
+  })
 }
 
 const listAdminPackageGroups = async ({ query = {}, now = new Date() }) => {
@@ -340,7 +610,8 @@ const listAdminPackageGroups = async ({ query = {}, now = new Date() }) => {
     const pkg = packagesById[group.package_id] || {}
     const memberAmountFen = calculatePackageMemberAmountFen({
       totalPrice: pkg.total_price,
-      targetCount: group.target_count
+      targetCount: group.target_count,
+      groupPriceConfig: pkg.group_price_config
     })
     const scheduleList = group.first_class_time
       ? buildPackageLessonSchedule({
@@ -588,10 +859,13 @@ const refundAdminPackageOrder = async ({ orderId, reason, admin = {}, ip = null,
 
 module.exports = {
   createAdminPackage,
+  geocodePackageAddress,
   getAdminPackageDetail,
   listAdminPackageGroups,
   listAdminPackageOrders,
   listAdminPackages,
+  offlineAdminPackage,
   refundAdminPackageOrder,
+  searchPackageLocations,
   updateAdminPackage
 }

@@ -103,7 +103,8 @@ const createPackageStartOrder = async ({ userId, packageId, targetCount, weekday
 
   const memberAmountFen = calculatePackageMemberAmountFen({
     totalPrice: pkg.total_price,
-    targetCount
+    targetCount,
+    groupPriceConfig: pkg.group_price_config
   })
 
   const order = await ordersRepository.createOrder({
@@ -167,7 +168,8 @@ const createPackageJoinOrder = async ({ userId, packageId, packageGroupId, now =
 
   const memberAmountFen = calculatePackageMemberAmountFen({
     totalPrice: pkg.total_price,
-    targetCount: group.target_count
+    targetCount: group.target_count,
+    groupPriceConfig: pkg.group_price_config
   })
 
   const order = await ordersRepository.createOrder({

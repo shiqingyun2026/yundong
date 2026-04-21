@@ -35,7 +35,7 @@
 发布前本地检查：
 
 1. `npm run lint`
-2. `npm run build:cloudbase`
+2. `npm run build`
 
 构建产物目录：
 
@@ -44,7 +44,7 @@
 CloudBase 静态托管建议配置：
 
 * 部署目录：`console`
-* 构建命令：`npm install && npm run build:cloudbase`
+* 构建命令：`npm install && npm run build`
 * 输出目录：`dist`
 * 生产环境变量：`VITE_API_BASE_URL`
 
@@ -61,3 +61,4 @@ CloudBase 静态托管建议配置：
 1. CloudBase 静态托管只负责后台前端页面，不负责 `console-api` 或小程序云托管接口。
 2. React Router 刷新子路由时，需要在 CloudBase 控制台把错误文档或回退文档指向 `index.html`，否则会出现 404。
 3. 正式环境建议使用自定义域名，不建议长期依赖默认测试域名。
+4. 当前仓库默认 `npm run build` 就是 CloudBase 子路径构建；只有在应用部署到站点根路径 `/` 时，才使用 `npm run build:root`。

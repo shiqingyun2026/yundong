@@ -44,7 +44,7 @@ Page({
   async loadPageData(packageId) {
     if (!packageId) {
       wx.showToast({
-        title: '课包信息不存在',
+        title: '课程信息不存在',
         icon: 'none'
       })
       return
@@ -62,7 +62,7 @@ Page({
       })
     } catch (error) {
       wx.showToast({
-        title: '课包详情加载失败',
+        title: '课程详情加载失败',
         icon: 'none'
       })
     } finally {
@@ -199,7 +199,7 @@ Page({
     const { packageDetail, packageId } = this.data
 
     return {
-      title: packageDetail ? `邀请你一起拼「${packageDetail.name}」` : '邻动体适能课包拼团',
+      title: packageDetail ? `邀请你一起拼「${packageDetail.name}」` : '邻动体适能课程拼团',
       path: `/pages/course/detail/index?id=${packageId}`,
       imageUrl: packageDetail && packageDetail.cover ? packageDetail.cover : ''
     }

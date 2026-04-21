@@ -47,6 +47,23 @@ const ensureMySqlMode = () => {
   }
 }
 
+const resolvePackageStatus = ({ status, publishTime, now = new Date() }) => {
+  if (Number(status) === 0) {
+    return 'inactive'
+  }
+
+  if (!publishTime) {
+    return 'active'
+  }
+
+  const publishDate = new Date(publishTime)
+  if (Number.isNaN(publishDate.getTime())) {
+    return 'active'
+  }
+
+  return publishDate.getTime() > now.getTime() ? 'pending' : 'active'
+}
+
 const fetchUsersByIds = async userIds => {
   const ids = [...new Set((userIds || []).filter(Boolean))]
   if (!ids.length) {
@@ -128,17 +145,24 @@ const fetchMiniProgramPackageList = async ({
 
   const from = (safePage - 1) * safePageSize
   const list = sortedPackages.slice(from, from + safePageSize).map(item => {
-    const maxSupportedPeople = Math.max(...(item.supported_people || [0]))
-    const minMemberAmountFen = calculatePackageMemberAmountFen({
-      totalPrice: item.total_price,
-      targetCount: maxSupportedPeople
-    })
+    const maxGroupConfig = [...(item.group_price_config || [])].sort((left, right) => right.target_count - left.target_count)[0]
+    const maxSupportedPeople = maxGroupConfig ? maxGroupConfig.target_count : Math.max(...(item.supported_people || [0]))
+    const minMemberAmountFen = maxGroupConfig
+      ? Number(maxGroupConfig.price_fen) || 0
+      : calculatePackageMemberAmountFen({
+          totalPrice: item.total_price,
+          targetCount: maxSupportedPeople,
+          groupPriceConfig: item.group_price_config
+        })
 
     return {
       id: item.id,
       name: item.name,
       cover: item.cover,
       package_category: item.package_category || '体适能',
+      class_count: Number(item.class_count) || 0,
+      class_duration_minutes: Number(item.class_duration_minutes) || 0,
+      group_price_config: item.group_price_config || [],
       max_supported_people: maxSupportedPeople,
       min_member_amount_fen: minMemberAmountFen,
       min_member_amount_text: formatFenText(minMemberAmountFen),
@@ -163,7 +187,7 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
   ensureMySqlMode()
 
   const pkg = await coursePackagesRepository.findPackageById(packageId)
-  if (!pkg || Number(pkg.status) !== 1) {
+  if (!pkg || resolvePackageStatus({ status: pkg.status, publishTime: pkg.publish_time, now }) !== 'active') {
     throw createPackageServiceError(404, 2001, '课包不存在')
   }
 
@@ -182,10 +206,13 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
     id: pkg.id,
     name: pkg.name,
     cover: pkg.cover,
-    images: pkg.images || [],
+    images: (pkg.images && pkg.images.length ? pkg.images : pkg.cover ? [pkg.cover] : []) || [],
     total_price_fen: Number(pkg.total_price) || 0,
     total_price_text: formatFenText(pkg.total_price),
     package_category: pkg.package_category || '体适能',
+    class_count: Number(pkg.class_count) || 0,
+    class_duration_minutes: Number(pkg.class_duration_minutes) || 0,
+    group_price_config: pkg.group_price_config || [],
     supported_people: pkg.supported_people || [],
     location_district: pkg.location_district,
     location_community: pkg.location_community,
@@ -200,7 +227,8 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
       .map(group => {
         const memberAmountFen = calculatePackageMemberAmountFen({
           totalPrice: pkg.total_price,
-          targetCount: group.target_count
+          targetCount: group.target_count,
+          groupPriceConfig: pkg.group_price_config
         })
 
         return {
@@ -250,7 +278,8 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
   const usersById = await fetchUsersByIds(successOrders.map(item => item.user_id))
   const memberAmountFen = calculatePackageMemberAmountFen({
     totalPrice: pkg.total_price,
-    targetCount: latestGroup.target_count
+    targetCount: latestGroup.target_count,
+    groupPriceConfig: pkg.group_price_config
   })
   const scheduleList = latestGroup.first_class_time
     ? buildPackageLessonSchedule({
@@ -344,7 +373,8 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
     const pkg = packageById[group.package_id]
     const memberAmountFen = calculatePackageMemberAmountFen({
       totalPrice: pkg ? pkg.total_price : 0,
-      targetCount: group.target_count
+      targetCount: group.target_count,
+      groupPriceConfig: pkg ? pkg.group_price_config : []
     })
 
     return {

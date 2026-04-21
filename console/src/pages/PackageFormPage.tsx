@@ -3,26 +3,50 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { PageBackButton } from '../components/PageBackButton'
 import { api, uploadImage } from '../lib/api'
-import type { PackageDetail } from '../types'
+import type { CourseLocationSuggestion, PackageDetail } from '../types'
+import { REGION_OPTIONS, toDateTimeLocal } from './courseFormHelpers'
 
 type PackagePageMode = 'create' | 'edit' | 'view'
+type PackageLocationSuggestionResponse = {
+  list: CourseLocationSuggestion[]
+}
+type PackageGeocodeResponse = {
+  formatted_address: string
+  longitude: number
+  latitude: number
+  province?: string
+  city?: string
+  district?: string
+}
+type GroupPriceConfigRow = PackageDetail['group_price_config'][number] & {
+  _rowId: string
+}
 
 const RequiredMark = () => <span className="required-mark">*</span>
+
+const createGroupPriceRow = (value?: Partial<GroupPriceConfigRow>): GroupPriceConfigRow => ({
+  _rowId: value?._rowId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  target_count: Number(value?.target_count) || 0,
+  price_fen: Number(value?.price_fen) || 0
+})
 
 const emptyPackage: PackageDetail = {
   id: '',
   name: '',
   cover: '',
-  total_price_fen: 0,
-  total_price_text: '',
   package_category: '体适能',
+  class_count: 0,
+  class_duration_minutes: 0,
+  group_price_config: [],
   supported_people: [],
   location_text: '',
   location_district: '',
   location_community: '',
   location_detail: '',
   coach_name: '',
-  status: 'active',
+  publish_time: '',
+  unpublish_time: '',
+  status: 'pending',
   deadline_hours: 48,
   create_time: '',
   update_time: '',
@@ -40,58 +64,100 @@ const splitLines = (value: string) =>
     .map(item => item.trim())
     .filter(Boolean)
 
-const parseSupportedPeople = (value: string) => {
-  const values = value
-    .split(/[，,\s]+/)
-    .map(item => Number(item.trim()))
-    .filter(item => Number.isInteger(item) && item > 0)
+const normalizeGroupPriceConfig = (value: PackageDetail['group_price_config']) =>
+  [...(value || [])]
+    .map(item => ({
+      target_count: Number(item.target_count) || 0,
+      price_fen: Number(item.price_fen) || 0
+    }))
+    .filter(item => item.target_count > 0 || item.price_fen > 0)
+    .sort((a, b) => a.target_count - b.target_count)
 
-  return [...new Set(values)].sort((a, b) => a - b)
+const normalizeGroupPriceConfigRows = (value: PackageDetail['group_price_config'] | GroupPriceConfigRow[]) =>
+  [...(value || [])]
+    .map(item => createGroupPriceRow(item))
+    .filter(item => item.target_count > 0 || item.price_fen > 0)
+
+const deriveSupportedPeople = (config: PackageDetail['group_price_config']) =>
+  [...new Set(normalizeGroupPriceConfig(config).map(item => item.target_count).filter(item => item > 0))]
+
+const formatSupportedPeople = (supportedPeople: number[]) =>
+  supportedPeople.length ? supportedPeople.map(item => `${item}人团`).join(' / ') : '-'
+
+const getStatusText = (status: PackageDetail['status']) => {
+  if (status === 'pending') return '待上架'
+  if (status === 'active') return '已上架'
+  return '已下架'
 }
 
-const formatSupportedPeopleInput = (supportedPeople: number[]) => supportedPeople.join(', ')
+const buildPayload = (form: PackageDetail) => {
+  const groupPriceConfig = normalizeGroupPriceConfig(form.group_price_config)
 
-const buildPayload = (form: PackageDetail) => ({
-  name: form.name.trim(),
-  package_category: form.package_category,
-  cover: form.cover.trim(),
-  images: form.images.filter(Boolean),
-  total_price_fen: Number(form.total_price_fen) || 0,
-  supported_people: form.supported_people,
-  location_district: form.location_district.trim(),
-  location_community: form.location_community.trim(),
-  location_detail: form.location_detail.trim(),
-  longitude: form.longitude,
-  latitude: form.latitude,
-  coach_name: form.coach_name.trim(),
-  coach_intro: form.coach_intro.trim(),
-  coach_certificates: form.coach_certificates.filter(Boolean),
-  description: form.description.trim(),
-  status: form.status,
-  deadline_hours: Number(form.deadline_hours) || 48
-})
+  return {
+    name: form.name.trim(),
+    package_category: form.package_category,
+    cover: form.cover.trim(),
+    images: form.cover.trim() ? [form.cover.trim()] : [],
+    class_count: Number(form.class_count) || 0,
+    class_duration_minutes: Number(form.class_duration_minutes) || 0,
+    group_price_config: groupPriceConfig,
+    supported_people: deriveSupportedPeople(groupPriceConfig),
+    location_district: form.location_district.trim(),
+    location_community: form.location_community.trim(),
+    location_detail: form.location_detail.trim(),
+    longitude: form.longitude,
+    latitude: form.latitude,
+    coach_intro: form.coach_intro.trim(),
+    coach_certificates: form.coach_certificates.filter(Boolean),
+    description: form.description.trim(),
+    publish_time: form.publish_time,
+    unpublish_time: form.unpublish_time || '',
+    deadline_hours: Number(form.deadline_hours) || 48
+  }
+}
 
 export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
   const navigate = useNavigate()
   const { id } = useParams()
   const [form, setForm] = useState<PackageDetail>(emptyPackage)
-  const [supportedPeopleInput, setSupportedPeopleInput] = useState('')
   const [loading, setLoading] = useState(mode !== 'create')
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState('')
+  const [resolvingGeo, setResolvingGeo] = useState(false)
   const [error, setError] = useState('')
+  const [province, setProvince] = useState('广东省')
+  const [city, setCity] = useState('深圳市')
+  const [district, setDistrict] = useState('')
+  const [locationSuggestions, setLocationSuggestions] = useState<CourseLocationSuggestion[]>([])
+  const [searchingLocations, setSearchingLocations] = useState(false)
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false)
 
   useEffect(() => {
     if (mode === 'create' || !id) {
-      setSupportedPeopleInput(formatSupportedPeopleInput(emptyPackage.supported_people))
+      setLoading(false)
       return
     }
 
     void (async () => {
       try {
         const data = await api.get<PackageDetail>(`/packages/${id}`)
-        setForm(data)
-        setSupportedPeopleInput(formatSupportedPeopleInput(data.supported_people || []))
+        const normalizedConfig = normalizeGroupPriceConfigRows(data.group_price_config || [])
+        const districtParts = `${data.location_district || ''}`
+          .split(/[\/\s-]+/)
+          .map(item => item.trim())
+          .filter(Boolean)
+
+        setProvince(districtParts[0] || '广东省')
+        setCity(districtParts[1] || '深圳市')
+        setDistrict(districtParts[2] || districtParts[1] || '')
+        setForm({
+          ...data,
+          group_price_config: normalizedConfig,
+          supported_people: deriveSupportedPeople(normalizedConfig),
+          publish_time: toDateTimeLocal(data.publish_time),
+          unpublish_time: toDateTimeLocal(data.unpublish_time),
+          images: data.images?.length ? data.images : data.cover ? [data.cover] : []
+        })
       } catch (fetchError) {
         setError(fetchError instanceof Error ? fetchError.message : '获取课包详情失败')
       } finally {
@@ -100,46 +166,124 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
     })()
   }, [id, mode])
 
-  const isReadOnly = mode === 'view'
-  const pageTitle = mode === 'create' ? '新建课包' : mode === 'edit' ? '编辑课包' : '课包详情'
-  const supportedPeopleText = useMemo(
-    () => (form.supported_people.length ? form.supported_people.map(item => `${item}人团`).join(' / ') : '-'),
-    [form.supported_people]
-  )
-
   const updateField = <K extends keyof PackageDetail>(key: K, value: PackageDetail[K]) => {
     setForm(current => ({ ...current, [key]: value }))
   }
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setSaving(true)
-    setError('')
+  const canOfflinePackage = mode !== 'create' && form.status !== 'inactive'
+  const isReadOnly = mode === 'view'
+  const pageTitle = mode === 'create' ? '新建课包' : mode === 'edit' ? '编辑课包' : '课包详情'
+  const cityOptions = REGION_OPTIONS.find(item => item.value === province)?.cities || []
+  const districtOptions = cityOptions.find(item => item.value === city)?.districts || []
+  const locationSearchDistrict =
+    mode === 'create' ? [province, city, district].filter(Boolean).join(' / ') : form.location_district
 
-    const supportedPeople = parseSupportedPeople(supportedPeopleInput)
-    if (!supportedPeople.length) {
-      setError('请至少填写一个支持人数，例如 2,3,4')
-      setSaving(false)
+  useEffect(() => {
+    if (isReadOnly) {
+      setLocationSuggestions([])
+      setShowLocationSuggestions(false)
+      setSearchingLocations(false)
       return
     }
 
-    try {
-      const payload = buildPayload({
-        ...form,
-        supported_people: supportedPeople
-      })
-
-      if (mode === 'edit' && id) {
-        await api.put(`/packages/${id}`, payload)
-      } else {
-        await api.post('/packages', payload)
-      }
-      navigate('/packages')
-    } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : '保存课包失败')
-    } finally {
-      setSaving(false)
+    const keyword = form.location_detail.trim()
+    if (!keyword) {
+      setLocationSuggestions([])
+      setShowLocationSuggestions(false)
+      setSearchingLocations(false)
+      return
     }
+
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        setSearchingLocations(true)
+
+        try {
+          const params = new URLSearchParams({
+            keyword,
+            district: locationSearchDistrict || ''
+          })
+          const data = await api.get<PackageLocationSuggestionResponse>(`/packages/location-suggestions?${params.toString()}`)
+
+          if (cancelled) {
+            return
+          }
+
+          setLocationSuggestions(data.list || [])
+          setShowLocationSuggestions(true)
+        } catch (searchError) {
+          if (cancelled) {
+            return
+          }
+
+          setLocationSuggestions([])
+          setError(searchError instanceof Error ? searchError.message : '查询地点失败')
+        } finally {
+          if (!cancelled) {
+            setSearchingLocations(false)
+          }
+        }
+      })()
+    }, 300)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [form.location_detail, isReadOnly, locationSearchDistrict])
+
+  const updateRegionField = (nextProvince: string, nextCity: string, nextDistrict: string) => {
+    setProvince(nextProvince)
+    setCity(nextCity)
+    setDistrict(nextDistrict)
+    updateField('location_district', [nextProvince, nextCity, nextDistrict].filter(Boolean).join(' / '))
+  }
+
+  const syncResolvedRegion = (nextProvince?: string, nextCity?: string, nextDistrict?: string) => {
+    const provinceValue = (nextProvince || province || '广东省').trim()
+    const cityValue = (nextCity || city || '').trim()
+    const districtValue = (nextDistrict || district || '').trim()
+
+    if (mode === 'create') {
+      updateRegionField(provinceValue, cityValue, districtValue)
+      return
+    }
+
+    updateField('location_district', [provinceValue, cityValue, districtValue].filter(Boolean).join(' / '))
+  }
+
+  const setGroupPriceConfig = (nextConfig: PackageDetail['group_price_config']) => {
+    const normalizedConfig = normalizeGroupPriceConfigRows(nextConfig)
+    setForm(current => ({
+      ...current,
+      group_price_config: normalizedConfig,
+      supported_people: deriveSupportedPeople(normalizedConfig)
+    }))
+  }
+
+  const handleGroupConfigChange = (
+    index: number,
+    key: keyof PackageDetail['group_price_config'][number],
+    value: number
+  ) => {
+    const nextConfig = [...form.group_price_config]
+    nextConfig[index] = {
+      ...nextConfig[index],
+      [key]: value
+    }
+    setGroupPriceConfig(nextConfig)
+  }
+
+  const addGroupPriceRow = () => {
+    setForm(current => ({
+      ...current,
+      group_price_config: [...current.group_price_config, createGroupPriceRow()]
+    }))
+  }
+
+  const removeGroupPriceRow = (index: number) => {
+    setGroupPriceConfig(form.group_price_config.filter((_, currentIndex) => currentIndex !== index))
   }
 
   const handleUploadSingle = async (
@@ -158,6 +302,32 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
     try {
       const url = await uploadImage(file, folder)
       updateField(field, url)
+      updateField('images', [url])
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : '上传失败')
+    } finally {
+      setUploading('')
+      event.target.value = ''
+    }
+  }
+
+  const handleRichTextImageUpload = async (
+    event: ChangeEvent<HTMLInputElement>,
+    field: 'description' | 'coach_intro',
+    altText: string
+  ) => {
+    const file = event.target.files?.[0]
+    if (!file) {
+      return
+    }
+
+    setUploading('上传图片中...')
+    setError('')
+
+    try {
+      const url = await uploadImage(file, 'course-detail')
+      const imageMarkup = `<p><img src="${url}" alt="${altText}" /></p>`
+      updateField(field, `${form[field]}\n${imageMarkup}`.trim())
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : '上传失败')
     } finally {
@@ -168,8 +338,8 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
 
   const handleUploadMultiple = async (
     event: ChangeEvent<HTMLInputElement>,
-    field: 'images' | 'coach_certificates',
-    folder: 'course-gallery' | 'coach-cert'
+    field: 'coach_certificates',
+    folder: 'coach-cert'
   ) => {
     const files = Array.from(event.target.files || [])
     if (!files.length) {
@@ -193,12 +363,141 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
     }
   }
 
-  const removeArrayItem = (field: 'images' | 'coach_certificates', index: number) => {
+  const removeArrayItem = (field: 'coach_certificates', index: number) => {
     updateField(
       field,
       form[field].filter((_, currentIndex) => currentIndex !== index) as PackageDetail[typeof field]
     )
   }
+
+  const applyLocationSuggestion = (suggestion: CourseLocationSuggestion) => {
+    setForm(current => ({
+      ...current,
+      location_community: suggestion.title || current.location_community,
+      location_detail: suggestion.address || suggestion.title,
+      longitude: suggestion.longitude,
+      latitude: suggestion.latitude
+    }))
+    syncResolvedRegion(suggestion.province, suggestion.city, suggestion.district)
+    setLocationSuggestions([])
+    setShowLocationSuggestions(false)
+  }
+
+  const resolveCoordinates = async () => {
+    setResolvingGeo(true)
+    setError('')
+
+    try {
+      const data = await api.post<PackageGeocodeResponse>('/packages/geocode', {
+        district: mode === 'create' ? [province, city, district].filter(Boolean).join(' / ') : form.location_district,
+        detail: form.location_detail
+      })
+
+      setForm(current => ({
+        ...current,
+        longitude: data.longitude,
+        latitude: data.latitude
+      }))
+      syncResolvedRegion(data.province, data.city, data.district)
+    } catch (resolveError) {
+      setError(resolveError instanceof Error ? resolveError.message : '解析坐标失败')
+    } finally {
+      setResolvingGeo(false)
+    }
+  }
+
+  const offlinePackage = async () => {
+    if (!id || !canOfflinePackage) {
+      return
+    }
+
+    if (
+      !window.confirm(
+        '确认下架该课程吗？\n下架后，该课程将不会继续在小程序首页展示。\n如该课程存在未完成的拼团，系统将按原价退回相关订单金额。'
+      )
+    ) {
+      return
+    }
+
+    setError('')
+
+    try {
+      await api.put(`/packages/${id}/offline`)
+      navigate('/packages')
+    } catch (offlineError) {
+      setError(offlineError instanceof Error ? offlineError.message : '下架课包失败')
+    }
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setSaving(true)
+    setError('')
+
+    const normalizedConfig = normalizeGroupPriceConfig(form.group_price_config)
+
+    if (!normalizedConfig.length) {
+      setError('请至少配置一个团型售价')
+      setSaving(false)
+      return
+    }
+
+    if (normalizedConfig.some(item => item.target_count <= 0 || item.price_fen <= 0)) {
+      setError('团型人数和人均售价都必须大于 0')
+      setSaving(false)
+      return
+    }
+
+    if (new Set(normalizedConfig.map(item => item.target_count)).size !== normalizedConfig.length) {
+      setError('团型人数不能重复')
+      setSaving(false)
+      return
+    }
+
+    if (!form.publish_time) {
+      setError('请填写上架时间')
+      setSaving(false)
+      return
+    }
+
+    if (mode === 'create' && (!province || !city || !district)) {
+      setError('新建课包时，请先完成省 / 市 / 区三级选择')
+      setSaving(false)
+      return
+    }
+
+    try {
+      const payload = buildPayload({
+        ...form,
+        group_price_config: normalizedConfig,
+        supported_people: deriveSupportedPeople(normalizedConfig)
+      })
+
+      if (mode === 'edit' && id) {
+        await api.put(`/packages/${id}`, payload)
+      } else {
+        await api.post('/packages', payload)
+      }
+      navigate('/packages')
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : '保存课包失败')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const supportedPeopleText = useMemo(
+    () => formatSupportedPeople(deriveSupportedPeople(form.group_price_config)),
+    [form.group_price_config]
+  )
+
+  const maxGroupConfig = useMemo(() => {
+    if (!form.group_price_config.length) {
+      return null
+    }
+
+    return [...form.group_price_config].sort((a, b) => b.target_count - a.target_count)[0]
+  }, [form.group_price_config])
 
   return (
     <section className="panel stack">
@@ -222,6 +521,11 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
               <Link className="secondary-button" to={`/package-orders?package_id=${id}`}>
                 查看订单
               </Link>
+              {canOfflinePackage ? (
+                <button className="ghost-button" type="button" onClick={() => void offlinePackage()}>
+                  下架
+                </button>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -248,24 +552,22 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
               </select>
             </label>
             <label>
-              <span>总价（分）<RequiredMark /></span>
+              <span>课程节数<RequiredMark /></span>
               <input
                 type="number"
                 min="1"
-                value={form.total_price_fen}
-                onChange={event => updateField('total_price_fen', Number(event.target.value))}
+                value={form.class_count}
+                onChange={event => updateField('class_count', Number(event.target.value))}
                 disabled={isReadOnly}
               />
             </label>
             <label>
-              <span>支持人数<RequiredMark /></span>
+              <span>单节课时长（分钟）<RequiredMark /></span>
               <input
-                placeholder="例如：2, 3, 4"
-                value={supportedPeopleInput}
-                onChange={event => {
-                  setSupportedPeopleInput(event.target.value)
-                  updateField('supported_people', parseSupportedPeople(event.target.value))
-                }}
+                type="number"
+                min="1"
+                value={form.class_duration_minutes}
+                onChange={event => updateField('class_duration_minutes', Number(event.target.value))}
                 disabled={isReadOnly}
               />
             </label>
@@ -280,13 +582,83 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
               />
             </label>
             <label>
-              <span>所在区域<RequiredMark /></span>
+              <span>上架时间<RequiredMark /></span>
               <input
-                value={form.location_district}
-                onChange={event => updateField('location_district', event.target.value)}
+                type="datetime-local"
+                value={form.publish_time}
+                onChange={event => updateField('publish_time', event.target.value)}
                 disabled={isReadOnly}
               />
             </label>
+            <label>
+              <span>下架时间</span>
+              <input
+                type="datetime-local"
+                value={form.unpublish_time}
+                onChange={event => updateField('unpublish_time', event.target.value)}
+                disabled={isReadOnly}
+              />
+            </label>
+            {mode === 'create' ? (
+              <>
+                <label>
+                  <span>省<RequiredMark /></span>
+                  <select
+                    value={province}
+                    onChange={event => {
+                      const nextProvince = event.target.value
+                      const nextCity = REGION_OPTIONS.find(item => item.value === nextProvince)?.cities[0]?.value || ''
+                      updateRegionField(nextProvince, nextCity, '')
+                    }}
+                    disabled={isReadOnly}
+                  >
+                    {REGION_OPTIONS.map(item => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>市<RequiredMark /></span>
+                  <select
+                    value={city}
+                    onChange={event => updateRegionField(province, event.target.value, '')}
+                    disabled={isReadOnly}
+                  >
+                    {cityOptions.map(item => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>区<RequiredMark /></span>
+                  <select
+                    value={district}
+                    onChange={event => updateRegionField(province, city, event.target.value)}
+                    disabled={isReadOnly}
+                  >
+                    <option value="">请选择区</option>
+                    {districtOptions.map(item => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            ) : (
+              <label>
+                <span>所在区域<RequiredMark /></span>
+                <input
+                  value={form.location_district}
+                  onChange={event => updateField('location_district', event.target.value)}
+                  disabled={isReadOnly}
+                />
+              </label>
+            )}
             <label>
               <span>小区 / 场地名称<RequiredMark /></span>
               <input
@@ -297,22 +669,53 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
             </label>
             <label>
               <span>详细地点<RequiredMark /></span>
-              <input
-                value={form.location_detail}
-                onChange={event => updateField('location_detail', event.target.value)}
-                disabled={isReadOnly}
-              />
-            </label>
-            <label>
-              <span>状态<RequiredMark /></span>
-              <select
-                value={form.status}
-                onChange={event => updateField('status', event.target.value as PackageDetail['status'])}
-                disabled={isReadOnly}
+              <div
+                className="location-autocomplete"
+                onBlur={() => {
+                  window.setTimeout(() => {
+                    setShowLocationSuggestions(false)
+                  }, 120)
+                }}
               >
-                <option value="active">上架中</option>
-                <option value="inactive">已下架</option>
-              </select>
+                <input
+                  value={form.location_detail}
+                  onChange={event => {
+                    updateField('location_detail', event.target.value)
+                    setShowLocationSuggestions(true)
+                  }}
+                  onFocus={() => {
+                    if (locationSuggestions.length) {
+                      setShowLocationSuggestions(true)
+                    }
+                  }}
+                  placeholder="输入场馆名、小区名或详细地址后联想搜索"
+                  disabled={isReadOnly}
+                />
+                {showLocationSuggestions && !isReadOnly ? (
+                  <div className="location-suggestion-panel">
+                    {searchingLocations ? <p className="location-suggestion-empty">地点搜索中...</p> : null}
+                    {!searchingLocations && !locationSuggestions.length ? (
+                      <p className="location-suggestion-empty">未找到匹配地点，继续输入后可手动解析坐标</p>
+                    ) : null}
+                    {!searchingLocations
+                      ? locationSuggestions.map(item => (
+                          <button
+                            key={item.id}
+                            className="location-suggestion-item"
+                            type="button"
+                            onMouseDown={event => {
+                              event.preventDefault()
+                              applyLocationSuggestion(item)
+                            }}
+                          >
+                            <strong>{item.title || item.address}</strong>
+                            <span>{item.address || '暂无地址描述'}</span>
+                          </button>
+                        ))
+                      : null}
+                  </div>
+                ) : null}
+              </div>
             </label>
             <label>
               <span>经度</span>
@@ -332,15 +735,70 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 disabled={isReadOnly}
               />
             </label>
-            <label>
-              <span>教练姓名<RequiredMark /></span>
-              <input
-                value={form.coach_name}
-                onChange={event => updateField('coach_name', event.target.value)}
-                disabled={isReadOnly}
-              />
-            </label>
           </div>
+
+          {!isReadOnly ? (
+            <div className="button-row">
+              <button className="secondary-button" type="button" onClick={() => void resolveCoordinates()} disabled={resolvingGeo}>
+                {resolvingGeo ? '解析中...' : '解析经纬度'}
+              </button>
+              {uploading ? <span className="muted-text">{uploading}</span> : null}
+            </div>
+          ) : null}
+
+          <section className="panel subtle-panel stack">
+            <div className="page-actions">
+              <div>
+                <p className="section-kicker">Pricing</p>
+                <h4>团型售价配置</h4>
+              </div>
+              {!isReadOnly ? (
+                <button className="secondary-button" type="button" onClick={addGroupPriceRow}>
+                  新增团型
+                </button>
+              ) : null}
+            </div>
+            {form.group_price_config.length ? (
+              <div className="group-price-stack">
+                {form.group_price_config.map((item, index) => (
+                  <div key={(item as GroupPriceConfigRow)._rowId || `group-price-${index}`} className="group-price-row">
+                    <label>
+                      <span>团型人数<RequiredMark /></span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.target_count}
+                        onChange={event => handleGroupConfigChange(index, 'target_count', Number(event.target.value))}
+                        disabled={isReadOnly}
+                      />
+                    </label>
+                    <label>
+                      <span>人均售价（分）<RequiredMark /></span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.price_fen}
+                        onChange={event => handleGroupConfigChange(index, 'price_fen', Number(event.target.value))}
+                        disabled={isReadOnly}
+                      />
+                    </label>
+                    {!isReadOnly ? (
+                      <button className="ghost-button compact-button" type="button" onClick={() => removeGroupPriceRow(index)}>
+                        删除
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="muted-text">还没有配置团型，请至少添加一行人均售价。</p>
+            )}
+            <div className="detail-card">
+              <strong>派生结果</strong>
+              <p>支持团型：{supportedPeopleText}</p>
+              <p>最大团型人均价：{maxGroupConfig ? `¥${(maxGroupConfig.price_fen / 100).toFixed(2)} / ${maxGroupConfig.target_count}人团` : '-'}</p>
+            </div>
+          </section>
 
           <div className="stack">
             <label>
@@ -366,45 +824,30 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
           <div className="stack">
             <div className="page-actions">
               <div>
-                <p className="section-kicker">Gallery</p>
-                <h4>课包轮播图</h4>
+                <p className="section-kicker">Coach Intro</p>
+                <h4>教练简介</h4>
               </div>
               {!isReadOnly ? (
                 <label className="file-button">
-                  上传轮播图
-                  <input type="file" accept="image/*" multiple onChange={event => void handleUploadMultiple(event, 'images', 'course-gallery')} />
+                  上传图片并插入简介
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={event => void handleRichTextImageUpload(event, 'coach_intro', '教练简介图')}
+                  />
                 </label>
               ) : null}
             </div>
             <textarea
-              rows={4}
-              value={form.images.join('\n')}
-              onChange={event => updateField('images', splitLines(event.target.value))}
-              disabled={isReadOnly}
-            />
-            <div className="image-preview-grid">
-              {form.images.map((url, index) => (
-                <div key={`${url}-${index}`} className="image-tile">
-                  <img className="image-preview" src={url} alt={`轮播图${index + 1}`} />
-                  {!isReadOnly ? (
-                    <button className="ghost-button compact-button" type="button" onClick={() => removeArrayItem('images', index)}>
-                      删除
-                    </button>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <label>
-            <span>教练简介<RequiredMark /></span>
-            <textarea
-              rows={4}
+              rows={8}
               value={form.coach_intro}
               onChange={event => updateField('coach_intro', event.target.value)}
               disabled={isReadOnly}
             />
-          </label>
+            {form.coach_intro ? (
+              <div className="description-preview rich-preview" dangerouslySetInnerHTML={{ __html: form.coach_intro }} />
+            ) : null}
+          </div>
 
           <div className="stack">
             <div className="page-actions">
@@ -443,15 +886,33 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
             </div>
           </div>
 
-          <label>
-            <span>课包介绍<RequiredMark /></span>
+          <div className="stack">
+            <div className="page-actions">
+              <div>
+                <p className="section-kicker">Package Intro</p>
+                <h4>课包介绍</h4>
+              </div>
+              {!isReadOnly ? (
+                <label className="file-button">
+                  上传图片并插入介绍
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={event => void handleRichTextImageUpload(event, 'description', '课包介绍图')}
+                  />
+                </label>
+              ) : null}
+            </div>
             <textarea
-              rows={8}
+              rows={10}
               value={form.description}
               onChange={event => updateField('description', event.target.value)}
               disabled={isReadOnly}
             />
-          </label>
+            {form.description ? (
+              <div className="description-preview rich-preview" dangerouslySetInnerHTML={{ __html: form.description }} />
+            ) : null}
+          </div>
 
           <section className="panel subtle-panel stack">
             <div>
@@ -462,13 +923,15 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
               <div className="detail-card">
                 <strong>课包信息</strong>
                 <p>课包类型：{form.package_category || '-'}</p>
-                <p>支持人数：{supportedPeopleText}</p>
-                <p>总价：¥{(Number(form.total_price_fen || 0) / 100).toFixed(2)}</p>
-                <p>状态：{form.status === 'active' ? '上架中' : '已下架'}</p>
-                <p>截止时长：{form.deadline_hours || 48} 小时</p>
+                <p>课程节数：{form.class_count || '-'} 节</p>
+                <p>单节时长：{form.class_duration_minutes || '-'} 分钟</p>
+                <p>支持团型：{supportedPeopleText}</p>
+                <p>状态：{getStatusText(form.status)}</p>
               </div>
               <div className="detail-card">
-                <strong>地点信息</strong>
+                <strong>地点与上架</strong>
+                <p>上架时间：{form.publish_time || '-'}</p>
+                <p>下架时间：{form.unpublish_time || '-'}</p>
                 <p>所在区域：{form.location_district || '-'}</p>
                 <p>小区 / 场地：{form.location_community || '-'}</p>
                 <p>详细地点：{form.location_detail || '-'}</p>
@@ -477,7 +940,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 <strong>维护信息</strong>
                 <p>创建时间：{form.create_time || '-'}</p>
                 <p>更新时间：{form.update_time || '-'}</p>
-                <p>教练姓名：{form.coach_name || '-'}</p>
+                <p>经纬度：{form.longitude && form.latitude ? `${form.longitude}, ${form.latitude}` : '-'}</p>
               </div>
             </div>
           </section>

@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "lindong-backend",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-03-28",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "PAYMENT_PROVIDER_MODE": "wechat",
+    "GROUP_RESULT_NOTIFICATION_DELIVERY_MODE": "wechat",
+    "GROUP_RESULT_NOTIFICATION_BATCH_SIZE": "20",
+    "WX_MINIPROGRAM_APP_ID": "wx2cc3da65f3b6bd17",
+    "WX_MINIPROGRAM_STATE": "formal",
+    "WX_PAY_NOTIFY_URL": "https://lindong-backend.shiqingyun2026.workers.dev/api/payments/notify/wechat"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "课包拼团详情",
+  "navigationBarTitleText": "课程拼团详情",
   "usingComponents": {
     "mp-toptips": "../../../vendor/weui-miniprogram/toptips/toptips",
     "mp-badge": "../../../vendor/weui-miniprogram/badge/badge",

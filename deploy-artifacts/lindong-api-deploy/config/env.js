@@ -54,7 +54,7 @@ const env = {
     connectionLimit: toInt(process.env.MYSQL_CONNECTION_LIMIT, 10)
   },
   storage: {
-    provider: pickFirst(process.env.STORAGE_PROVIDER, 'supabase').toLowerCase(),
+    provider: pickFirst(process.env.STORAGE_PROVIDER, 'cos').toLowerCase(),
     supabaseBucket: pickFirst(process.env.SUPABASE_STORAGE_BUCKET, 'course-images'),
     bucket: pickFirst(process.env.COS_BUCKET, process.env.CLOUDBASE_STORAGE_BUCKET),
     region: pickFirst(process.env.COS_REGION, process.env.CLOUDBASE_STORAGE_REGION),

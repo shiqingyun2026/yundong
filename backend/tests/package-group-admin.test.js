@@ -119,7 +119,13 @@ const createPackageRepositoryState = () => ({
       images: [],
       total_price: 1000,
       package_category: '体适能',
+      class_count: 10,
+      class_duration_minutes: 60,
       supported_people: [2, 4],
+      group_price_config: [
+        { target_count: 2, price_fen: 500 },
+        { target_count: 4, price_fen: 250 }
+      ],
       location_district: '南山区',
       location_community: '深圳湾社区',
       location_detail: '会所二楼',
@@ -130,6 +136,8 @@ const createPackageRepositoryState = () => ({
       coach_certificates: [],
       description: '<p>课程介绍</p>',
       deadline_hours: 48,
+      publish_time: '2026-04-19T00:00:00.000Z',
+      unpublish_time: null,
       status: 1,
       created_at: '2026-04-19T00:00:00.000Z',
       updated_at: '2026-04-19T00:00:00.000Z'
@@ -317,6 +325,14 @@ const loadPackageServicesWithState = () => {
     const normalized = `${value || ''}`.trim()
     return ['体适能', '跳绳'].includes(normalized) ? normalized : '体适能'
   }
+  const normalizeGroupPriceConfig = value =>
+    (Array.isArray(value) ? value : [])
+      .map(item => ({
+        target_count: Number(item && item.target_count) || 0,
+        price_fen: Number(item && item.price_fen) || 0
+      }))
+      .filter(item => item.target_count > 0 && item.price_fen > 0)
+      .sort((left, right) => left.target_count - right.target_count)
 
   mockModule('config/env.js', {
     env: {
@@ -335,6 +351,7 @@ const loadPackageServicesWithState = () => {
     coursePackagesRepository: {
       PACKAGE_CATEGORIES: ['体适能', '跳绳'],
       normalizePackageCategory,
+      normalizeGroupPriceConfig,
       normalizeSupportedPeople,
       listPackages: async ({ keyword = '', category = '', status = '' } = {}) =>
         state.packages
@@ -349,6 +366,7 @@ const loadPackageServicesWithState = () => {
           ...payload,
           package_category: normalizePackageCategory(payload.package_category),
           supported_people: normalizeSupportedPeople(payload.supported_people),
+          group_price_config: normalizeGroupPriceConfig(payload.group_price_config),
           created_at: payload.created_at || '2026-04-19T00:00:00.000Z',
           updated_at: payload.updated_at || '2026-04-19T00:00:00.000Z'
         }
@@ -371,7 +389,11 @@ const loadPackageServicesWithState = () => {
           supported_people:
             payload.supported_people === undefined
               ? state.packages[index].supported_people
-              : normalizeSupportedPeople(payload.supported_people)
+              : normalizeSupportedPeople(payload.supported_people),
+          group_price_config:
+            payload.group_price_config === undefined
+              ? state.packages[index].group_price_config
+              : normalizeGroupPriceConfig(payload.group_price_config)
         }
         return state.packages[index]
       }
@@ -612,13 +634,16 @@ test('admin package create requires valid package category', async () => {
           package_category: '篮球',
           cover: 'https://example.com/pkg.png',
           total_price_fen: 1000,
-          supported_people: [2, 4],
+          class_count: 10,
+          class_duration_minutes: 60,
+          group_price_config: [{ target_count: 2, price_fen: 500 }],
           location_district: '南山区',
           location_community: '深圳湾社区',
           location_detail: '会所二楼',
           coach_name: '教练A',
           coach_intro: '简介',
-          description: '介绍'
+          description: '介绍',
+          publish_time: '2026-04-21T10:00:00.000Z'
         },
         admin: { id: 'admin-1' }
       }),
@@ -629,6 +654,142 @@ test('admin package create requires valid package category', async () => {
       return true
     }
   )
+})
+
+test('admin package create does not require coach name', async () => {
+  const { packageAdminService } = loadPackageServicesWithState()
+
+  const result = await packageAdminService.createAdminPackage({
+    payload: {
+      name: '测试课包',
+      package_category: '体适能',
+      cover: 'https://example.com/pkg.png',
+      total_price_fen: 1000,
+      class_count: 10,
+      class_duration_minutes: 60,
+      group_price_config: [{ target_count: 2, price_fen: 500 }],
+      location_district: '南山区',
+      location_community: '深圳湾社区',
+      location_detail: '会所二楼',
+      coach_intro: '简介',
+      description: '介绍',
+      publish_time: '2026-04-21T10:00:00.000Z'
+    },
+    admin: { id: 'admin-1' }
+  })
+
+  assert.equal(result.name, '测试课包')
+})
+
+test('admin package create derives total price from group price config', async () => {
+  const { packageAdminService, state } = loadPackageServicesWithState()
+
+  await packageAdminService.createAdminPackage({
+    payload: {
+      name: '测试课包',
+      package_category: '体适能',
+      cover: 'https://example.com/pkg.png',
+      class_count: 10,
+      class_duration_minutes: 60,
+      group_price_config: [
+        { target_count: 2, price_fen: 800 },
+        { target_count: 4, price_fen: 500 }
+      ],
+      location_district: '南山区',
+      location_community: '深圳湾社区',
+      location_detail: '会所二楼',
+      coach_intro: '简介',
+      description: '介绍',
+      publish_time: '2026-04-21T10:00:00.000Z'
+    },
+    admin: { id: 'admin-1' }
+  })
+
+  const created = state.packages.at(-1)
+  assert.equal(created.total_price, 2000)
+})
+
+test('admin package create derives supported people from group price config', async () => {
+  const { packageAdminService, state } = loadPackageServicesWithState()
+
+  const result = await packageAdminService.createAdminPackage({
+    payload: {
+      name: '测试课包',
+      package_category: '体适能',
+      cover: 'https://example.com/pkg-new.png',
+      class_count: 12,
+      class_duration_minutes: 90,
+      group_price_config: [
+        { target_count: 6, price_fen: 30000 },
+        { target_count: 4, price_fen: 45000 }
+      ],
+      location_district: '南山区',
+      location_community: '深圳湾社区',
+      location_detail: '会所二楼',
+      coach_name: '教练A',
+      coach_intro: '<p>简介</p>',
+      description: '<p>介绍</p>',
+      publish_time: '2026-04-21T10:00:00.000Z'
+    },
+    admin: { id: 'admin-1' },
+    now: new Date('2026-04-20T08:00:00.000Z')
+  })
+
+  const created = state.packages.at(-1)
+
+  assert.deepEqual(created.supported_people, [4, 6])
+  assert.deepEqual(created.group_price_config, [
+    { target_count: 4, price_fen: 45000 },
+    { target_count: 6, price_fen: 30000 }
+  ])
+  assert.equal(created.status, 2)
+  assert.equal(result.status, 'pending')
+})
+
+test('admin package detail auto switches pending package to active after publish time', async () => {
+  const { packageAdminService, state } = loadPackageServicesWithState()
+  state.packages[0].status = 2
+  state.packages[0].publish_time = '2026-04-21T10:00:00.000Z'
+  state.packages[0].unpublish_time = '2026-04-23T10:00:00.000Z'
+
+  const result = await packageAdminService.getAdminPackageDetail({
+    packageId: 'pkg-1',
+    now: new Date('2026-04-21T10:00:01.000Z')
+  })
+
+  assert.equal(result.status, 'active')
+  assert.equal(result.status_text, '已上架')
+})
+
+test('admin package detail auto switches active package to inactive after unpublish time', async () => {
+  const { packageAdminService, state } = loadPackageServicesWithState()
+  state.packages[0].status = 1
+  state.packages[0].publish_time = '2026-04-19T10:00:00.000Z'
+  state.packages[0].unpublish_time = '2026-04-21T10:00:00.000Z'
+
+  const result = await packageAdminService.getAdminPackageDetail({
+    packageId: 'pkg-1',
+    now: new Date('2026-04-21T10:00:01.000Z')
+  })
+
+  assert.equal(result.status, 'inactive')
+  assert.equal(result.status_text, '已下架')
+})
+
+test('admin package offline updates package to inactive', async () => {
+  const { packageAdminService, state } = loadPackageServicesWithState()
+
+  const result = await packageAdminService.offlineAdminPackage({
+    packageId: 'pkg-1',
+    admin: { id: 'admin-1' },
+    now: new Date('2026-04-21T08:00:00.000Z')
+  })
+
+  const updated = state.packages.find(item => item.id === 'pkg-1')
+  assert.equal(updated.status, 0)
+  assert.ok(updated.unpublish_time)
+  assert.equal(result.status, 'inactive')
+  assert.equal(state.adminLogWrites.at(-1).action, 'package_offline')
 })
 
 test('expired package group cleanup refunds success orders and payment records', async () => {

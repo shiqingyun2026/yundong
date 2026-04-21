@@ -5,7 +5,11 @@ import { PaginationBar } from '../components/PaginationBar'
 import { api } from '../lib/api'
 import type { PackageListItem, PackageListResponse } from '../types'
 
-const getStatusText = (status: PackageListItem['status']) => (status === 'active' ? '上架中' : '已下架')
+const getStatusText = (status: PackageListItem['status']) => {
+  if (status === 'pending') return '待上架'
+  if (status === 'active') return '已上架'
+  return '已下架'
+}
 
 const formatSupportedPeople = (supportedPeople: number[]) =>
   supportedPeople.length ? supportedPeople.map(item => `${item}人团`).join(' / ') : '-'
@@ -108,7 +112,8 @@ export function PackageListPage() {
             <span>课包状态</span>
             <select value={status} onChange={event => setStatus(event.target.value)}>
               <option value="">全部状态</option>
-              <option value="active">上架中</option>
+              <option value="pending">待上架</option>
+              <option value="active">已上架</option>
               <option value="inactive">已下架</option>
             </select>
           </label>
@@ -139,34 +144,26 @@ export function PackageListPage() {
                 <tr>
                   <th>课包名称</th>
                   <th>类型</th>
-                  <th>总价</th>
+                  <th>节数/时长</th>
                   <th>支持人数</th>
                   <th>地点</th>
                   <th>教练</th>
                   <th>状态</th>
-                  <th>创建时间</th>
+                  <th>上架时间</th>
                   <th>操作</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map(item => (
                   <tr key={item.id}>
-                    <td>
-                      <div className="table-title-cell">
-                        {item.cover ? <img className="table-thumb" src={item.cover} alt={item.name} /> : null}
-                        <div>
-                          <strong>{item.name}</strong>
-                          <p className="table-subtext">{item.location_community || item.location_district || '-'}</p>
-                        </div>
-                      </div>
-                    </td>
+                    <td>{item.name || '-'}</td>
                     <td>{item.package_category || '-'}</td>
-                    <td>{item.total_price_text || `¥${(item.total_price_fen / 100).toFixed(2)}`}</td>
+                    <td>{item.class_count > 0 && item.class_duration_minutes > 0 ? `${item.class_count}节 / ${item.class_duration_minutes}分钟` : '-'}</td>
                     <td>{formatSupportedPeople(item.supported_people)}</td>
                     <td>{item.location_text || '-'}</td>
                     <td>{item.coach_name || '-'}</td>
                     <td>{getStatusText(item.status)}</td>
-                    <td>{item.create_time || '-'}</td>
+                    <td>{item.publish_time || '-'}</td>
                     <td>
                       <div className="button-row">
                         <Link className="table-link" to={`/packages/${item.id}`}>
