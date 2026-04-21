@@ -1,4 +1,5 @@
 const {
+  calculatePackageMemberAmountFen,
   createPackageJoinOrder,
   createPackageStartOrder,
   fetchPackageDetail,
@@ -35,6 +36,8 @@ Page({
     targetCount: 0,
     weekday: 6,
     hour: 10,
+    childNickname: '',
+    childAge: '',
     packageDetail: null,
     packageGroupDetail: null,
     paymentAmountText: '0.00',
@@ -52,7 +55,9 @@ Page({
       orderId: options.orderId || '',
       targetCount: Number(options.targetCount) || 0,
       weekday: Number(options.weekday) || 6,
-      hour: Number(options.hour) || 10
+      hour: Number(options.hour) || 10,
+      childNickname: decodeURIComponent(options.childNickname || ''),
+      childAge: decodeURIComponent(options.childAge || '')
     })
 
     await this.ensureLogin()
@@ -88,9 +93,11 @@ Page({
       const amountFen =
         this.data.action === 'join' && packageGroupDetail
           ? packageGroupDetail.memberAmountFen
-          : nextTargetCount > 0
-            ? Math.floor((Number(packageDetail.totalPriceFen) || 0) / nextTargetCount)
-            : 0
+          : calculatePackageMemberAmountFen({
+              totalPriceFen: Number(packageDetail.totalPriceFen) || 0,
+              targetCount: nextTargetCount,
+              groupPriceConfig: packageDetail.groupPriceConfig || []
+            })
 
       this.safeSetData({
         packageDetail,
@@ -114,6 +121,19 @@ Page({
     const values = event.detail.value || []
     this.safeSetData({
       agreementChecked: values.includes('agree')
+    })
+  },
+
+  handleChildNicknameInput(event) {
+    this.safeSetData({
+      childNickname: `${event.detail.value || ''}`.trimStart()
+    })
+  },
+
+  handleChildAgeInput(event) {
+    const nextValue = `${event.detail.value || ''}`.replace(/[^\d]/g, '')
+    this.safeSetData({
+      childAge: nextValue
     })
   },
 
@@ -145,9 +165,19 @@ Page({
     }
 
     if (this.data.action === 'join') {
+      if (!`${this.data.childNickname || ''}`.trim()) {
+        throw new Error('请填写孩子昵称')
+      }
+
+      if (!/^\d+$/.test(`${this.data.childAge || ''}`)) {
+        throw new Error('请填写孩子年龄')
+      }
+
       return createPackageJoinOrder({
         packageId: this.data.packageId,
-        packageGroupId: this.data.packageGroupId
+        packageGroupId: this.data.packageGroupId,
+        childNickname: this.data.childNickname.trim(),
+        childAge: this.data.childAge
       })
     }
 
@@ -155,7 +185,9 @@ Page({
       packageId: this.data.packageId,
       targetCount: this.data.targetCount,
       weekday: this.data.weekday,
-      hour: this.data.hour
+      hour: this.data.hour,
+      childNickname: this.data.childNickname,
+      childAge: this.data.childAge
     })
   },
 

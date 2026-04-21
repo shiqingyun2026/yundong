@@ -1,7 +1,11 @@
 const {
   START_HOUR_OPTIONS,
   WEEKDAY_LABELS,
-  fetchPackageDetail
+  calculatePackageMemberAmountFen,
+  createPackageStartOrder,
+  fetchPackageDetail,
+  mockPaymentSuccess,
+  preparePayment
 } = require('../../../utils/package')
 const { loginAndStoreSession } = require('../../../utils/auth')
 
@@ -14,6 +18,24 @@ const hourOptions = START_HOUR_OPTIONS.map(hour => ({
   value: hour,
   label: `${hour}`.padStart(2, '0') + ':00'
 }))
+
+const invokeWechatPayment = paymentParams =>
+  new Promise((resolve, reject) => {
+    if (!wx.requestPayment) {
+      reject(new Error('当前微信版本不支持支付能力'))
+      return
+    }
+
+    wx.requestPayment({
+      ...(paymentParams || {}),
+      success(result) {
+        resolve(result || {})
+      },
+      fail(error) {
+        reject(error)
+      }
+    })
+  })
 
 Page({
   data: {
@@ -29,13 +51,27 @@ Page({
     selectedHour: 10,
     selectedWeekdayIndex: 5,
     selectedHourIndex: 1,
-    memberAmountText: '0.00'
+    memberAmountText: '0.00',
+    childNickname: '',
+    childAge: ''
   },
 
   async onLoad(options) {
     const packageId = options.packageId || ''
+    const selectedTargetCount = Number(options.targetCount) || 0
+    const selectedWeekday = Number(options.weekday) || 6
+    const selectedHour = Number(options.hour) || 10
+    const selectedWeekdayIndex = Math.max(0, weekdayOptions.findIndex(item => item.value === selectedWeekday))
+    const selectedHourIndex = Math.max(0, hourOptions.findIndex(item => item.value === selectedHour))
     this.setData({
-      packageId
+      packageId,
+      selectedTargetCount,
+      selectedWeekday,
+      selectedHour,
+      selectedWeekdayIndex,
+      selectedHourIndex,
+      childNickname: decodeURIComponent(options.childNickname || ''),
+      childAge: decodeURIComponent(options.childAge || '')
     })
     await this.loadPackageDetail(packageId)
   },
@@ -55,7 +91,7 @@ Page({
 
     try {
       const packageDetail = await fetchPackageDetail(packageId)
-      const defaultTargetCount = packageDetail.supportedPeople[0] || 2
+      const defaultTargetCount = this.data.selectedTargetCount || packageDetail.supportedPeople[0] || 2
 
       this.setData({
         packageDetail,
@@ -75,8 +111,11 @@ Page({
   },
 
   updateAmountPreview(packageDetail, targetCount) {
-    const totalPriceFen = packageDetail ? Number(packageDetail.totalPriceFen) || 0 : 0
-    const amountFen = targetCount > 0 ? Math.floor(totalPriceFen / targetCount) : 0
+    const amountFen = calculatePackageMemberAmountFen({
+      totalPriceFen: packageDetail ? Number(packageDetail.totalPriceFen) || 0 : 0,
+      targetCount,
+      groupPriceConfig: packageDetail ? packageDetail.groupPriceConfig || [] : []
+    })
 
     this.setData({
       memberAmountText: (amountFen / 100).toFixed(2)
@@ -120,6 +159,19 @@ Page({
     })
   },
 
+  handleChildNicknameInput(event) {
+    this.setData({
+      childNickname: `${event.detail.value || ''}`.trimStart()
+    })
+  },
+
+  handleChildAgeInput(event) {
+    const nextValue = `${event.detail.value || ''}`.replace(/[^\d]/g, '')
+    this.setData({
+      childAge: nextValue
+    })
+  },
+
   handleOpenAgreement() {
     wx.navigateTo({
       url: '/pages/service-agreement/index'
@@ -154,7 +206,23 @@ Page({
 
     if (!this.data.selectedTargetCount) {
       wx.showToast({
-        title: '请选择目标人数',
+        title: '请选择拼团人数',
+        icon: 'none'
+      })
+      return
+    }
+
+    if (!`${this.data.childNickname || ''}`.trim()) {
+      wx.showToast({
+        title: '请填写孩子昵称',
+        icon: 'none'
+      })
+      return
+    }
+
+    if (!/^\d+$/.test(`${this.data.childAge || ''}`)) {
+      wx.showToast({
+        title: '请填写孩子年龄',
         icon: 'none'
       })
       return
@@ -164,13 +232,74 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url:
-        `/pages/payment/confirm/index?action=start` +
-        `&packageId=${this.data.packageId}` +
-        `&targetCount=${this.data.selectedTargetCount}` +
-        `&weekday=${this.data.selectedWeekday}` +
-        `&hour=${this.data.selectedHour}`
+    if (this.data.submitting) {
+      return
+    }
+
+    this.setData({
+      submitting: true
     })
+
+    try {
+      const order = await createPackageStartOrder({
+        packageId: this.data.packageId,
+        targetCount: this.data.selectedTargetCount,
+        weekday: this.data.selectedWeekday,
+        hour: this.data.selectedHour,
+        childNickname: this.data.childNickname.trim(),
+        childAge: this.data.childAge
+      })
+      const orderId = order.orderId || ''
+
+      if (!orderId) {
+        throw new Error('订单创建失败')
+      }
+
+      const paymentPreparation = await preparePayment({
+        orderId
+      })
+      let nextPackageGroupId = order.packageGroupId || ''
+
+      if (paymentPreparation && paymentPreparation.canUseRequestPayment) {
+        await invokeWechatPayment(paymentPreparation.paymentParams || {})
+      } else {
+        const paymentResult = await mockPaymentSuccess({
+          orderId
+        })
+        nextPackageGroupId = (paymentResult && paymentResult.packageGroupId) || nextPackageGroupId
+      }
+
+      wx.redirectTo({
+        url:
+          `/pages/payment/result/index?status=success` +
+          `&packageId=${this.data.packageId}` +
+          `&packageGroupId=${encodeURIComponent(nextPackageGroupId)}`
+      })
+    } catch (error) {
+      const message = `${error && (error.errMsg || error.message || '')}`.toLowerCase()
+
+      if (message.includes('cancel')) {
+        wx.showToast({
+          title: '已取消支付',
+          icon: 'none'
+        })
+      } else {
+        wx.redirectTo({
+          url:
+            `/pages/payment/result/index?status=fail` +
+            `&packageId=${this.data.packageId}` +
+            `&action=start` +
+            `&targetCount=${this.data.selectedTargetCount}` +
+            `&weekday=${this.data.selectedWeekday}` +
+            `&hour=${this.data.selectedHour}` +
+            `&childNickname=${encodeURIComponent(this.data.childNickname.trim())}` +
+            `&childAge=${encodeURIComponent(this.data.childAge)}`
+        })
+      }
+    } finally {
+      this.setData({
+        submitting: false
+      })
+    }
   }
 })

@@ -34,6 +34,64 @@ const formatFenText = value => {
   return (amountFen / 100).toFixed(2)
 }
 
+const normalizeGroupPriceConfig = value => {
+  const items = Array.isArray(value) ? value : []
+
+  return items
+    .map(item => ({
+      targetCount: Number(item && (item.target_count || item.targetCount)) || 0,
+      priceFen: Number(item && (item.price_fen || item.priceFen)) || 0
+    }))
+    .filter(item => item.targetCount > 0 && item.priceFen > 0)
+    .sort((left, right) => left.targetCount - right.targetCount)
+}
+
+const findConfiguredMemberAmountFen = ({ groupPriceConfig = [], targetCount }) => {
+  const normalizedTargetCount = Number(targetCount) || 0
+  if (normalizedTargetCount <= 0) {
+    return 0
+  }
+
+  const matched = normalizeGroupPriceConfig(groupPriceConfig).find(item => item.targetCount === normalizedTargetCount)
+  return matched ? matched.priceFen : 0
+}
+
+const calculatePackageMemberAmountFen = ({ totalPriceFen, targetCount, groupPriceConfig = [] }) => {
+  const configuredAmountFen = findConfiguredMemberAmountFen({
+    groupPriceConfig,
+    targetCount
+  })
+
+  if (configuredAmountFen > 0) {
+    return configuredAmountFen
+  }
+
+  const normalizedTotalPriceFen = Number(totalPriceFen) || 0
+  const normalizedTargetCount = Number(targetCount) || 0
+
+  if (normalizedTotalPriceFen < 0 || normalizedTargetCount <= 0) {
+    return 0
+  }
+
+  return Math.floor(normalizedTotalPriceFen / normalizedTargetCount)
+}
+
+const buildPackageDetailLocationDisplayText = payload => {
+  const locationCity = payload.location_city || payload.locationCity || ''
+  const locationDistrict = payload.location_district || payload.locationDistrict || ''
+  const locationCommunity = payload.location_community || payload.locationCommunity || ''
+
+  return [locationCity, locationDistrict, locationCommunity].filter(Boolean).join(' / ')
+}
+
+const buildPackageCardLocationDisplayText = item => {
+  const locationCity = item.location_city || item.locationCity || ''
+  const locationDistrict = item.location_district || item.locationDistrict || ''
+  const locationCommunity = item.location_community || item.locationCommunity || ''
+
+  return [locationCity, locationDistrict, locationCommunity].filter(Boolean).join(' / ')
+}
+
 const buildPackageFeatureTags = payload => {
   const tags = []
   const classCount = Number(payload.class_count || payload.classCount || 5)
@@ -53,20 +111,28 @@ const buildPackageFeatureTags = payload => {
 }
 
 const buildSupportedGroupPriceList = payload => {
-  const displayPriceMap = {
-    4: '500',
-    6: '400',
-    8: '300'
-  }
   const supportedPeople = Array.isArray(payload.supported_people)
     ? payload.supported_people.map(item => Number(item)).filter(Boolean)
-    : [4, 6, 8]
+    : []
+  const groupPriceConfig = normalizeGroupPriceConfig(payload.group_price_config || payload.groupPriceConfig)
+  const configuredPriceMap = new Map(groupPriceConfig.map(item => [item.targetCount, item.priceFen]))
+  const totalPriceFen = Number(payload.total_price_fen || payload.totalPriceFen) || 0
 
   return supportedPeople
-    .filter(count => displayPriceMap[count])
     .map(count => ({
       count,
-      memberAmountText: displayPriceMap[count]
+      memberAmountFen: calculatePackageMemberAmountFen({
+        totalPriceFen,
+        targetCount: count,
+        groupPriceConfig
+      })
+    }))
+    .filter(item => item.memberAmountFen > 0)
+    .map(item => ({
+      count: item.count,
+      memberAmountFen: item.memberAmountFen,
+      memberAmountText: formatFenText(item.memberAmountFen),
+      configured: configuredPriceMap.has(item.count)
     }))
 }
 
@@ -124,13 +190,17 @@ const normalizePackageCard = item => ({
   name: item.name || '',
   cover: item.cover || '',
   packageCategory: item.package_category || '体适能',
+  classCount: Number(item.class_count || item.classCount) || 0,
   maxSupportedPeople: Number(item.max_supported_people) || 0,
   minMemberAmountFen: Number(item.min_member_amount_fen) || 0,
   minMemberAmountText: `${item.min_member_amount_text || formatFenText(item.min_member_amount_fen)}`,
+  locationProvince: item.location_province || item.locationProvince || '',
+  locationCity: item.location_city || item.locationCity || '',
   locationDistrict: item.location_district || '',
   locationCommunity: item.location_community || '',
   locationDetail: item.location_detail || '',
   locationText: [item.location_community, item.location_detail].filter(Boolean).join(' '),
+  locationDisplayText: buildPackageCardLocationDisplayText(item),
   activeGroupCount: Number(item.active_group_count) || 0,
   distanceMeters: Number.isFinite(Number(item.distance_meters)) ? Number(item.distance_meters) : null,
   createdAt: item.created_at || ''
@@ -166,14 +236,18 @@ const normalizePackageDetail = payload => ({
   images: Array.isArray(payload.images) && payload.images.length ? payload.images : payload.cover ? [payload.cover] : [],
   totalPriceFen: Number(payload.total_price_fen) || 0,
   totalPriceText: `${payload.total_price_text || formatFenText(payload.total_price_fen)}`,
+  groupPriceConfig: normalizeGroupPriceConfig(payload.group_price_config || payload.groupPriceConfig),
   supportedPeople: Array.isArray(payload.supported_people) ? payload.supported_people.map(item => Number(item)).filter(Boolean) : [],
   supportedPeopleText: Array.isArray(payload.supported_people) ? payload.supported_people.map(item => `${item}人团`).join(' | ') : '',
   featureTags: buildPackageFeatureTags(payload),
   supportedGroupPriceList: buildSupportedGroupPriceList(payload),
+  locationProvince: payload.location_province || payload.locationProvince || '',
+  locationCity: payload.location_city || payload.locationCity || '',
   locationDistrict: payload.location_district || '',
   locationCommunity: payload.location_community || '',
   locationDetail: payload.location_detail || '',
   locationText: [payload.location_district, payload.location_community, payload.location_detail].filter(Boolean).join(' / '),
+  locationDisplayText: buildPackageDetailLocationDisplayText(payload),
   coachName: payload.coach_name || '',
   coachIntro: payload.coach_intro || '',
   coachCertificates: Array.isArray(payload.coach_certificates) ? payload.coach_certificates : [],
@@ -188,8 +262,7 @@ const normalizePackageGroupDetail = payload => ({
   packageInfo: {
     id: payload.package && payload.package.id ? payload.package.id : '',
     name: payload.package && payload.package.name ? payload.package.name : '',
-    locationText: payload.package && payload.package.location_text ? payload.package.location_text : '',
-    coachName: payload.package && payload.package.coach_name ? payload.package.coach_name : ''
+    locationText: payload.package && payload.package.location_text ? payload.package.location_text : ''
   },
   targetCount: Number(payload.target_count) || 0,
   currentCount: Number(payload.current_count) || 0,
@@ -202,6 +275,8 @@ const normalizePackageGroupDetail = payload => ({
   firstClassTime: payload.first_class_time || '',
   firstClassTimeText: payload.first_class_time ? formatPackageDateTimeText(payload.first_class_time) : '',
   scheduleList: formatScheduleList(payload.schedule_list),
+  childNickname: payload.child_nickname || '',
+  childAge: payload.child_age === null || payload.child_age === undefined ? null : Number(payload.child_age) || 0,
   members: Array.isArray(payload.members) ? payload.members : [],
   userJoined: !!payload.user_joined,
   progressPercent:
@@ -216,6 +291,9 @@ const normalizeUserPackageGroupListItem = item => ({
   packageName: item.package_name || '',
   status: item.status || 'active',
   locationText: item.location_text || '',
+  currentCount: Number(item.current_count) || 0,
+  targetCount: Number(item.target_count) || 0,
+  missingCount: Math.max(0, Number(item.missing_count) || 0),
   firstClassTime: item.first_class_time || '',
   displayTimeText: item.display_time_text || '',
   memberAmountText: `${item.member_amount_text || '0.00'}`
@@ -254,14 +332,16 @@ const fetchPackageGroupDetail = async packageGroupId =>
     await get(`/api/package-groups/${packageGroupId}`, {}, { showErrorToast: false })
   )
 
-const createPackageStartOrder = async ({ packageId, targetCount, weekday, hour }) =>
+const createPackageStartOrder = async ({ packageId, targetCount, weekday, hour, childNickname, childAge }) =>
   post(
     '/api/package-orders/start',
     {
       packageId,
       targetCount,
       weekday,
-      hour
+      hour,
+      childNickname,
+      childAge
     },
     {
       showLoading: true,
@@ -270,12 +350,14 @@ const createPackageStartOrder = async ({ packageId, targetCount, weekday, hour }
     }
   )
 
-const createPackageJoinOrder = async ({ packageId, packageGroupId }) =>
+const createPackageJoinOrder = async ({ packageId, packageGroupId, childNickname, childAge }) =>
   post(
     '/api/package-orders/join',
     {
       packageId,
-      packageGroupId
+      packageGroupId,
+      childNickname,
+      childAge
     },
     {
       showLoading: true,
@@ -333,6 +415,7 @@ const fetchUserPackageGroupList = async ({ status = 'all', page = 1, pageSize = 
 module.exports = {
   START_HOUR_OPTIONS,
   WEEKDAY_LABELS,
+  calculatePackageMemberAmountFen,
   createPackageJoinOrder,
   createPackageStartOrder,
   fetchPackageDetail,

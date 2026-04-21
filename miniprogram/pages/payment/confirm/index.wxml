@@ -12,7 +12,7 @@
         <view class="order-title">{{packageDetail.name}}</view>
         <view class="order-item">
           <view class="order-label">上课地点</view>
-          <view class="order-value">{{packageDetail.locationText}}</view>
+          <view class="order-value">{{packageDetail.locationDisplayText || packageDetail.locationText}}</view>
         </view>
         <view class="order-item">
           <view class="order-label">开团方式</view>
@@ -21,6 +21,34 @@
         <view class="order-item">
           <view class="order-label">目标人数</view>
           <view class="order-value">{{targetCount}} 人团</view>
+        </view>
+        <view class="order-item">
+          <view class="order-label">孩子昵称</view>
+          <view wx:if="{{action === 'start'}}" class="order-value">{{childNickname}}</view>
+          <input
+            wx:else
+            class="order-input"
+            type="text"
+            maxlength="20"
+            placeholder="请输入孩子昵称"
+            cursor-spacing="24"
+            value="{{childNickname}}"
+            bindinput="handleChildNicknameInput"
+          />
+        </view>
+        <view class="order-item">
+          <view class="order-label">年龄</view>
+          <view wx:if="{{action === 'start'}}" class="order-value">{{childAge}} 岁</view>
+          <input
+            wx:else
+            class="order-input"
+            type="number"
+            maxlength="2"
+            placeholder="请输入年龄"
+            cursor-spacing="24"
+            value="{{childAge}}"
+            bindinput="handleChildAgeInput"
+          />
         </view>
         <view class="order-item price-item">
           <view class="order-label">支付金额</view>
@@ -49,12 +77,12 @@
               extClass="payment-agreement-item"
               value="agree"
               checked="{{agreementChecked}}"
-              label="我已阅读并同意《课程服务协议》"
             />
           </mp-checkbox-group>
         </mp-cells>
-        <view class="payment-agreement-links">
-          <text class="agreement-link" bindtap="handleOpenAgreement">查看协议全文</text>
+        <view class="payment-agreement-inline">
+          <text>我已阅读并同意</text>
+          <text class="agreement-link" bindtap="handleOpenAgreement">《课程服务协议》</text>
         </view>
       </view>
 

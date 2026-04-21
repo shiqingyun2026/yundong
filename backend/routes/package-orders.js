@@ -13,14 +13,16 @@ const resolveSupabase = () => (env.useMySqlRepositories ? null : getSupabaseClie
 
 router.post('/start', authenticate, async (req, res) => {
   try {
-    const { packageId, targetCount, weekday, hour } = req.body || {}
+    const { packageId, targetCount, weekday, hour, childNickname, childAge } = req.body || {}
     const result = await createPackageStartOrder({
       supabase: resolveSupabase(),
       userId: req.userId,
       packageId,
       targetCount,
       weekday,
-      hour
+      hour,
+      childNickname,
+      childAge
     })
 
     return ok(res, {
@@ -32,6 +34,8 @@ router.post('/start', authenticate, async (req, res) => {
       targetCount: Number(targetCount),
       weekday: Number(weekday),
       hour: Number(hour),
+      child_nickname: result.childNickname,
+      child_age: result.childAge,
       member_amount_fen: result.memberAmountFen,
       member_amount_text: formatFenText(result.memberAmountFen),
       status: result.order.status
@@ -43,12 +47,14 @@ router.post('/start', authenticate, async (req, res) => {
 
 router.post('/join', authenticate, async (req, res) => {
   try {
-    const { packageId, packageGroupId } = req.body || {}
+    const { packageId, packageGroupId, childNickname, childAge } = req.body || {}
     const result = await createPackageJoinOrder({
       supabase: resolveSupabase(),
       userId: req.userId,
       packageId,
-      packageGroupId
+      packageGroupId,
+      childNickname,
+      childAge
     })
 
     return ok(res, {
@@ -58,6 +64,8 @@ router.post('/join', authenticate, async (req, res) => {
       action: result.order.package_action,
       packageId: result.order.package_id,
       packageGroupId: result.order.package_group_id,
+      child_nickname: result.childNickname,
+      child_age: result.childAge,
       member_amount_fen: result.memberAmountFen,
       member_amount_text: formatFenText(result.memberAmountFen),
       status: result.order.status

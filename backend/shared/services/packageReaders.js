@@ -9,12 +9,38 @@ const {
   formatScheduleTextWithLockNote
 } = require('./packageSchedule')
 const { cleanupExpiredPackageGroups } = require('./packageGroupStore')
+const { signCosImageList, signCosPublicUrl } = require('./cosSignedUrl')
 
 const formatFenText = amountFen => (Number(amountFen || 0) / 100).toFixed(2)
 
+const DEFAULT_MEMBER_AVATAR = '/assets/ant-icons/user-white.svg'
+
 const buildLocationText = pkg => [pkg.location_community, pkg.location_detail].filter(Boolean).join(' ')
 
+const buildMiniProgramLocationText = pkg => [pkg.location_city || '深圳市', pkg.location_district, pkg.location_community || pkg.location_detail]
+  .filter(Boolean)
+  .join(' / ')
+
 const buildAdminLocationText = pkg => [pkg.location_district, pkg.location_community, pkg.location_detail].filter(Boolean).join(' / ')
+
+const resolveLowestGroupPriceFen = pkg => {
+  const priceList = (pkg.group_price_config || [])
+    .map(item => Number(item && item.price_fen))
+    .filter(price => Number.isFinite(price) && price > 0)
+
+  if (priceList.length) {
+    return Math.min(...priceList)
+  }
+
+  const supportedPeople = (pkg.supported_people || []).map(item => Number(item)).filter(Boolean)
+  const maxSupportedPeople = supportedPeople.length ? Math.max(...supportedPeople) : 0
+
+  return calculatePackageMemberAmountFen({
+    totalPrice: pkg.total_price,
+    targetCount: maxSupportedPeople,
+    groupPriceConfig: pkg.group_price_config
+  })
+}
 
 const EARTH_RADIUS_METERS = 6371000
 
@@ -158,20 +184,13 @@ const fetchMiniProgramPackageList = async ({
 
   const from = (safePage - 1) * safePageSize
   const list = sortedPackages.slice(from, from + safePageSize).map(item => {
-    const maxGroupConfig = [...(item.group_price_config || [])].sort((left, right) => right.target_count - left.target_count)[0]
-    const maxSupportedPeople = maxGroupConfig ? maxGroupConfig.target_count : Math.max(...(item.supported_people || [0]))
-    const minMemberAmountFen = maxGroupConfig
-      ? Number(maxGroupConfig.price_fen) || 0
-      : calculatePackageMemberAmountFen({
-          totalPrice: item.total_price,
-          targetCount: maxSupportedPeople,
-          groupPriceConfig: item.group_price_config
-        })
+    const maxSupportedPeople = Math.max(...(item.supported_people || [0]))
+    const minMemberAmountFen = resolveLowestGroupPriceFen(item)
 
     return {
       id: item.id,
       name: item.name,
-      cover: item.cover,
+      cover: signCosPublicUrl(item.cover),
       package_category: item.package_category || '体适能',
       class_count: Number(item.class_count) || 0,
       class_duration_minutes: Number(item.class_duration_minutes) || 0,
@@ -226,8 +245,8 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
   return {
     id: pkg.id,
     name: pkg.name,
-    cover: pkg.cover,
-    images: (pkg.images && pkg.images.length ? pkg.images : pkg.cover ? [pkg.cover] : []) || [],
+    cover: signCosPublicUrl(pkg.cover),
+    images: signCosImageList((pkg.images && pkg.images.length ? pkg.images : pkg.cover ? [pkg.cover] : []) || []),
     total_price_fen: Number(pkg.total_price) || 0,
     total_price_text: formatFenText(pkg.total_price),
     package_category: pkg.package_category || '体适能',
@@ -310,6 +329,7 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
     : []
   const scheduleMode = scheduleList.length ? 'locked' : 'pending'
   const userJoined = !!(userId && successOrders.some(item => item.user_id === userId))
+  const leaderOrder = successOrders.find(item => item.package_action === 'start') || successOrders[0] || null
 
   return {
     id: latestGroup.id,
@@ -317,8 +337,10 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
     package: {
       id: pkg.id,
       name: pkg.name,
-      location_text: buildLocationText(pkg),
-      coach_name: pkg.coach_name
+      location_text: buildMiniProgramLocationText({
+        ...pkg,
+        location_city: pkg.location_city || '深圳市'
+      })
     },
     target_count: Number(latestGroup.target_count) || 0,
     current_count: Number(latestGroup.current_count) || 0,
@@ -340,9 +362,22 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
     schedule_list: scheduleList,
     members: successOrders.map(order => ({
       user_id: order.user_id,
-      nickname: (usersById[order.user_id] && usersById[order.user_id].nickname) || '微信用户',
-      avatar_url: (usersById[order.user_id] && usersById[order.user_id].avatar_url) || ''
+      nickname:
+        (order.package_context && order.package_context.child_nickname) ||
+        (usersById[order.user_id] && usersById[order.user_id].nickname) ||
+        '微信用户',
+      avatar_url: DEFAULT_MEMBER_AVATAR
     })),
+    child_nickname:
+      (leaderOrder &&
+        leaderOrder.package_context &&
+        leaderOrder.package_context.child_nickname) ||
+      '',
+    child_age:
+      (leaderOrder &&
+        leaderOrder.package_context &&
+        leaderOrder.package_context.child_age) ||
+      null,
     user_joined: userJoined
   }
 }
@@ -404,6 +439,9 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
       package_name: pkg ? pkg.name : '',
       status: group.status,
       location_text: pkg ? buildLocationText(pkg) : '',
+      current_count: Number(group.current_count) || 0,
+      target_count: Number(group.target_count) || 0,
+      missing_count: Math.max(0, Number(group.target_count) - Number(group.current_count)),
       first_class_time: group.first_class_time ? formatPackageDateTime(group.first_class_time) : null,
       display_time_text: group.first_class_time
         ? formatPackageDateTime(group.first_class_time)

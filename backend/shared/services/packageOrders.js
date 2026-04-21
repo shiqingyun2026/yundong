@@ -44,6 +44,38 @@ const validateWeekdayAndHour = ({ weekday, hour }) => {
   }
 }
 
+const normalizeChildNickname = value => `${value || ''}`.trim()
+
+const normalizeChildAge = value => {
+  const trimmed = `${value ?? ''}`.trim()
+  if (!trimmed) {
+    return null
+  }
+
+  if (!/^\d+$/.test(trimmed)) {
+    return NaN
+  }
+
+  return Number(trimmed)
+}
+
+const validateChildProfile = ({ childNickname, childAge }) => {
+  const normalizedNickname = normalizeChildNickname(childNickname)
+  if (!normalizedNickname) {
+    throw createPackageServiceError(400, 1001, '请填写孩子昵称')
+  }
+
+  const normalizedAge = normalizeChildAge(childAge)
+  if (!Number.isInteger(normalizedAge) || normalizedAge < 0) {
+    throw createPackageServiceError(400, 1001, '请填写孩子年龄')
+  }
+
+  return {
+    childNickname: normalizedNickname,
+    childAge: normalizedAge
+  }
+}
+
 const hasUserActivePackageParticipation = async ({ userId, packageId }) => {
   const successOrders = await ordersRepository.listOrders({
     userId,
@@ -65,9 +97,22 @@ const hasUserActivePackageParticipation = async ({ userId, packageId }) => {
   return successOrders.some(order => activeOrSuccessGroupIds.has(order.package_group_id))
 }
 
-const createPackageStartOrder = async ({ userId, packageId, targetCount, weekday, hour, now = new Date() }) => {
+const createPackageStartOrder = async ({
+  userId,
+  packageId,
+  targetCount,
+  weekday,
+  hour,
+  childNickname,
+  childAge,
+  now = new Date()
+}) => {
   ensureMySqlMode()
   validateWeekdayAndHour({ weekday, hour })
+  const normalizedChildProfile = validateChildProfile({
+    childNickname,
+    childAge
+  })
 
   const pkg = await getPackageByIdOrThrow(packageId)
   if (Number(pkg.status) !== 1) {
@@ -115,7 +160,9 @@ const createPackageStartOrder = async ({ userId, packageId, targetCount, weekday
     package_context: {
       target_count: Number(targetCount),
       weekday: Number(weekday),
-      hour: Number(hour)
+      hour: Number(hour),
+      child_nickname: normalizedChildProfile.childNickname,
+      child_age: normalizedChildProfile.childAge
     },
     amount: memberAmountFen
   })
@@ -123,12 +170,25 @@ const createPackageStartOrder = async ({ userId, packageId, targetCount, weekday
   return {
     order,
     package: pkg,
-    memberAmountFen
+    memberAmountFen,
+    childNickname: normalizedChildProfile.childNickname,
+    childAge: normalizedChildProfile.childAge
   }
 }
 
-const createPackageJoinOrder = async ({ userId, packageId, packageGroupId, now = new Date() }) => {
+const createPackageJoinOrder = async ({
+  userId,
+  packageId,
+  packageGroupId,
+  childNickname,
+  childAge,
+  now = new Date()
+}) => {
   ensureMySqlMode()
+  const normalizedChildProfile = validateChildProfile({
+    childNickname,
+    childAge
+  })
 
   const pkg = await getPackageByIdOrThrow(packageId)
   if (Number(pkg.status) !== 1) {
@@ -178,6 +238,10 @@ const createPackageJoinOrder = async ({ userId, packageId, packageGroupId, now =
     package_id: packageId,
     package_group_id: packageGroupId,
     package_action: 'join',
+    package_context: {
+      child_nickname: normalizedChildProfile.childNickname,
+      child_age: normalizedChildProfile.childAge
+    },
     amount: memberAmountFen
   })
 
@@ -185,7 +249,9 @@ const createPackageJoinOrder = async ({ userId, packageId, packageGroupId, now =
     order,
     package: pkg,
     group,
-    memberAmountFen
+    memberAmountFen,
+    childNickname: normalizedChildProfile.childNickname,
+    childAge: normalizedChildProfile.childAge
   }
 }
 

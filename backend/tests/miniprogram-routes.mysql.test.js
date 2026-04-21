@@ -197,7 +197,7 @@ const loadAppForMySqlRoutes = () => {
   })
 
   mockModule('shared/services/packageOrders.js', {
-    createPackageStartOrder: async ({ supabase, packageId, targetCount, weekday, hour, userId }) => ({
+    createPackageStartOrder: async ({ supabase, packageId, targetCount, weekday, hour, childNickname, childAge, userId }) => ({
       order: {
         id: 'package-order-start-1',
         order_no: 'PKG-ORDER-START-1',
@@ -207,6 +207,8 @@ const loadAppForMySqlRoutes = () => {
         status: 'pending'
       },
       memberAmountFen: 33333,
+      childNickname,
+      childAge: Number(childAge),
       targetCount,
       weekday,
       hour,
@@ -384,7 +386,14 @@ test('mini program routes work in mysql mode without supabase client', async () 
         method: 'POST',
         pathname: '/api/package-orders/start',
         headers: { 'x-wx-openid': 'wx-openid-1', 'x-wx-service': 'lindong-api' },
-        body: { packageId: 'package-1', targetCount: 4, weekday: 6, hour: 10 }
+        body: {
+          packageId: 'package-1',
+          targetCount: 4,
+          weekday: 6,
+          hour: 10,
+          childNickname: '小满',
+          childAge: 6
+        }
       }),
       requestJson({
         app,
@@ -446,6 +455,8 @@ test('mini program routes work in mysql mode without supabase client', async () 
 
   assert.equal(createPackageStartOrder.status, 200)
   assert.equal(createPackageStartOrder.body.data.orderId, 'package-order-start-1')
+  assert.equal(createPackageStartOrder.body.data.child_nickname, '小满')
+  assert.equal(createPackageStartOrder.body.data.child_age, 6)
 
   assert.equal(createPackageJoinOrder.status, 200)
   assert.equal(createPackageJoinOrder.body.data.orderId, 'package-order-join-1')

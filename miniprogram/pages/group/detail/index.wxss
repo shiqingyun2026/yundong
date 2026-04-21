@@ -11,44 +11,7 @@
   padding-bottom: 0;
 }
 
-.status-header {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-}
-
-.status-tag {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 12rpx 22rpx;
-  border-radius: 999rpx;
-  font-size: 24rpx;
-  font-weight: 700;
-}
-
-.status-ongoing {
-  background: #fff3e8;
-  color: #ff7a00;
-}
-
-.status-success {
-  background: #e8f7ee;
-  color: #1f9d63;
-}
-
-.status-failed {
-  background: #f1f2f5;
-  color: #8f96a3;
-}
-
-.status-stage {
-  background: #fff3e8;
-  color: #ff7a00;
-}
-
 .title-row,
-.price-row,
 .progress-header {
   display: flex;
   align-items: center;
@@ -64,38 +27,15 @@
   line-height: 1.5;
 }
 
-.group-chip,
-.joined-chip {
-  padding: 8rpx 16rpx;
-  border-radius: 999rpx;
-  font-size: 22rpx;
-  font-weight: 600;
-}
-
-.group-chip {
-  background: var(--brand-primary-soft);
-  color: var(--brand-primary);
-}
-
-.joined-chip {
-  background: #fff3e8;
-  color: #ff7a00;
-}
-
-.price-row {
-  align-items: flex-end;
-  margin-top: 24rpx;
-}
-
 .group-price {
-  color: #ff7a00;
-  font-size: 36rpx;
+  color: #1f2329;
+  font-size: 32rpx;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.5;
 }
 
 .info-list {
-  margin-top: 28rpx;
+  margin-top: 20rpx;
 }
 
 .info-item + .info-item {

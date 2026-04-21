@@ -6,7 +6,9 @@ Page({
     action: 'start',
     targetCount: 0,
     weekday: 6,
-    hour: 10
+    hour: 10,
+    childNickname: '',
+    childAge: ''
   },
 
   onLoad(options) {
@@ -17,7 +19,9 @@ Page({
       action: options.action || 'start',
       targetCount: Number(options.targetCount) || 0,
       weekday: Number(options.weekday) || 6,
-      hour: Number(options.hour) || 10
+      hour: Number(options.hour) || 10,
+      childNickname: decodeURIComponent(options.childNickname || ''),
+      childAge: decodeURIComponent(options.childAge || '')
     })
   },
 
@@ -38,11 +42,12 @@ Page({
 
     wx.redirectTo({
       url:
-        `/pages/payment/confirm/index?action=start` +
-        `&packageId=${this.data.packageId}` +
+        `/pages/package/start/index?packageId=${this.data.packageId}` +
         `&targetCount=${this.data.targetCount}` +
         `&weekday=${this.data.weekday}` +
-        `&hour=${this.data.hour}`
+        `&hour=${this.data.hour}` +
+        `&childNickname=${encodeURIComponent(this.data.childNickname)}` +
+        `&childAge=${encodeURIComponent(this.data.childAge)}`
     })
   },
 

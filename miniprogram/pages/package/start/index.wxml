@@ -6,15 +6,15 @@
     <text class="page-loading-text">开团信息加载中...</text>
   </view>
 
-  <scroll-view wx:if="{{!loading && packageDetail}}" class="start-scroll" scroll-y>
+  <view wx:if="{{!loading && packageDetail}}" class="start-scroll">
     <view class="page-shell">
       <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">{{packageDetail.name}}</view>
-        <view class="section-desc">总价 ¥{{packageDetail.totalPriceText}}</view>
+        <view class="section-desc">{{packageDetail.locationDisplayText || packageDetail.locationText}}</view>
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
-        <view class="section-title">选择目标人数</view>
+        <view class="section-title">选择拼团人数</view>
         <view class="target-grid">
           <view
             wx:for="{{packageDetail.supportedPeople}}"
@@ -35,7 +35,7 @@
           <view class="picker-value">{{weekdayOptions[selectedWeekdayIndex].label}}</view>
         </picker>
 
-        <view class="picker-label picker-label-second">整点</view>
+        <view class="picker-label picker-label-second">上课时间</view>
         <picker mode="selector" range="{{hourOptions}}" range-key="label" value="{{selectedHourIndex}}" bindchange="handleHourChange">
           <view class="picker-value">{{hourOptions[selectedHourIndex].label}}</view>
         </picker>
@@ -44,9 +44,41 @@
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
-        <view class="section-title">支付预估</view>
+        <view class="section-title">孩子信息</view>
+        <view class="picker-label">孩子昵称</view>
+        <input
+          class="form-input"
+          type="text"
+          maxlength="20"
+          placeholder="请输入孩子昵称"
+          cursor-spacing="24"
+          value="{{childNickname}}"
+          bindinput="handleChildNicknameInput"
+        />
+
+        <view class="picker-label picker-label-second">年龄</view>
+        <input
+          class="form-input"
+          type="number"
+          maxlength="2"
+          placeholder="请输入年龄"
+          cursor-spacing="24"
+          value="{{childAge}}"
+          bindinput="handleChildAgeInput"
+        />
+      </view>
+
+      <view class="weui-panel weui-ext-card page-section card-shadow">
+        <view class="section-title">支付金额</view>
         <view class="amount-text">每人 ¥{{memberAmountText}}</view>
-        <view class="section-desc">金额按总价平摊后向下取整到分，差额由平台承担。</view>
+      </view>
+
+      <view class="weui-panel weui-ext-card page-section card-shadow">
+        <view class="section-title">拼团说明</view>
+        <view class="section-desc">满 {{selectedTargetCount}} 人成团</view>
+        <view class="section-desc">拼团截止时间：开团成功后 48 小时</view>
+        <view class="section-desc">未成团退款规则：48 小时内未成团将自动原路退款</view>
+        <view class="section-desc">支付成功后才会真正创建拼团，系统会在成团后锁定首课日期。</view>
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
@@ -56,18 +88,18 @@
               extClass="payment-agreement-item"
               value="agree"
               checked="{{agreementChecked}}"
-              label="我已阅读并同意《课程服务协议》"
             />
           </mp-checkbox-group>
         </mp-cells>
-        <view class="payment-agreement-links">
-          <text class="agreement-link" bindtap="handleOpenAgreement">查看协议全文</text>
+        <view class="payment-agreement-inline">
+          <text>我已阅读并同意</text>
+          <text class="agreement-link" bindtap="handleOpenAgreement">《课程服务协议》</text>
         </view>
       </view>
 
       <view class="bottom-placeholder"></view>
     </view>
-  </scroll-view>
+  </view>
 
   <view wx:if="{{!loading && packageDetail}}" class="payment-bar">
     <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary payment-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="handleSubmit">

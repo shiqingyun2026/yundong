@@ -24,9 +24,11 @@ const clearModules = relativePaths => {
 test('package readers only return packages inside the publish window for mini program home', async () => {
   clearModules([
     'config/env.js',
+    'config/storage.js',
     'repositories/index.js',
     'shared/domain/packageGroupRules.js',
     'shared/services/packageGroupStore.js',
+    'shared/services/cosSignedUrl.js',
     'shared/services/packageReaders.js'
   ])
 
@@ -37,6 +39,17 @@ test('package readers only return packages inside the publish window for mini pr
     env: {
       useMySqlRepositories: true
     }
+  })
+
+  mockModule('config/storage.js', {
+    getStorageProviderName: () => 'supabase',
+    getCosStorageConfig: () => ({
+      bucket: '',
+      region: '',
+      secretId: '',
+      secretKey: '',
+      expiresSeconds: 900
+    })
   })
 
   mockModule('repositories/index.js', {
@@ -51,8 +64,12 @@ test('package readers only return packages inside the publish window for mini pr
             package_category: '体适能',
             class_count: 5,
             class_duration_minutes: 60,
-            group_price_config: [{ target_count: 4, price_fen: 5000 }],
-            supported_people: [4],
+            group_price_config: [
+              { target_count: 2, price_fen: 6000 },
+              { target_count: 4, price_fen: 5000 },
+              { target_count: 6, price_fen: 5200 }
+            ],
+            supported_people: [2, 4, 6],
             location_district: '龙岗区',
             location_community: '云社区',
             location_detail: 'A 栋',
@@ -148,4 +165,294 @@ test('package readers only return packages inside the publish window for mini pr
   assert.equal(result.list.length, 1)
   assert.equal(result.list[0].id, 'pkg-visible')
   assert.equal(result.list[0].name, '云test')
+  assert.equal(result.list[0].min_member_amount_fen, 5000)
+  assert.equal(result.list[0].min_member_amount_text, '50.00')
+})
+
+test('package readers sign cos cover urls for private bucket access', async () => {
+  clearModules([
+    'config/env.js',
+    'config/storage.js',
+    'repositories/index.js',
+    'shared/domain/packageGroupRules.js',
+    'shared/services/packageGroupStore.js',
+    'shared/services/cosSignedUrl.js',
+    'shared/services/packageReaders.js'
+  ])
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true
+    }
+  })
+
+  mockModule('config/storage.js', {
+    getStorageProviderName: () => 'cos',
+    getCosStorageConfig: () => ({
+      bucket: 'demo-bucket',
+      region: 'ap-shanghai',
+      secretId: 'AKID_DEMO',
+      secretKey: 'SECRET_DEMO',
+      expiresSeconds: 900
+    })
+  })
+
+  mockModule('repositories/index.js', {
+    coursePackagesRepository: {
+      listPackages: async () => [
+        {
+          id: 'pkg-cos',
+          name: 'COS 图片课程',
+          cover: 'https://demo-bucket.cos.ap-shanghai.myqcloud.com/course-cover/2026-04-21/cover.png',
+          package_category: '体适能',
+          class_count: 5,
+          class_duration_minutes: 60,
+          group_price_config: [{ target_count: 4, price_fen: 5000 }],
+          supported_people: [4],
+          location_district: '静安区',
+          location_community: '云社区',
+          location_detail: 'A 栋',
+          latitude: 31.23,
+          longitude: 121.47,
+          status: 1,
+          publish_time: '2026-04-21T00:00:00.000Z',
+          unpublish_time: null,
+          created_at: '2026-04-21T00:00:00.000Z'
+        }
+      ]
+    },
+    ordersRepository: {},
+    packageGroupsRepository: {
+      listPackageGroups: async () => []
+    },
+    usersRepository: {}
+  })
+
+  mockModule('shared/domain/packageGroupRules.js', {
+    calculatePackageMemberAmountFen: ({ groupPriceConfig = [] }) => Number(groupPriceConfig[0] && groupPriceConfig[0].price_fen) || 0
+  })
+
+  mockModule('shared/services/packageGroupStore.js', {
+    cleanupExpiredPackageGroups: async () => {}
+  })
+
+  const { fetchMiniProgramPackageList } = require(path.join(backendRoot, 'shared/services/packageReaders.js'))
+  const result = await fetchMiniProgramPackageList({
+    now: new Date('2026-04-21T12:00:00.000Z')
+  })
+
+  assert.equal(result.list.length, 1)
+  assert.match(result.list[0].cover, /^https:\/\/demo-bucket\.cos\.ap-shanghai\.myqcloud\.com\//)
+  assert.match(result.list[0].cover, /q-sign-algorithm=sha1/)
+  assert.match(result.list[0].cover, /q-signature=/)
+})
+
+test('package group detail returns leader child profile, default member avatars and countdown', async () => {
+  clearModules([
+    'config/env.js',
+    'config/storage.js',
+    'repositories/index.js',
+    'shared/domain/packageGroupRules.js',
+    'shared/services/packageGroupStore.js',
+    'shared/services/cosSignedUrl.js',
+    'shared/services/packageReaders.js',
+    'shared/services/packageSchedule.js'
+  ])
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true
+    }
+  })
+
+  mockModule('config/storage.js', {
+    getStorageProviderName: () => 'supabase',
+    getCosStorageConfig: () => ({
+      bucket: '',
+      region: '',
+      secretId: '',
+      secretKey: '',
+      expiresSeconds: 900
+    })
+  })
+
+  mockModule('repositories/index.js', {
+    coursePackagesRepository: {
+      findPackageById: async () => ({
+        id: 'pkg-1',
+        name: '云test',
+        total_price: 12000,
+        group_price_config: [{ target_count: 4, price_fen: 3000 }],
+        location_district: '南山区',
+        location_community: '科技园社区',
+        location_detail: 'A场地'
+      })
+    },
+    packageGroupsRepository: {
+      findPackageGroupById: async () => ({
+        id: 'group-1',
+        package_id: 'pkg-1',
+        status: 'active',
+        target_count: 4,
+        current_count: 2,
+        weekday: 6,
+        hour: 10,
+        deadline: '2026-04-23T10:00:00.000Z',
+        first_class_time: null
+      })
+    },
+    ordersRepository: {
+      listOrdersByPackageGroupId: async () => [
+        {
+          user_id: 'user-1',
+          package_action: 'start',
+          package_context: {
+            child_nickname: '小满',
+            child_age: 6
+          }
+        },
+        {
+          user_id: 'user-2',
+          package_action: 'join',
+          package_context: {
+            child_nickname: '乐乐',
+            child_age: 5
+          }
+        }
+      ]
+    },
+    usersRepository: {
+      listUsersByIds: async () => [
+        { id: 'user-1', nickname: '微信用户1', avatar_url: 'https://example.com/1.png' },
+        { id: 'user-2', nickname: '微信用户2', avatar_url: 'https://example.com/2.png' }
+      ]
+    }
+  })
+
+  mockModule('shared/domain/packageGroupRules.js', {
+    calculatePackageMemberAmountFen: ({ groupPriceConfig = [] }) => Number(groupPriceConfig[0] && groupPriceConfig[0].price_fen) || 0
+  })
+
+  mockModule('shared/services/packageGroupStore.js', {
+    cleanupExpiredPackageGroups: async () => {}
+  })
+
+  mockModule('shared/services/packageSchedule.js', {
+    buildPackageLessonSchedule: () => [],
+    formatPackageDateTime: value => value,
+    formatPendingPackageScheduleText: () => '每周六 10:00，共5次',
+    formatScheduleTextWithLockNote: () => '每周六 10:00，共5次，成团后锁定首课日期'
+  })
+
+  const { fetchMiniProgramPackageGroupDetail } = require(path.join(backendRoot, 'shared/services/packageReaders.js'))
+  const result = await fetchMiniProgramPackageGroupDetail({
+    packageGroupId: 'group-1',
+    userId: 'user-2',
+    now: new Date('2026-04-21T10:00:00.000Z')
+  })
+
+  assert.equal(result.package.location_text, '深圳市 / 南山区 / 科技园社区')
+  assert.equal(result.child_nickname, '小满')
+  assert.equal(result.child_age, 6)
+  assert.equal(result.remaining_seconds, 172800)
+  assert.equal(result.members.length, 2)
+  assert.equal(result.members[0].nickname, '小满')
+  assert.equal(result.members[0].avatar_url, '/assets/ant-icons/user-white.svg')
+  assert.equal(result.members[1].nickname, '乐乐')
+})
+
+test('user package group list returns missing count for active groups', async () => {
+  clearModules([
+    'config/env.js',
+    'config/storage.js',
+    'repositories/index.js',
+    'shared/domain/packageGroupRules.js',
+    'shared/services/packageGroupStore.js',
+    'shared/services/cosSignedUrl.js',
+    'shared/services/packageReaders.js',
+    'shared/services/packageSchedule.js'
+  ])
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true
+    }
+  })
+
+  mockModule('config/storage.js', {
+    getStorageProviderName: () => 'supabase',
+    getCosStorageConfig: () => ({
+      bucket: '',
+      region: '',
+      secretId: '',
+      secretKey: '',
+      expiresSeconds: 900
+    })
+  })
+
+  mockModule('repositories/index.js', {
+    ordersRepository: {
+      listOrders: async () => [
+        {
+          package_group_id: 'group-1',
+          updated_at: '2026-04-21T10:00:00.000Z',
+          created_at: '2026-04-21T09:00:00.000Z'
+        }
+      ]
+    },
+    packageGroupsRepository: {
+      findPackageGroupById: async () => ({
+        id: 'group-1',
+        package_id: 'pkg-1',
+        status: 'active',
+        target_count: 4,
+        current_count: 2,
+        weekday: 6,
+        hour: 10,
+        first_class_time: null
+      })
+    },
+    coursePackagesRepository: {
+      findPackagesByIds: async () => [
+        {
+          id: 'pkg-1',
+          name: '云test',
+          total_price: 12000,
+          group_price_config: [{ target_count: 4, price_fen: 3000 }],
+          location_community: '科技园社区',
+          location_detail: 'A场地'
+        }
+      ]
+    },
+    usersRepository: {}
+  })
+
+  mockModule('shared/domain/packageGroupRules.js', {
+    calculatePackageMemberAmountFen: ({ groupPriceConfig = [] }) => Number(groupPriceConfig[0] && groupPriceConfig[0].price_fen) || 0
+  })
+
+  mockModule('shared/services/packageGroupStore.js', {
+    cleanupExpiredPackageGroups: async () => {}
+  })
+
+  mockModule('shared/services/packageSchedule.js', {
+    buildPackageLessonSchedule: () => [],
+    formatPackageDateTime: value => value,
+    formatPendingPackageScheduleText: () => '每周六 10:00，共5次',
+    formatScheduleTextWithLockNote: () => '每周六 10:00，共5次，成团后锁定首课日期'
+  })
+
+  const { fetchMiniProgramUserPackageGroupList } = require(path.join(backendRoot, 'shared/services/packageReaders.js'))
+  const result = await fetchMiniProgramUserPackageGroupList({
+    userId: 'user-1',
+    status: 'all',
+    page: 1,
+    pageSize: 10,
+    now: new Date('2026-04-21T12:00:00.000Z')
+  })
+
+  assert.equal(result.list.length, 1)
+  assert.equal(result.list[0].target_count, 4)
+  assert.equal(result.list[0].current_count, 2)
+  assert.equal(result.list[0].missing_count, 2)
 })

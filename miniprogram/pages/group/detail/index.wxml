@@ -7,20 +7,9 @@
 
   <scroll-view wx:if="{{!loading && groupDetail}}" class="group-scroll" scroll-y>
     <view class="page-shell detail-content">
-      <view class="status-header">
-        <mp-badge extClass="weui-ext-tag status-tag {{statusClassName}}" content="{{statusText}}" />
-      </view>
-
       <view class="weui-panel weui-ext-card page-section card-shadow">
-        <view class="title-row">
-          <view class="course-title">{{groupDetail.packageInfo.name}}</view>
-          <mp-badge extClass="weui-ext-tag group-chip" content="{{groupDetail.targetCount}}人成团" />
-        </view>
-
-        <view class="price-row">
-          <view class="group-price">每人 ¥{{groupDetail.memberAmountText}}</view>
-          <mp-badge extClass="weui-ext-tag joined-chip" content="已拼 {{groupDetail.currentCount}} 人" />
-        </view>
+        <view class="group-price">{{groupDetail.targetCount}}人成团，每人¥{{groupDetail.memberAmountText}}</view>
+        <view class="course-title">{{groupDetail.packageInfo.name}}</view>
 
         <view class="info-list">
           <view class="info-item">
@@ -30,10 +19,6 @@
           <view class="info-item">
             <view class="info-label">上课地点</view>
             <view class="info-value">{{groupDetail.packageInfo.locationText}}</view>
-          </view>
-          <view class="info-item">
-            <view class="info-label">教练</view>
-            <view class="info-value">{{groupDetail.packageInfo.coachName}}</view>
           </view>
         </view>
       </view>
@@ -58,8 +43,7 @@
         <view class="section-title">成员列表</view>
         <view wx:if="{{groupDetail.members.length}}" class="member-list-block">
           <view wx:for="{{groupDetail.members}}" wx:key="user_id" class="member-item">
-            <image wx:if="{{item.avatar_url}}" class="member-avatar" src="{{item.avatar_url}}" mode="aspectFill"></image>
-            <view wx:else class="member-avatar member-avatar--placeholder"></view>
+            <image class="member-avatar" src="{{item.avatar_url}}" mode="aspectFill"></image>
             <view class="member-name">{{item.nickname}}</view>
           </view>
         </view>

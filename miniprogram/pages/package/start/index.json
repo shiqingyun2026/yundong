@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "发起开团",
+  "navigationBarTitleText": "开团",
   "usingComponents": {
     "mp-toptips": "../../../vendor/weui-miniprogram/toptips/toptips",
     "mp-cells": "../../../vendor/weui-miniprogram/cells/cells",

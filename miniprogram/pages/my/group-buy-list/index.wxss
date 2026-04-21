@@ -72,11 +72,6 @@
   color: #8f96a3;
 }
 
-.group-price-text {
-  color: #ff7a00;
-  font-weight: 600;
-}
-
 .status-tag {
   flex-shrink: 0;
   padding: 8rpx 18rpx;
@@ -103,6 +98,16 @@
 .status-stage {
   background: #fff3e8;
   color: #ff7a00;
+}
+
+.missing-tag {
+  flex-shrink: 0;
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
+  background: #fff3e8;
+  color: #ff7a00;
+  font-size: 22rpx;
+  font-weight: 600;
 }
 
 .list-footer {

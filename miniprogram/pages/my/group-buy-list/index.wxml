@@ -30,6 +30,11 @@
           <view class="group-title">{{item.packageName}}</view>
           <view class="status-group">
             <mp-badge
+              wx:if="{{item.status === 'active' && item.missingCount > 0}}"
+              extClass="weui-ext-tag missing-tag"
+              content="还缺{{item.missingCount}}人"
+            />
+            <mp-badge
               extClass="weui-ext-tag status-tag {{item.status === 'active' ? 'status-ongoing' : item.status === 'success' ? 'status-success' : 'status-failed'}}"
               content="{{item.status === 'active' ? '进行中' : item.status === 'success' ? '已成团' : '已失败'}}"
             />
@@ -38,7 +43,6 @@
 
         <view class="group-meta">{{item.displayTimeText}}</view>
         <view class="group-meta">{{item.locationText}}</view>
-        <view class="group-meta group-price-text">每人 ¥{{item.memberAmountText}}</view>
       </view>
     </view>
   </view>

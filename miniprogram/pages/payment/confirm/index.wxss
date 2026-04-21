@@ -35,6 +35,15 @@
   color: #1f2329;
 }
 
+.order-input {
+  margin-top: 8rpx;
+  padding: 22rpx 24rpx;
+  border-radius: 20rpx;
+  background: #f7f8fa;
+  font-size: 28rpx;
+  color: #1f2329;
+}
+
 .price-item {
   padding-top: 12rpx;
   border-top: 2rpx solid #eef2f7;
@@ -87,9 +96,12 @@
   color: var(--brand-primary);
 }
 
-.payment-agreement-links {
+.payment-agreement-inline {
   margin-top: 12rpx;
   padding-left: 76rpx;
+  font-size: 26rpx;
+  line-height: 1.7;
+  color: #3c4655;
 }
 
 .bottom-placeholder {

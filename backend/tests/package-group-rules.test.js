@@ -9,6 +9,7 @@ const {
   calculatePackageMemberAmountFen,
   calculatePackagePlatformSubsidyFen,
   computePackageGroupNextStatus,
+  findGroupPriceFen,
   isPackageGroupJoinable
 } = require('../shared/domain/packageGroupRules')
 const {
@@ -28,6 +29,21 @@ test('package group rules calculate member amount and platform subsidy', () => {
   assert.equal(calculatePackagePlatformSubsidyFen({ totalPrice: 133333, targetCount: 8 }), 5)
   assert.equal(calculatePackageMemberAmountFen({ totalPrice: -1, targetCount: 4 }), 0)
   assert.equal(calculatePackageMemberAmountFen({ totalPrice: 100, targetCount: 0 }), 0)
+  assert.equal(
+    calculatePackageMemberAmountFen({
+      totalPrice: 133333,
+      targetCount: 4,
+      groupPriceConfig: [{ target_count: 4, price_fen: 29900 }]
+    }),
+    29900
+  )
+  assert.equal(
+    findGroupPriceFen({
+      targetCount: 6,
+      groupPriceConfig: [{ target_count: 6, price_fen: 25500 }]
+    }),
+    25500
+  )
 })
 
 test('package group rules build deadline and next status', () => {

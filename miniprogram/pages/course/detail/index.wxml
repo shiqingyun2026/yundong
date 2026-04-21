@@ -25,7 +25,7 @@
         <view class="info-list">
           <view class="info-item">
             <view class="info-label">上课地点</view>
-            <view class="info-value">{{packageDetail.locationText}}</view>
+            <view class="info-value">{{packageDetail.locationDisplayText || packageDetail.locationText}}</view>
           </view>
           <view class="info-item">
             <view class="info-label">支持拼团</view>
