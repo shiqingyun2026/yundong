@@ -84,7 +84,19 @@
         bind:tap="handleCourseTap"
       >
         <view class="cover-wrap" data-id="{{item.id}}" catchtap="handleCourseTap">
-          <image class="course-cover" src="{{item.cover}}" mode="aspectFill"></image>
+          <image
+            wx:if="{{item.cover && !item.coverLoadFailed}}"
+            class="course-cover"
+            src="{{item.cover}}"
+            mode="aspectFill"
+            data-id="{{item.id}}"
+            binderror="handleCourseCoverError"
+          ></image>
+          <view wx:else class="course-cover course-cover-fallback">
+            <view class="cover-fallback-kicker">天天体育宝</view>
+            <view class="cover-fallback-title">{{item.packageCategory || '体适能'}}课程</view>
+            <view class="cover-fallback-desc">5次连续训练计划</view>
+          </view>
         </view>
 
         <view class="course-content" data-id="{{item.id}}" catchtap="handleCourseTap">
@@ -102,6 +114,7 @@
           <view class="course-footer">
             <view class="price-group">
               <view class="group-price">{{item.perMemberText}}</view>
+              <view wx:if="{{item.classCountTagText}}" class="class-count-tag">{{item.classCountTagText}}</view>
             </view>
             <view class="joined-text">立即查看</view>
           </view>

@@ -10,6 +10,7 @@ Page({
   data: {
     packageId: '',
     packageDetail: null,
+    heroImages: [],
     loading: true,
     showServiceModal: false,
     showLoginSheet: false,
@@ -56,9 +57,15 @@ Page({
 
     try {
       const packageDetail = await fetchPackageDetail(packageId)
+      const heroImages = (packageDetail.images || []).map((url, index) => ({
+        id: `hero-${index}`,
+        url,
+        loadFailed: false
+      }))
 
       this.setData({
-        packageDetail
+        packageDetail,
+        heroImages
       })
     } catch (error) {
       wx.showToast({
@@ -100,6 +107,25 @@ Page({
 
   handleServiceDialogTap() {
     this.handleCloseService()
+  },
+
+  handleHeroImageError(event) {
+    const { index } = event.currentTarget.dataset
+    const targetIndex = Number(index)
+    if (!Number.isInteger(targetIndex) || targetIndex < 0) {
+      return
+    }
+
+    this.setData({
+      heroImages: this.data.heroImages.map((item, idx) =>
+        idx === targetIndex
+          ? {
+              ...item,
+              loadFailed: true
+            }
+          : item
+      )
+    })
   },
 
   showTabBar() {

@@ -233,6 +233,37 @@
   background: #eef2f7;
 }
 
+.course-cover-fallback {
+  box-sizing: border-box;
+  padding: 44rpx 36rpx;
+  background:
+    radial-gradient(circle at 82% 18%, rgba(255, 190, 94, 0.55) 0, rgba(255, 190, 94, 0) 30%),
+    linear-gradient(135deg, #e8fbf9 0%, #dff3ff 48%, #fff2df 100%);
+  color: #16484f;
+}
+
+.cover-fallback-kicker {
+  display: inline-flex;
+  padding: 8rpx 16rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.cover-fallback-title {
+  margin-top: 40rpx;
+  font-size: 40rpx;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.cover-fallback-desc {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: rgba(22, 72, 79, 0.72);
+}
+
 .group-tag {
   position: absolute;
   top: 20rpx;
@@ -291,8 +322,8 @@
 
 .price-group {
   display: flex;
-  align-items: flex-end;
-  gap: 0;
+  align-items: center;
+  gap: 12rpx;
 }
 
 .group-price {
@@ -300,6 +331,19 @@
   font-size: 30rpx;
   font-weight: 700;
   line-height: 1.4;
+}
+
+.class-count-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40rpx;
+  padding: 0 14rpx;
+  border-radius: 999rpx;
+  background: rgba(26, 188, 197, 0.12);
+  color: #179ca3;
+  font-size: 20rpx;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .joined-text {

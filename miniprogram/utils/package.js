@@ -79,7 +79,7 @@ const calculatePackageMemberAmountFen = ({ totalPriceFen, targetCount, groupPric
 const buildPackageDetailLocationDisplayText = payload => {
   const locationCity = payload.location_city || payload.locationCity || ''
   const locationDistrict = payload.location_district || payload.locationDistrict || ''
-  const locationCommunity = payload.location_community || payload.locationCommunity || ''
+  const locationCommunity = payload.location_community || payload.locationCommunity || payload.location_detail || payload.locationDetail || ''
 
   return [locationCity, locationDistrict, locationCommunity].filter(Boolean).join(' / ')
 }
@@ -87,7 +87,7 @@ const buildPackageDetailLocationDisplayText = payload => {
 const buildPackageCardLocationDisplayText = item => {
   const locationCity = item.location_city || item.locationCity || ''
   const locationDistrict = item.location_district || item.locationDistrict || ''
-  const locationCommunity = item.location_community || item.locationCommunity || ''
+  const locationCommunity = item.location_community || item.locationCommunity || item.location_detail || item.locationDetail || ''
 
   return [locationCity, locationDistrict, locationCommunity].filter(Boolean).join(' / ')
 }

@@ -12,7 +12,6 @@
 }
 
 .order-title {
-  margin-top: 20rpx;
   font-size: 34rpx;
   font-weight: 700;
   line-height: 1.5;
@@ -44,18 +43,6 @@
   color: #1f2329;
 }
 
-.price-item {
-  padding-top: 12rpx;
-  border-top: 2rpx solid #eef2f7;
-}
-
-.payment-price {
-  margin-top: 8rpx;
-  color: #ff7a00;
-  font-size: 40rpx;
-  font-weight: 700;
-}
-
 .rich-text {
   margin-top: 20rpx;
   font-size: 28rpx;
@@ -63,8 +50,73 @@
   line-height: 1.8;
 }
 
+.progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.progress-text,
+.remaining-text {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #1f2329;
+}
+
+.remaining-text {
+  color: #5f6b7a;
+}
+
+.progress-track {
+  width: 100%;
+  height: 18rpx;
+  margin-top: 20rpx;
+  overflow: hidden;
+  border-radius: 999rpx;
+  background: #eef2f7;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, var(--brand-primary) 0%, var(--brand-primary-light) 100%);
+}
+
+.member-list-block {
+  margin-top: 20rpx;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.member-item + .member-item {
+  margin-top: 16rpx;
+}
+
+.member-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: #eef2f7;
+}
+
+.member-name {
+  font-size: 28rpx;
+  color: #1f2329;
+}
+
+.payment-agreement-row {
+  display: flex;
+  align-items: flex-start;
+}
+
 .payment-agreement-cells.weui-cells__group {
   margin-top: 0;
+  flex: none;
 }
 
 .payment-agreement-cells .weui-cells {
@@ -97,8 +149,8 @@
 }
 
 .payment-agreement-inline {
-  margin-top: 12rpx;
-  padding-left: 76rpx;
+  flex: 1;
+  padding-left: 16rpx;
   font-size: 26rpx;
   line-height: 1.7;
   color: #3c4655;

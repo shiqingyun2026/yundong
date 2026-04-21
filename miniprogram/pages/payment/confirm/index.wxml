@@ -8,25 +8,18 @@
   <scroll-view wx:if="{{!loading && packageDetail}}" class="payment-scroll" scroll-y>
     <view class="payment-content">
       <view class="weui-panel weui-ext-card page-section card-shadow">
-        <view class="section-title">订单信息</view>
         <view class="order-title">{{packageDetail.name}}</view>
         <view class="order-item">
           <view class="order-label">上课地点</view>
           <view class="order-value">{{packageDetail.locationDisplayText || packageDetail.locationText}}</view>
         </view>
         <view class="order-item">
-          <view class="order-label">开团方式</view>
-          <view class="order-value">{{action === 'start' ? '发起开团' : '参与现有拼团'}}</view>
-        </view>
-        <view class="order-item">
-          <view class="order-label">目标人数</view>
+          <view class="order-label">该团目标人数</view>
           <view class="order-value">{{targetCount}} 人团</view>
         </view>
         <view class="order-item">
           <view class="order-label">孩子昵称</view>
-          <view wx:if="{{action === 'start'}}" class="order-value">{{childNickname}}</view>
           <input
-            wx:else
             class="order-input"
             type="text"
             maxlength="20"
@@ -38,9 +31,7 @@
         </view>
         <view class="order-item">
           <view class="order-label">年龄</view>
-          <view wx:if="{{action === 'start'}}" class="order-value">{{childAge}} 岁</view>
           <input
-            wx:else
             class="order-input"
             type="number"
             maxlength="2"
@@ -50,10 +41,28 @@
             bindinput="handleChildAgeInput"
           />
         </view>
-        <view class="order-item price-item">
-          <view class="order-label">支付金额</view>
-          <view class="payment-price">¥{{paymentAmountText}}</view>
+      </view>
+
+      <view wx:if="{{packageGroupDetail}}" class="weui-panel weui-ext-card page-section card-shadow">
+        <view class="section-title">当前进度</view>
+        <view class="progress-header">
+          <view class="progress-text">{{packageGroupDetail.currentCount}} / {{packageGroupDetail.targetCount}}</view>
+          <view class="remaining-text">{{packageGroupDetail.remainingText}}</view>
         </view>
+        <view class="progress-track">
+          <view class="progress-bar" style="width: {{packageGroupDetail.progressPercent}};"></view>
+        </view>
+      </view>
+
+      <view wx:if="{{packageGroupDetail}}" class="weui-panel weui-ext-card page-section card-shadow">
+        <view class="section-title">成员列表</view>
+        <view wx:if="{{packageGroupDetail.members.length}}" class="member-list-block">
+          <view wx:for="{{packageGroupDetail.members}}" wx:key="user_id" class="member-item">
+            <image class="member-avatar" src="{{item.avatar_url}}" mode="aspectFill"></image>
+            <view class="member-name">{{item.nickname}}</view>
+          </view>
+        </view>
+        <view wx:else class="section-desc">暂未获取到成员信息</view>
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
@@ -71,18 +80,20 @@
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
-        <mp-cells extClass="payment-agreement-cells">
-          <mp-checkbox-group bind:change="handleAgreementChange">
-            <mp-checkbox
-              extClass="payment-agreement-item"
-              value="agree"
-              checked="{{agreementChecked}}"
-            />
-          </mp-checkbox-group>
-        </mp-cells>
-        <view class="payment-agreement-inline">
-          <text>我已阅读并同意</text>
-          <text class="agreement-link" bindtap="handleOpenAgreement">《课程服务协议》</text>
+        <view class="payment-agreement-row">
+          <mp-cells extClass="payment-agreement-cells">
+            <mp-checkbox-group bind:change="handleAgreementChange">
+              <mp-checkbox
+                extClass="payment-agreement-item"
+                value="agree"
+                checked="{{agreementChecked}}"
+              />
+            </mp-checkbox-group>
+          </mp-cells>
+          <view class="payment-agreement-inline">
+            <text>我已阅读并同意</text>
+            <text class="agreement-link" bindtap="handleOpenAgreement">《课程服务协议》</text>
+          </view>
         </view>
       </view>
 
@@ -92,7 +103,7 @@
 
   <view wx:if="{{!loading && packageDetail}}" class="payment-bar">
     <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary payment-button" loading="{{paying}}" disabled="{{paying}}" bindtap="handleConfirmPay">
-      <view class="weui-ext-button__inner">确认支付</view>
+      <view class="weui-ext-button__inner">确认支付{{paymentAmountButtonText}}</view>
     </button>
     <button class="weui-btn weui-ext-button weui-ext-button--medium weui-ext-button--text mock-fail-button" bindtap="handleMockFail">
       <view class="weui-ext-button__inner">模拟支付失败</view>

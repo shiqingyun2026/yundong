@@ -2,6 +2,7 @@ const express = require('../lib/mini-express')
 const { env } = require('../config/env')
 
 const { syncAllCourseLifecycles } = require('../utils/courseLifecycle')
+const { syncAllPackageLifecycles } = require('../utils/packageLifecycle')
 const { ok, fail } = require('../console-api/routes/_helpers')
 const { enqueueGroupResultNotifications } = require('../shared/services/groupResultNotifications')
 const { processPendingGroupResultNotificationJobs } = require('../shared/services/groupResultNotificationDelivery')
@@ -65,6 +66,33 @@ const handleCourseLifecycleSync = async (req, res) => {
 
 router.get('/course-lifecycle/sync', handleCourseLifecycleSync)
 router.post('/course-lifecycle/sync', handleCourseLifecycleSync)
+
+const handlePackageLifecycleSync = async (req, res) => {
+  const validation = validateCronSecret(req)
+
+  if (!validation.ok) {
+    return fail(res, 1004, validation.reason, validation.reason.includes('未配置') ? 500 : 401)
+  }
+
+  try {
+    const startedAt = new Date().toISOString()
+    const lifecycleMap = await syncAllPackageLifecycles({
+      now: req.body && req.body.now ? req.body.now : req.query.now
+    })
+
+    return ok(res, {
+      started_at: startedAt,
+      finished_at: new Date().toISOString(),
+      package_count: Object.keys(lifecycleMap || {}).length,
+      trigger_method: req.method
+    })
+  } catch (error) {
+    return fail(res, 5005, error.message || '课包生命周期同步失败', 500)
+  }
+}
+
+router.get('/package-lifecycle/sync', handlePackageLifecycleSync)
+router.post('/package-lifecycle/sync', handlePackageLifecycleSync)
 
 const handlePackageGroupsCleanup = async (req, res) => {
   const validation = validateCronSecret(req)

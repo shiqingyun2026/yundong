@@ -41,6 +41,7 @@ Page({
     packageDetail: null,
     packageGroupDetail: null,
     paymentAmountText: '0.00',
+    paymentAmountButtonText: '0元',
     agreementChecked: true,
     loading: true,
     paying: false
@@ -58,6 +59,10 @@ Page({
       hour: Number(options.hour) || 10,
       childNickname: decodeURIComponent(options.childNickname || ''),
       childAge: decodeURIComponent(options.childAge || '')
+    })
+
+    wx.setNavigationBarTitle({
+      title: this.data.action === 'join' ? '参与拼团' : '确认支付'
     })
 
     await this.ensureLogin()
@@ -103,7 +108,8 @@ Page({
         packageDetail,
         packageGroupDetail: packageGroupDetail || null,
         targetCount: nextTargetCount,
-        paymentAmountText: (amountFen / 100).toFixed(2)
+        paymentAmountText: (amountFen / 100).toFixed(2),
+        paymentAmountButtonText: `${(amountFen / 100).toFixed(2)}元`
       })
     } catch (error) {
       wx.showToast({

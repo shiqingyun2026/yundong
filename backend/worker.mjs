@@ -7,10 +7,11 @@ const bindEnv = env => {
 }
 
 const loadRuntimeModules = async () => {
-  const [appModule, envModule, courseLifecycleModule, deliveryModule, getSupabaseClientModule] = await Promise.all([
+  const [appModule, envModule, courseLifecycleModule, packageLifecycleModule, deliveryModule, getSupabaseClientModule] = await Promise.all([
     import('./app.js'),
     import('./config/env.js'),
     import('./utils/courseLifecycle.js'),
+    import('./utils/packageLifecycle.js'),
     import('./shared/services/groupResultNotificationDelivery.js'),
     import('./utils/getSupabaseClient.js')
   ])
@@ -19,6 +20,7 @@ const loadRuntimeModules = async () => {
     app: appModule.default || appModule,
     configEnv: (envModule.default || envModule).env,
     syncAllCourseLifecycles: (courseLifecycleModule.default || courseLifecycleModule).syncAllCourseLifecycles,
+    syncAllPackageLifecycles: (packageLifecycleModule.default || packageLifecycleModule).syncAllPackageLifecycles,
     processPendingGroupResultNotificationJobs:
       (deliveryModule.default || deliveryModule).processPendingGroupResultNotificationJobs,
     getSupabaseClient: (getSupabaseClientModule.default || getSupabaseClientModule).getSupabaseClient
@@ -37,6 +39,7 @@ export default {
     const {
       configEnv,
       syncAllCourseLifecycles,
+      syncAllPackageLifecycles,
       processPendingGroupResultNotificationJobs,
       getSupabaseClient
     } = await loadRuntimeModules()
@@ -47,6 +50,11 @@ export default {
           now: new Date(controller.scheduledTime).toISOString()
         }).catch(error => {
           console.error('[scheduled] course lifecycle sync failed', error)
+        }),
+        syncAllPackageLifecycles({
+          now: new Date(controller.scheduledTime).toISOString()
+        }).catch(error => {
+          console.error('[scheduled] package lifecycle sync failed', error)
         }),
         processPendingGroupResultNotificationJobs({
           supabase,

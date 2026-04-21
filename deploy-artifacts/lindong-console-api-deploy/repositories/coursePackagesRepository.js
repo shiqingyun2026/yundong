@@ -323,6 +323,19 @@ const updatePackage = async (id, payload = {}) => {
   return findPackageById(id)
 }
 
+const updatePackageStatus = async (id, status, updatedAt = new Date()) => {
+  await execute(
+    `
+      update course_packages
+      set status = ?, updated_at = ?
+      where id = ?
+    `,
+    [Number(status || 0), toDbDateTime(updatedAt), id]
+  )
+
+  return findPackageById(id)
+}
+
 module.exports = {
   createPackage,
   findPackageById,
@@ -333,5 +346,6 @@ module.exports = {
   normalizeSupportedPeople,
   PACKAGE_CATEGORIES,
   stringifySupportedPeople,
-  updatePackage
+  updatePackage,
+  updatePackageStatus
 }

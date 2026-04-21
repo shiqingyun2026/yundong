@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "确认支付",
+  "navigationBarTitleText": "参与拼团",
   "usingComponents": {
     "mp-toptips": "../../../vendor/weui-miniprogram/toptips/toptips",
     "mp-cells": "../../../vendor/weui-miniprogram/cells/cells",

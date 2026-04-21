@@ -90,8 +90,10 @@ const buildLocationFallbackFeedback = location => {
 
 const buildPackageCard = item => ({
   ...item,
-  locationText: [item.locationCommunity, item.locationDetail].filter(Boolean).join(' '),
+  classCountTagText: item.classCount > 0 ? `包含${item.classCount}节课` : '',
+  locationText: item.locationDisplayText || [item.locationCommunity, item.locationDetail].filter(Boolean).join(' '),
   perMemberText: `¥${item.minMemberAmountText}起`,
+  coverLoadFailed: false,
   distanceText:
     Number.isFinite(item.distanceMeters) && Number(item.distanceMeters) >= 0
       ? Number(item.distanceMeters) >= 1000
@@ -391,6 +393,24 @@ Page({
       fail: () => {
         this.handleLocationTap()
       }
+    })
+  },
+
+  handleCourseCoverError(event) {
+    const { id } = event.currentTarget.dataset
+    if (!id) {
+      return
+    }
+
+    this.setData({
+      packageList: this.data.packageList.map(item =>
+        item.id === id
+          ? {
+              ...item,
+              coverLoadFailed: true
+            }
+          : item
+      )
     })
   },
 

@@ -147,7 +147,6 @@ export function PackageListPage() {
                   <th>节数/时长</th>
                   <th>支持人数</th>
                   <th>地点</th>
-                  <th>教练</th>
                   <th>状态</th>
                   <th>上架时间</th>
                   <th>操作</th>
@@ -161,7 +160,6 @@ export function PackageListPage() {
                     <td>{item.class_count > 0 && item.class_duration_minutes > 0 ? `${item.class_count}节 / ${item.class_duration_minutes}分钟` : '-'}</td>
                     <td>{formatSupportedPeople(item.supported_people)}</td>
                     <td>{item.location_text || '-'}</td>
-                    <td>{item.coach_name || '-'}</td>
                     <td>{getStatusText(item.status)}</td>
                     <td>{item.publish_time || '-'}</td>
                     <td>

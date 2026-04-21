@@ -9,12 +9,32 @@ const {
   formatScheduleTextWithLockNote
 } = require('./packageSchedule')
 const { cleanupExpiredPackageGroups } = require('./packageGroupStore')
+const { signCosImageList, signCosPublicUrl } = require('./cosSignedUrl')
 
 const formatFenText = amountFen => (Number(amountFen || 0) / 100).toFixed(2)
 
 const buildLocationText = pkg => [pkg.location_community, pkg.location_detail].filter(Boolean).join(' ')
 
 const buildAdminLocationText = pkg => [pkg.location_district, pkg.location_community, pkg.location_detail].filter(Boolean).join(' / ')
+
+const resolveLowestGroupPriceFen = pkg => {
+  const priceList = (pkg.group_price_config || [])
+    .map(item => Number(item && item.price_fen))
+    .filter(price => Number.isFinite(price) && price > 0)
+
+  if (priceList.length) {
+    return Math.min(...priceList)
+  }
+
+  const supportedPeople = (pkg.supported_people || []).map(item => Number(item)).filter(Boolean)
+  const maxSupportedPeople = supportedPeople.length ? Math.max(...supportedPeople) : 0
+
+  return calculatePackageMemberAmountFen({
+    totalPrice: pkg.total_price,
+    targetCount: maxSupportedPeople,
+    groupPriceConfig: pkg.group_price_config
+  })
+}
 
 const EARTH_RADIUS_METERS = 6371000
 
@@ -145,20 +165,13 @@ const fetchMiniProgramPackageList = async ({
 
   const from = (safePage - 1) * safePageSize
   const list = sortedPackages.slice(from, from + safePageSize).map(item => {
-    const maxGroupConfig = [...(item.group_price_config || [])].sort((left, right) => right.target_count - left.target_count)[0]
-    const maxSupportedPeople = maxGroupConfig ? maxGroupConfig.target_count : Math.max(...(item.supported_people || [0]))
-    const minMemberAmountFen = maxGroupConfig
-      ? Number(maxGroupConfig.price_fen) || 0
-      : calculatePackageMemberAmountFen({
-          totalPrice: item.total_price,
-          targetCount: maxSupportedPeople,
-          groupPriceConfig: item.group_price_config
-        })
+    const maxSupportedPeople = Math.max(...(item.supported_people || [0]))
+    const minMemberAmountFen = resolveLowestGroupPriceFen(item)
 
     return {
       id: item.id,
       name: item.name,
-      cover: item.cover,
+      cover: signCosPublicUrl(item.cover),
       package_category: item.package_category || '体适能',
       class_count: Number(item.class_count) || 0,
       class_duration_minutes: Number(item.class_duration_minutes) || 0,
@@ -205,8 +218,8 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
   return {
     id: pkg.id,
     name: pkg.name,
-    cover: pkg.cover,
-    images: (pkg.images && pkg.images.length ? pkg.images : pkg.cover ? [pkg.cover] : []) || [],
+    cover: signCosPublicUrl(pkg.cover),
+    images: signCosImageList((pkg.images && pkg.images.length ? pkg.images : pkg.cover ? [pkg.cover] : []) || []),
     total_price_fen: Number(pkg.total_price) || 0,
     total_price_text: formatFenText(pkg.total_price),
     package_category: pkg.package_category || '体适能',
