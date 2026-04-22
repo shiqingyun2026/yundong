@@ -504,6 +504,30 @@ const preparePayment = async ({ orderId }) =>
     }
   )
 
+const fetchPaymentStatus = async ({ orderId }) =>
+  get(
+    '/api/payments/status',
+    {
+      orderId
+    },
+    {
+      showErrorToast: false
+    }
+  )
+
+const closePaymentOrder = async ({ orderId }) =>
+  post(
+    '/api/payments/close',
+    {
+      orderId
+    },
+    {
+      showLoading: true,
+      loadingText: '关闭订单中',
+      showErrorToast: false
+    }
+  )
+
 const mockPaymentSuccess = async ({ orderId }) =>
   post(
     '/api/payments/mock-success',
@@ -541,11 +565,13 @@ module.exports = {
   START_HOUR_OPTIONS,
   WEEKDAY_LABELS,
   calculatePackageMemberAmountFen,
+  closePaymentOrder,
   createPackageJoinOrder,
   createPackageStartOrder,
   fetchPackageDetail,
   fetchPackageGroupDetail,
   fetchPackageList,
+  fetchPaymentStatus,
   fetchUserPackageGroupList,
   formatCountdownText,
   formatDisplayAmount,

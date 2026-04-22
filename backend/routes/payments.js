@@ -8,7 +8,14 @@ const { isServiceError, markOrderPaymentSuccess } = require('../shared/services/
 const { markPackageOrderPaymentSuccess } = require('../shared/services/packageOrders')
 const { isPackageServiceError } = require('../shared/services/packageServiceError')
 const { normalizeGroupStatus } = require('../shared/domain/groupRules')
-const { prepareOrderPayment, handleWechatPaymentCallback, markPaymentRecordPaid } = require('../shared/services/paymentShell')
+const {
+  closeOrderPayment,
+  getOrderPaymentStatus,
+  handleWechatPaymentCallback,
+  isWechatPaymentMode,
+  markPaymentRecordPaid,
+  prepareOrderPayment
+} = require('../shared/services/paymentShell')
 const { verifyWechatPayCallbackSignature } = require('../shared/services/wechatMiniProgram')
 const { logMiniProgramIdentity } = require('../shared/utils/miniProgramIdentityLog')
 
@@ -54,12 +61,76 @@ router.post('/prepare', authenticate, async (req, res) => {
   }
 })
 
+router.get('/status', authenticate, async (req, res) => {
+  const orderId = (req.query && (req.query.orderId || req.query.order_id)) || ''
+
+  if (!orderId) {
+    return res.status(400).json({
+      message: 'orderId is required'
+    })
+  }
+
+  try {
+    return res.json(
+      await getOrderPaymentStatus({
+        supabase: resolveSupabase(),
+        userId: req.userId,
+        orderId
+      })
+    )
+  } catch (error) {
+    console.error('[payments/status] failed', {
+      orderId,
+      userId: req.userId,
+      error
+    })
+    return res.status(isServiceError(error) ? error.status : 500).json({
+      message: error.message || 'failed to get payment status'
+    })
+  }
+})
+
+router.post('/close', authenticate, async (req, res) => {
+  const { orderId } = req.body || {}
+
+  if (!orderId) {
+    return res.status(400).json({
+      message: 'orderId is required'
+    })
+  }
+
+  try {
+    return res.json(
+      await closeOrderPayment({
+        supabase: resolveSupabase(),
+        userId: req.userId,
+        orderId
+      })
+    )
+  } catch (error) {
+    console.error('[payments/close] failed', {
+      orderId,
+      userId: req.userId,
+      error
+    })
+    return res.status(isServiceError(error) ? error.status : 500).json({
+      message: error.message || 'failed to close payment'
+    })
+  }
+})
+
 router.post('/mock-success', authenticate, async (req, res) => {
   const { orderId, groupId } = req.body || {}
 
   if (!orderId) {
     return res.status(400).json({
       message: 'orderId is required'
+    })
+  }
+
+  if (isWechatPaymentMode()) {
+    return res.status(403).json({
+      message: 'mock payment is disabled in wechat payment mode'
     })
   }
 

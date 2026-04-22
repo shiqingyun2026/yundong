@@ -1,19 +1,19 @@
 <view class="result-page">
   <mp-toptips id="ui-toptips" root-portal="{{true}}" />
   <view class="weui-panel weui-ext-card result-card card-shadow">
-    <view class="result-icon {{status === 'success' ? 'icon-success' : 'icon-fail'}}">
+    <view class="result-icon {{isSuccess ? 'icon-success' : 'icon-fail'}}">
       <mp-icon
         extClass="result-icon-image"
-        icon="{{status === 'success' ? 'done' : 'close'}}"
+        icon="{{isSuccess ? 'done' : 'close'}}"
         type="filled"
-        color="{{status === 'success' ? '#1f9d63' : '#ff4d4f'}}"
+        color="{{isSuccess ? '#1f9d63' : '#ff4d4f'}}"
         size="{{56}}"
       />
     </view>
     <mp-msg
       extClass="payment-result-msg"
-      title="{{status === 'success' ? '支付成功' : '支付失败'}}"
-      desc="{{status === 'success' ? '订单已提交，可前往查看当前课程拼团详情。' : '本次支付未完成，你可以重新支付或返回首页。'}}"
+      title="{{title}}"
+      desc="{{desc}}"
     >
       <view wx:if="{{status === 'success'}}" slot="extend" class="weui-panel weui-ext-card subscribe-card">
         <view class="subscribe-title">后续安排</view>
@@ -21,10 +21,10 @@
       </view>
       <view slot="handle">
         <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary result-button" bindtap="handlePrimaryAction">
-          <view class="weui-ext-button__inner">{{status === 'success' ? '查看拼团详情' : '重新支付'}}</view>
+          <view class="weui-ext-button__inner">{{primaryText}}</view>
         </button>
 
-        <button wx:if="{{status === 'fail'}}" class="weui-btn weui-ext-button weui-ext-button--medium weui-ext-button--text secondary-text-button" bindtap="handleSecondaryAction">
+        <button wx:if="{{showHomeButton}}" class="weui-btn weui-ext-button weui-ext-button--medium weui-ext-button--text secondary-text-button" bindtap="handleSecondaryAction">
           <view class="weui-ext-button__inner">返回首页</view>
         </button>
       </view>

@@ -2,7 +2,9 @@ const {
   START_HOUR_OPTIONS,
   WEEKDAY_LABELS,
   calculatePackageMemberAmountFen,
+  closePaymentOrder,
   createPackageStartOrder,
+  fetchPaymentStatus,
   fetchPackageDetail,
   formatDisplayAmount,
   mockPaymentSuccess,
@@ -37,6 +39,39 @@ const invokeWechatPayment = paymentParams =>
       }
     })
   })
+
+const waitForPaymentConfirmation = async ({ orderId, fallbackPackageGroupId = '' }) => {
+  let latestStatus = null
+
+  for (let index = 0; index < 6; index += 1) {
+    if (index > 0) {
+      await new Promise(resolve => setTimeout(resolve, 1500))
+    }
+
+    latestStatus = await fetchPaymentStatus({ orderId })
+
+    if (latestStatus && latestStatus.orderStatus === 'success') {
+      return {
+        confirmed: true,
+        packageGroupId: latestStatus.packageGroupId || fallbackPackageGroupId
+      }
+    }
+
+    if (latestStatus && ['closed', 'refunded'].includes(latestStatus.orderStatus)) {
+      return {
+        confirmed: false,
+        terminal: true,
+        packageGroupId: latestStatus.packageGroupId || fallbackPackageGroupId
+      }
+    }
+  }
+
+  return {
+    confirmed: false,
+    terminal: false,
+    packageGroupId: (latestStatus && latestStatus.packageGroupId) || fallbackPackageGroupId
+  }
+}
 
 Page({
   data: {
@@ -257,6 +292,7 @@ Page({
       if (!orderId) {
         throw new Error('订单创建失败')
       }
+      this._lastOrderId = orderId
 
       const paymentPreparation = await preparePayment({
         orderId
@@ -265,7 +301,37 @@ Page({
 
       if (paymentPreparation && paymentPreparation.canUseRequestPayment) {
         await invokeWechatPayment(paymentPreparation.paymentParams || {})
+        wx.showLoading({
+          title: '确认支付中',
+          mask: true
+        })
+        const confirmation = await waitForPaymentConfirmation({
+          orderId,
+          fallbackPackageGroupId: nextPackageGroupId
+        })
+        wx.hideLoading()
+        nextPackageGroupId = confirmation.packageGroupId || nextPackageGroupId
+
+        if (!confirmation.confirmed) {
+          wx.redirectTo({
+            url:
+              `/pages/payment/result/index?status=processing` +
+              `&packageId=${this.data.packageId}` +
+              `&packageGroupId=${encodeURIComponent(nextPackageGroupId)}` +
+              `&action=start` +
+              `&targetCount=${this.data.selectedTargetCount}` +
+              `&weekday=${this.data.selectedWeekday}` +
+              `&hour=${this.data.selectedHour}` +
+              `&childNickname=${encodeURIComponent(this.data.childNickname.trim())}` +
+              `&childAge=${encodeURIComponent(this.data.childAge)}`
+          })
+          return
+        }
       } else {
+        if (paymentPreparation && paymentPreparation.paymentMode === 'wechat') {
+          throw new Error('支付暂不可用，请稍后重试')
+        }
+
         const paymentResult = await mockPaymentSuccess({
           orderId
         })
@@ -280,11 +346,33 @@ Page({
       })
     } catch (error) {
       const message = `${error && (error.errMsg || error.message || '')}`.toLowerCase()
+      wx.hideLoading()
 
       if (message.includes('cancel')) {
+        if (this._lastOrderId) {
+          try {
+            await closePaymentOrder({
+              orderId: this._lastOrderId
+            })
+          } catch (closeError) {
+            console.warn('[package/start] close canceled order failed', closeError)
+          }
+        }
+
         wx.showToast({
           title: '已取消支付',
           icon: 'none'
+        })
+        wx.redirectTo({
+          url:
+            `/pages/payment/result/index?status=cancel` +
+            `&packageId=${this.data.packageId}` +
+            `&action=start` +
+            `&targetCount=${this.data.selectedTargetCount}` +
+            `&weekday=${this.data.selectedWeekday}` +
+            `&hour=${this.data.selectedHour}` +
+            `&childNickname=${encodeURIComponent(this.data.childNickname.trim())}` +
+            `&childAge=${encodeURIComponent(this.data.childAge)}`
         })
       } else {
         wx.redirectTo({

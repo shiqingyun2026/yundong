@@ -14,7 +14,9 @@ const mockModule = (relativePath, exports) => {
   }
 }
 
-const loadAppForMySqlRoutes = () => {
+const loadAppForMySqlRoutes = ({ paymentProviderMode = 'mock' } = {}) => {
+  process.env.PAYMENT_PROVIDER_MODE = paymentProviderMode
+
   const targets = [
     'app.js',
     'config/env.js',
@@ -28,6 +30,7 @@ const loadAppForMySqlRoutes = () => {
     'shared/services/courseReaders.js',
     'shared/services/groupReaders.js',
     'shared/services/groupOrders.js',
+    'shared/services/bannerReaders.js',
     'shared/services/packageReaders.js',
     'shared/services/packageOrders.js',
     'shared/services/paymentShell.js',
@@ -37,6 +40,7 @@ const loadAppForMySqlRoutes = () => {
     'shared/services/groupResultNotifications.js',
     'utils/courseLifecycle.js',
     'routes/auth.js',
+    'routes/banners.js',
     'routes/courses.js',
     'routes/packages.js',
     'routes/groups.js',
@@ -170,6 +174,17 @@ const loadAppForMySqlRoutes = () => {
     isServiceError: error => !!error && Number.isInteger(error.status)
   })
 
+  mockModule('shared/services/bannerReaders.js', {
+    fetchMiniProgramHomeBanners: async ({ city }) => ({
+      list: [
+        {
+          id: 'banner-1',
+          title: city ? `${city} Banner` : '全国 Banner'
+        }
+      ]
+    })
+  })
+
   mockModule('shared/services/packageReaders.js', {
     fetchMiniProgramPackageList: async ({ supabase }) => ({
       list: [
@@ -244,9 +259,17 @@ const loadAppForMySqlRoutes = () => {
   })
 
   mockModule('shared/services/paymentShell.js', {
+    closeOrderPayment: async ({ supabase, orderId, userId }) => ({
+      orderId,
+      userId,
+      orderStatus: 'closed',
+      paymentRecordStatus: 'closed',
+      supabaseWasPassed: supabase
+    }),
     getOrderPaymentStatus: async ({ supabase, orderId, userId }) => ({
       orderId,
       userId,
+      orderStatus: 'pending',
       supabaseWasPassed: supabase
     }),
     prepareOrderPayment: async ({ supabase, orderId, userId }) => ({
@@ -261,7 +284,8 @@ const loadAppForMySqlRoutes = () => {
     markPaymentRecordPaid: async ({ supabase, orderId }) => ({
       orderId,
       supabaseWasPassed: supabase
-    })
+    }),
+    isWechatPaymentMode: () => `${process.env.PAYMENT_PROVIDER_MODE || ''}`.trim().toLowerCase() === 'wechat'
   })
 
   mockModule('shared/services/wechatMiniProgram.js', {
@@ -322,6 +346,7 @@ test('mini program routes work in mysql mode without supabase client', async () 
 
   const [
     login,
+    banners,
     courses,
     courseDetail,
     packages,
@@ -343,6 +368,10 @@ test('mini program routes work in mysql mode without supabase client', async () 
         method: 'POST',
         pathname: '/api/auth/login',
         body: { code: 'mock-code' }
+      }),
+      requestJson({
+        app,
+        pathname: '/api/banners?city=%E6%B7%B1%E5%9C%B3'
       }),
       requestJson({
         app,
@@ -428,6 +457,10 @@ test('mini program routes work in mysql mode without supabase client', async () 
 
   assert.equal(login.status, 200)
   assert.equal(login.body.supabaseWasPassed, null)
+
+  assert.equal(banners.status, 200)
+  assert.equal(banners.body.code, 0)
+  assert.equal(banners.body.data.list[0].title, '深圳 Banner')
 
   assert.equal(courses.status, 200)
   assert.equal(courses.body.supabaseWasPassed, null)
@@ -561,6 +594,18 @@ test('protected mini program routes accept trusted cloudbase identity without be
     headers: cloudbaseHeaders,
     body: { orderId: 'order-1' }
   })
+  const paymentStatus = await requestJson({
+    app,
+    pathname: '/api/payments/status?orderId=order-1',
+    headers: cloudbaseHeaders
+  })
+  const paymentClose = await requestJson({
+    app,
+    method: 'POST',
+    pathname: '/api/payments/close',
+    headers: cloudbaseHeaders,
+    body: { orderId: 'order-1' }
+  })
   const mockSuccess = await requestJson({
     app,
     method: 'POST',
@@ -611,6 +656,16 @@ test('protected mini program routes accept trusted cloudbase identity without be
   assert.equal(paymentPrepare.body.userId, 'user-from-cloudbase')
   assert.equal(paymentPrepare.body.supabaseWasPassed, null)
 
+  assert.equal(paymentStatus.status, 200)
+  assert.equal(paymentStatus.body.userId, 'user-from-cloudbase')
+  assert.equal(paymentStatus.body.orderStatus, 'pending')
+  assert.equal(paymentStatus.body.supabaseWasPassed, null)
+
+  assert.equal(paymentClose.status, 200)
+  assert.equal(paymentClose.body.userId, 'user-from-cloudbase')
+  assert.equal(paymentClose.body.orderStatus, 'closed')
+  assert.equal(paymentClose.body.supabaseWasPassed, null)
+
   assert.equal(mockSuccess.status, 200)
   assert.equal(mockSuccess.body.data.orderId, 'package-order-start-1')
   assert.equal(mockSuccess.body.data.packageGroupId, 'package-group-1')
@@ -626,4 +681,31 @@ test('protected mini program routes accept trusted cloudbase identity without be
   assert.equal(subscription.status, 200)
   assert.equal(subscription.body.user_id, 'user-from-cloudbase')
   assert.equal(subscription.body.group_id, 'group-1')
+})
+
+test('mock payment success is disabled in wechat payment mode', async () => {
+  const originalPaymentProviderMode = process.env.PAYMENT_PROVIDER_MODE
+
+  try {
+    const app = loadAppForMySqlRoutes({ paymentProviderMode: 'wechat' })
+    const response = await requestJson({
+      app,
+      method: 'POST',
+      pathname: '/api/payments/mock-success',
+      headers: {
+        'x-wx-openid': 'wx-openid-1',
+        'x-wx-service': 'lindong-api'
+      },
+      body: { orderId: 'package-order-start-1' }
+    })
+
+    assert.equal(response.status, 403)
+    assert.equal(response.body.message, 'mock payment is disabled in wechat payment mode')
+  } finally {
+    if (originalPaymentProviderMode === undefined) {
+      delete process.env.PAYMENT_PROVIDER_MODE
+    } else {
+      process.env.PAYMENT_PROVIDER_MODE = originalPaymentProviderMode
+    }
+  }
 })
