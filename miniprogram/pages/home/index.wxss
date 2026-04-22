@@ -320,6 +320,26 @@
   margin-top: 24rpx;
 }
 
+.group-price {
+  display: inline-flex;
+  align-items: flex-end;
+}
+
+.group-price__amount {
+  color: #ff7a00;
+  font-size: 40rpx;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.group-price__suffix {
+  margin-left: 6rpx;
+  color: #ff7a00;
+  font-size: 36rpx;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
 .price-group {
   display: flex;
   align-items: center;

@@ -61,15 +61,14 @@
   font-weight: 500;
 }
 
-.amount-text {
-  margin-top: 18rpx;
-  color: #ff7a00;
-  font-size: 44rpx;
-  font-weight: 700;
+.payment-agreement-row {
+  display: flex;
+  align-items: center;
 }
 
 .payment-agreement-cells.weui-cells__group {
   margin-top: 0;
+  flex: none;
 }
 
 .payment-agreement-cells .weui-cells {
@@ -98,14 +97,11 @@
 
 .payment-agreement-item .weui-cell__bd {
   display: none;
-  font-size: 26rpx;
-  line-height: 1.7;
-  color: #3c4655;
 }
 
 .payment-agreement-inline {
-  margin-top: -8rpx;
-  padding-left: 64rpx;
+  flex: 1;
+  padding-left: 16rpx;
   font-size: 26rpx;
   line-height: 1.7;
   color: #3c4655;

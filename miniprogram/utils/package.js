@@ -13,6 +13,122 @@ const WEEKDAY_LABELS = {
 
 const START_HOUR_OPTIONS = [9, 10, 11, 14, 15, 16, 17, 18, 19]
 
+const pickFirstNonEmptyString = values => {
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index]
+    if (value === null || value === undefined) {
+      continue
+    }
+
+    const normalized = `${value}`.trim()
+    if (normalized) {
+      return normalized
+    }
+  }
+
+  return ''
+}
+
+const escapeRegExp = value => `${value}`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const collapseLocationText = value =>
+  `${value || ''}`
+    .replace(/[／]/g, '/')
+    .replace(/[，,]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\s*\/\s*/g, ' / ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const dedupeOrderedParts = parts => {
+  const result = []
+
+  parts.forEach(part => {
+    if (!part) {
+      return
+    }
+
+    const normalized = collapseLocationText(part)
+    if (normalized && !result.includes(normalized)) {
+      result.push(normalized)
+    }
+  })
+
+  return result
+}
+
+const stripKnownLocationSegments = (value, segments = []) => {
+  let normalized = collapseLocationText(value)
+  if (!normalized) {
+    return ''
+  }
+
+  segments
+    .filter(Boolean)
+    .sort((left, right) => `${right}`.length - `${left}`.length)
+    .forEach(segment => {
+      const pattern = new RegExp(escapeRegExp(segment), 'g')
+      normalized = normalized.replace(pattern, ' ')
+    })
+
+  return collapseLocationText(
+    normalized
+      .replace(/[\u4e00-\u9fa5]{2,}(省|自治区|特别行政区)/g, ' ')
+      .replace(/\s*\/\s*/g, ' ')
+      .replace(/\s+/g, ' ')
+  )
+}
+
+const formatLocationFallbackText = (value, province = '') => {
+  const normalized = collapseLocationText(value)
+  if (!normalized) {
+    return ''
+  }
+
+  const slashParts = normalized
+    .split('/')
+    .map(part => collapseLocationText(part))
+    .filter(Boolean)
+
+  if (slashParts.length > 1) {
+    const filteredParts = slashParts.filter(part => part !== collapseLocationText(province) && !/省$/.test(part))
+    return dedupeOrderedParts(filteredParts).join(' / ')
+  }
+
+  return stripKnownLocationSegments(normalized, [province])
+}
+
+const formatPackageLocationText = payload => {
+  const source = payload || {}
+  const province = pickFirstNonEmptyString([source.location_province, source.locationProvince])
+  const city = pickFirstNonEmptyString([source.location_city, source.locationCity])
+  const district = pickFirstNonEmptyString([source.location_district, source.locationDistrict])
+  const community = pickFirstNonEmptyString([source.location_community, source.locationCommunity])
+  const detail = pickFirstNonEmptyString([source.location_detail, source.locationDetail])
+  const fallbackText = pickFirstNonEmptyString([source.location_text, source.locationText])
+
+  const locationSegments = dedupeOrderedParts([province, city, district, community])
+  const normalizedCommunity = collapseLocationText(community)
+  let normalizedDetail = stripKnownLocationSegments(detail, locationSegments)
+
+  if (normalizedCommunity && normalizedDetail) {
+    if (normalizedDetail.includes(normalizedCommunity)) {
+      normalizedDetail = collapseLocationText(normalizedDetail.replace(new RegExp(escapeRegExp(normalizedCommunity), 'g'), ' '))
+    } else if (normalizedCommunity.includes(normalizedDetail)) {
+      normalizedDetail = ''
+    }
+  }
+
+  const venueText = dedupeOrderedParts([normalizedCommunity, normalizedDetail]).join(' ')
+  const formatted = dedupeOrderedParts([collapseLocationText(city), collapseLocationText(district), venueText])
+
+  if (formatted.length) {
+    return formatted.join(' / ')
+  }
+
+  return formatLocationFallbackText(fallbackText, province)
+}
+
 const normalizeListPayload = payload => {
   const data = payload || {}
   const list = Array.isArray(data.list) ? data.list : []
@@ -32,6 +148,19 @@ const normalizeListPayload = payload => {
 const formatFenText = value => {
   const amountFen = Number(value || 0)
   return (amountFen / 100).toFixed(2)
+}
+
+const formatDisplayAmount = value => {
+  const normalized = `${value === null || value === undefined ? '' : value}`.trim()
+  if (!normalized) {
+    return '0'
+  }
+
+  if (/^-?\d+\.00$/.test(normalized)) {
+    return normalized.slice(0, -3)
+  }
+
+  return normalized
 }
 
 const normalizeGroupPriceConfig = value => {
@@ -76,22 +205,6 @@ const calculatePackageMemberAmountFen = ({ totalPriceFen, targetCount, groupPric
   return Math.floor(normalizedTotalPriceFen / normalizedTargetCount)
 }
 
-const buildPackageDetailLocationDisplayText = payload => {
-  const locationCity = payload.location_city || payload.locationCity || ''
-  const locationDistrict = payload.location_district || payload.locationDistrict || ''
-  const locationCommunity = payload.location_community || payload.locationCommunity || payload.location_detail || payload.locationDetail || ''
-
-  return [locationCity, locationDistrict, locationCommunity].filter(Boolean).join(' / ')
-}
-
-const buildPackageCardLocationDisplayText = item => {
-  const locationCity = item.location_city || item.locationCity || ''
-  const locationDistrict = item.location_district || item.locationDistrict || ''
-  const locationCommunity = item.location_community || item.locationCommunity || item.location_detail || item.locationDetail || ''
-
-  return [locationCity, locationDistrict, locationCommunity].filter(Boolean).join(' / ')
-}
-
 const buildPackageFeatureTags = payload => {
   const tags = []
   const classCount = Number(payload.class_count || payload.classCount || 5)
@@ -132,6 +245,7 @@ const buildSupportedGroupPriceList = payload => {
       count: item.count,
       memberAmountFen: item.memberAmountFen,
       memberAmountText: formatFenText(item.memberAmountFen),
+      memberAmountDisplayText: formatDisplayAmount(formatFenText(item.memberAmountFen)),
       configured: configuredPriceMap.has(item.count)
     }))
 }
@@ -194,13 +308,14 @@ const normalizePackageCard = item => ({
   maxSupportedPeople: Number(item.max_supported_people) || 0,
   minMemberAmountFen: Number(item.min_member_amount_fen) || 0,
   minMemberAmountText: `${item.min_member_amount_text || formatFenText(item.min_member_amount_fen)}`,
+  minMemberAmountDisplayText: formatDisplayAmount(item.min_member_amount_text || formatFenText(item.min_member_amount_fen)),
   locationProvince: item.location_province || item.locationProvince || '',
   locationCity: item.location_city || item.locationCity || '',
   locationDistrict: item.location_district || '',
   locationCommunity: item.location_community || '',
   locationDetail: item.location_detail || '',
-  locationText: [item.location_community, item.location_detail].filter(Boolean).join(' '),
-  locationDisplayText: buildPackageCardLocationDisplayText(item),
+  locationText: formatPackageLocationText(item),
+  locationDisplayText: formatPackageLocationText(item),
   activeGroupCount: Number(item.active_group_count) || 0,
   distanceMeters: Number.isFinite(Number(item.distance_meters)) ? Number(item.distance_meters) : null,
   createdAt: item.created_at || ''
@@ -221,6 +336,7 @@ const normalizeActiveGroup = item => {
     remainingText: formatCountdownText(item.remaining_seconds),
     memberAmountFen: Number(item.member_amount_fen) || 0,
     memberAmountText: `${item.member_amount_text || formatFenText(item.member_amount_fen)}`,
+    memberAmountDisplayText: formatDisplayAmount(item.member_amount_text || formatFenText(item.member_amount_fen)),
     scheduleText: item.schedule_text || '时间待定',
     progressText: `${currentCount}/${targetCount}`,
     missingCount,
@@ -236,6 +352,7 @@ const normalizePackageDetail = payload => ({
   images: Array.isArray(payload.images) && payload.images.length ? payload.images : payload.cover ? [payload.cover] : [],
   totalPriceFen: Number(payload.total_price_fen) || 0,
   totalPriceText: `${payload.total_price_text || formatFenText(payload.total_price_fen)}`,
+  totalPriceDisplayText: formatDisplayAmount(payload.total_price_text || formatFenText(payload.total_price_fen)),
   groupPriceConfig: normalizeGroupPriceConfig(payload.group_price_config || payload.groupPriceConfig),
   supportedPeople: Array.isArray(payload.supported_people) ? payload.supported_people.map(item => Number(item)).filter(Boolean) : [],
   supportedPeopleText: Array.isArray(payload.supported_people) ? payload.supported_people.map(item => `${item}人团`).join(' | ') : '',
@@ -246,8 +363,8 @@ const normalizePackageDetail = payload => ({
   locationDistrict: payload.location_district || '',
   locationCommunity: payload.location_community || '',
   locationDetail: payload.location_detail || '',
-  locationText: [payload.location_district, payload.location_community, payload.location_detail].filter(Boolean).join(' / '),
-  locationDisplayText: buildPackageDetailLocationDisplayText(payload),
+  locationText: formatPackageLocationText(payload),
+  locationDisplayText: formatPackageLocationText(payload),
   coachName: payload.coach_name || '',
   coachIntro: payload.coach_intro || '',
   coachCertificates: Array.isArray(payload.coach_certificates) ? payload.coach_certificates : [],
@@ -262,7 +379,7 @@ const normalizePackageGroupDetail = payload => ({
   packageInfo: {
     id: payload.package && payload.package.id ? payload.package.id : '',
     name: payload.package && payload.package.name ? payload.package.name : '',
-    locationText: payload.package && payload.package.location_text ? payload.package.location_text : ''
+    locationText: payload.package ? formatPackageLocationText(payload.package) : ''
   },
   targetCount: Number(payload.target_count) || 0,
   currentCount: Number(payload.current_count) || 0,
@@ -270,6 +387,7 @@ const normalizePackageGroupDetail = payload => ({
   remainingText: formatCountdownText(payload.remaining_seconds),
   memberAmountFen: Number(payload.member_amount_fen) || 0,
   memberAmountText: `${payload.member_amount_text || formatFenText(payload.member_amount_fen)}`,
+  memberAmountDisplayText: formatDisplayAmount(payload.member_amount_text || formatFenText(payload.member_amount_fen)),
   scheduleMode: payload.schedule_mode || 'pending',
   scheduleText: payload.schedule_text || '',
   firstClassTime: payload.first_class_time || '',
@@ -277,7 +395,12 @@ const normalizePackageGroupDetail = payload => ({
   scheduleList: formatScheduleList(payload.schedule_list),
   childNickname: payload.child_nickname || '',
   childAge: payload.child_age === null || payload.child_age === undefined ? null : Number(payload.child_age) || 0,
-  members: Array.isArray(payload.members) ? payload.members : [],
+  members: Array.isArray(payload.members)
+    ? payload.members.map(member => ({
+        ...member,
+        displayName: member.display_name || member.child_nickname || member.nickname || '孩子昵称未填写'
+      }))
+    : [],
   userJoined: !!payload.user_joined,
   progressPercent:
     Number(payload.target_count) > 0
@@ -286,17 +409,19 @@ const normalizePackageGroupDetail = payload => ({
 })
 
 const normalizeUserPackageGroupListItem = item => ({
+  orderId: item.order_id || item.orderId || '',
   packageGroupId: item.package_group_id || '',
   packageId: item.package_id || '',
   packageName: item.package_name || '',
   status: item.status || 'active',
-  locationText: item.location_text || '',
+  locationText: formatPackageLocationText(item),
   currentCount: Number(item.current_count) || 0,
   targetCount: Number(item.target_count) || 0,
   missingCount: Math.max(0, Number(item.missing_count) || 0),
   firstClassTime: item.first_class_time || '',
   displayTimeText: item.display_time_text || '',
-  memberAmountText: `${item.member_amount_text || '0.00'}`
+  memberAmountText: `${item.member_amount_text || '0.00'}`,
+  memberAmountDisplayText: formatDisplayAmount(item.member_amount_text || '0.00')
 })
 
 const fetchPackageList = async ({
@@ -423,7 +548,9 @@ module.exports = {
   fetchPackageList,
   fetchUserPackageGroupList,
   formatCountdownText,
+  formatDisplayAmount,
   formatFenText,
+  formatPackageLocationText,
   formatPackageDateTimeText,
   mockPaymentSuccess,
   normalizePackageDetail,

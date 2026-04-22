@@ -27,11 +27,16 @@
   line-height: 1.5;
 }
 
-.group-price {
-  color: #1f2329;
-  font-size: 32rpx;
-  font-weight: 700;
-  line-height: 1.5;
+.group-price-tag {
+  display: inline-flex;
+  margin-top: 16rpx;
+  padding: 10rpx 18rpx;
+  border-radius: 999rpx;
+  background: #eef8f8;
+  color: #169ca3;
+  font-size: 24rpx;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .info-list {

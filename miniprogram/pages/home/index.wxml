@@ -113,7 +113,10 @@
 
           <view class="course-footer">
             <view class="price-group">
-              <view class="group-price">{{item.perMemberText}}</view>
+              <view class="group-price">
+                <text class="group-price__amount">{{item.perMemberText}}</text>
+                <text class="group-price__suffix">起</text>
+              </view>
               <view wx:if="{{item.classCountTagText}}" class="class-count-tag">{{item.classCountTagText}}</view>
             </view>
             <view class="joined-text">立即查看</view>

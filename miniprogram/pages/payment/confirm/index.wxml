@@ -37,6 +37,7 @@
             maxlength="2"
             placeholder="请输入年龄"
             cursor-spacing="24"
+            confirm-type="done"
             value="{{childAge}}"
             bindinput="handleChildAgeInput"
           />
@@ -59,7 +60,7 @@
         <view wx:if="{{packageGroupDetail.members.length}}" class="member-list-block">
           <view wx:for="{{packageGroupDetail.members}}" wx:key="user_id" class="member-item">
             <image class="member-avatar" src="{{item.avatar_url}}" mode="aspectFill"></image>
-            <view class="member-name">{{item.nickname}}</view>
+            <view class="member-name">{{item.displayName || item.nickname}}</view>
           </view>
         </view>
         <view wx:else class="section-desc">暂未获取到成员信息</view>

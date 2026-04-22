@@ -63,14 +63,10 @@
           maxlength="2"
           placeholder="请输入年龄"
           cursor-spacing="24"
+          confirm-type="done"
           value="{{childAge}}"
           bindinput="handleChildAgeInput"
         />
-      </view>
-
-      <view class="weui-panel weui-ext-card page-section card-shadow">
-        <view class="section-title">支付金额</view>
-        <view class="amount-text">每人 ¥{{memberAmountText}}</view>
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
@@ -82,18 +78,20 @@
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
-        <mp-cells extClass="payment-agreement-cells">
-          <mp-checkbox-group bind:change="handleAgreementChange">
-            <mp-checkbox
-              extClass="payment-agreement-item"
-              value="agree"
-              checked="{{agreementChecked}}"
-            />
-          </mp-checkbox-group>
-        </mp-cells>
-        <view class="payment-agreement-inline">
-          <text>我已阅读并同意</text>
-          <text class="agreement-link" bindtap="handleOpenAgreement">《课程服务协议》</text>
+        <view class="payment-agreement-row">
+          <mp-cells extClass="payment-agreement-cells">
+            <mp-checkbox-group bind:change="handleAgreementChange">
+              <mp-checkbox
+                extClass="payment-agreement-item"
+                value="agree"
+                checked="{{agreementChecked}}"
+              />
+            </mp-checkbox-group>
+          </mp-cells>
+          <view class="payment-agreement-inline">
+            <text>我已阅读并同意</text>
+            <text class="agreement-link" bindtap="handleOpenAgreement">《课程服务协议》</text>
+          </view>
         </view>
       </view>
 
@@ -103,7 +101,7 @@
 
   <view wx:if="{{!loading && packageDetail}}" class="payment-bar">
     <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary payment-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="handleSubmit">
-      <view class="weui-ext-button__inner">确认开团并支付</view>
+      <view class="weui-ext-button__inner">支付{{memberAmountDisplayText}}元并开团</view>
     </button>
   </view>
 </view>

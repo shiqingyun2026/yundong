@@ -76,27 +76,6 @@ const validateChildProfile = ({ childNickname, childAge }) => {
   }
 }
 
-const hasUserActivePackageParticipation = async ({ userId, packageId }) => {
-  const successOrders = await ordersRepository.listOrders({
-    userId,
-    orderType: 2,
-    packageId,
-    status: 'success'
-  })
-
-  if (!successOrders.length) {
-    return false
-  }
-
-  const activeOrSuccessGroups = await packageGroupsRepository.listPackageGroups({
-    packageId,
-    statuses: ['active', 'success']
-  })
-  const activeOrSuccessGroupIds = new Set(activeOrSuccessGroups.map(item => item.id))
-
-  return successOrders.some(order => activeOrSuccessGroupIds.has(order.package_group_id))
-}
-
 const createPackageStartOrder = async ({
   userId,
   packageId,
@@ -128,15 +107,6 @@ const createPackageStartOrder = async ({
     packageId,
     now
   })
-
-  if (
-    await hasUserActivePackageParticipation({
-      userId,
-      packageId
-    })
-  ) {
-    throw createPackageServiceError(400, 2004, '该课包已参与进行中或已成团拼团，不可重复参与')
-  }
 
   await closePendingPackageOrdersByIds({
     orderIds: await listPendingOrderIdsForPackage({
@@ -203,15 +173,6 @@ const createPackageJoinOrder = async ({
   const group = await packageGroupsRepository.findPackageGroupById(packageGroupId)
   if (!group || group.package_id !== packageId) {
     throw createPackageServiceError(404, 2002, '拼团不存在')
-  }
-
-  if (
-    await hasUserActivePackageParticipation({
-      userId,
-      packageId
-    })
-  ) {
-    throw createPackageServiceError(400, 2004, '该课包已参与进行中或已成团拼团，不可重复参与')
   }
 
   if (!isPackageGroupJoinable(group, now)) {

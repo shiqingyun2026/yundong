@@ -91,8 +91,8 @@ const buildLocationFallbackFeedback = location => {
 const buildPackageCard = item => ({
   ...item,
   classCountTagText: item.classCount > 0 ? `包含${item.classCount}节课` : '',
-  locationText: item.locationDisplayText || [item.locationCommunity, item.locationDetail].filter(Boolean).join(' '),
-  perMemberText: `¥${item.minMemberAmountText}起`,
+  locationText: item.locationDisplayText || item.locationText || '',
+  perMemberText: `¥${item.minMemberAmountDisplayText || item.minMemberAmountText}`,
   coverLoadFailed: false,
   distanceText:
     Number.isFinite(item.distanceMeters) && Number(item.distanceMeters) >= 0

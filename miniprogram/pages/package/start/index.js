@@ -4,6 +4,7 @@ const {
   calculatePackageMemberAmountFen,
   createPackageStartOrder,
   fetchPackageDetail,
+  formatDisplayAmount,
   mockPaymentSuccess,
   preparePayment
 } = require('../../../utils/package')
@@ -52,6 +53,7 @@ Page({
     selectedWeekdayIndex: 5,
     selectedHourIndex: 1,
     memberAmountText: '0.00',
+    memberAmountDisplayText: '0',
     childNickname: '',
     childAge: ''
   },
@@ -118,7 +120,8 @@ Page({
     })
 
     this.setData({
-      memberAmountText: (amountFen / 100).toFixed(2)
+      memberAmountText: (amountFen / 100).toFixed(2),
+      memberAmountDisplayText: formatDisplayAmount((amountFen / 100).toFixed(2))
     })
   },
 

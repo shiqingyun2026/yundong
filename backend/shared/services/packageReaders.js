@@ -15,11 +15,125 @@ const formatFenText = amountFen => (Number(amountFen || 0) / 100).toFixed(2)
 
 const DEFAULT_MEMBER_AVATAR = '/assets/ant-icons/user-white.svg'
 
-const buildLocationText = pkg => [pkg.location_community, pkg.location_detail].filter(Boolean).join(' ')
+const pickFirstNonEmptyString = values => {
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index]
+    if (value === null || value === undefined) {
+      continue
+    }
 
-const buildMiniProgramLocationText = pkg => [pkg.location_city || '深圳市', pkg.location_district, pkg.location_community || pkg.location_detail]
-  .filter(Boolean)
-  .join(' / ')
+    const normalized = `${value}`.trim()
+    if (normalized) {
+      return normalized
+    }
+  }
+
+  return ''
+}
+
+const escapeRegExp = value => `${value}`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const collapseLocationText = value =>
+  `${value || ''}`
+    .replace(/[／]/g, '/')
+    .replace(/[，,]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\s*\/\s*/g, ' / ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const dedupeOrderedParts = parts => {
+  const result = []
+
+  parts.forEach(part => {
+    if (!part) {
+      return
+    }
+
+    const normalized = collapseLocationText(part)
+    if (normalized && !result.includes(normalized)) {
+      result.push(normalized)
+    }
+  })
+
+  return result
+}
+
+const stripKnownLocationSegments = (value, segments = []) => {
+  let normalized = collapseLocationText(value)
+  if (!normalized) {
+    return ''
+  }
+
+  segments
+    .filter(Boolean)
+    .sort((left, right) => `${right}`.length - `${left}`.length)
+    .forEach(segment => {
+      const pattern = new RegExp(escapeRegExp(segment), 'g')
+      normalized = normalized.replace(pattern, ' ')
+    })
+
+  return collapseLocationText(
+    normalized
+      .replace(/[\u4e00-\u9fa5]{2,}(省|自治区|特别行政区)/g, ' ')
+      .replace(/\s*\/\s*/g, ' ')
+      .replace(/\s+/g, ' ')
+  )
+}
+
+const formatLocationFallbackText = (value, province = '') => {
+  const normalized = collapseLocationText(value)
+  if (!normalized) {
+    return ''
+  }
+
+  const slashParts = normalized
+    .split('/')
+    .map(part => collapseLocationText(part))
+    .filter(Boolean)
+
+  if (slashParts.length > 1) {
+    const filteredParts = slashParts.filter(part => part !== collapseLocationText(province) && !/省$/.test(part))
+    return dedupeOrderedParts(filteredParts).join(' / ')
+  }
+
+  return stripKnownLocationSegments(normalized, [province])
+}
+
+const formatMiniProgramLocationText = pkg => {
+  const source = pkg || {}
+  const province = pickFirstNonEmptyString([source.location_province, source.locationProvince])
+  const city = pickFirstNonEmptyString([source.location_city, source.locationCity])
+  const district = pickFirstNonEmptyString([source.location_district, source.locationDistrict])
+  const community = pickFirstNonEmptyString([source.location_community, source.locationCommunity])
+  const detail = pickFirstNonEmptyString([source.location_detail, source.locationDetail])
+  const fallbackText = pickFirstNonEmptyString([source.location_text, source.locationText])
+
+  const locationSegments = dedupeOrderedParts([province, city, district, community])
+  const normalizedCommunity = collapseLocationText(community)
+  let normalizedDetail = stripKnownLocationSegments(detail, locationSegments)
+
+  if (normalizedCommunity && normalizedDetail) {
+    if (normalizedDetail.includes(normalizedCommunity)) {
+      normalizedDetail = collapseLocationText(normalizedDetail.replace(new RegExp(escapeRegExp(normalizedCommunity), 'g'), ' '))
+    } else if (normalizedCommunity.includes(normalizedDetail)) {
+      normalizedDetail = ''
+    }
+  }
+
+  const venueText = dedupeOrderedParts([normalizedCommunity, normalizedDetail]).join(' ')
+  const formatted = dedupeOrderedParts([collapseLocationText(city), collapseLocationText(district), venueText])
+
+  if (formatted.length) {
+    return formatted.join(' / ')
+  }
+
+  return formatLocationFallbackText(fallbackText, province)
+}
+
+const buildLocationText = pkg => formatMiniProgramLocationText(pkg)
+
+const buildMiniProgramLocationText = pkg => formatMiniProgramLocationText(pkg)
 
 const buildAdminLocationText = pkg => [pkg.location_district, pkg.location_community, pkg.location_detail].filter(Boolean).join(' / ')
 
@@ -198,6 +312,7 @@ const fetchMiniProgramPackageList = async ({
       max_supported_people: maxSupportedPeople,
       min_member_amount_fen: minMemberAmountFen,
       min_member_amount_text: formatFenText(minMemberAmountFen),
+      location_city: item.location_city,
       location_district: item.location_district,
       location_community: item.location_community,
       location_detail: item.location_detail,
@@ -254,6 +369,7 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
     class_duration_minutes: Number(pkg.class_duration_minutes) || 0,
     group_price_config: pkg.group_price_config || [],
     supported_people: pkg.supported_people || [],
+    location_city: pkg.location_city,
     location_district: pkg.location_district,
     location_community: pkg.location_community,
     location_detail: pkg.location_detail,
@@ -337,10 +453,11 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
     package: {
       id: pkg.id,
       name: pkg.name,
-      location_text: buildMiniProgramLocationText({
-        ...pkg,
-        location_city: pkg.location_city || '深圳市'
-      })
+      location_city: pkg.location_city || '',
+      location_district: pkg.location_district || '',
+      location_community: pkg.location_community || '',
+      location_detail: pkg.location_detail || '',
+      location_text: buildMiniProgramLocationText(pkg)
     },
     target_count: Number(latestGroup.target_count) || 0,
     current_count: Number(latestGroup.current_count) || 0,
@@ -434,10 +551,15 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
     })
 
     return {
+      order_id: order.id,
       package_group_id: group.id,
       package_id: group.package_id,
       package_name: pkg ? pkg.name : '',
       status: group.status,
+      location_city: pkg ? pkg.location_city || '' : '',
+      location_district: pkg ? pkg.location_district || '' : '',
+      location_community: pkg ? pkg.location_community || '' : '',
+      location_detail: pkg ? pkg.location_detail || '' : '',
       location_text: pkg ? buildLocationText(pkg) : '',
       current_count: Number(group.current_count) || 0,
       target_count: Number(group.target_count) || 0,
@@ -464,6 +586,7 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
 module.exports = {
   buildAdminLocationText,
   buildLocationText,
+  buildMiniProgramLocationText,
   fetchMiniProgramPackageDetail,
   fetchMiniProgramPackageGroupDetail,
   fetchMiniProgramPackageList,

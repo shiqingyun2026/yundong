@@ -283,6 +283,7 @@ test('package group detail returns leader child profile, default member avatars 
         name: '云test',
         total_price: 12000,
         group_price_config: [{ target_count: 4, price_fen: 3000 }],
+        location_city: '深圳市',
         location_district: '南山区',
         location_community: '科技园社区',
         location_detail: 'A场地'
@@ -351,7 +352,7 @@ test('package group detail returns leader child profile, default member avatars 
     now: new Date('2026-04-21T10:00:00.000Z')
   })
 
-  assert.equal(result.package.location_text, '深圳市 / 南山区 / 科技园社区')
+  assert.equal(result.package.location_text, '深圳市 / 南山区 / 科技园社区 A场地')
   assert.equal(result.child_nickname, '小满')
   assert.equal(result.child_age, 6)
   assert.equal(result.remaining_seconds, 172800)
@@ -394,6 +395,7 @@ test('user package group list returns missing count for active groups', async ()
     ordersRepository: {
       listOrders: async () => [
         {
+          id: 'order-1',
           package_group_id: 'group-1',
           updated_at: '2026-04-21T10:00:00.000Z',
           created_at: '2026-04-21T09:00:00.000Z'
@@ -419,8 +421,10 @@ test('user package group list returns missing count for active groups', async ()
           name: '云test',
           total_price: 12000,
           group_price_config: [{ target_count: 4, price_fen: 3000 }],
+          location_city: '深圳市',
+          location_district: '南山区',
           location_community: '科技园社区',
-          location_detail: 'A场地'
+          location_detail: '广东省深圳市南山区科技园社区 A场地'
         }
       ]
     },
@@ -452,7 +456,9 @@ test('user package group list returns missing count for active groups', async ()
   })
 
   assert.equal(result.list.length, 1)
+  assert.equal(result.list[0].order_id, 'order-1')
   assert.equal(result.list[0].target_count, 4)
   assert.equal(result.list[0].current_count, 2)
   assert.equal(result.list[0].missing_count, 2)
+  assert.equal(result.list[0].location_text, '深圳市 / 南山区 / 科技园社区 A场地')
 })

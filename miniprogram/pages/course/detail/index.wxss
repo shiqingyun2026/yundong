@@ -156,7 +156,7 @@
 
 .group-item-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16rpx;
 }
@@ -278,6 +278,7 @@
   flex-shrink: 0;
   min-width: 248rpx;
   margin: 0;
+  align-self: flex-end;
 }
 
 .group-progress-text {

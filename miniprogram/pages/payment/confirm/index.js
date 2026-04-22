@@ -4,6 +4,7 @@ const {
   createPackageStartOrder,
   fetchPackageDetail,
   fetchPackageGroupDetail,
+  formatDisplayAmount,
   mockPaymentSuccess,
   preparePayment
 } = require('../../../utils/package')
@@ -109,7 +110,7 @@ Page({
         packageGroupDetail: packageGroupDetail || null,
         targetCount: nextTargetCount,
         paymentAmountText: (amountFen / 100).toFixed(2),
-        paymentAmountButtonText: `${(amountFen / 100).toFixed(2)}元`
+        paymentAmountButtonText: `${formatDisplayAmount((amountFen / 100).toFixed(2))}元`
       })
     } catch (error) {
       wx.showToast({

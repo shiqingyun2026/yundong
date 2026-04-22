@@ -21,7 +21,7 @@
     <view
       class="weui-panel weui-ext-card group-card card-shadow"
       wx:for="{{groupList}}"
-      wx:key="packageGroupId"
+      wx:key="orderId"
       data-group-id="{{item.packageGroupId}}"
       bind:tap="handleOpenDetail"
     >
