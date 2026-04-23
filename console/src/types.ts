@@ -374,3 +374,42 @@ export interface PackageOrderListResponse {
   total_pages: number
   list: PackageOrderListItem[]
 }
+
+export type BannerJumpType = 'none' | 'packageDetail' | 'customUrl' | 'miniprogramPage'
+export type BannerStatus = 'pending' | 'active' | 'inactive'
+
+export interface BannerListItem {
+  id: string
+  image_url: string
+  title: string
+  jump_type: BannerJumpType
+  jump_target: string
+  sort: number
+  online_time: string
+  offline_time: string
+  status: BannerStatus
+  create_time: string
+  update_time: string
+}
+
+export interface BannerDetail {
+  id?: string
+  image_url: string
+  title: string
+  jump_type: BannerJumpType
+  jump_target: string
+  sort: number
+  online_time: string
+  offline_time: string
+  status: BannerStatus
+  created_at?: string
+  updated_at?: string
+}
+
+export interface BannerListResponse {
+  total: number
+  page: number
+  size: number
+  total_pages: number
+  list: BannerListItem[]
+}

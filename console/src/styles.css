@@ -154,7 +154,13 @@ button {
 }
 
 .filter-field {
+  display: flex;
+  flex-direction: column;
   gap: 10px;
+}
+
+.filter-field-full {
+  grid-column: 1 / -1;
 }
 
 .filter-field span {
@@ -399,6 +405,26 @@ button {
 
 .table-link {
   color: #d9652b;
+}
+
+.button-as-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.button-as-link:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.table-subtext {
+  margin: 6px 0 0;
+  color: #6d7d86;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .table-title-cell {
@@ -677,6 +703,18 @@ select {
   border-radius: 16px;
   border: 1px solid rgba(20, 58, 82, 0.12);
   background: #f4f7f6;
+}
+
+.upload-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 160px;
+  border-radius: 16px;
+  border: 1px dashed rgba(20, 58, 82, 0.18);
+  background: rgba(244, 247, 246, 0.92);
+  color: #6d7d86;
 }
 
 .description-preview {

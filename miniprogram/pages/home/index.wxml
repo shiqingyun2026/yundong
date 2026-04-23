@@ -22,9 +22,11 @@
       circular="{{bannerList.length > 1}}"
       interval="3800"
       duration="360"
+      current="{{activeBannerIndex}}"
+      bindchange="handleBannerChange"
     >
       <swiper-item wx:for="{{bannerList}}" wx:key="id">
-        <view class="banner-slide banner-slide--{{item.theme}}">
+        <view class="banner-slide banner-slide--{{item.theme}}" data-index="{{index}}" bindtap="handleBannerTap">
           <image
             wx:if="{{item.image}}"
             class="banner-image"
@@ -43,7 +45,7 @@
       <view
         wx:for="{{bannerList}}"
         wx:key="id"
-        class="banner-dot {{index === 0 ? 'banner-dot--active' : ''}}"
+        class="banner-dot {{index === activeBannerIndex ? 'banner-dot--active' : ''}}"
       ></view>
     </view>
   </view>

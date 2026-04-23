@@ -3,6 +3,7 @@ require('dotenv').config()
 const express = require('./lib/mini-express')
 
 const authRoutes = require('./routes/auth')
+const bannersRoutes = require('./routes/banners')
 const coursesRoutes = require('./routes/courses')
 const groupsRoutes = require('./routes/groups')
 const ordersRoutes = require('./routes/orders')
@@ -42,6 +43,7 @@ app.get('/favicon.ico', (req, res) => {
 })
 
 app.use('/api/auth', authRoutes)
+app.use('/api/banners', bannersRoutes)
 app.use('/api/courses', coursesRoutes)
 app.use('/api/packages', packagesRoutes)
 app.use('/api/groups', groupsRoutes)

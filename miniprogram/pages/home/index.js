@@ -1,3 +1,4 @@
+const { fetchHomeBannerList } = require('../../utils/banner')
 const { fetchPackageList } = require('../../utils/package')
 const {
   DEFAULT_LOCATION,
@@ -18,7 +19,9 @@ const HOME_BANNERS = [
     title: '体适能春季课程',
     kicker: 'PROMOTIONAL WORK',
     desc: '本次先以展位图形式占位，后续可替换为真实 Banner 数据源。',
-    image: ''
+    image: '',
+    jumpType: 'none',
+    jumpTarget: ''
   },
   {
     id: 'banner-2',
@@ -26,7 +29,9 @@ const HOME_BANNERS = [
     title: '连续 5 次训练计划',
     kicker: 'PACKAGE HOME',
     desc: '支持多人拼团与周度排课，首页重点展示当前主推课程。',
-    image: ''
+    image: '',
+    jumpType: 'none',
+    jumpTarget: ''
   },
   {
     id: 'banner-3',
@@ -34,7 +39,9 @@ const HOME_BANNERS = [
     title: '品牌活动位预留',
     kicker: 'BRAND BANNER',
     desc: '后续可接入运营配置，按活动、门店或地区动态切换内容。',
-    image: ''
+    image: '',
+    jumpType: 'none',
+    jumpTarget: ''
   }
 ]
 
@@ -120,6 +127,7 @@ Page({
   data: {
     tabs: HOME_TABS,
     bannerList: HOME_BANNERS,
+    activeBannerIndex: 0,
     activeTab: 'all',
     statusBarHeight: 20,
     navBarHeight: 88,
@@ -188,6 +196,7 @@ Page({
       })
     }
 
+    await this.loadBannerList()
     await this.loadPackageList({
       page: 1
     })
@@ -210,6 +219,30 @@ Page({
     })
 
     return nextLocation
+  },
+
+  async loadBannerList() {
+    const app = getApp()
+    const currentLocation = app.getCurrentLocation() || DEFAULT_LOCATION
+    const city = (currentLocation && currentLocation.city) || ''
+
+    try {
+      const bannerList = await fetchHomeBannerList({ city })
+      if (Array.isArray(bannerList) && bannerList.length) {
+        this.setData({
+          bannerList,
+          activeBannerIndex: 0
+        })
+        return
+      }
+    } catch (error) {
+      console.warn('[home] loadBannerList fallback to local banners', error)
+    }
+
+    this.setData({
+      bannerList: HOME_BANNERS,
+      activeBannerIndex: 0
+    })
   },
 
   tryGetLocation({ applyToSelected = false } = {}) {
@@ -423,5 +456,56 @@ Page({
     wx.navigateTo({
       url: `/pages/course/detail/index?id=${id}`
     })
+  },
+
+  handleBannerChange(event) {
+    const current = Number(event.detail && event.detail.current)
+    this.setData({
+      activeBannerIndex: Number.isFinite(current) ? current : 0
+    })
+  },
+
+  handleBannerTap(event) {
+    const { index } = event.currentTarget.dataset
+    const banner = this.data.bannerList[index]
+
+    if (!banner) {
+      return
+    }
+
+    if (banner.jumpType === 'packageDetail' && banner.jumpTarget) {
+      wx.navigateTo({
+        url: `/pages/course/detail/index?id=${encodeURIComponent(banner.jumpTarget)}`
+      })
+      return
+    }
+
+    if (banner.jumpType === 'miniprogramPage' && banner.jumpTarget) {
+      if (/^\/pages\/home\/index(?:\?|$)/.test(banner.jumpTarget)) {
+        wx.switchTab({
+          url: '/pages/home/index'
+        })
+        return
+      }
+
+      if (/^\/pages\/mine\/index(?:\?|$)/.test(banner.jumpTarget)) {
+        wx.switchTab({
+          url: '/pages/mine/index'
+        })
+        return
+      }
+
+      wx.navigateTo({
+        url: banner.jumpTarget
+      })
+      return
+    }
+
+    if (banner.jumpType === 'customUrl' && banner.jumpTarget) {
+      wx.showToast({
+        title: '当前版本暂不支持打开外部链接',
+        icon: 'none'
+      })
+    }
   }
 })

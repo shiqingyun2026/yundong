@@ -11,6 +11,7 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { to: '/dashboard', label: '概览' },
+  { to: '/banners', label: 'Banner 管理' },
   { to: '/packages', label: '课包管理' },
   { to: '/package-groups', label: '课包拼团' },
   { to: '/package-orders', label: '课包订单' },

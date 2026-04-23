@@ -65,13 +65,39 @@ const loadConsoleAppWithMockedPackageService = () => {
   clearModules([
     'console-api/app.js',
     'console-api/routes/index.js',
+    'console-api/routes/banners.js',
     'console-api/routes/packages.js',
     'console-api/routes/package-groups.js',
     'console-api/routes/package-orders.js',
+    'console-api/controllers/bannerAdminController.js',
     'console-api/controllers/packageAdminController.js',
+    'console-api/services/bannerAdminService.js',
     'console-api/services/packageAdminService.js',
     'middleware/adminAuth.js'
   ])
+
+  mockModule('console-api/services/bannerAdminService.js', {
+    listAdminBanners: async payload => {
+      calls.push(['listAdminBanners', payload])
+      return { total: 1, page: 1, size: 10, list: [{ id: 'banner-1', status: 'pending' }] }
+    },
+    getAdminBannerDetail: async payload => {
+      calls.push(['getAdminBannerDetail', payload])
+      return { id: payload.bannerId, title: '首页 Banner', status: 'pending' }
+    },
+    createAdminBanner: async payload => {
+      calls.push(['createAdminBanner', payload])
+      return { id: 'banner-created', title: payload.payload.title, status: 'pending' }
+    },
+    updateAdminBanner: async payload => {
+      calls.push(['updateAdminBanner', payload])
+      return { id: payload.bannerId, title: payload.payload.title, status: 'inactive' }
+    },
+    offlineAdminBanner: async payload => {
+      calls.push(['offlineAdminBanner', payload])
+      return { id: payload.bannerId, title: '首页 Banner', status: 'inactive' }
+    }
+  })
 
   mockModule('console-api/services/packageAdminService.js', {
     listAdminPackages: async payload => {
@@ -516,6 +542,44 @@ test('admin package routes are mounted behind admin authentication', async () =>
     pathname: '/api/admin/packages?page=2&size=20&keyword=体适能',
     headers
   })
+  const listBanners = await requestJson({
+    app,
+    pathname: '/api/admin/banners?status=pending',
+    headers
+  })
+  const bannerDetail = await requestJson({
+    app,
+    pathname: '/api/admin/banners/banner-1',
+    headers
+  })
+  const createBanner = await requestJson({
+    app,
+    method: 'POST',
+    pathname: '/api/admin/banners',
+    headers,
+    body: {
+      image_url: 'https://example.com/banner-create.png',
+      title: '新 Banner',
+      jump_type: 'none',
+      online_time: '2026-04-24T10:00:00.000Z'
+    }
+  })
+  const updateBanner = await requestJson({
+    app,
+    method: 'PUT',
+    pathname: '/api/admin/banners/banner-1',
+    headers,
+    body: {
+      title: '编辑 Banner',
+      online_time: '2026-04-24T11:00:00.000Z'
+    }
+  })
+  const offlineBanner = await requestJson({
+    app,
+    method: 'POST',
+    pathname: '/api/admin/banners/banner-1/offline',
+    headers
+  })
   const packageDetail = await requestJson({
     app,
     pathname: '/api/admin/packages/pkg-1',
@@ -555,6 +619,12 @@ test('admin package routes are mounted behind admin authentication', async () =>
 
   assert.equal(listPackages.status, 200)
   assert.equal(listPackages.body.code, 0)
+  assert.equal(listBanners.status, 200)
+  assert.equal(listBanners.body.data.list[0].id, 'banner-1')
+  assert.equal(bannerDetail.body.data.id, 'banner-1')
+  assert.equal(createBanner.body.data.title, '新 Banner')
+  assert.equal(updateBanner.body.data.title, '编辑 Banner')
+  assert.equal(offlineBanner.body.data.status, 'inactive')
   assert.equal(packageDetail.body.data.id, 'pkg-1')
   assert.equal(createPackage.body.data.name, '新课包')
   assert.equal(createPackage.body.data.package_category, '跳绳')
@@ -566,6 +636,11 @@ test('admin package routes are mounted behind admin authentication', async () =>
     calls.map(item => item[0]),
     [
       'listAdminPackages',
+      'listAdminBanners',
+      'getAdminBannerDetail',
+      'createAdminBanner',
+      'updateAdminBanner',
+      'offlineAdminBanner',
       'getAdminPackageDetail',
       'createAdminPackage',
       'updateAdminPackage',

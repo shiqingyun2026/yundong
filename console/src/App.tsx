@@ -6,6 +6,8 @@ import { AdminLayout } from './components/AdminLayout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AccountListPage } from './pages/AccountListPage'
 import { AdminLogPage } from './pages/AdminLogPage'
+import { BannerFormPage } from './pages/BannerFormPage'
+import { BannerListPage } from './pages/BannerListPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { LoginPage } from './pages/LoginPage'
 import { PackageFormPage } from './pages/PackageFormPage'
@@ -38,6 +40,10 @@ export default function App() {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="banners" element={<BannerListPage />} />
+        <Route path="banners/new" element={<BannerFormPage mode="create" />} />
+        <Route path="banners/:id" element={<BannerFormPage mode="view" />} />
+        <Route path="banners/:id/edit" element={<BannerFormPage mode="edit" />} />
         <Route path="packages" element={<PackageListPage />} />
         <Route path="packages/new" element={<PackageFormPage mode="create" />} />
         <Route path="packages/:id" element={<PackageFormPage mode="view" />} />

@@ -10,6 +10,7 @@ const packagesRoutes = require('./packages')
 const accountsRoutes = require('./accounts')
 const logsRoutes = require('./logs')
 const dashboardRoutes = require('./dashboard')
+const bannersRoutes = require('./banners')
 const uploadRoutes = require('./upload')
 const { adminAuthenticate } = require('../../middleware/adminAuth')
 
@@ -25,6 +26,7 @@ router.use('/package-orders', adminAuthenticate, packageOrdersRoutes)
 router.use('/accounts', adminAuthenticate, accountsRoutes)
 router.use('/logs', adminAuthenticate, logsRoutes)
 router.use('/dashboard', adminAuthenticate, dashboardRoutes)
+router.use('/banners', adminAuthenticate, bannersRoutes)
 router.use('/upload', adminAuthenticate, uploadRoutes)
 
 module.exports = router
