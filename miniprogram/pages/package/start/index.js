@@ -90,7 +90,8 @@ Page({
     memberAmountText: '0.00',
     memberAmountDisplayText: '0',
     childNickname: '',
-    childAge: ''
+    childAge: '',
+    parentMobile: ''
   },
 
   async onLoad(options) {
@@ -108,7 +109,8 @@ Page({
       selectedWeekdayIndex,
       selectedHourIndex,
       childNickname: decodeURIComponent(options.childNickname || ''),
-      childAge: decodeURIComponent(options.childAge || '')
+      childAge: decodeURIComponent(options.childAge || ''),
+      parentMobile: decodeURIComponent(options.parentMobile || '')
     })
     await this.loadPackageDetail(packageId)
   },
@@ -210,6 +212,13 @@ Page({
     })
   },
 
+  handleParentMobileInput(event) {
+    const nextValue = `${event.detail.value || ''}`.replace(/[^\d]/g, '').slice(0, 11)
+    this.setData({
+      parentMobile: nextValue
+    })
+  },
+
   handleOpenAgreement() {
     wx.navigateTo({
       url: '/pages/service-agreement/index'
@@ -266,6 +275,14 @@ Page({
       return
     }
 
+    if (!/^1\d{10}$/.test(`${this.data.parentMobile || ''}`)) {
+      wx.showToast({
+        title: '请填写正确的家长手机号',
+        icon: 'none'
+      })
+      return
+    }
+
     if (!(await this.ensureLogin())) {
       return
     }
@@ -285,7 +302,8 @@ Page({
         weekday: this.data.selectedWeekday,
         hour: this.data.selectedHour,
         childNickname: this.data.childNickname.trim(),
-        childAge: this.data.childAge
+        childAge: this.data.childAge,
+        parentMobile: this.data.parentMobile
       })
       const orderId = order.orderId || ''
 
@@ -323,7 +341,8 @@ Page({
               `&weekday=${this.data.selectedWeekday}` +
               `&hour=${this.data.selectedHour}` +
               `&childNickname=${encodeURIComponent(this.data.childNickname.trim())}` +
-              `&childAge=${encodeURIComponent(this.data.childAge)}`
+              `&childAge=${encodeURIComponent(this.data.childAge)}` +
+              `&parentMobile=${encodeURIComponent(this.data.parentMobile)}`
           })
           return
         }
@@ -372,7 +391,8 @@ Page({
             `&weekday=${this.data.selectedWeekday}` +
             `&hour=${this.data.selectedHour}` +
             `&childNickname=${encodeURIComponent(this.data.childNickname.trim())}` +
-            `&childAge=${encodeURIComponent(this.data.childAge)}`
+            `&childAge=${encodeURIComponent(this.data.childAge)}` +
+            `&parentMobile=${encodeURIComponent(this.data.parentMobile)}`
         })
       } else {
         wx.redirectTo({
@@ -384,7 +404,8 @@ Page({
             `&weekday=${this.data.selectedWeekday}` +
             `&hour=${this.data.selectedHour}` +
             `&childNickname=${encodeURIComponent(this.data.childNickname.trim())}` +
-            `&childAge=${encodeURIComponent(this.data.childAge)}`
+            `&childAge=${encodeURIComponent(this.data.childAge)}` +
+            `&parentMobile=${encodeURIComponent(this.data.parentMobile)}`
         })
       }
     } finally {

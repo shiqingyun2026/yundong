@@ -67,6 +67,18 @@
           value="{{childAge}}"
           bindinput="handleChildAgeInput"
         />
+
+        <view class="picker-label picker-label-second">家长手机号</view>
+        <input
+          class="form-input"
+          type="number"
+          maxlength="11"
+          placeholder="请输入家长手机号"
+          cursor-spacing="24"
+          confirm-type="done"
+          value="{{parentMobile}}"
+          bindinput="handleParentMobileInput"
+        />
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">

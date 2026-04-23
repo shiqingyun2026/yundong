@@ -74,6 +74,7 @@ Page({
     hour: 10,
     childNickname: '',
     childAge: '',
+    parentMobile: '',
     packageDetail: null,
     packageGroupDetail: null,
     paymentAmountText: '0.00',
@@ -94,7 +95,8 @@ Page({
       weekday: Number(options.weekday) || 6,
       hour: Number(options.hour) || 10,
       childNickname: decodeURIComponent(options.childNickname || ''),
-      childAge: decodeURIComponent(options.childAge || '')
+      childAge: decodeURIComponent(options.childAge || ''),
+      parentMobile: decodeURIComponent(options.parentMobile || '')
     })
 
     wx.setNavigationBarTitle({
@@ -179,6 +181,13 @@ Page({
     })
   },
 
+  handleParentMobileInput(event) {
+    const nextValue = `${event.detail.value || ''}`.replace(/[^\d]/g, '').slice(0, 11)
+    this.safeSetData({
+      parentMobile: nextValue
+    })
+  },
+
   handleOpenAgreement() {
     wx.navigateTo({
       url: '/pages/service-agreement/index'
@@ -215,12 +224,29 @@ Page({
         throw new Error('请填写孩子年龄')
       }
 
+      if (!/^1\d{10}$/.test(`${this.data.parentMobile || ''}`)) {
+        throw new Error('请填写正确的家长手机号')
+      }
+
       return createPackageJoinOrder({
         packageId: this.data.packageId,
         packageGroupId: this.data.packageGroupId,
         childNickname: this.data.childNickname.trim(),
-        childAge: this.data.childAge
+        childAge: this.data.childAge,
+        parentMobile: this.data.parentMobile
       })
+    }
+
+    if (!`${this.data.childNickname || ''}`.trim()) {
+      throw new Error('请填写孩子昵称')
+    }
+
+    if (!/^\d+$/.test(`${this.data.childAge || ''}`)) {
+      throw new Error('请填写孩子年龄')
+    }
+
+    if (!/^1\d{10}$/.test(`${this.data.parentMobile || ''}`)) {
+      throw new Error('请填写正确的家长手机号')
     }
 
     return createPackageStartOrder({
@@ -228,8 +254,9 @@ Page({
       targetCount: this.data.targetCount,
       weekday: this.data.weekday,
       hour: this.data.hour,
-      childNickname: this.data.childNickname,
-      childAge: this.data.childAge
+      childNickname: this.data.childNickname.trim(),
+      childAge: this.data.childAge,
+      parentMobile: this.data.parentMobile
     })
   },
 
@@ -296,7 +323,8 @@ Page({
               `&weekday=${this.data.weekday}` +
               `&hour=${this.data.hour}` +
               `&childNickname=${encodeURIComponent(this.data.childNickname.trim())}` +
-              `&childAge=${encodeURIComponent(this.data.childAge)}`
+              `&childAge=${encodeURIComponent(this.data.childAge)}` +
+              `&parentMobile=${encodeURIComponent(this.data.parentMobile)}`
           })
           return
         }
@@ -346,7 +374,8 @@ Page({
             `&weekday=${this.data.weekday}` +
             `&hour=${this.data.hour}` +
             `&childNickname=${encodeURIComponent(this.data.childNickname.trim())}` +
-            `&childAge=${encodeURIComponent(this.data.childAge)}`
+            `&childAge=${encodeURIComponent(this.data.childAge)}` +
+            `&parentMobile=${encodeURIComponent(this.data.parentMobile)}`
         })
       } else {
         wx.showToast({
@@ -370,7 +399,10 @@ Page({
         `&action=${this.data.action}` +
         `&targetCount=${this.data.targetCount}` +
         `&weekday=${this.data.weekday}` +
-        `&hour=${this.data.hour}`
+        `&hour=${this.data.hour}` +
+        `&childNickname=${encodeURIComponent(this.data.childNickname.trim())}` +
+        `&childAge=${encodeURIComponent(this.data.childAge)}` +
+        `&parentMobile=${encodeURIComponent(this.data.parentMobile)}`
     })
   }
 })

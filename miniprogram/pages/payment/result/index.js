@@ -1,3 +1,9 @@
+const {
+  requestGroupResultSubscription,
+  reportGroupResultSubscription,
+  resolveGroupResultTemplateIds
+} = require('../../../utils/notification')
+
 Page({
   data: {
     status: 'success',
@@ -13,7 +19,13 @@ Page({
     weekday: 6,
     hour: 10,
     childNickname: '',
-    childAge: ''
+    childAge: '',
+    parentMobile: '',
+    showSubscribeCard: false,
+    subscribeEnabled: false,
+    subscribeSubmitting: false,
+    subscribeStatusText: '',
+    subscribeStatusTone: 'muted'
   },
 
   onLoad(options) {
@@ -30,8 +42,35 @@ Page({
       weekday: Number(options.weekday) || 6,
       hour: Number(options.hour) || 10,
       childNickname: decodeURIComponent(options.childNickname || ''),
-      childAge: decodeURIComponent(options.childAge || '')
+      childAge: decodeURIComponent(options.childAge || ''),
+      parentMobile: decodeURIComponent(options.parentMobile || ''),
+      showSubscribeCard: status === 'success',
+      subscribeEnabled: this.resolveSubscribeEnabled(),
+      subscribeStatusText: this.resolveInitialSubscribeStatus(status),
+      subscribeStatusTone: 'muted'
     })
+  },
+
+  resolveSubscribeEnabled() {
+    const templateIds = resolveGroupResultTemplateIds()
+    return !!(templateIds.groupSuccess && templateIds.groupFail && wx.requestSubscribeMessage)
+  },
+
+  resolveInitialSubscribeStatus(status) {
+    if (status !== 'success') {
+      return ''
+    }
+
+    if (!wx.requestSubscribeMessage) {
+      return '当前微信版本不支持订阅通知，请在“我的拼团”里留意结果。'
+    }
+
+    const templateIds = resolveGroupResultTemplateIds()
+    if (!templateIds.groupSuccess || !templateIds.groupFail) {
+      return '通知模板暂未配置完成，请在“我的拼团”里留意结果。'
+    }
+
+    return '订阅后可及时收到拼团成功或失败通知。'
   },
 
   resolveViewState(status) {
@@ -91,7 +130,13 @@ Page({
 
     if (this.data.action === 'join' && this.data.packageGroupId) {
       wx.redirectTo({
-        url: `/pages/payment/confirm/index?action=join&packageId=${this.data.packageId}&packageGroupId=${this.data.packageGroupId}`
+        url:
+          `/pages/payment/confirm/index?action=join` +
+          `&packageId=${this.data.packageId}` +
+          `&packageGroupId=${this.data.packageGroupId}` +
+          `&childNickname=${encodeURIComponent(this.data.childNickname)}` +
+          `&childAge=${encodeURIComponent(this.data.childAge)}` +
+          `&parentMobile=${encodeURIComponent(this.data.parentMobile)}`
       })
       return
     }
@@ -103,7 +148,8 @@ Page({
         `&weekday=${this.data.weekday}` +
         `&hour=${this.data.hour}` +
         `&childNickname=${encodeURIComponent(this.data.childNickname)}` +
-        `&childAge=${encodeURIComponent(this.data.childAge)}`
+        `&childAge=${encodeURIComponent(this.data.childAge)}` +
+        `&parentMobile=${encodeURIComponent(this.data.parentMobile)}`
     })
   },
 
@@ -111,5 +157,58 @@ Page({
     wx.switchTab({
       url: '/pages/home/index'
     })
+  },
+
+  async handleSubscribeTap() {
+    if (!this.data.showSubscribeCard || !this.data.subscribeEnabled || this.data.subscribeSubmitting) {
+      return
+    }
+
+    this.setData({
+      subscribeSubmitting: true,
+      subscribeStatusText: '正在发起订阅...',
+      subscribeStatusTone: 'muted'
+    })
+
+    try {
+      const payload = await requestGroupResultSubscription({
+        groupId: this.data.packageGroupId,
+        courseId: this.data.packageId
+      })
+
+      try {
+        await reportGroupResultSubscription(payload)
+      } catch (reportError) {
+        console.warn('[payment/result] report subscribe result failed', reportError)
+      }
+
+      if (payload.ok) {
+        this.setData({
+          subscribeStatusText: '订阅成功，后续会通过微信通知你拼团结果。',
+          subscribeStatusTone: 'success'
+        })
+        return
+      }
+
+      if (payload.skipped) {
+        this.setData({
+          subscribeStatusText:
+            payload.reason === 'template_not_configured'
+              ? '通知模板暂未配置完成，请在“我的拼团”里留意结果。'
+              : '当前微信版本不支持订阅通知，请在“我的拼团”里留意结果。',
+          subscribeStatusTone: 'muted'
+        })
+        return
+      }
+
+      this.setData({
+        subscribeStatusText: '你暂未订阅通知，后续可在“我的拼团”里查看拼团进度。',
+        subscribeStatusTone: 'muted'
+      })
+    } finally {
+      this.setData({
+        subscribeSubmitting: false
+      })
+    }
   }
 })

@@ -457,7 +457,15 @@ const fetchPackageGroupDetail = async packageGroupId =>
     await get(`/api/package-groups/${packageGroupId}`, {}, { showErrorToast: false })
   )
 
-const createPackageStartOrder = async ({ packageId, targetCount, weekday, hour, childNickname, childAge }) =>
+const createPackageStartOrder = async ({
+  packageId,
+  targetCount,
+  weekday,
+  hour,
+  childNickname,
+  childAge,
+  parentMobile
+}) =>
   post(
     '/api/package-orders/start',
     {
@@ -466,7 +474,8 @@ const createPackageStartOrder = async ({ packageId, targetCount, weekday, hour, 
       weekday,
       hour,
       childNickname,
-      childAge
+      childAge,
+      parentMobile
     },
     {
       showLoading: true,
@@ -475,14 +484,21 @@ const createPackageStartOrder = async ({ packageId, targetCount, weekday, hour, 
     }
   )
 
-const createPackageJoinOrder = async ({ packageId, packageGroupId, childNickname, childAge }) =>
+const createPackageJoinOrder = async ({
+  packageId,
+  packageGroupId,
+  childNickname,
+  childAge,
+  parentMobile
+}) =>
   post(
     '/api/package-orders/join',
     {
       packageId,
       packageGroupId,
       childNickname,
-      childAge
+      childAge,
+      parentMobile
     },
     {
       showLoading: true,

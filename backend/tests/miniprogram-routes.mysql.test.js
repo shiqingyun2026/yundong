@@ -212,7 +212,7 @@ const loadAppForMySqlRoutes = ({ paymentProviderMode = 'mock' } = {}) => {
   })
 
   mockModule('shared/services/packageOrders.js', {
-    createPackageStartOrder: async ({ supabase, packageId, targetCount, weekday, hour, childNickname, childAge, userId }) => ({
+    createPackageStartOrder: async ({ supabase, packageId, targetCount, weekday, hour, childNickname, childAge, parentMobile, userId }) => ({
       order: {
         id: 'package-order-start-1',
         order_no: 'PKG-ORDER-START-1',
@@ -224,13 +224,14 @@ const loadAppForMySqlRoutes = ({ paymentProviderMode = 'mock' } = {}) => {
       memberAmountFen: 33333,
       childNickname,
       childAge: Number(childAge),
+      parentMobile,
       targetCount,
       weekday,
       hour,
       userId,
       supabaseWasPassed: supabase
     }),
-    createPackageJoinOrder: async ({ supabase, packageId, packageGroupId, userId }) => ({
+    createPackageJoinOrder: async ({ supabase, packageId, packageGroupId, childNickname, childAge, parentMobile, userId }) => ({
       order: {
         id: 'package-order-join-1',
         order_no: 'PKG-ORDER-JOIN-1',
@@ -241,6 +242,9 @@ const loadAppForMySqlRoutes = ({ paymentProviderMode = 'mock' } = {}) => {
         status: 'pending'
       },
       memberAmountFen: 33333,
+      childNickname,
+      childAge: Number(childAge),
+      parentMobile,
       userId,
       supabaseWasPassed: supabase
     }),
@@ -421,7 +425,8 @@ test('mini program routes work in mysql mode without supabase client', async () 
           weekday: 6,
           hour: 10,
           childNickname: '小满',
-          childAge: 6
+          childAge: 6,
+          parentMobile: '13800138000'
         }
       }),
       requestJson({
@@ -429,7 +434,13 @@ test('mini program routes work in mysql mode without supabase client', async () 
         method: 'POST',
         pathname: '/api/package-orders/join',
         headers: { 'x-wx-openid': 'wx-openid-1', 'x-wx-service': 'lindong-api' },
-        body: { packageId: 'package-1', packageGroupId: 'package-group-1' }
+        body: {
+          packageId: 'package-1',
+          packageGroupId: 'package-group-1',
+          childNickname: '乐乐',
+          childAge: 5,
+          parentMobile: '13800138001'
+        }
       }),
       requestJson({
         app,
@@ -490,9 +501,13 @@ test('mini program routes work in mysql mode without supabase client', async () 
   assert.equal(createPackageStartOrder.body.data.orderId, 'package-order-start-1')
   assert.equal(createPackageStartOrder.body.data.child_nickname, '小满')
   assert.equal(createPackageStartOrder.body.data.child_age, 6)
+  assert.equal(createPackageStartOrder.body.data.parent_mobile, '13800138000')
 
   assert.equal(createPackageJoinOrder.status, 200)
   assert.equal(createPackageJoinOrder.body.data.orderId, 'package-order-join-1')
+  assert.equal(createPackageJoinOrder.body.data.child_nickname, '乐乐')
+  assert.equal(createPackageJoinOrder.body.data.child_age, 5)
+  assert.equal(createPackageJoinOrder.body.data.parent_mobile, '13800138001')
 
   assert.equal(orderStatus.status, 200)
   assert.equal(orderStatus.body.supabaseWasPassed, null)
@@ -573,7 +588,13 @@ test('protected mini program routes accept trusted cloudbase identity without be
     method: 'POST',
     pathname: '/api/package-orders/join',
     headers: cloudbaseHeaders,
-    body: { packageId: 'package-1', packageGroupId: 'package-group-1' }
+    body: {
+      packageId: 'package-1',
+      packageGroupId: 'package-group-1',
+      childNickname: '乐乐',
+      childAge: 5,
+      parentMobile: '13800138001'
+    }
   })
   const createOrder = await requestJson({
     app,
@@ -624,8 +645,23 @@ test('protected mini program routes accept trusted cloudbase identity without be
     pathname: '/api/user/group-result-subscriptions',
     headers: cloudbaseHeaders,
     body: {
-      groupId: 'group-1',
-      courseId: 'course-1',
+      groupId: 'package-group-1',
+      courseId: 'package-1',
+      templateKey: 'groupSuccess',
+      templateId: 'tpl-success',
+      decision: 'accept',
+      status: 'subscribed'
+    }
+  })
+  const invalidSubscription = await requestJson({
+    app,
+    method: 'POST',
+    pathname: '/api/user/group-result-subscriptions',
+    headers: cloudbaseHeaders,
+    body: {
+      groupId: 'package-group-1',
+      courseId: 'package-1',
+      templateKey: 'groupResult',
       decision: 'accept',
       status: 'subscribed'
     }
@@ -644,6 +680,9 @@ test('protected mini program routes accept trusted cloudbase identity without be
 
   assert.equal(createPackageJoinOrder.status, 200)
   assert.equal(createPackageJoinOrder.body.data.orderId, 'package-order-join-1')
+  assert.equal(createPackageJoinOrder.body.data.child_nickname, '乐乐')
+  assert.equal(createPackageJoinOrder.body.data.child_age, 5)
+  assert.equal(createPackageJoinOrder.body.data.parent_mobile, '13800138001')
 
   assert.equal(createOrder.status, 200)
   assert.equal(createOrder.body.orderId, 'order-1')
@@ -680,7 +719,12 @@ test('protected mini program routes accept trusted cloudbase identity without be
 
   assert.equal(subscription.status, 200)
   assert.equal(subscription.body.user_id, 'user-from-cloudbase')
-  assert.equal(subscription.body.group_id, 'group-1')
+  assert.equal(subscription.body.template_key, 'groupSuccess')
+  assert.equal(subscription.body.template_id, 'tpl-success')
+  assert.equal(invalidSubscription.status, 400)
+  assert.equal(invalidSubscription.body.message, 'templateKey is invalid')
+  assert.equal(subscription.body.group_id, 'package-group-1')
+  assert.equal(subscription.body.course_id, 'package-1')
 })
 
 test('mock payment success is disabled in wechat payment mode', async () => {

@@ -42,6 +42,19 @@
             bindinput="handleChildAgeInput"
           />
         </view>
+        <view class="order-item">
+          <view class="order-label">家长手机号</view>
+          <input
+            class="order-input"
+            type="number"
+            maxlength="11"
+            placeholder="请输入家长手机号"
+            cursor-spacing="24"
+            confirm-type="done"
+            value="{{parentMobile}}"
+            bindinput="handleParentMobileInput"
+          />
+        </view>
       </view>
 
       <view wx:if="{{packageGroupDetail}}" class="weui-panel weui-ext-card page-section card-shadow">
