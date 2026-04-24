@@ -124,25 +124,36 @@ const requestJson = async ({ app, method = 'GET', pathname, body, headers = {} }
   }
 }
 
-test('console api mysql routes: login returns admin bearer token envelope', async () => {
+test('console api mysql routes: login returns admin session cookie and user envelope', async () => {
   const app = loadConsoleApiAppForMysqlRoutes()
 
-  const login = await requestJson({
-    app,
-    method: 'POST',
-    pathname: '/api/admin/login',
-    body: {
-      username: 'root',
-      password: 'good-password'
-    }
-  })
+  const response = await app.fetch(
+    new Request('http://127.0.0.1/api/admin/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        username: 'root',
+        password: 'good-password'
+      })
+    })
+  )
+  const login = {
+    status: response.status,
+    body: await response.json()
+  }
+  const setCookie = response.headers.get('set-cookie') || ''
 
   assert.equal(login.status, 200)
   assert.equal(login.body.code, 0)
   assert.equal(login.body.data.user.username, 'root')
-  assert.equal(typeof login.body.data.token, 'string')
+  assert.equal(login.body.data.token, undefined)
+  assert.match(setCookie, /console_admin_token=/)
+  assert.match(setCookie, /HttpOnly/)
 
-  const payload = jwt.verify(login.body.data.token, process.env.JWT_SECRET)
+  const token = decodeURIComponent(setCookie.match(/console_admin_token=([^;]+)/)?.[1] || '')
+  const payload = jwt.verify(token, process.env.JWT_SECRET)
   assert.equal(payload.type, 'admin')
   assert.equal(payload.adminId, 'admin-super')
   assert.equal(payload.role, 'super_admin')

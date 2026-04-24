@@ -10,7 +10,7 @@
     "GROUP_RESULT_NOTIFICATION_BATCH_SIZE": "20",
     "WX_MINIPROGRAM_APP_ID": "wx2cc3da65f3b6bd17",
     "WX_MINIPROGRAM_STATE": "formal",
-    "WX_PAY_NOTIFY_URL": "https://lindong-backend.shiqingyun2026.workers.dev/api/payments/notify/wechat"
+    "WX_PAY_NOTIFY_URL": "https://lindong-api-247640-5-1304042243.sh.run.tcloudbase.com/api/payments/notify/wechat"
   },
   "observability": {
     "enabled": true

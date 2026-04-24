@@ -11,6 +11,7 @@ import { BannerListPage } from './pages/BannerListPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { LoginPage } from './pages/LoginPage'
 import { PackageFormPage } from './pages/PackageFormPage'
+import { PackageGroupDetailPage } from './pages/PackageGroupDetailPage'
 import { PackageGroupListPage } from './pages/PackageGroupListPage'
 import { PackageListPage } from './pages/PackageListPage'
 import { PackageOrderListPage } from './pages/PackageOrderListPage'
@@ -49,6 +50,7 @@ export default function App() {
         <Route path="packages/:id" element={<PackageFormPage mode="view" />} />
         <Route path="packages/:id/edit" element={<PackageFormPage mode="edit" />} />
         <Route path="package-groups" element={<PackageGroupListPage />} />
+        <Route path="package-groups/:id" element={<PackageGroupDetailPage />} />
         <Route path="package-orders" element={<PackageOrderListPage />} />
         <Route
           path="accounts"

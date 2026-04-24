@@ -250,7 +250,7 @@ CREATE TABLE IF NOT EXISTS `group_result_subscriptions` (
   group_id CHAR(36) NOT NULL,
   course_id CHAR(36) NOT NULL,
   scene VARCHAR(50) NOT NULL DEFAULT 'group_result',
-  template_key VARCHAR(100) NOT NULL DEFAULT 'groupResult',
+  template_key VARCHAR(100) NOT NULL,
   template_id VARCHAR(255) NOT NULL DEFAULT '',
   decision VARCHAR(20) NOT NULL DEFAULT 'unknown',
   status VARCHAR(20) NOT NULL DEFAULT 'unsubscribed',
@@ -265,8 +265,8 @@ CREATE TABLE IF NOT EXISTS `group_result_subscriptions` (
   KEY idx_group_result_subscriptions_course_id (course_id),
   KEY idx_group_result_subscriptions_status (status),
   CONSTRAINT fk_group_result_subscriptions_user_id FOREIGN KEY (user_id) REFERENCES `users`(id) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT fk_group_result_subscriptions_group_id FOREIGN KEY (group_id) REFERENCES `groups`(id) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT fk_group_result_subscriptions_course_id FOREIGN KEY (course_id) REFERENCES `courses`(id) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT fk_group_result_subscriptions_group_id FOREIGN KEY (group_id) REFERENCES `package_groups`(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_group_result_subscriptions_course_id FOREIGN KEY (course_id) REFERENCES `course_packages`(id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `group_result_notification_jobs` (
@@ -289,8 +289,8 @@ CREATE TABLE IF NOT EXISTS `group_result_notification_jobs` (
   KEY idx_group_result_notification_jobs_status_created_at (status, created_at),
   KEY idx_group_result_notification_jobs_group_id (group_id),
   CONSTRAINT fk_group_result_notification_jobs_user_id FOREIGN KEY (user_id) REFERENCES `users`(id) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT fk_group_result_notification_jobs_group_id FOREIGN KEY (group_id) REFERENCES `groups`(id) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT fk_group_result_notification_jobs_course_id FOREIGN KEY (course_id) REFERENCES `courses`(id) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT fk_group_result_notification_jobs_group_id FOREIGN KEY (group_id) REFERENCES `package_groups`(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_group_result_notification_jobs_course_id FOREIGN KEY (course_id) REFERENCES `course_packages`(id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `admin_log` (

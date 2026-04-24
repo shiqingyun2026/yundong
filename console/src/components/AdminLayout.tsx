@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
+import { api } from '../lib/api'
 import { authStore } from '../lib/auth'
 import type { AdminUser } from '../types'
 
@@ -63,6 +64,7 @@ export function AdminLayout() {
             <button
               className="ghost-button"
               onClick={() => {
+                void api.logout().catch(() => {})
                 authStore.clear()
                 navigate('/login')
               }}

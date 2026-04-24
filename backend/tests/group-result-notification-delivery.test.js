@@ -68,20 +68,25 @@ test('group result notification delivery uses mysql repositories in mock mode', 
       id: 'job-sent',
       user_id: 'user-1',
       template_id: 'tpl-1',
-      page_path: '/pages/group/detail/index?courseId=course-1&groupId=group-1',
+      page_path: '/pages/group/detail/index?packageGroupId=group-1',
       message_snapshot: {
-        title: '拼团成功通知',
-        result_text: '你参与的课程已拼团成功'
+        template_key: 'groupSuccess',
+        group_course: '少儿体适能基础课(4人团)',
+        course_start_time: '2026-04-27 10:00:00',
+        course_address: '浦东新区 XX 运动中心',
+        warm_tips: '拼团已成功，客服稍后将拉您进去课程微信群，请留意后续通知'
       }
     },
     {
       id: 'job-skipped',
       user_id: 'user-2',
       template_id: '',
-      page_path: '/pages/group/detail/index?courseId=course-1&groupId=group-2',
+      page_path: '/pages/group/detail/index?packageGroupId=group-2',
       message_snapshot: {
-        title: '拼团失败通知',
-        result_text: '你参与的课程未拼团成功'
+        template_key: 'groupFail',
+        group_course: '少儿体适能基础课(4人团)',
+        failed_reason: '拼团截止前未达到成团人数',
+        warm_tips: '本次拼团未成功，系统将自动原路退款，请留意微信支付到账通知'
       }
     }
   ]
@@ -123,10 +128,13 @@ test('group result notification delivery uses mysql user repository in wechat mo
       id: 'job-wechat',
       user_id: 'user-1',
       template_id: 'tpl-1',
-      page_path: '/pages/group/detail/index?courseId=course-1&groupId=group-1',
+      page_path: '/pages/group/detail/index?packageGroupId=group-1',
       message_snapshot: {
-        title: '拼团成功通知',
-        result_text: '你参与的课程已拼团成功'
+        template_key: 'groupSuccess',
+        group_course: '少儿体适能基础课(4人团)',
+        course_start_time: '2026-04-27 10:00:00',
+        course_address: '浦东新区 XX 运动中心',
+        warm_tips: '拼团已成功，客服稍后将拉您进去课程微信群，请留意后续通知'
       }
     }
   ]
@@ -167,10 +175,13 @@ test('group result notification delivery marks failures from wechat sender', asy
         id: 'job-failed',
         user_id: 'user-1',
         template_id: 'tpl-1',
-        page_path: '/pages/group/detail/index?courseId=course-1&groupId=group-1',
+        page_path: '/pages/group/detail/index?packageGroupId=group-1',
         message_snapshot: {
-          title: '拼团成功通知',
-          result_text: '你参与的课程已拼团成功'
+          template_key: 'groupSuccess',
+          group_course: '少儿体适能基础课(4人团)',
+          course_start_time: '2026-04-27 10:00:00',
+          course_address: '浦东新区 XX 运动中心',
+          warm_tips: '拼团已成功，客服稍后将拉您进去课程微信群，请留意后续通知'
         }
       }
     ],

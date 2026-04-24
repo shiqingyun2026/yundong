@@ -61,7 +61,7 @@ router.get('/package-groups', authenticate, async (req, res) => {
 router.post('/group-result-subscriptions', authenticate, async (req, res) => {
   const {
     scene = 'group_result',
-    templateKey = 'groupResult',
+    templateKey = '',
     templateId = '',
     groupId = '',
     courseId = '',
@@ -74,6 +74,12 @@ router.post('/group-result-subscriptions', authenticate, async (req, res) => {
   if (!groupId || !courseId) {
     return res.status(400).json({
       message: 'groupId and courseId are required'
+    })
+  }
+
+  if (!['groupSuccess', 'groupFail'].includes(templateKey)) {
+    return res.status(400).json({
+      message: 'templateKey is invalid'
     })
   }
 

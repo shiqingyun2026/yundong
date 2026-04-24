@@ -3,13 +3,28 @@ import { expect, test, type Page } from '@playwright/test'
 const username = process.env.CONSOLE_PROD_USERNAME
 const password = process.env.CONSOLE_PROD_PASSWORD
 const seededPackageKeyword = process.env.CONSOLE_PROD_PACKAGE_KEYWORD || '课包'
+const consoleProdBaseUrl = process.env.CONSOLE_PROD_BASE_URL || 'https://lindong-console.pages.dev'
 
 test.beforeEach(() => {
   test.skip(!username || !password, 'Set CONSOLE_PROD_USERNAME and CONSOLE_PROD_PASSWORD before running console prod smoke.')
 })
 
+function getProdUrl(pathname = '') {
+  return new URL(pathname, consoleProdBaseUrl.endsWith('/') ? consoleProdBaseUrl : `${consoleProdBaseUrl}/`).toString()
+}
+
+async function openProdPage(page: Page, pathname = '') {
+  await page.goto(getProdUrl(pathname))
+
+  const accessConfirmButton = page.getByRole('button', { name: /确定访问/ })
+  if (await accessConfirmButton.isVisible().catch(() => false)) {
+    await expect(accessConfirmButton).toBeEnabled({ timeout: 5000 })
+    await accessConfirmButton.click()
+  }
+}
+
 async function loginAsAdmin(page: Page) {
-  await page.goto('/login')
+  await openProdPage(page)
 
   await expect(page.getByLabel('用户名')).toBeVisible()
   await expect(page.getByLabel('密码')).toBeVisible()
@@ -32,7 +47,7 @@ test('console prod smoke: login and package dashboard render successfully', asyn
 test('console prod smoke: package list renders package columns and status filter', async ({ page }) => {
   await loginAsAdmin(page)
 
-  await page.goto('/packages')
+  await openProdPage(page, 'packages')
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
   await expect(page.getByRole('columnheader', { name: '课包名称' })).toBeVisible()
   await expect(page.getByRole('columnheader', { name: '支持人数' })).toBeVisible()
@@ -51,7 +66,7 @@ test('console prod smoke: package list renders package columns and status filter
 test('console prod smoke: package detail renders package field set', async ({ page }) => {
   await loginAsAdmin(page)
 
-  await page.goto('/packages')
+  await openProdPage(page, 'packages')
   await expect(page.getByText('加载中...')).toHaveCount(0, { timeout: 15000 })
 
   const firstRow = page.locator('tbody tr').first()
@@ -67,15 +82,14 @@ test('console prod smoke: package detail renders package field set', async ({ pa
 test('console prod smoke: package groups orders and logs pages are reachable after login', async ({ page }) => {
   await loginAsAdmin(page)
 
-  await page.goto('/package-groups')
+  await openProdPage(page, 'package-groups')
   await expect(page.getByRole('columnheader', { name: '拼团 ID' })).toBeVisible()
   await expect(page.getByRole('button', { name: '查询' })).toBeVisible()
 
-  await page.goto('/package-orders')
+  await openProdPage(page, 'package-orders')
   await expect(page.getByRole('heading', { name: '订单详情' })).toBeVisible()
 
-  await page.goto('/logs')
+  await openProdPage(page, 'logs')
   await expect(page.getByRole('columnheader', { name: '管理员' })).toBeVisible()
   await expect(page.getByRole('button', { name: '查询' })).toBeVisible()
 })
-

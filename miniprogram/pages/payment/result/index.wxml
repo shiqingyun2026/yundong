@@ -16,8 +16,20 @@
       desc="{{desc}}"
     >
       <view wx:if="{{status === 'success'}}" slot="extend" class="weui-panel weui-ext-card subscribe-card">
-        <view class="subscribe-title">后续安排</view>
-        <view class="subscribe-desc">成团后会自动锁定首课日期，失败则原路退款。你也可以在“我的拼团”中随时查看进度。</view>
+        <view class="subscribe-title">订阅拼团通知</view>
+        <view class="subscribe-desc">开团成功或参团支付成功后，你可以订阅微信通知。后续拼团成功或失败时，会第一时间通知你。</view>
+        <button
+          wx:if="{{subscribeEnabled}}"
+          class="weui-btn weui-ext-button weui-ext-button--medium subscribe-button"
+          loading="{{subscribeSubmitting}}"
+          disabled="{{subscribeSubmitting}}"
+          bindtap="handleSubscribeTap"
+        >
+          <view class="weui-ext-button__inner">{{subscribeSubmitting ? '订阅中...' : '订阅微信通知'}}</view>
+        </button>
+        <view wx:if="{{subscribeStatusText}}" class="subscribe-status {{subscribeStatusTone === 'success' ? 'subscribe-status-success' : 'subscribe-status-muted'}}">
+          {{subscribeStatusText}}
+        </view>
       </view>
       <view slot="handle">
         <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary result-button" bindtap="handlePrimaryAction">

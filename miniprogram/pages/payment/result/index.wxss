@@ -63,6 +63,13 @@
   color: #5f6b7a;
 }
 
+.subscribe-button {
+  width: 100%;
+  margin-top: 20rpx;
+  background: linear-gradient(135deg, #1abcc5 0%, #18aeb7 100%);
+  color: #ffffff;
+}
+
 .subscribe-status {
   margin-top: 16rpx;
   font-size: 24rpx;

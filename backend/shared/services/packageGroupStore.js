@@ -1,6 +1,7 @@
 const { env } = require('../../config/env')
 const { ordersRepository, packageGroupsRepository } = require('../../repositories')
 const { AUTO_REFUND_REASON } = require('../constants/refunds')
+const { enqueueNotificationsForGroups } = require('./groupResultNotifications')
 const { markPaymentRecordRefunded } = require('./paymentShell')
 
 const listPendingOrderIdsForPackage = async ({ userId, packageId }) => {
@@ -98,6 +99,13 @@ const cleanupExpiredPackageGroups = async ({ packageId, packageIds = [], now = n
       })
     })
   )
+
+  await enqueueNotificationsForGroups({
+    supabase: null,
+    groupIds,
+    resultType: 'failed',
+    now
+  })
 
   return {
     groupIds,

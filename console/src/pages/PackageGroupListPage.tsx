@@ -159,6 +159,9 @@ export function PackageGroupListPage() {
                     </td>
                     <td>
                       <div className="button-row">
+                        <Link className="table-link" to={`/package-groups/${item.id}`}>
+                          查看详情
+                        </Link>
                         <Link className="table-link" to={`/packages/${item.package_id}`}>
                           查看课包
                         </Link>

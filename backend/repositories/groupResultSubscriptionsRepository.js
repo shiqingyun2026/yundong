@@ -29,7 +29,7 @@ const normalizeSubscription = row => {
     group_id: row.group_id,
     course_id: row.course_id,
     scene: row.scene || 'group_result',
-    template_key: row.template_key || 'groupResult',
+    template_key: row.template_key || '',
     template_id: row.template_id || '',
     decision: row.decision || 'unknown',
     status: row.status || 'unsubscribed',
@@ -41,7 +41,7 @@ const normalizeSubscription = row => {
   }
 }
 
-const listSubscriptionsByGroupAndUsers = async ({ groupId, userIds = [], status } = {}) => {
+const listSubscriptionsByGroupAndUsers = async ({ groupId, userIds = [], status, templateKey } = {}) => {
   const { items, placeholders } = buildInClause(userIds)
   if (!groupId || !items.length) {
     return []
@@ -53,6 +53,11 @@ const listSubscriptionsByGroupAndUsers = async ({ groupId, userIds = [], status 
   if (status) {
     conditions.push('status = ?')
     params.push(status)
+  }
+
+  if (templateKey) {
+    conditions.push('template_key = ?')
+    params.push(templateKey)
   }
 
   const rows = await query(
@@ -86,7 +91,7 @@ const upsertSubscription = async ({
   group_id,
   course_id,
   scene = 'group_result',
-  template_key = 'groupResult',
+  template_key,
   template_id = '',
   decision = 'unknown',
   status = 'unsubscribed',

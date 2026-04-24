@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { PageBackButton } from '../components/PageBackButton'
 import { api, uploadImage } from '../lib/api'
+import { sanitizeRichHtml } from '../lib/html'
 import type { CourseDetail, CourseGroupRecord, CourseLocationSuggestion } from '../types'
 import { CourseGroupRecordsSection } from './CourseGroupRecordsSection'
 import {
@@ -728,7 +729,9 @@ export function CourseFormPage({ mode }: { mode: CoursePageMode }) {
             <p className="section-kicker">Description Preview</p>
             <div
               className="rich-preview"
-              dangerouslySetInnerHTML={{ __html: form.description || '<p class="muted-text">暂无内容</p>' }}
+              dangerouslySetInnerHTML={{
+                __html: sanitizeRichHtml(form.description || '<p class="muted-text">暂无内容</p>')
+              }}
             />
           </div>
 

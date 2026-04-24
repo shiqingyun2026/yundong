@@ -42,6 +42,8 @@ const env = {
   nodeEnv: pickFirst(process.env.NODE_ENV, 'development'),
   port: toInt(process.env.PORT, 8000),
   jwtSecret: getOptionalEnv('JWT_SECRET'),
+  appOrigin: getOptionalEnv('APP_ORIGIN'),
+  consoleOrigin: getOptionalEnv('CONSOLE_ORIGIN'),
   useMySqlRepositories: toBool(process.env.USE_MYSQL_REPOSITORIES),
   trustCloudBaseMiniProgramIdentity: toBool(process.env.TRUST_CLOUDBASE_MINIPROGRAM_IDENTITY),
   enableMiniProgramIdentityLogs: toBool(process.env.ENABLE_MINIPROGRAM_IDENTITY_LOGS),
@@ -64,6 +66,8 @@ const env = {
   }
 }
 
+const isProductionLike = () => ['production', 'staging'].includes(env.nodeEnv)
+
 const requireMySqlEnv = () => {
   const requiredKeys = ['host', 'user', 'database']
 
@@ -80,6 +84,7 @@ module.exports = {
   env,
   getOptionalEnv,
   getRequiredEnv,
+  isProductionLike,
   pickFirst,
   requireMySqlEnv,
   toBool,

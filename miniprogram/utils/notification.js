@@ -1,27 +1,54 @@
 const { post } = require('./request')
 
 const SUBSCRIPTION_SCENE_GROUP_RESULT = 'group_result'
+const TEMPLATE_KEY_GROUP_SUCCESS = 'groupSuccess'
+const TEMPLATE_KEY_GROUP_FAIL = 'groupFail'
 
-const resolveGroupResultTemplateId = () => {
+const resolveGroupResultTemplateIds = () => {
   try {
     const app = getApp()
     const subscribeTemplateIds = (app && app.globalData && app.globalData.subscribeTemplateIds) || {}
-    return subscribeTemplateIds.groupResult || ''
+    return {
+      groupSuccess: subscribeTemplateIds.groupSuccess || '',
+      groupFail: subscribeTemplateIds.groupFail || ''
+    }
   } catch (error) {
-    return ''
+    return {
+      groupSuccess: '',
+      groupFail: ''
+    }
   }
 }
 
+const buildSubscriptions = ({ templateIds = {}, result = null, fallbackDecision = 'unknown' }) => ({
+  [TEMPLATE_KEY_GROUP_SUCCESS]: {
+    templateId: templateIds.groupSuccess || '',
+    decision:
+      templateIds.groupSuccess && result && result[templateIds.groupSuccess]
+        ? result[templateIds.groupSuccess]
+        : fallbackDecision
+  },
+  [TEMPLATE_KEY_GROUP_FAIL]: {
+    templateId: templateIds.groupFail || '',
+    decision:
+      templateIds.groupFail && result && result[templateIds.groupFail]
+        ? result[templateIds.groupFail]
+        : fallbackDecision
+  }
+})
+
 const requestGroupResultSubscription = ({ groupId, courseId }) =>
   new Promise(resolve => {
-    const templateId = resolveGroupResultTemplateId()
+    const templateIds = resolveGroupResultTemplateIds()
+    const tmplIds = [templateIds.groupSuccess, templateIds.groupFail].filter(Boolean)
 
-    if (!templateId) {
+    if (!tmplIds.length) {
       resolve({
         ok: false,
         skipped: true,
         reason: 'template_not_configured',
-        templateId: ''
+        templateIds,
+        subscriptions: buildSubscriptions({ templateIds })
       })
       return
     }
@@ -31,21 +58,30 @@ const requestGroupResultSubscription = ({ groupId, courseId }) =>
         ok: false,
         skipped: true,
         reason: 'api_not_supported',
-        templateId
+        templateIds,
+        subscriptions: buildSubscriptions({ templateIds })
       })
       return
     }
 
     wx.requestSubscribeMessage({
-      tmplIds: [templateId],
+      tmplIds,
       success(result) {
-        const decision = result && result[templateId] ? result[templateId] : 'unknown'
+        const subscriptions = buildSubscriptions({
+          templateIds,
+          result
+        })
+        const acceptedKeys = Object.keys(subscriptions).filter(
+          key => subscriptions[key].templateId && subscriptions[key].decision === 'accept'
+        )
+
         resolve({
-          ok: decision === 'accept',
+          ok: acceptedKeys.length > 0,
           skipped: false,
           reason: '',
-          templateId,
-          decision,
+          templateIds,
+          subscriptions,
+          acceptedKeys,
           rawResult: result || null,
           groupId: groupId || '',
           courseId: courseId || ''
@@ -56,8 +92,12 @@ const requestGroupResultSubscription = ({ groupId, courseId }) =>
           ok: false,
           skipped: false,
           reason: 'request_failed',
-          templateId,
-          decision: 'error',
+          templateIds,
+          subscriptions: buildSubscriptions({
+            templateIds,
+            fallbackDecision: 'error'
+          }),
+          acceptedKeys: [],
           rawResult: error || null,
           groupId: groupId || '',
           courseId: courseId || ''
@@ -66,17 +106,27 @@ const requestGroupResultSubscription = ({ groupId, courseId }) =>
     })
   })
 
-const reportGroupResultSubscription = payload =>
+const reportSingleGroupResultSubscription = ({
+  payload,
+  templateKey,
+  templateId,
+  decision
+}) =>
   post(
     '/api/user/group-result-subscriptions',
     {
       scene: SUBSCRIPTION_SCENE_GROUP_RESULT,
-      templateKey: 'groupResult',
-      templateId: payload && payload.templateId ? payload.templateId : '',
+      templateKey,
+      templateId: templateId || '',
       groupId: payload && payload.groupId ? payload.groupId : '',
       courseId: payload && payload.courseId ? payload.courseId : '',
-      decision: payload && payload.decision ? payload.decision : 'unknown',
-      status: payload && payload.ok ? 'subscribed' : payload && payload.skipped ? 'skipped' : 'unsubscribed',
+      decision: decision || 'unknown',
+      status:
+        decision === 'accept'
+          ? 'subscribed'
+          : payload && payload.skipped
+            ? 'skipped'
+            : 'unsubscribed',
       reason: payload && payload.reason ? payload.reason : '',
       rawResult: payload && payload.rawResult ? payload.rawResult : null
     },
@@ -85,9 +135,44 @@ const reportGroupResultSubscription = payload =>
     }
   )
 
+const reportGroupResultSubscription = payload => {
+  const subscriptions = (payload && payload.subscriptions) || {}
+  const tasks = []
+
+  const successSubscription = subscriptions[TEMPLATE_KEY_GROUP_SUCCESS]
+  if (successSubscription && successSubscription.templateId) {
+    tasks.push(
+      reportSingleGroupResultSubscription({
+        payload,
+        templateKey: TEMPLATE_KEY_GROUP_SUCCESS,
+        templateId: successSubscription.templateId,
+        decision: successSubscription.decision
+      })
+    )
+  }
+
+  const failSubscription = subscriptions[TEMPLATE_KEY_GROUP_FAIL]
+  if (failSubscription && failSubscription.templateId) {
+    tasks.push(
+      reportSingleGroupResultSubscription({
+        payload,
+        templateKey: TEMPLATE_KEY_GROUP_FAIL,
+        templateId: failSubscription.templateId,
+        decision: failSubscription.decision
+      })
+    )
+  }
+
+  if (!tasks.length) {
+    return Promise.resolve()
+  }
+
+  return Promise.allSettled(tasks)
+}
+
 module.exports = {
   requestGroupResultSubscription,
   reportGroupResultSubscription,
-  resolveGroupResultTemplateId,
+  resolveGroupResultTemplateIds,
   SUBSCRIPTION_SCENE_GROUP_RESULT
 }

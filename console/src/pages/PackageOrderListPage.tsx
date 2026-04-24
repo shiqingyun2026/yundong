@@ -133,7 +133,7 @@ export function PackageOrderListPage() {
           <label className="filter-field">
             <span>关键词</span>
             <input
-              placeholder="订单号 / 昵称 / 课包名 / 拼团ID"
+              placeholder="订单号 / 用户昵称 / 孩子昵称 / 家长手机号 / 课包名 / 拼团ID"
               value={keyword}
               onChange={event => setKeyword(event.target.value)}
             />
@@ -198,7 +198,8 @@ export function PackageOrderListPage() {
                         {item.avatar_url ? <img className="table-avatar" src={item.avatar_url} alt={item.nickname} /> : null}
                         <div>
                           <strong>{item.nickname || '-'}</strong>
-                          <p className="table-subtext">{item.phone || '未同步手机号'}</p>
+                          <p className="table-subtext">孩子：{item.child_nickname || '未补录'}</p>
+                          <p className="table-subtext">{item.phone || '未补录手机号'}</p>
                         </div>
                       </div>
                     </td>
@@ -296,6 +297,9 @@ export function PackageOrderListPage() {
                 <strong>用户与课包</strong>
                 <p>用户昵称：{selectedOrder.nickname || '-'}</p>
                 <p>用户 ID：{selectedOrder.user_id || '-'}</p>
+                <p>孩子昵称：{selectedOrder.child_nickname || '-'}</p>
+                <p>孩子年龄：{selectedOrder.child_age ?? '-'}</p>
+                <p>家长手机号：{selectedOrder.phone || '未补录'}</p>
                 <p>课包名称：{selectedOrder.package_name || '-'}</p>
                 <p>课包 ID：{selectedOrder.package_id || '-'}</p>
                 <p>动作：{getActionText(selectedOrder.action)}</p>
@@ -317,6 +321,11 @@ export function PackageOrderListPage() {
               <Link className="secondary-button" to={`/package-groups?package_id=${selectedOrder.package_id}`}>
                 查看该课包拼团
               </Link>
+              {selectedOrder.package_group_id ? (
+                <Link className="secondary-button" to={`/package-groups/${selectedOrder.package_group_id}`}>
+                  查看拼团详情
+                </Link>
+              ) : null}
             </div>
 
             {selectedOrder.status === 'success' ? (

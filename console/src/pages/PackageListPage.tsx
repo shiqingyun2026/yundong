@@ -170,6 +170,9 @@ export function PackageListPage() {
                         <Link className="table-link" to={`/packages/${item.id}/edit`}>
                           编辑
                         </Link>
+                        <Link className="table-link" to={`/packages/new?copyFrom=${item.id}`}>
+                          复制
+                        </Link>
                         <Link className="table-link" to={`/package-groups?package_id=${item.id}`}>
                           查看拼团
                         </Link>

@@ -20,6 +20,8 @@ const clearModules = relativePaths => {
   })
 }
 
+const validPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9WQAAAAASUVORK5CYII='
+
 test('upload service uses supabase provider for proxy upload when explicitly configured', async () => {
   const targets = [
     'console-api/services/uploadService.js',
@@ -76,7 +78,7 @@ test('upload service uses supabase provider for proxy upload when explicitly con
     filename: 'cover.png',
     contentType: 'image/png',
     folder: 'course-cover',
-    fileBase64: 'data:image/png;base64,ZmFrZS1pbWFnZQ=='
+    fileBase64: `data:image/png;base64,${validPngBase64}`
   })
 
   assert.equal(uploadedImage.provider, 'supabase')
@@ -140,7 +142,7 @@ test('upload service uses cos provider for signed and proxy upload', async () =>
       filename: 'cover.png',
       contentType: 'image/png',
       folder: 'course-cover',
-      fileBase64: 'data:image/png;base64,ZmFrZS1pbWFnZQ=='
+      fileBase64: `data:image/png;base64,${validPngBase64}`
     })
 
     assert.equal(uploadedImage.provider, 'cos')
@@ -152,4 +154,100 @@ test('upload service uses cos provider for signed and proxy upload', async () =>
   } finally {
     global.fetch = originalFetch
   }
+})
+
+test('upload service rejects non-image content types for signed upload', async () => {
+  const targets = [
+    'console-api/services/uploadService.js',
+    'console-api/services/storage/supabaseProvider.js',
+    'console-api/services/storage/cosProvider.js',
+    'console-api/services/_errors.js',
+    'utils/supabase.js'
+  ]
+  clearModules(targets)
+
+  process.env.STORAGE_PROVIDER = 'supabase'
+  process.env.SUPABASE_STORAGE_BUCKET = 'course-images'
+  process.env.SUPABASE_URL = 'https://example.supabase.co'
+
+  mockModule('utils/supabase.js', {
+    storage: {
+      from() {
+        return {
+          createSignedUploadUrl: async () => ({
+            data: {
+              token: 'signed-token',
+              signedUrl: '/object/upload/sign/file.txt'
+            },
+            error: null
+          })
+        }
+      }
+    }
+  })
+
+  const { createUploadSignature } = require(path.join(backendRoot, 'console-api/services/uploadService.js'))
+
+  await assert.rejects(
+    () =>
+      createUploadSignature({
+        filename: 'notes.txt',
+        contentType: 'text/plain',
+        folder: 'course-cover'
+      }),
+    error => {
+      assert.equal(error.responseCode, 5000)
+      assert.equal(error.statusCode, 400)
+      assert.equal(error.message, '仅支持上传图片文件')
+      return true
+    }
+  )
+})
+
+test('upload service rejects mismatched file signatures', async () => {
+  const targets = [
+    'console-api/services/uploadService.js',
+    'console-api/services/storage/supabaseProvider.js',
+    'console-api/services/storage/cosProvider.js',
+    'console-api/services/_errors.js',
+    'utils/supabase.js'
+  ]
+  clearModules(targets)
+
+  process.env.STORAGE_PROVIDER = 'supabase'
+  process.env.SUPABASE_STORAGE_BUCKET = 'course-images'
+  process.env.SUPABASE_URL = 'https://example.supabase.co'
+
+  mockModule('utils/supabase.js', {
+    storage: {
+      from() {
+        return {
+          upload: async () => ({ error: null }),
+          getPublicUrl: objectPath => ({
+            data: {
+              publicUrl: `https://example.supabase.co/storage/v1/object/public/course-images/${objectPath}`
+            }
+          })
+        }
+      }
+    }
+  })
+
+  const { uploadImageByProxy } = require(path.join(backendRoot, 'console-api/services/uploadService.js'))
+
+  await assert.rejects(
+    () =>
+      uploadImageByProxy({
+        filename: 'cover.png',
+        contentType: 'image/png',
+        folder: 'course-cover',
+        fileBase64: Buffer.from('not-a-real-png').toString('base64')
+      }),
+    error => {
+      assert.equal(error.responseCode, 5000)
+      assert.equal(error.statusCode, 400)
+      assert.equal(error.message, '图片文件内容与声明格式不匹配')
+      return true
+    }
+  )
 })

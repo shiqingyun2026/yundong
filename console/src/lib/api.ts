@@ -14,12 +14,11 @@ type ApiEnvelope<T> = {
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const token = authStore.getToken()
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: options.method || 'GET',
+    credentials: 'include',
     headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
+      'Content-Type': 'application/json'
     },
     body: options.body ? JSON.stringify(options.body) : undefined
   })
@@ -43,11 +42,17 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return payload.data
 }
 
+type SessionResponse = {
+  user: import('../types').AdminUser
+}
+
 export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body }),
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body }),
-  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' })
+  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  getSession: () => request<SessionResponse>('/login/session'),
+  logout: () => request<{}>('/login/logout', { method: 'POST' })
 }
 
 type UploadFolder = 'course-cover' | 'course-gallery' | 'course-detail' | 'coach-cert'

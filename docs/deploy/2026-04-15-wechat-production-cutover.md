@@ -34,7 +34,7 @@
 - `GROUP_RESULT_NOTIFICATION_BATCH_SIZE=20`
 - `WX_MINIPROGRAM_APP_ID=wxf18a9c72d851ef7a`
 - `WX_MINIPROGRAM_STATE=formal`
-- `WX_PAY_NOTIFY_URL=https://lindong-backend.shiqingyun2026.workers.dev/api/payments/notify/wechat`
+- `WX_PAY_NOTIFY_URL=https://lindong-api-247640-5-1304042243.sh.run.tcloudbase.com/api/payments/notify/wechat`
 
 ### 1.4 本地 / 云托管环境变量模板
 
@@ -134,22 +134,23 @@
 - `WX_PAY_PRIVATE_KEY`
 - `WX_PAY_PLATFORM_CERT`
 - `WX_PAY_API_V3_KEY`
-- `WX_PAY_NOTIFY_URL=https://lindong-backend.shiqingyun2026.workers.dev/api/payments/notify/wechat`
+- `WX_PAY_NOTIFY_URL=https://lindong-api-247640-5-1304042243.sh.run.tcloudbase.com/api/payments/notify/wechat`
 - `WX_GROUP_RESULT_TEMPLATE_FIELD_MAP`
 
 说明：
 
-- 支付回调地址当前统一收口到 Cloudflare Worker 公网域名
-- 小程序前台主链路继续走微信云托管，不与支付回调公网入口冲突
+- 当前联调阶段支付回调地址切到 CloudBase 云托管公网默认域名
+- 小程序前台主链路与支付回调统一收口到 `lindong-api`
+- 注意：截图中的 CloudBase 默认域名页面提示“仅限开发测试使用”，因此该域名适合当前联调和体验版验证；正式生产建议后续切换到 CloudBase 自定义域名后，再更新商户平台回调地址
 
 ## 4. 上线前最后核对
 
 1. 微信公众平台确认正式 AppID 为 `wxf18a9c72d851ef7a`
 2. 微信公众平台订阅消息模板已创建，模板 ID 已填入 [miniprogram/config/env.js](/Users/yun/lindong/miniprogram/config/env.js)
 3. 微信支付商户平台已配置回调地址：
-   - `https://lindong-backend.shiqingyun2026.workers.dev/api/payments/notify/wechat`
-4. Cloudflare Worker Secrets 已补齐
-5. 微信云托管 `lindong-api` 环境变量已补齐
+   - `https://lindong-api-247640-5-1304042243.sh.run.tcloudbase.com/api/payments/notify/wechat`
+4. 微信云托管 `lindong-api` 环境变量已补齐
+5. 如仍保留 Worker 备用链路，确保其配置不会覆盖当前商户平台回调地址
 6. 微信开发者工具清缓存后重新上传 `trial` / `release`
 7. 真机验证：
    - 微信登录

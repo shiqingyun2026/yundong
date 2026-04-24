@@ -120,6 +120,10 @@ const loadConsoleAppWithMockedPackageService = () => {
       calls.push(['listAdminPackageGroups', payload])
       return { total: 1, page: 1, size: 10, list: [{ id: 'pg-1' }] }
     },
+    getAdminPackageGroupDetail: async payload => {
+      calls.push(['getAdminPackageGroupDetail', payload])
+      return { id: payload.packageGroupId, package_name: '课包拼团详情' }
+    },
     listAdminPackageOrders: async payload => {
       calls.push(['listAdminPackageOrders', payload])
       return { total: 1, page: 1, size: 10, list: [{ id: 'ord-1' }] }
@@ -222,6 +226,11 @@ const createPackageRepositoryState = () => ({
       package_id: 'pkg-1',
       package_group_id: 'pg-active',
       package_action: 'start',
+      package_context: {
+        child_nickname: '小满',
+        child_age: 6,
+        parent_mobile: '13800138000'
+      },
       amount: 500,
       status: 'success',
       created_at: '2026-04-18T10:01:00.000Z',
@@ -239,6 +248,11 @@ const createPackageRepositoryState = () => ({
       package_id: 'pkg-1',
       package_group_id: 'pg-active',
       package_action: 'join',
+      package_context: {
+        child_nickname: '乐乐',
+        child_age: 5,
+        parent_mobile: '13800138001'
+      },
       amount: 500,
       status: 'pending',
       created_at: '2026-04-18T10:03:00.000Z',
@@ -252,6 +266,11 @@ const createPackageRepositoryState = () => ({
       package_id: 'pkg-1',
       package_group_id: 'pg-success',
       package_action: 'join',
+      package_context: {
+        child_nickname: '米米',
+        child_age: 7,
+        parent_mobile: '13800138002'
+      },
       amount: 500,
       status: 'success',
       created_at: '2026-04-18T11:00:00.000Z',
@@ -266,6 +285,11 @@ const createPackageRepositoryState = () => ({
       package_id: 'pkg-1',
       package_group_id: 'pg-expired',
       package_action: 'start',
+      package_context: {
+        child_nickname: '星星',
+        child_age: 8,
+        parent_mobile: '13800138003'
+      },
       amount: 250,
       status: 'success',
       created_at: '2026-04-16T10:01:00.000Z',
@@ -280,6 +304,11 @@ const createPackageRepositoryState = () => ({
       package_id: 'pkg-1',
       package_group_id: 'pg-expired',
       package_action: 'join',
+      package_context: {
+        child_nickname: '安安',
+        child_age: 6,
+        parent_mobile: '13800138004'
+      },
       amount: 250,
       status: 'success',
       created_at: '2026-04-16T10:03:00.000Z',
@@ -332,6 +361,7 @@ const loadPackageServicesWithState = () => {
     'repositories/index.js',
     'utils/adminStore.js',
     'shared/services/paymentShell.js',
+    'shared/services/groupResultNotifications.js',
     'shared/services/packageGroupStore.js',
     'shared/services/packageReaders.js',
     'shared/services/packageOrders.js',
@@ -370,6 +400,16 @@ const loadPackageServicesWithState = () => {
     writeAdminLog: async payload => {
       state.adminLogWrites.push(payload)
       return payload
+    }
+  })
+
+  mockModule('shared/services/groupResultNotifications.js', {
+    enqueueNotificationsForGroups: async payload => {
+      if (!state.notificationEnqueueCalls) {
+        state.notificationEnqueueCalls = []
+      }
+      state.notificationEnqueueCalls.push(payload)
+      return []
     }
   })
 
@@ -604,6 +644,11 @@ test('admin package routes are mounted behind admin authentication', async () =>
     pathname: '/api/admin/package-groups?status=active',
     headers
   })
+  const groupDetail = await requestJson({
+    app,
+    pathname: '/api/admin/package-groups/pg-1',
+    headers
+  })
   const listOrders = await requestJson({
     app,
     pathname: '/api/admin/package-orders?status=success',
@@ -630,6 +675,7 @@ test('admin package routes are mounted behind admin authentication', async () =>
   assert.equal(createPackage.body.data.package_category, '跳绳')
   assert.equal(updatePackage.body.data.name, '编辑课包')
   assert.equal(listGroups.body.data.list[0].id, 'pg-1')
+  assert.equal(groupDetail.body.data.id, 'pg-1')
   assert.equal(listOrders.body.data.list[0].id, 'ord-1')
   assert.equal(refund.body.data.status, 'refunded')
   assert.deepEqual(
@@ -645,10 +691,113 @@ test('admin package routes are mounted behind admin authentication', async () =>
       'createAdminPackage',
       'updateAdminPackage',
       'listAdminPackageGroups',
+      'getAdminPackageGroupDetail',
       'listAdminPackageOrders',
       'refundAdminPackageOrder'
     ]
   )
+})
+
+test('admin package group detail returns leader, members, orders, and anomalies', async () => {
+  const { packageAdminService } = loadPackageServicesWithState()
+
+  const result = await packageAdminService.getAdminPackageGroupDetail({
+    packageGroupId: 'pg-active',
+    now: new Date('2026-04-19T08:00:00.000Z')
+  })
+
+  assert.equal(result.id, 'pg-active')
+  assert.equal(result.package_name, '周末体适能5次课包')
+  assert.equal(result.leader.child_nickname, '小满')
+  assert.equal(result.leader.child_age, 6)
+  assert.equal(result.leader.parent_mobile, '13800138000')
+  assert.equal(result.members.length, 2)
+  assert.equal(result.members[1].child_nickname, '乐乐')
+  assert.equal(result.orders.length, 2)
+  assert.equal(result.orders[0].phone, '13800138000')
+  assert.equal(result.summary.paid_order_count, 1)
+  assert.equal(result.summary.pending_order_count, 1)
+  assert.deepEqual(result.anomalies, [])
+})
+
+test('admin package order list exposes child profile and parent mobile from package context', async () => {
+  const { packageAdminService } = loadPackageServicesWithState()
+
+  const result = await packageAdminService.listAdminPackageOrders({
+    query: {
+      package_id: 'pkg-1'
+    }
+  })
+
+  assert.equal(result.list.length > 0, true)
+  assert.equal(result.list[0].child_nickname.length > 0, true)
+  assert.equal(typeof result.list[0].child_age, 'number')
+  assert.equal(result.list[0].phone.startsWith('138'), true)
+})
+
+test('admin package detail and order list tolerate legacy or missing package context fields', async () => {
+  const { packageAdminService, state } = loadPackageServicesWithState()
+
+  state.orders.push(
+    {
+      id: 'ord-legacy-phone',
+      order_no: 'LD-LEGACY-PHONE',
+      user_id: 'user-1',
+      order_type: 2,
+      package_id: 'pkg-1',
+      package_group_id: 'pg-active',
+      package_action: 'join',
+      package_context: {
+        child_nickname: '旧口径',
+        child_age: 4,
+        parent_phone: '13900139000'
+      },
+      amount: 500,
+      status: 'refunded',
+      created_at: '2026-04-18T10:05:00.000Z',
+      updated_at: '2026-04-18T10:06:00.000Z',
+      refund_time: '2026-04-18T11:00:00.000Z',
+      refund_reason: '系统自动退款'
+    },
+    {
+      id: 'ord-missing-context',
+      order_no: 'LD-MISSING-CONTEXT',
+      user_id: 'user-2',
+      order_type: 2,
+      package_id: 'pkg-1',
+      package_group_id: 'pg-active',
+      package_action: 'join',
+      package_context: null,
+      amount: 500,
+      status: 'closed',
+      created_at: '2026-04-18T10:07:00.000Z',
+      updated_at: '2026-04-18T10:08:00.000Z'
+    }
+  )
+
+  const detail = await packageAdminService.getAdminPackageGroupDetail({
+    packageGroupId: 'pg-active',
+    now: new Date('2026-04-19T08:00:00.000Z')
+  })
+  const orders = await packageAdminService.listAdminPackageOrders({
+    query: {
+      package_id: 'pkg-1'
+    }
+  })
+
+  const legacyDetailOrder = detail.orders.find(item => item.order_no === 'LD-LEGACY-PHONE')
+  const missingDetailOrder = detail.orders.find(item => item.order_no === 'LD-MISSING-CONTEXT')
+  const legacyListOrder = orders.list.find(item => item.order_no === 'LD-LEGACY-PHONE')
+  const missingListOrder = orders.list.find(item => item.order_no === 'LD-MISSING-CONTEXT')
+
+  assert.equal(legacyDetailOrder.phone, '13900139000')
+  assert.equal(legacyListOrder.phone, '13900139000')
+  assert.equal(missingDetailOrder.child_nickname, '')
+  assert.equal(missingDetailOrder.child_age, null)
+  assert.equal(missingDetailOrder.phone, '')
+  assert.equal(missingListOrder.child_nickname, '')
+  assert.equal(missingListOrder.child_age, null)
+  assert.equal(missingListOrder.phone, '')
 })
 
 test('admin package order refund updates order, group, pending orders, and payment record', async () => {
@@ -869,6 +1018,7 @@ test('admin package offline updates package to inactive', async () => {
 
 test('expired package group cleanup refunds success orders and payment records', async () => {
   const { packageGroupStore, state } = loadPackageServicesWithState()
+  state.notificationEnqueueCalls = []
 
   const result = await packageGroupStore.cleanupExpiredPackageGroups({
     packageId: 'pkg-1',
@@ -885,4 +1035,12 @@ test('expired package group cleanup refunds success orders and payment records',
   assert.ok(refundedOrders.every(item => item.status === 'refunded'))
   assert.ok(refundedPayments.every(item => item.status === 'refunded'))
   assert.ok(refundedPayments.every(item => item.callback_status === 'REFUNDED'))
+  assert.deepEqual(state.notificationEnqueueCalls, [
+    {
+      supabase: null,
+      groupIds: ['pg-expired'],
+      resultType: 'failed',
+      now: new Date('2026-04-19T08:00:00.000Z')
+    }
+  ])
 })

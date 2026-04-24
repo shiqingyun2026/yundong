@@ -1,0 +1,689 @@
+const { env } = require('../../config/env')
+const { ordersRepository, paymentRecordsRepository, usersRepository } = require('../../repositories')
+const { markOrderPaymentSuccess } = require('./groupOrders')
+const {
+  createMiniProgramPayment,
+  buildMiniProgramPaymentParams,
+  decryptWechatPayResource
+} = require('./wechatMiniProgram')
+
+const PAYMENT_MODE_MOCK = 'mock'
+const PAYMENT_MODE_WECHAT = 'wechat'
+
+const createServiceError = (status, message) => {
+  const error = new Error(message)
+  error.status = status
+  return error
+}
+
+const resolvePaymentMode = () => {
+  const mode = `${process.env.PAYMENT_PROVIDER_MODE || PAYMENT_MODE_MOCK}`.trim().toLowerCase()
+  return mode === PAYMENT_MODE_WECHAT ? PAYMENT_MODE_WECHAT : PAYMENT_MODE_MOCK
+}
+
+const buildOutTradeNo = order => {
+  const base = (order && (order.order_no || order.id) ? `${order.order_no || order.id}` : '').replace(/[^a-zA-Z0-9_-]/g, '')
+  return base || `order_${Date.now()}`
+}
+
+const getOrderForUser = async ({ supabase, userId, orderId }) => {
+  if (env.useMySqlRepositories) {
+    return ordersRepository.findOrderForUser({
+      userId,
+      orderId
+    })
+  }
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('id, order_no, user_id, course_id, group_id, amount, status, created_at, pay_time, refund_time, refund_reason')
+    .eq('id', orderId)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+const getOrderById = async ({ supabase, orderId }) => {
+  if (env.useMySqlRepositories) {
+    return ordersRepository.findOrderById(orderId)
+  }
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('id, order_no, user_id, course_id, group_id, amount, status, created_at, pay_time, refund_time, refund_reason')
+    .eq('id', orderId)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+const getUserById = async ({ supabase, userId }) => {
+  if (env.useMySqlRepositories) {
+    return usersRepository.findUserById(userId)
+  }
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, openid, nickname')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+const getPaymentRecordByOrderId = async ({ supabase, orderId }) => {
+  if (env.useMySqlRepositories) {
+    return paymentRecordsRepository.findPaymentRecordByOrderId(orderId)
+  }
+
+  const { data, error } = await supabase
+    .from('payment_records')
+    .select('*')
+    .eq('order_id', orderId)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+const getPaymentRecordByOutTradeNo = async ({ supabase, outTradeNo }) => {
+  if (env.useMySqlRepositories) {
+    return paymentRecordsRepository.findPaymentRecordByOutTradeNo(outTradeNo)
+  }
+
+  const { data, error } = await supabase
+    .from('payment_records')
+    .select('*')
+    .eq('out_trade_no', outTradeNo)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+const upsertPaymentRecord = async ({ supabase, order, paymentMode, payload, now = new Date() }) => {
+  const timestamp = now.toISOString()
+  const outTradeNo = buildOutTradeNo(order)
+  const nextPayload = {
+    order_id: order.id,
+    user_id: order.user_id,
+    course_id: order.course_id,
+    group_id: order.group_id,
+    package_id: order.package_id,
+    package_group_id: order.package_group_id,
+    provider: 'wechat',
+    channel: 'mini_program',
+    payment_mode: paymentMode,
+    out_trade_no: outTradeNo,
+    amount: Number(order.amount) || 0,
+    status: order.status === 'success' ? 'paid' : 'pending',
+    prepare_payload: payload || null,
+    updated_at: timestamp
+  }
+
+  const existingRecord = await getPaymentRecordByOrderId({
+    supabase,
+    orderId: order.id
+  })
+
+  if (existingRecord) {
+    if (env.useMySqlRepositories) {
+      return paymentRecordsRepository.updatePaymentRecord(existingRecord.id, nextPayload)
+    }
+
+    const { data, error } = await supabase
+      .from('payment_records')
+      .update(nextPayload)
+      .eq('id', existingRecord.id)
+      .select('*')
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    return data
+  }
+
+  if (env.useMySqlRepositories) {
+    return paymentRecordsRepository.createPaymentRecord({
+      ...nextPayload,
+      created_at: timestamp
+    })
+  }
+
+  const { data, error } = await supabase
+    .from('payment_records')
+    .insert({
+      ...nextPayload,
+      created_at: timestamp
+    })
+    .select('*')
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+const updatePaymentRecordPreparePayload = async ({ supabase, paymentRecordId, preparePayload, now = new Date() }) => {
+  if (env.useMySqlRepositories) {
+    return paymentRecordsRepository.updatePaymentRecord(paymentRecordId, {
+      prepare_payload: preparePayload || null,
+      updated_at: now
+    })
+  }
+
+  const { data, error } = await supabase
+    .from('payment_records')
+    .update({
+      prepare_payload: preparePayload || null,
+      updated_at: now.toISOString()
+    })
+    .eq('id', paymentRecordId)
+    .select('*')
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+const ensureOrderPayable = order => {
+  if (!order) {
+    throw createServiceError(404, 'order not found')
+  }
+
+  if (order.status === 'refunded') {
+    throw createServiceError(400, 'order is refunded')
+  }
+
+  if (order.status === 'closed') {
+    throw createServiceError(400, 'order is closed')
+  }
+}
+
+const buildPaymentDescription = ({ order, user }) => {
+  const parts = ['邻动体适能课程报名']
+
+  if (user && user.nickname) {
+    parts.push(user.nickname)
+  }
+
+  if (order && order.order_no) {
+    parts.push(order.order_no)
+  }
+
+  return parts.join('-').slice(0, 127)
+}
+
+const prepareWechatPayment = async ({ supabase, order, now = new Date() }) => {
+  const user = await getUserById({
+    supabase,
+    userId: order.user_id
+  })
+
+  if (!user || !user.openid) {
+    throw createServiceError(400, 'user openid is required for wechat payment')
+  }
+
+  const paymentRecord = await upsertPaymentRecord({
+    supabase,
+    order,
+    paymentMode: PAYMENT_MODE_WECHAT,
+    payload: {
+      orderId: order.id,
+      courseId: order.course_id,
+      groupId: order.group_id,
+      packageId: order.package_id,
+      packageGroupId: order.package_group_id
+    },
+    now
+  })
+
+  const attach = JSON.stringify({
+    orderId: order.id,
+    groupId: order.group_id || '',
+    courseId: order.course_id
+  })
+  const createResult = await createMiniProgramPayment({
+    openId: user.openid,
+    description: buildPaymentDescription({ order, user }),
+    outTradeNo: paymentRecord.out_trade_no,
+    amountFen: Number(order.amount) || 0,
+    attach
+  })
+
+  if (!createResult || !createResult.prepay_id) {
+    throw new Error('wechat pay prepay_id missing')
+  }
+
+  const paymentParams = buildMiniProgramPaymentParams(createResult.prepay_id)
+
+  await updatePaymentRecordPreparePayload({
+    supabase,
+    paymentRecordId: paymentRecord.id,
+    preparePayload: {
+      ...(paymentRecord.prepare_payload || {}),
+      openId: user.openid,
+      prepayId: createResult.prepay_id,
+      paymentParams
+    },
+    now
+  })
+
+  return {
+    paymentRecord,
+    paymentParams,
+    prepayId: createResult.prepay_id
+  }
+}
+
+const prepareOrderPayment = async ({ supabase, userId, orderId, now = new Date() }) => {
+  const order = await getOrderForUser({
+    supabase,
+    userId,
+    orderId
+  })
+
+  ensureOrderPayable(order)
+
+  const paymentMode = resolvePaymentMode()
+  let paymentRecord = null
+  let paymentParams = {}
+
+  if (paymentMode === PAYMENT_MODE_WECHAT) {
+    const result = await prepareWechatPayment({
+      supabase,
+      order,
+      now
+    })
+    paymentRecord = result.paymentRecord
+    paymentParams = result.paymentParams
+  } else {
+    paymentRecord = await upsertPaymentRecord({
+      supabase,
+      order,
+      paymentMode,
+      payload: {
+        orderId: order.id,
+        courseId: order.course_id,
+        groupId: order.group_id,
+        packageId: order.package_id,
+        packageGroupId: order.package_group_id
+      },
+      now
+    })
+  }
+
+  const canUseRequestPayment = paymentMode === PAYMENT_MODE_WECHAT
+
+  return {
+    orderId: order.id,
+    courseId: order.course_id,
+    groupId: order.group_id,
+    packageId: order.package_id,
+    packageGroupId: order.package_group_id,
+    amount: Number(order.amount) || 0,
+    orderStatus: order.status,
+    paymentMode,
+    canUseRequestPayment,
+    outTradeNo: paymentRecord.out_trade_no || '',
+    paymentRecordStatus: paymentRecord.status || 'pending',
+    paymentParams
+  }
+}
+
+const getOrderPaymentStatus = async ({ supabase, userId, orderId }) => {
+  const order = await getOrderForUser({
+    supabase,
+    userId,
+    orderId
+  })
+
+  if (!order) {
+    throw createServiceError(404, 'order not found')
+  }
+
+  const paymentRecord = await getPaymentRecordByOrderId({
+    supabase,
+    orderId: order.id
+  })
+
+  return {
+    orderId: order.id,
+    orderNo: order.order_no || order.id,
+    courseId: order.course_id,
+    groupId: order.group_id,
+    amount: Number(order.amount) || 0,
+    orderStatus: order.status || 'pending',
+    payTime: order.pay_time || '',
+    refundTime: order.refund_time || '',
+    refundReason: order.refund_reason || '',
+    paymentMode: (paymentRecord && paymentRecord.payment_mode) || resolvePaymentMode(),
+    outTradeNo: (paymentRecord && paymentRecord.out_trade_no) || '',
+    paymentRecordStatus: (paymentRecord && paymentRecord.status) || 'not_prepared'
+  }
+}
+
+const resolveCallbackPayload = payload => {
+  if (payload && payload.resource && payload.resource.ciphertext) {
+    const decryptedResource = decryptWechatPayResource(payload.resource)
+
+    return {
+      rawPayload: payload,
+      resource: decryptedResource
+    }
+  }
+
+  return {
+    rawPayload: payload || {},
+    resource: payload && payload.resource ? payload.resource : payload || {}
+  }
+}
+
+const handleWechatPaymentCallback = async ({ supabase, payload, now = new Date() }) => {
+  const { rawPayload, resource } = resolveCallbackPayload(payload)
+  const outerBody = rawPayload && typeof rawPayload === 'object' ? rawPayload : {}
+  const orderId =
+    outerBody.orderId ||
+    outerBody.order_id ||
+    outerBody.attachOrderId ||
+    resource.orderId ||
+    resource.order_id ||
+    ''
+  const outTradeNo =
+    outerBody.out_trade_no ||
+    outerBody.outTradeNo ||
+    resource.out_trade_no ||
+    resource.outTradeNo ||
+    ''
+  const transactionId =
+    outerBody.transaction_id ||
+    outerBody.transactionId ||
+    resource.transaction_id ||
+    resource.transactionId ||
+    ''
+  const callbackStatus =
+    `${outerBody.trade_state || outerBody.tradeState || outerBody.status || resource.trade_state || resource.tradeState || resource.trade_state_desc || ''}`
+      .trim()
+      .toUpperCase()
+  const timestamp = now.toISOString()
+
+  let paymentRecord = null
+
+  if (orderId) {
+    paymentRecord = await getPaymentRecordByOrderId({
+      supabase,
+      orderId
+    })
+  }
+
+  if (!paymentRecord && outTradeNo) {
+    paymentRecord = await getPaymentRecordByOutTradeNo({
+      supabase,
+      outTradeNo
+    })
+  }
+
+  if (!paymentRecord) {
+    throw createServiceError(404, 'payment record not found')
+  }
+
+  const nextStatus =
+    callbackStatus === 'SUCCESS' || callbackStatus === 'PAID'
+      ? 'paid'
+      : callbackStatus === 'CLOSED' || callbackStatus === 'REVOKED'
+        ? 'closed'
+        : 'processing'
+
+  const updatedRecord = env.useMySqlRepositories
+    ? await paymentRecordsRepository.updatePaymentRecord(paymentRecord.id, {
+        status: nextStatus,
+        transaction_id: transactionId || paymentRecord.transaction_id || '',
+        callback_status: callbackStatus || nextStatus,
+        callback_payload: rawPayload || null,
+        paid_at: nextStatus === 'paid' ? timestamp : paymentRecord.paid_at,
+        closed_at: nextStatus === 'closed' ? timestamp : paymentRecord.closed_at,
+        updated_at: timestamp
+      })
+    : await (async () => {
+        const { data, error } = await supabase
+          .from('payment_records')
+          .update({
+            status: nextStatus,
+            transaction_id: transactionId || paymentRecord.transaction_id || '',
+            callback_status: callbackStatus || nextStatus,
+            callback_payload: rawPayload || null,
+            paid_at: nextStatus === 'paid' ? timestamp : paymentRecord.paid_at,
+            closed_at: nextStatus === 'closed' ? timestamp : paymentRecord.closed_at,
+            updated_at: timestamp
+          })
+          .eq('id', paymentRecord.id)
+          .select('*')
+          .single()
+
+        if (error) {
+          throw error
+        }
+
+        return data
+      })()
+
+  let orderStatus = ''
+
+  if (nextStatus === 'paid') {
+    const order = await getOrderById({
+      supabase,
+      orderId: updatedRecord.order_id
+    })
+
+    if (!order) {
+      throw createServiceError(404, 'order not found')
+    }
+
+    if (order.status !== 'success') {
+      await markOrderPaymentSuccess({
+        supabase,
+        userId: order.user_id,
+        orderId: order.id,
+        groupId: order.group_id,
+        now
+      })
+    }
+
+    orderStatus = 'success'
+  } else if (nextStatus === 'closed') {
+    if (env.useMySqlRepositories) {
+      const order = await ordersRepository.findOrderById(updatedRecord.order_id)
+      if (order && order.status === 'pending') {
+        await ordersRepository.updateOrder(order.id, {
+          status: 'closed',
+          updated_at: timestamp
+        })
+      }
+    } else {
+      const { error: orderCloseError } = await supabase
+        .from('orders')
+        .update({
+          status: 'closed',
+          updated_at: timestamp
+        })
+        .eq('id', updatedRecord.order_id)
+        .eq('status', 'pending')
+
+      if (orderCloseError) {
+        throw orderCloseError
+      }
+    }
+
+    orderStatus = 'closed'
+  } else {
+    orderStatus = 'pending'
+  }
+
+  return {
+    orderId: updatedRecord.order_id,
+    outTradeNo: updatedRecord.out_trade_no,
+    paymentRecordStatus: updatedRecord.status,
+    callbackStatus: updatedRecord.callback_status || '',
+    orderStatus
+  }
+}
+
+const markPaymentRecordPaid = async ({ supabase, orderId, transactionId = '', now = new Date() }) => {
+  const paymentRecord = await getPaymentRecordByOrderId({
+    supabase,
+    orderId
+  })
+
+  if (!paymentRecord) {
+    return null
+  }
+
+  const timestamp = now.toISOString()
+  const order = await getOrderById({
+    supabase,
+    orderId
+  })
+  const relationPayload = order
+    ? {
+        course_id: order.course_id || null,
+        group_id: order.group_id || null,
+        ...(env.useMySqlRepositories
+          ? {
+              package_id: order.package_id || null,
+              package_group_id: order.package_group_id || null
+            }
+          : {})
+      }
+    : {}
+
+  if (env.useMySqlRepositories) {
+    return paymentRecordsRepository.updatePaymentRecord(paymentRecord.id, {
+      ...relationPayload,
+      status: 'paid',
+      callback_status: paymentRecord.callback_status || 'MOCK_SUCCESS',
+      transaction_id: transactionId || paymentRecord.transaction_id || '',
+      paid_at: paymentRecord.paid_at || timestamp,
+      updated_at: timestamp
+    })
+  }
+
+  const { data, error } = await supabase
+    .from('payment_records')
+    .update({
+      ...relationPayload,
+      status: 'paid',
+      callback_status: paymentRecord.callback_status || 'MOCK_SUCCESS',
+      transaction_id: transactionId || paymentRecord.transaction_id || '',
+      paid_at: paymentRecord.paid_at || timestamp,
+      updated_at: timestamp
+    })
+    .eq('id', paymentRecord.id)
+    .select('*')
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+const markPaymentRecordRefunded = async ({ supabase, orderId, reason = '', now = new Date() }) => {
+  const paymentRecord = await getPaymentRecordByOrderId({
+    supabase,
+    orderId
+  })
+
+  if (!paymentRecord) {
+    return null
+  }
+
+  const timestamp = now.toISOString()
+  const order = await getOrderById({
+    supabase,
+    orderId
+  })
+  const existingCallbackPayload =
+    paymentRecord.callback_payload && typeof paymentRecord.callback_payload === 'object'
+      ? paymentRecord.callback_payload
+      : {}
+  const nextPayload = {
+    ...(order
+      ? {
+          course_id: order.course_id || null,
+          group_id: order.group_id || null,
+          ...(env.useMySqlRepositories
+            ? {
+                package_id: order.package_id || null,
+                package_group_id: order.package_group_id || null
+              }
+            : {})
+        }
+      : {}),
+    status: 'refunded',
+    callback_status: 'REFUNDED',
+    callback_payload: {
+      ...existingCallbackPayload,
+      refund: {
+        reason: `${reason || ''}`.trim(),
+        refunded_at: timestamp
+      }
+    },
+    closed_at: paymentRecord.closed_at || timestamp,
+    updated_at: timestamp
+  }
+
+  if (env.useMySqlRepositories) {
+    return paymentRecordsRepository.updatePaymentRecord(paymentRecord.id, nextPayload)
+  }
+
+  const { data, error } = await supabase
+    .from('payment_records')
+    .update(nextPayload)
+    .eq('id', paymentRecord.id)
+    .select('*')
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+module.exports = {
+  PAYMENT_MODE_MOCK,
+  PAYMENT_MODE_WECHAT,
+  createServiceError,
+  prepareOrderPayment,
+  getOrderPaymentStatus,
+  handleWechatPaymentCallback,
+  markPaymentRecordPaid,
+  markPaymentRecordRefunded
+}

@@ -7,7 +7,6 @@ export interface AdminUser {
 }
 
 export interface LoginResponse {
-  token: string
   user: AdminUser
 }
 
@@ -343,11 +342,85 @@ export interface PackageGroupListResponse {
   list: PackageGroupListItem[]
 }
 
+export interface PackageGroupDetailMember {
+  order_id: string
+  order_no: string
+  user_id: string
+  user_nickname: string
+  role: 'leader' | 'member'
+  action: '' | 'start' | 'join'
+  child_nickname: string
+  child_age: number | null
+  parent_mobile: string
+  joined_at: string
+  order_status: string
+}
+
+export interface PackageGroupDetailOrder {
+  id: string
+  order_no: string
+  user_id: string
+  nickname: string
+  child_nickname: string
+  child_age: number | null
+  phone: string
+  amount_fen: number
+  amount_text: string
+  status: string
+  action: '' | 'start' | 'join'
+  refund_reason: string
+  refund_type: '' | 'system' | 'manual'
+  create_time: string
+  pay_time: string
+  refund_time: string
+}
+
+export interface PackageGroupDetail {
+  id: string
+  package_id: string
+  package_name: string
+  package_status: 'pending' | 'active' | 'inactive'
+  package_status_text: string
+  status: 'active' | 'success' | 'failed'
+  creator_id: string
+  target_count: number
+  current_count: number
+  member_amount_fen: number
+  member_amount_text: string
+  weekday: number
+  hour: number
+  schedule_text: string
+  first_class_time: string | null
+  schedule_list: string[]
+  create_time: string
+  deadline: string
+  success_time: string
+  leader: {
+    order_id: string
+    order_no: string
+    action: '' | 'start' | 'join'
+    child_nickname: string
+    child_age: number | null
+    parent_mobile: string
+    joined_at: string
+  } | null
+  summary: {
+    paid_order_count: number
+    refunded_order_count: number
+    pending_order_count: number
+  }
+  anomalies: string[]
+  members: PackageGroupDetailMember[]
+  orders: PackageGroupDetailOrder[]
+}
+
 export interface PackageOrderListItem {
   id: string
   order_no: string
   user_id: string
   nickname: string
+  child_nickname: string
+  child_age: number | null
   phone: string
   avatar_url: string
   package_id: string

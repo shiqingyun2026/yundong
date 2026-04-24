@@ -86,21 +86,17 @@ npm run icons:build
 
 ### 回归测试
 
-目录：`qa/regression/`
+自动化测试说明、覆盖范围、执行命令、live/prod 前置条件，请查看：
+
+- [qa/regression/README.md](/Users/yun/lindong/qa/regression/README.md)
+
+最基础的本地 Playwright 回归入口仍然是 `qa/regression/`：
 
 ```bash
 cd qa/regression
 npm install
 npx playwright install chromium
 npm test
-```
-
-常用附加命令：
-
-```bash
-npm run test:headed
-npm run test:console-live
-npm run test:console-prod
 ```
 
 ## 开发约束

@@ -2,6 +2,7 @@ const { createOkHandler } = require('./_helpers')
 const {
   createAdminPackage,
   geocodePackageAddress,
+  getAdminPackageGroupDetail,
   getAdminPackageDetail,
   listAdminPackageGroups,
   listAdminPackageOrders,
@@ -68,6 +69,12 @@ const listAdminPackageGroupsHandler = createOkHandler('获取课包拼团列表�
   })
 )
 
+const getAdminPackageGroupDetailHandler = createOkHandler('获取课包拼团详情失败', req =>
+  getAdminPackageGroupDetail({
+    packageGroupId: req.params.id
+  })
+)
+
 const listAdminPackageOrdersHandler = createOkHandler('获取课包订单列表失败', req =>
   listAdminPackageOrders({
     query: req.query || {}
@@ -86,6 +93,7 @@ const refundAdminPackageOrderHandler = createOkHandler('课包订单退款失败
 module.exports = {
   createAdminPackageHandler,
   geocodePackageHandler,
+  getAdminPackageGroupDetailHandler,
   getAdminPackageDetailHandler,
   listAdminPackageGroupsHandler,
   listAdminPackageOrdersHandler,

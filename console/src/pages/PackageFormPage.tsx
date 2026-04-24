@@ -1,9 +1,10 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import { PageBackButton } from '../components/PageBackButton'
 import { api, uploadImage } from '../lib/api'
-import type { CourseLocationSuggestion, PackageDetail } from '../types'
+import { sanitizeRichHtml } from '../lib/html'
+import type { CourseLocationSuggestion, PackageDetail, PackageGroupListItem, PackageGroupListResponse } from '../types'
 import { REGION_OPTIONS, toDateTimeLocal } from './courseFormHelpers'
 
 type PackagePageMode = 'create' | 'edit' | 'view'
@@ -90,6 +91,12 @@ const getStatusText = (status: PackageDetail['status']) => {
   return '已下架'
 }
 
+const getPackageGroupStatusText = (status: PackageGroupListItem['status']) => {
+  if (status === 'success') return '已成团'
+  if (status === 'failed') return '已失败'
+  return '进行中'
+}
+
 const buildPayload = (form: PackageDetail) => {
   const groupPriceConfig = normalizeGroupPriceConfig(form.group_price_config)
 
@@ -119,6 +126,7 @@ const buildPayload = (form: PackageDetail) => {
 export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
   const navigate = useNavigate()
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
   const [form, setForm] = useState<PackageDetail>(emptyPackage)
   const [loading, setLoading] = useState(mode !== 'create')
   const [saving, setSaving] = useState(false)
@@ -131,16 +139,22 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
   const [locationSuggestions, setLocationSuggestions] = useState<CourseLocationSuggestion[]>([])
   const [searchingLocations, setSearchingLocations] = useState(false)
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false)
+  const [packageGroupsLoading, setPackageGroupsLoading] = useState(false)
+  const [packageGroupsError, setPackageGroupsError] = useState('')
+  const [packageGroups, setPackageGroups] = useState<PackageGroupListItem[]>([])
+
+  const copyFrom = searchParams.get('copyFrom') || ''
 
   useEffect(() => {
-    if (mode === 'create' || !id) {
+    const targetId = mode === 'create' && copyFrom ? copyFrom : id
+    if (!targetId) {
       setLoading(false)
       return
     }
 
     void (async () => {
       try {
-        const data = await api.get<PackageDetail>(`/packages/${id}`)
+        const data = await api.get<PackageDetail>(`/packages/${targetId}`)
         const normalizedConfig = normalizeGroupPriceConfigRows(data.group_price_config || [])
         const districtParts = `${data.location_district || ''}`
           .split(/[\/\s-]+/)
@@ -150,6 +164,22 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
         setProvince(districtParts[0] || '广东省')
         setCity(districtParts[1] || '深圳市')
         setDistrict(districtParts[2] || districtParts[1] || '')
+
+        if (mode === 'create' && copyFrom) {
+          setForm({
+            ...data,
+            id: '',
+            name: data.name ? `${data.name} - 副本` : '',
+            status: 'pending',
+            group_price_config: normalizedConfig,
+            supported_people: deriveSupportedPeople(normalizedConfig),
+            publish_time: '',
+            unpublish_time: '',
+            images: data.images?.length ? data.images : data.cover ? [data.cover] : []
+          })
+          return
+        }
+
         setForm({
           ...data,
           group_price_config: normalizedConfig,
@@ -162,6 +192,34 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
         setError(fetchError instanceof Error ? fetchError.message : '获取课包详情失败')
       } finally {
         setLoading(false)
+      }
+    })()
+  }, [copyFrom, id, mode])
+
+  useEffect(() => {
+    if (!id || mode === 'create') {
+      setPackageGroups([])
+      setPackageGroupsError('')
+      setPackageGroupsLoading(false)
+      return
+    }
+
+    void (async () => {
+      setPackageGroupsLoading(true)
+      setPackageGroupsError('')
+
+      try {
+        const params = new URLSearchParams({
+          package_id: id,
+          page: '1',
+          size: '100'
+        })
+        const data = await api.get<PackageGroupListResponse>(`/package-groups?${params.toString()}`)
+        setPackageGroups(data.list || [])
+      } catch (fetchError) {
+        setPackageGroupsError(fetchError instanceof Error ? fetchError.message : '获取课包拼团记录失败')
+      } finally {
+        setPackageGroupsLoading(false)
       }
     })()
   }, [id, mode])
@@ -845,7 +903,10 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
               disabled={isReadOnly}
             />
             {form.coach_intro ? (
-              <div className="description-preview rich-preview" dangerouslySetInnerHTML={{ __html: form.coach_intro }} />
+              <div
+                className="description-preview rich-preview"
+                dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(form.coach_intro) }}
+              />
             ) : null}
           </div>
 
@@ -910,7 +971,10 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
               disabled={isReadOnly}
             />
             {form.description ? (
-              <div className="description-preview rich-preview" dangerouslySetInnerHTML={{ __html: form.description }} />
+              <div
+                className="description-preview rich-preview"
+                dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(form.description) }}
+              />
             ) : null}
           </div>
 
@@ -944,6 +1008,75 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
               </div>
             </div>
           </section>
+
+          {mode !== 'create' && id ? (
+            <section className="panel subtle-panel stack">
+              <div className="page-actions">
+                <div>
+                  <p className="section-kicker">Package Groups</p>
+                  <h4>拼团记录</h4>
+                </div>
+                <Link className="secondary-button" to={`/package-groups?package_id=${id}`}>
+                  查看全部拼团
+                </Link>
+              </div>
+
+              {packageGroupsLoading ? <p className="muted-text">加载拼团记录中...</p> : null}
+              {packageGroupsError ? <p className="error-text">{packageGroupsError}</p> : null}
+
+              {!packageGroupsLoading && !packageGroupsError ? (
+                packageGroups.length ? (
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>拼团 ID</th>
+                        <th>状态</th>
+                        <th>进度</th>
+                        <th>排课信息</th>
+                        <th>截止时间</th>
+                        <th>成团时间</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {packageGroups.map(item => (
+                        <tr key={item.id}>
+                          <td>{item.id}</td>
+                          <td>{getPackageGroupStatusText(item.status)}</td>
+                          <td>
+                            {item.current_count}/{item.target_count}
+                            <p className="table-subtext">{item.member_amount_text || '-'}</p>
+                          </td>
+                          <td>
+                            <div>
+                              <span>{item.schedule_text || '-'}</span>
+                              {item.schedule_list.length ? (
+                                <p className="table-subtext">{item.schedule_list.join(' / ')}</p>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td>{item.deadline || '-'}</td>
+                          <td>{item.success_time || '-'}</td>
+                          <td>
+                            <div className="button-row">
+                              <Link className="table-link" to={`/package-groups/${item.id}`}>
+                                查看详情
+                              </Link>
+                              <Link className="table-link" to={`/package-orders?keyword=${encodeURIComponent(item.id)}`}>
+                                查看订单
+                              </Link>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="muted-text">当前课包还没有产生拼团记录，后续开团后会在这里展示历史团和进行中团。</p>
+                )
+              ) : null}
+            </section>
+          ) : null}
 
           {error ? <p className="error-text">{error}</p> : null}
 

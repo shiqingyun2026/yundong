@@ -48,17 +48,28 @@ const baseAdminUser = {
   status: 'active'
 }
 
-const ADMIN_API_BASE_PATTERN = /http:\/\/127\.0\.0\.1:\d+\/api\/admin/
+const ADMIN_API_BASE_PATTERN = /\/api\/admin/
 
-const fulfillJson = async (route: Route, data: unknown) => {
+const adminApiPattern = (pathPattern: string) =>
+  new RegExp(`${ADMIN_API_BASE_PATTERN.source.replace(/\/$/, '')}${pathPattern}`)
+
+const buildCorsHeaders = (route: Route, extra: Record<string, string> = {}) => {
+  const origin = route.request().headers().origin || 'http://127.0.0.1:3100'
+
+  return {
+    'access-control-allow-origin': origin,
+    'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
+    'access-control-allow-headers': 'Content-Type, Authorization',
+    'access-control-allow-credentials': 'true',
+    ...extra
+  }
+}
+
+const fulfillJson = async (route: Route, data: unknown, headers: Record<string, string> = {}) => {
   if (route.request().method() === 'OPTIONS') {
     await route.fulfill({
       status: 204,
-      headers: {
-        'access-control-allow-origin': '*',
-        'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
-        'access-control-allow-headers': 'Content-Type, Authorization'
-      }
+      headers: buildCorsHeaders(route)
     })
     return true
   }
@@ -66,9 +77,7 @@ const fulfillJson = async (route: Route, data: unknown) => {
   await route.fulfill({
     status: 200,
     contentType: 'application/json',
-    headers: {
-      'access-control-allow-origin': '*'
-    },
+    headers: buildCorsHeaders(route, headers),
     body: JSON.stringify({
       code: 0,
       message: 'ok',
@@ -78,18 +87,68 @@ const fulfillJson = async (route: Route, data: unknown) => {
   return true
 }
 
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(user => {
-    window.localStorage.setItem('console_admin_token', 'regression-token')
-    window.localStorage.setItem('console_admin_user', JSON.stringify(user))
-  }, baseAdminUser)
+const fulfillError = async (
+  route: Route,
+  status: number,
+  code: number,
+  message: string,
+  headers: Record<string, string> = {}
+) => {
+  if (route.request().method() === 'OPTIONS') {
+    await route.fulfill({
+      status: 204,
+      headers: buildCorsHeaders(route)
+    })
+    return true
+  }
 
-  await page.route(new RegExp(`${ADMIN_API_BASE_PATTERN.source.replace(/\/$/, '')}\\/dashboard\\/overview.*`), async route => {
+  await route.fulfill({
+    status,
+    contentType: 'application/json',
+    headers: buildCorsHeaders(route, headers),
+    body: JSON.stringify({
+      code,
+      message,
+      data: null
+    })
+  })
+  return true
+}
+
+const bootstrapSession = async (
+  page: import('@playwright/test').Page,
+  user: typeof baseAdminUser = baseAdminUser
+) => {
+  await page.goto('/login')
+  await page.evaluate(sessionUser => {
+    window.localStorage.setItem('console_admin_user', JSON.stringify(sessionUser))
+  }, user)
+}
+
+test.beforeEach(async ({ page }) => {
+  await page.route(adminApiPattern('\\/dashboard\\/overview.*'), async route => {
     await fulfillJson(route, dashboardOverview)
+  })
+
+  await page.route(adminApiPattern('\\/login\\/session$'), async route => {
+    await fulfillJson(route, {
+      user: baseAdminUser
+    })
+  })
+
+  await page.route(adminApiPattern('\\/login\\/logout$'), async route => {
+    await fulfillJson(route, {})
+  })
+
+  await page.route(adminApiPattern('\\/packages\\/location-suggestions\\?.*$'), async route => {
+    await fulfillJson(route, {
+      list: []
+    })
   })
 })
 
 test('console dashboard renders package navigation and overview cards for a signed-in admin', async ({ page }) => {
+  await bootstrapSession(page)
   await page.goto('/dashboard')
 
   await expect(page.getByRole('heading', { name: '概览', exact: true })).toBeVisible()
@@ -103,9 +162,10 @@ test('console dashboard renders package navigation and overview cards for a sign
 })
 
 test('console package create page can submit a new package and redirect back to the list', async ({ page }) => {
+  await bootstrapSession(page)
   let createPayload: Record<string, unknown> | null = null
 
-  await page.route(new RegExp(`${ADMIN_API_BASE_PATTERN.source.replace(/\/$/, '')}\\/packages(\\?.*)?$`), async route => {
+  await page.route(adminApiPattern('\\/packages(\\?.*)?$'), async route => {
     await fulfillJson(route, {
       list: [],
       total: 0,
@@ -115,7 +175,7 @@ test('console package create page can submit a new package and redirect back to 
     })
   })
 
-  await page.route(new RegExp(`${ADMIN_API_BASE_PATTERN.source.replace(/\/$/, '')}\\/packages$`), async route => {
+  await page.route(adminApiPattern('\\/packages$'), async route => {
     const method = route.request().method()
     if (method === 'OPTIONS') {
       await fulfillJson(route, {})
@@ -135,34 +195,87 @@ test('console package create page can submit a new package and redirect back to 
   const packageForm = page.locator('form').first()
 
   await packageForm.getByLabel(/课包名称/).fill('[回归] 周末体适能课包')
-  await packageForm.getByLabel(/总价（分）/).fill('199800')
-  await packageForm.getByLabel(/支持人数/).fill('2, 4, 6')
+  await packageForm.getByLabel(/课程节数/).fill('10')
+  await packageForm.getByLabel(/单节课时长（分钟）/).fill('90')
   await packageForm.getByLabel(/开团截止时长/).fill('48')
-  await packageForm.getByLabel(/所在区域/).fill('南山区')
+  await packageForm.getByLabel(/^区/).selectOption('南山区')
   await packageForm.getByLabel(/小区 \/ 场地名称/).fill('深圳湾社区')
   await packageForm.getByLabel(/详细地点/).fill('会所二楼活动室')
-  await packageForm.getByLabel(/^状态/).selectOption('active')
+  await packageForm.getByLabel(/上架时间/).fill('2026-04-22T10:00')
   await packageForm.getByLabel(/经度/).fill('113.9304')
   await packageForm.getByLabel(/纬度/).fill('22.5333')
-  await packageForm.getByLabel(/教练姓名/).fill('页面回归教练')
   await packageForm.getByLabel(/封面图 URL/).fill('https://example.com/package-cover.jpg')
-  await packageForm.getByLabel(/教练简介/).fill('用于课包页面回归的教练简介')
-  await packageForm.getByLabel(/课包介绍/).fill('用于课包运营后台页面回归的介绍文案')
+  await packageForm.getByRole('button', { name: '新增团型' }).click()
+  await packageForm.getByLabel(/团型人数/).fill('4')
+  await packageForm.getByLabel(/人均售价（分）/).fill('49950')
+  await packageForm.locator('textarea').nth(0).fill('用于课包页面回归的教练简介')
+  await packageForm.locator('textarea').nth(2).fill('用于课包运营后台页面回归的介绍文案')
 
   await packageForm.getByRole('button', { name: '创建课包' }).click()
 
   await expect(page).toHaveURL(/\/packages$/)
   expect(createPayload).not.toBeNull()
   expect(createPayload?.name).toBe('[回归] 周末体适能课包')
-  expect(createPayload?.total_price_fen).toBe(199800)
-  expect(createPayload?.supported_people).toEqual([2, 4, 6])
-  expect(createPayload?.status).toBe('active')
+  expect(createPayload?.class_count).toBe(10)
+  expect(createPayload?.class_duration_minutes).toBe(90)
+  expect(createPayload?.supported_people).toEqual([4])
+  expect(createPayload?.group_price_config).toEqual([{ target_count: 4, price_fen: 49950 }])
+})
+
+test('console login page shows backend error when credentials are rejected', async ({ page }) => {
+  await page.context().clearCookies()
+  await page.route(adminApiPattern('\\/login\\/session$'), async route => {
+    await fulfillError(route, 401, 1002, 'token无效或过期')
+  })
+
+  await page.route(adminApiPattern('\\/login$'), async route => {
+    await fulfillError(route, 200, 1001, '用户名或密码错误')
+  })
+
+  await page.goto('/login')
+
+  await page.getByLabel('用户名').fill('bad-admin')
+  await page.getByLabel('密码').fill('bad-password')
+  await page.getByRole('button', { name: '进入后台' }).click()
+
+  await expect(page).toHaveURL(/\/login$/)
+  await expect(page.getByText('用户名或密码错误')).toBeVisible()
+})
+
+test('console package create page shows validation error when group pricing is missing', async ({ page }) => {
+  await bootstrapSession(page)
+  await page.route(adminApiPattern('\\/packages(\\?.*)?$'), async route => {
+    await fulfillJson(route, {
+      list: [],
+      total: 0,
+      total_pages: 1,
+      page: 1,
+      size: 10
+    })
+  })
+
+  await page.goto('/packages/new')
+  const packageForm = page.locator('form').first()
+
+  await packageForm.getByLabel(/课包名称/).fill('[回归] 缺少团型售价')
+  await packageForm.getByLabel(/课程节数/).fill('8')
+  await packageForm.getByLabel(/单节课时长（分钟）/).fill('60')
+  await packageForm.getByLabel(/^区/).selectOption('南山区')
+  await packageForm.getByLabel(/小区 \/ 场地名称/).fill('深圳湾社区')
+  await packageForm.getByLabel(/详细地点/).fill('活动中心')
+  await packageForm.getByLabel(/上架时间/).fill('2026-04-22T10:00')
+  await packageForm.getByLabel(/封面图 URL/).fill('https://example.com/package-cover.jpg')
+  await packageForm.getByRole('button', { name: '创建课包' }).click()
+
+  await expect(page).toHaveURL(/\/packages\/new$/)
+  await expect(page.getByText('请至少配置一个团型售价')).toBeVisible()
 })
 
 test('console package edit page can update and view linked package group and order pages', async ({ page }) => {
+  await bootstrapSession(page)
   const requests: Array<{ method: string; path: string; body: Record<string, unknown> | null }> = []
 
-  await page.route(new RegExp(`${ADMIN_API_BASE_PATTERN.source.replace(/\/$/, '')}\\/packages\\/pkg-edit-1$`), async route => {
+  await page.route(adminApiPattern('\\/packages\\/pkg-edit-1$'), async route => {
     const method = route.request().method()
     if (method === 'OPTIONS') {
       await fulfillJson(route, {})
@@ -175,8 +288,9 @@ test('console package edit page can update and view linked package group and ord
         name: '[回归] 课包编辑页',
         cover: 'https://example.com/package.jpg',
         images: ['https://example.com/package-gallery-1.jpg'],
-        total_price_fen: 188800,
-        total_price_text: '1888.00',
+        class_count: 5,
+        class_duration_minutes: 60,
+        group_price_config: [{ target_count: 4, price_fen: 47200 }],
         supported_people: [2, 4, 8],
         location_text: '南山区 / 深圳湾社区 / 会所二楼活动室',
         location_district: '南山区',
@@ -185,6 +299,8 @@ test('console package edit page can update and view linked package group and ord
         coach_name: '回归教练',
         status: 'active',
         deadline_hours: 48,
+        publish_time: '2026-04-19 09:00:00',
+        unpublish_time: '',
         create_time: '2026-04-19 10:00:00',
         update_time: '2026-04-19 11:00:00',
         longitude: 113.9304,
@@ -205,16 +321,15 @@ test('console package edit page can update and view linked package group and ord
     await fulfillJson(route, { id: 'pkg-edit-1' })
   })
 
-  await page.route(new RegExp(`${ADMIN_API_BASE_PATTERN.source.replace(/\/$/, '')}\\/packages(\\?.*)?$`), async route => {
+  await page.route(adminApiPattern('\\/packages(\\?.*)?$'), async route => {
     await fulfillJson(route, {
       list: [
         {
           id: 'pkg-edit-1',
           name: '[回归] 课包编辑页',
           cover: 'https://example.com/package.jpg',
-          total_price_fen: 188800,
-          total_price_text: '1888.00',
-          supported_people: [2, 4, 8],
+          group_price_config: [{ target_count: 4, price_fen: 47200 }],
+          supported_people: [4],
           location_text: '南山区 / 深圳湾社区 / 会所二楼活动室',
           location_district: '南山区',
           location_community: '深圳湾社区',
@@ -222,6 +337,8 @@ test('console package edit page can update and view linked package group and ord
           coach_name: '回归教练',
           status: 'active',
           deadline_hours: 48,
+          publish_time: '2026-04-19 09:00:00',
+          unpublish_time: '',
           create_time: '2026-04-19 10:00:00',
           update_time: '2026-04-20 10:00:00'
         }
@@ -233,7 +350,7 @@ test('console package edit page can update and view linked package group and ord
     })
   })
 
-  await page.route(new RegExp(`${ADMIN_API_BASE_PATTERN.source.replace(/\/$/, '')}\\/package-groups(\\?.*)?$`), async route => {
+  await page.route(adminApiPattern('\\/package-groups(\\?.*)?$'), async route => {
     await fulfillJson(route, {
       list: [
         {
@@ -264,7 +381,7 @@ test('console package edit page can update and view linked package group and ord
     })
   })
 
-  await page.route(new RegExp(`${ADMIN_API_BASE_PATTERN.source.replace(/\/$/, '')}\\/package-orders(\\?.*)?$`), async route => {
+  await page.route(adminApiPattern('\\/package-orders(\\?.*)?$'), async route => {
     await fulfillJson(route, {
       list: [
         {
@@ -302,7 +419,7 @@ test('console package edit page can update and view linked package group and ord
   const editForm = page.locator('form').first()
 
   await editForm.getByLabel(/课包名称/).fill('[回归] 课包编辑页-已更新')
-  await editForm.getByLabel(/教练简介/).fill('更新后的课包教练简介')
+  await editForm.locator('textarea').nth(0).fill('更新后的课包教练简介')
   await editForm.getByRole('button', { name: '保存课包' }).click()
 
   await expect(page).toHaveURL(/\/packages$/)
@@ -321,6 +438,7 @@ test('console package edit page can update and view linked package group and ord
 })
 
 test('console account page can create update and delete an account', async ({ page }) => {
+  await bootstrapSession(page)
   const accounts = [
     {
       id: 'admin-seed-1',
@@ -332,7 +450,7 @@ test('console account page can create update and delete an account', async ({ pa
     }
   ]
 
-  await page.route(new RegExp(`${ADMIN_API_BASE_PATTERN.source.replace(/\/$/, '')}\\/accounts(\\?.*)?$`), async route => {
+  await page.route(adminApiPattern('\\/accounts(\\?.*)?$'), async route => {
     const url = new URL(route.request().url())
     const keyword = url.searchParams.get('keyword') || ''
     const list = accounts.filter(item => !keyword || item.username.includes(keyword))
@@ -345,7 +463,7 @@ test('console account page can create update and delete an account', async ({ pa
     })
   })
 
-  await page.route(new RegExp(`${ADMIN_API_BASE_PATTERN.source.replace(/\/$/, '')}\\/accounts$`), async route => {
+  await page.route(adminApiPattern('\\/accounts$'), async route => {
     const method = route.request().method()
     if (method === 'OPTIONS') {
       await fulfillJson(route, {})
@@ -370,7 +488,7 @@ test('console account page can create update and delete an account', async ({ pa
     await fulfillJson(route, { id: 'admin-created-1' })
   })
 
-  await page.route(new RegExp(`${ADMIN_API_BASE_PATTERN.source.replace(/\/$/, '')}\\/accounts\\/.+`), async route => {
+  await page.route(adminApiPattern('\\/accounts\\/.+'), async route => {
     const method = route.request().method()
     const id = new URL(route.request().url()).pathname.split('/').pop() || ''
 
@@ -424,6 +542,7 @@ test('console account page can create update and delete an account', async ({ pa
 })
 
 test('console package order page can refund a paid package order and refresh list/detail state', async ({ page }) => {
+  await bootstrapSession(page)
   const orderState = {
     id: 'package-order-paid-1',
     order_no: 'LDPKG202604200001',
@@ -448,7 +567,7 @@ test('console package order page can refund a paid package order and refresh lis
     refund_time: ''
   }
 
-  await page.route(new RegExp(`${ADMIN_API_BASE_PATTERN.source.replace(/\/$/, '')}\\/package-orders(\\?.*)?$`), async route => {
+  await page.route(adminApiPattern('\\/package-orders(\\?.*)?$'), async route => {
     await fulfillJson(route, {
       list: [orderState],
       total: 1,
@@ -458,7 +577,7 @@ test('console package order page can refund a paid package order and refresh lis
     })
   })
 
-  await page.route(new RegExp(`${ADMIN_API_BASE_PATTERN.source.replace(/\/$/, '')}\\/package-orders\\/package-order-paid-1\\/refund$`), async route => {
+  await page.route(adminApiPattern('\\/package-orders\\/package-order-paid-1\\/refund$'), async route => {
     if (route.request().method() === 'OPTIONS') {
       await fulfillJson(route, {})
       return
@@ -489,4 +608,332 @@ test('console package order page can refund a paid package order and refresh lis
   await expect(targetRow.getByText('手动退款', { exact: true })).toBeVisible()
   await expect(page.getByText('退款原因：页面回归手动退款')).toBeVisible()
   await expect(page.getByText('拼团状态：已失败')).toBeVisible()
+})
+
+test('console banner list page can query create and edit banners', async ({ page }) => {
+  await bootstrapSession(page)
+  const banners = [
+    {
+      id: 'banner-seed-1',
+      image_url: 'https://example.com/banner-seed-1.png',
+      title: '首页春季活动',
+      kicker: '限时推荐',
+      description: '春季活动 Banner',
+      jump_type: 'packageDetail',
+      jump_target: 'package_seed_active_002',
+      sort: 10,
+      online_time: '2026-04-22 09:00:00',
+      offline_time: '2026-04-30 23:00:00',
+      city_codes: ['全国'],
+      enabled: false,
+      status: 'pending'
+    }
+  ]
+
+  await page.route(adminApiPattern('\\/banners(\\?.*)?$'), async route => {
+    const method = route.request().method()
+
+    if (method === 'OPTIONS') {
+      await fulfillJson(route, {})
+      return
+    }
+
+    if (method === 'POST') {
+      const payload = route.request().postDataJSON() as Record<string, unknown>
+      banners.push({
+        id: 'banner-created-1',
+        image_url: String(payload.image_url || ''),
+        title: String(payload.title || ''),
+        kicker: String(payload.kicker || ''),
+        description: String(payload.description || ''),
+        jump_type: String(payload.jump_type || 'none'),
+        jump_target: String(payload.jump_target || ''),
+        sort: Number(payload.sort || 0),
+        online_time: String(payload.online_time || ''),
+        offline_time: String(payload.offline_time || ''),
+        city_codes: Array.isArray(payload.city_codes) ? (payload.city_codes as string[]) : ['全国'],
+        enabled: false,
+        status: 'pending'
+      })
+
+      await fulfillJson(route, { id: 'banner-created-1' })
+      return
+    }
+
+    const url = new URL(route.request().url())
+    const keyword = url.searchParams.get('keyword') || ''
+    const status = url.searchParams.get('status') || ''
+    const list = banners.filter(item => {
+      if (keyword && !`${item.title} ${item.kicker} ${item.jump_target}`.includes(keyword)) {
+        return false
+      }
+      if (status && item.status !== status) {
+        return false
+      }
+      return true
+    })
+
+    await fulfillJson(route, {
+      list,
+      total: list.length,
+      total_pages: 1,
+      page: 1,
+      size: 10
+    })
+  })
+
+  await page.route(adminApiPattern('\\/banners\\/.+'), async route => {
+    const method = route.request().method()
+    const id = new URL(route.request().url()).pathname.split('/').pop() || ''
+    const target = banners.find(item => item.id === id)
+
+    if (method === 'OPTIONS') {
+      await fulfillJson(route, {})
+      return
+    }
+
+    if (method === 'GET') {
+      await fulfillJson(route, target || banners[0])
+      return
+    }
+
+    if (method === 'PUT' && target) {
+      const payload = route.request().postDataJSON() as Record<string, unknown>
+      Object.assign(target, {
+        title: String(payload.title || target.title),
+        jump_type: String(payload.jump_type || target.jump_type),
+        jump_target: String(payload.jump_target || target.jump_target),
+        sort: Number(payload.sort ?? target.sort),
+        online_time: String(payload.online_time || target.online_time),
+        offline_time: String(payload.offline_time || target.offline_time),
+        status: target.status
+      })
+      await fulfillJson(route, target)
+      return
+    }
+
+    await route.fallback()
+  })
+
+  await page.route(adminApiPattern('\\/upload\\/image$'), async route => {
+    if (route.request().method() === 'OPTIONS') {
+      await fulfillJson(route, {})
+      return
+    }
+
+    const payload = route.request().postDataJSON() as { folder: string; filename: string }
+    await fulfillJson(route, {
+      public_url: `https://example.com/uploads/${payload.folder}/${payload.filename}`
+    })
+  })
+
+  await page.goto('/banners')
+  await expect(page.getByText('首页春季活动')).toBeVisible()
+  await page.getByPlaceholder('按标题 / 跳转目标搜索').fill('春季')
+  await page.getByRole('button', { name: '查询' }).click()
+  await expect(page).toHaveURL(/keyword=%E6%98%A5%E5%AD%A3/)
+  await expect(page.getByText('首页春季活动')).toBeVisible()
+
+  await page.getByRole('link', { name: '新建 Banner' }).click()
+  await expect(page.getByRole('heading', { name: '新建 Banner' })).toBeVisible()
+  await page.getByLabel('Banner 标题').fill('首页夏季活动')
+  await page.getByLabel('跳转类型').selectOption('customUrl')
+  await page.getByLabel('跳转目标').fill('https://example.com/summer')
+  await page.getByLabel('排序').fill('20')
+  await page.getByLabel('上线时间').fill('2026-05-01T09:00')
+  await page.getByLabel('下线时间').fill('2026-05-31T23:00')
+  await page.getByLabel('上传图片').setInputFiles({
+    name: 'banner-create.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('fake-banner-image')
+  })
+  await expect(page.getByRole('img', { name: 'Banner' })).toBeVisible()
+  await page.locator('form').getByRole('button', { name: '创建 Banner' }).click()
+
+  await expect(page).toHaveURL(/\/banners\/banner-created-1$/)
+  await expect(page.getByRole('heading', { name: 'Banner 详情' })).toBeVisible()
+
+  await page.getByRole('link', { name: '编辑 Banner' }).click()
+  await page.getByLabel('Banner 标题').fill('首页夏季活动-已更新')
+  await page.getByRole('button', { name: '保存 Banner' }).click()
+
+  await expect(page).toHaveURL(/\/banners\/banner-created-1$/)
+  await expect(page.getByLabel('Banner 标题')).toHaveValue('首页夏季活动-已更新')
+})
+
+test('console banner create page shows backend save error', async ({ page }) => {
+  await bootstrapSession(page)
+  await page.route(adminApiPattern('\\/banners$'), async route => {
+    const method = route.request().method()
+
+    if (method === 'OPTIONS') {
+      await fulfillJson(route, {})
+      return
+    }
+
+    if (method === 'POST') {
+      await fulfillError(route, 200, 5000, 'Banner 保存失败，请稍后重试')
+      return
+    }
+
+    await fulfillJson(route, {
+      list: [],
+      total: 0,
+      total_pages: 1,
+      page: 1,
+      size: 10
+    })
+  })
+
+  await page.route(adminApiPattern('\\/upload\\/image$'), async route => {
+    await fulfillJson(route, {
+      public_url: 'https://example.com/banner-uploaded.png'
+    })
+  })
+
+  await page.goto('/banners/new')
+  await page.getByLabel('Banner 标题').fill('首页活动 Banner')
+  await page.getByLabel('跳转类型').selectOption('none')
+  await page.getByLabel('上线时间').fill('2026-04-30T10:00')
+
+  await page.setInputFiles('input[type="file"]', {
+    name: 'banner.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('fake-banner-image')
+  })
+
+  await page.getByRole('button', { name: '创建 Banner' }).click()
+
+  await expect(page).toHaveURL(/\/banners\/new$/)
+  await expect(page.getByText('Banner 保存失败，请稍后重试')).toBeVisible()
+})
+
+test('console package edit page can offline a package and return to the list', async ({ page }) => {
+  await bootstrapSession(page)
+  const packageState = {
+    id: 'pkg-offline-1',
+    name: '[回归] 待下架课包',
+    cover: 'https://example.com/package-offline.jpg',
+    images: ['https://example.com/package-offline.jpg'],
+    class_count: 6,
+    class_duration_minutes: 60,
+    group_price_config: [{ target_count: 4, price_fen: 38800 }],
+    supported_people: [4],
+    location_text: '南山区 / 科技园社区 / 活动中心',
+    location_district: '南山区',
+    location_community: '科技园社区',
+    location_detail: '活动中心',
+    coach_name: '下架教练',
+    status: 'active',
+    deadline_hours: 48,
+    publish_time: '2026-04-20 09:00:00',
+    unpublish_time: '',
+    create_time: '2026-04-20 10:00:00',
+    update_time: '2026-04-20 11:00:00',
+    longitude: 113.93,
+    latitude: 22.53,
+    coach_intro: '待下架教练简介',
+    coach_certificates: [],
+    description: '待下架课包介绍'
+  }
+
+  await page.route(adminApiPattern('\\/packages\\/pkg-offline-1$'), async route => {
+    if (route.request().method() === 'GET') {
+      await fulfillJson(route, packageState)
+      return
+    }
+
+    await route.fallback()
+  })
+
+  await page.route(adminApiPattern('\\/packages\\/pkg-offline-1\\/offline$'), async route => {
+    if (route.request().method() === 'OPTIONS') {
+      await fulfillJson(route, {})
+      return
+    }
+
+    packageState.status = 'inactive'
+    packageState.unpublish_time = '2026-04-22 10:00:00'
+    await fulfillJson(route, { id: packageState.id })
+  })
+
+  await page.route(adminApiPattern('\\/packages(\\?.*)?$'), async route => {
+    await fulfillJson(route, {
+      list: [packageState],
+      total: 1,
+      total_pages: 1,
+      page: 1,
+      size: 10
+    })
+  })
+
+  await page.goto('/packages/pkg-offline-1/edit')
+  page.once('dialog', dialog => dialog.accept())
+  await page.getByRole('button', { name: '下架' }).click()
+
+  await expect(page).toHaveURL(/\/packages$/)
+  const targetRow = page.locator('tr', { hasText: '[回归] 待下架课包' })
+  await expect(targetRow).toBeVisible()
+  await expect(targetRow.getByRole('cell', { name: '已下架' })).toBeVisible()
+})
+
+test('console package create page can upload cover image through proxy upload API', async ({ page }) => {
+  await bootstrapSession(page)
+  await page.route(adminApiPattern('\\/packages(\\?.*)?$'), async route => {
+    await fulfillJson(route, {
+      list: [],
+      total: 0,
+      total_pages: 1,
+      page: 1,
+      size: 10
+    })
+  })
+
+  await page.route(adminApiPattern('\\/upload\\/image$'), async route => {
+    if (route.request().method() === 'OPTIONS') {
+      await fulfillJson(route, {})
+      return
+    }
+
+    const payload = route.request().postDataJSON() as { folder: string; filename: string }
+    await fulfillJson(route, {
+      public_url: `https://example.com/uploads/${payload.folder}/${payload.filename}`
+    })
+  })
+
+  await page.goto('/packages/new')
+  await expect(page.getByLabel(/封面图 URL/)).toHaveValue('')
+
+  await page.locator('label.file-button input[type="file"]').first().setInputFiles({
+    name: 'package-cover.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('fake-image-content')
+  })
+
+  await expect(page.getByLabel(/封面图 URL/)).toHaveValue('https://example.com/uploads/course-cover/package-cover.png')
+  await expect(page.getByRole('img', { name: '课包封面' })).toBeVisible()
+})
+
+test('console non-super-admin user cannot access accounts page and does not see accounts nav', async ({ page }) => {
+  const operatorUser = {
+    id: 'admin-2',
+    username: 'operator-user',
+    role: 'admin',
+    status: 'active'
+  }
+
+  await page.route(adminApiPattern('\\/login\\/session$'), async route => {
+    await fulfillJson(route, {
+      user: operatorUser
+    })
+  })
+
+  await bootstrapSession(page, operatorUser)
+  await page.goto('/dashboard')
+  await expect(page.getByText('operator-user / admin')).toBeVisible()
+  await expect(page.getByRole('link', { name: '账号管理' })).toHaveCount(0)
+
+  await page.goto('/accounts')
+  await expect(page).toHaveURL(/\/dashboard$/)
+  await expect(page.getByRole('heading', { name: '概览', exact: true })).toBeVisible()
 })

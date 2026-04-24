@@ -32,17 +32,21 @@ const ENV_CLOUD_LOCATION_FUNCTION_NAMES = {
   release: 'ip-geolocation'
 }
 
-const SUBSCRIBE_TEMPLATE_PLACEHOLDER = 'TODO_GROUP_RESULT_TEMPLATE_ID'
-const RELEASE_GROUP_RESULT_TEMPLATE_ID = SUBSCRIBE_TEMPLATE_PLACEHOLDER
+const SUBSCRIBE_TEMPLATE_PLACEHOLDER = 'TODO_SUBSCRIBE_TEMPLATE_ID'
+const GROUP_SUCCESS_TEMPLATE_ID = 'S6VR9rfzWPlpFRfZLNpjJzxEyPHEGQDd7KQ-TOHduxc'
+const GROUP_FAIL_TEMPLATE_ID = 'aXcNy9Dg_lyqbI2RAbpPvRao7reiH2wVBa1WsFi5dp4'
 const ENV_SUBSCRIBE_TEMPLATE_IDS = {
   develop: {
-    groupResult: SUBSCRIBE_TEMPLATE_PLACEHOLDER
+    groupSuccess: GROUP_SUCCESS_TEMPLATE_ID,
+    groupFail: GROUP_FAIL_TEMPLATE_ID
   },
   trial: {
-    groupResult: SUBSCRIBE_TEMPLATE_PLACEHOLDER
+    groupSuccess: GROUP_SUCCESS_TEMPLATE_ID,
+    groupFail: GROUP_FAIL_TEMPLATE_ID
   },
   release: {
-    groupResult: RELEASE_GROUP_RESULT_TEMPLATE_ID
+    groupSuccess: GROUP_SUCCESS_TEMPLATE_ID,
+    groupFail: GROUP_FAIL_TEMPLATE_ID
   }
 }
 
@@ -86,12 +90,12 @@ const isCloudLocationFunctionConfigured = envVersion =>
     CLOUD_LOCATION_FUNCTION_PLACEHOLDER
 const resolveSubscribeTemplateIdsByEnv = envVersion => {
   const value = ENV_SUBSCRIBE_TEMPLATE_IDS[envVersion] || ENV_SUBSCRIBE_TEMPLATE_IDS.develop
+  const normalize = templateId =>
+    templateId && templateId !== SUBSCRIBE_TEMPLATE_PLACEHOLDER ? templateId : ''
 
   return {
-    groupResult:
-      value && value.groupResult && value.groupResult !== SUBSCRIBE_TEMPLATE_PLACEHOLDER
-        ? value.groupResult
-        : ''
+    groupSuccess: normalize(value && value.groupSuccess),
+    groupFail: normalize(value && value.groupFail)
   }
 }
 
@@ -106,7 +110,8 @@ module.exports = {
   ENV_CLOUD_LOCATION_FUNCTION_NAMES,
   ENV_SUBSCRIBE_TEMPLATE_IDS,
   SUBSCRIBE_TEMPLATE_PLACEHOLDER,
-  RELEASE_GROUP_RESULT_TEMPLATE_ID,
+  GROUP_SUCCESS_TEMPLATE_ID,
+  GROUP_FAIL_TEMPLATE_ID,
   getMiniProgramEnvVersion,
   resolveBaseURLByEnv,
   resolveApiTransportByEnv,
