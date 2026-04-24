@@ -8,7 +8,7 @@ process.env.ADMIN_LOGIN_MAX_FAILURES = process.env.ADMIN_LOGIN_MAX_FAILURES || '
 process.env.ADMIN_LOGIN_WINDOW_MS = process.env.ADMIN_LOGIN_WINDOW_MS || '60000'
 process.env.ADMIN_LOGIN_LOCKOUT_MS = process.env.ADMIN_LOGIN_LOCKOUT_MS || '60000'
 
-const backendRoot = path.resolve(__dirname, '..')
+const backendRoot = path.resolve(__dirname, '..', 'console-api-service')
 
 const mockModule = (relativePath, exports) => {
   const modulePath = require.resolve(path.join(backendRoot, relativePath))

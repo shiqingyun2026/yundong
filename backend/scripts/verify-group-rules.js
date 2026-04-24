@@ -1,11 +1,11 @@
-const { AUTO_REFUND_REASON } = require('../shared/constants/refunds')
+const { AUTO_REFUND_REASON } = require('../lindong-api/shared/constants/refunds')
 const {
   applyPaymentToGroup,
   applyRefundToGroup,
   buildGroupCreationPayload,
   canApplyPaymentToGroup,
   hasSuccessfulParticipation
-} = require('../shared/domain/groupRules')
+} = require('../lindong-api/shared/domain/groupRules')
 
 const assertScenario = ({ name, run }) => {
   try {

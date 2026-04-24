@@ -6,8 +6,6 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "deploy:sync": "node scripts/sync-deploy-targets.js",
-    "deploy:check": "node scripts/check-deploy-targets.js",
     "miniprogram-container:start": "node miniprogram-container/server.js",
     "miniprogram-container:dev": "node miniprogram-container/server.js",
     "console:start": "node console-api/server.js",

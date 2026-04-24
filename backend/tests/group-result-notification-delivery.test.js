@@ -2,7 +2,7 @@ const assert = require('node:assert/strict')
 const path = require('node:path')
 const test = require('node:test')
 
-const backendRoot = path.resolve(__dirname, '..')
+const backendRoot = path.resolve(__dirname, '..', 'lindong-api')
 
 const mockModule = (relativePath, exports) => {
   const modulePath = require.resolve(path.join(backendRoot, relativePath))

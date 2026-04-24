@@ -1,6 +1,6 @@
 require('dotenv').config()
 
-const supabase = require('../utils/supabase')
+const supabase = require('../lindong-api/utils/supabase')
 
 const DEFAULT_TEST_OPEN_ID = 'seed0326_u02'
 const JOINABLE_GROUP_OWNER_OPEN_ID = 'seed0326_u01'

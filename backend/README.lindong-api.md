@@ -1,6 +1,6 @@
 # lindong-api
 
-这是面向小程序 `lindong-api` 服务的独立 CloudBase 部署根目录模板来源。
+这是面向小程序 `lindong-api` 服务的独立 CloudBase 部署根目录。
 
 ## 部署
 
@@ -15,5 +15,6 @@
 
 ## 说明
 
-- 该目录由 `backend/` 源码通过部署同步脚本生成
-- 目标是作为可直接部署的源码根目录，逐步替代手工维护的 deploy artifact
+- `backend/lindong-api` 现在就是小程序后端的唯一真源
+- CloudBase GitHub 部署时可直接选择这个子目录作为构建根目录
+- 不再依赖 `deploy-artifacts` 或部署同步脚本

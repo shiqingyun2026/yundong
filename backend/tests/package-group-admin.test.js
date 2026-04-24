@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken')
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'package-group-admin-test-secret'
 process.env.CRON_SECRET = process.env.CRON_SECRET || 'package-group-cron-secret'
 
-const backendRoot = path.resolve(__dirname, '..')
+const backendRoot = path.resolve(__dirname, '..', 'console-api-service')
 
 const mockModule = (relativePath, exports) => {
   const modulePath = require.resolve(path.join(backendRoot, relativePath))
@@ -560,7 +560,7 @@ const loadPackageServicesWithState = () => {
 
   return {
     packageAdminService: require(path.join(backendRoot, 'console-api/services/packageAdminService.js')),
-    packageGroupStore: require(path.join(backendRoot, 'shared/services/packageGroupStore.js')),
+    packageGroupStore: require(path.join(path.resolve(__dirname, '..', 'lindong-api'), 'shared/services/packageGroupStore.js')),
     state
   }
 }

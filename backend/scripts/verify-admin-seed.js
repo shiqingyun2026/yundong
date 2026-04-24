@@ -1,8 +1,8 @@
 require('dotenv').config()
 
-const supabase = require('../utils/supabase')
-const { COURSE_STATUS, getCourseLifecycleMap } = require('../utils/courseLifecycle')
-const { AUTO_REFUND_REASON } = require('../shared/constants/refunds')
+const supabase = require('../lindong-api/utils/supabase')
+const { COURSE_STATUS, getCourseLifecycleMap } = require('../lindong-api/utils/courseLifecycle')
+const { AUTO_REFUND_REASON } = require('../lindong-api/shared/constants/refunds')
 
 const EXPECTED_COURSES = {
   '[测试] 深圳南山周末体适能·待上架': COURSE_STATUS.PENDING_PUBLISH,

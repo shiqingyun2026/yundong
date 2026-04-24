@@ -2,7 +2,7 @@ const assert = require('node:assert/strict')
 const path = require('node:path')
 const test = require('node:test')
 
-const backendRoot = path.resolve(__dirname, '..')
+const backendRoot = path.resolve(__dirname, '..', 'lindong-api')
 
 const mockModule = (relativePath, exports) => {
   const modulePath = require.resolve(path.join(backendRoot, relativePath))
@@ -320,7 +320,7 @@ const loadAppForMySqlRoutes = ({ paymentProviderMode = 'mock' } = {}) => {
     getCourseLifecycleMap: async () => ({})
   })
 
-  const app = require(path.join(backendRoot, 'app.js'))
+  const app = require(path.join(backendRoot, 'miniprogram-container/app.js'))
   return app
 }
 

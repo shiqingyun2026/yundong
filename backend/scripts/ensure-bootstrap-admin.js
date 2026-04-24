@@ -1,6 +1,6 @@
 require('dotenv').config()
 
-const { ensureBootstrapAdmin, hasAdminUsersTable } = require('../utils/adminStore')
+const { ensureBootstrapAdmin, hasAdminUsersTable } = require('../console-api-service/utils/adminStore')
 
 async function main() {
   const hasTable = await hasAdminUsersTable()

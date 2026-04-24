@@ -4,7 +4,7 @@ const test = require('node:test')
 
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'console-api-auth-mysql-secret'
 
-const backendRoot = path.resolve(__dirname, '..')
+const backendRoot = path.resolve(__dirname, '..', 'console-api-service')
 
 const mockModule = (relativePath, exports) => {
   const modulePath = require.resolve(path.join(backendRoot, relativePath))

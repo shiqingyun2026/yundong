@@ -1,4 +1,4 @@
-const { COURSE_STATUS, computeCourseLifecycleStatus } = require('../utils/courseLifecycle')
+const { COURSE_STATUS, computeCourseLifecycleStatus } = require('../lindong-api/utils/courseLifecycle')
 
 const STATUS_TEXT = {
   [COURSE_STATUS.PENDING_PUBLISH]: '待上架',

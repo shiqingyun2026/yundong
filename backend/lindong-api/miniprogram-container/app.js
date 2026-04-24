@@ -5,8 +5,10 @@ process.env.TRUST_CLOUDBASE_MINIPROGRAM_IDENTITY = process.env.TRUST_CLOUDBASE_M
 const express = require('../lib/mini-express')
 
 const authRoutes = require('../routes/auth')
+const bannersRoutes = require('../routes/banners')
 const coursesRoutes = require('../routes/courses')
 const groupsRoutes = require('../routes/groups')
+const internalRoutes = require('../routes/internal')
 const ordersRoutes = require('../routes/orders')
 const packageGroupsRoutes = require('../routes/package-groups')
 const packageOrdersRoutes = require('../routes/package-orders')
@@ -41,9 +43,11 @@ app.get('/favicon.ico', (req, res) => {
 })
 
 app.use('/api/auth', authRoutes)
+app.use('/api/banners', bannersRoutes)
 app.use('/api/courses', coursesRoutes)
 app.use('/api/packages', packagesRoutes)
 app.use('/api/groups', groupsRoutes)
+app.use('/api/internal', internalRoutes)
 app.use('/api/package-groups', packageGroupsRoutes)
 app.use('/api/orders', ordersRoutes)
 app.use('/api/package-orders', packageOrdersRoutes)

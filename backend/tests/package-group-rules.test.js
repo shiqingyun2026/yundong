@@ -11,7 +11,7 @@ const {
   computePackageGroupNextStatus,
   findGroupPriceFen,
   isPackageGroupJoinable
-} = require('../shared/domain/packageGroupRules')
+} = require('../lindong-api/shared/domain/packageGroupRules')
 const {
   buildPackageLessonSchedule,
   computeFirstPackageClassTime,
@@ -22,7 +22,7 @@ const {
   formatScheduleTextWithLockNote,
   normalizeHour,
   normalizeWeekday
-} = require('../shared/services/packageSchedule')
+} = require('../lindong-api/shared/services/packageSchedule')
 
 test('package group rules calculate member amount and platform subsidy', () => {
   assert.equal(calculatePackageMemberAmountFen({ totalPrice: 133333, targetCount: 8 }), 16666)

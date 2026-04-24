@@ -1,34 +1,20 @@
 # console-api
 
-`console-api/` 是从原 `backend/routes/admin` 迁出为独立后台服务形态的第一步。
+`backend/console-api-service` 现在就是 console 后端的唯一真源。
 
-当前状态：
+## 运行方式
 
-- 已有独立 `app.js` 和 `server.js`
-- 独立服务仍保留 `/api/admin/*` 路径前缀，避免影响现有 console 前端调用
-- `routes/index.js` 已从主 `backend/app.js` 中抽离出来
-- `auth` 与 `dashboard` 已迁到 `backend/console-api/routes/*`
-- `logs`、`upload`、`accounts` 也已迁到 `backend/console-api/routes/*`
-- `orders` 也已迁到 `backend/console-api/routes/*`
-- `groups` 也已迁到 `backend/console-api/routes/*`
-- `courses` 也已迁到 `backend/console-api/routes/*`
-- 现有 `auth`、`dashboard`、`logs`、`upload`、`accounts`、`orders`、`groups`、`courses` 路由都已进一步拆成 `routes -> controllers -> services`
-- 原 `backend/routes/admin/*` 兼容壳已移除，仓库内统一以 `backend/console-api/*` 为准
-
-当前运行方式：
-
-- 综合后端：`node server.js`
-- 独立 console 服务：`node console-api/server.js`
+- 启动服务：`node console-api/server.js`
 - 本地 smoke 验证：`npm run verify:console-api-smoke`
-  - 当前覆盖登录、鉴权、超级管理员权限、关键后台路由连通性、典型业务错误口径、以及未预期异常的 500 包裹
 
-注意事项：
+## 部署
 
-- `console-api/server.js` 默认不启动课程生命周期定时同步，避免和综合后端重复执行
-- 如果后续要把 console 服务单独长期运行，再按部署方案决定是否开启 `CONSOLE_API_ENABLE_COURSE_LIFECYCLE_SYNC=true`
+- CloudBase GitHub 构建目录：`backend/console-api-service`
+- Dockerfile：`Dockerfile`
+- 当前服务继续保留 `/api/admin/*` 路径前缀，避免影响现有 console 前端调用
 
-下一步建议：
+## 说明
 
-1. 继续评估哪些参数校验、表能力检查和通用异常处理适合继续沉到 `middleware/`
-2. 在现有 smoke test 基础上继续补失败分支和关键业务分支校验
-3. 等 console 前端配置稳定后，再考虑把路径前缀从 `/api/admin/*` 调整为更纯粹的 console-api 形态
+- 不再依赖 `backend/` 根目录下的旧混合后端壳
+- 不再依赖 `deploy-artifacts` 或部署同步脚本
+- `console-api/server.js` 默认不启动课程生命周期定时同步，避免和小程序后端重复执行

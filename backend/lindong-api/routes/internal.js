@@ -3,7 +3,7 @@ const { env } = require('../config/env')
 
 const { syncAllCourseLifecycles } = require('../utils/courseLifecycle')
 const { syncAllPackageLifecycles } = require('../utils/packageLifecycle')
-const { ok, fail } = require('../console-api/routes/_helpers')
+const { ok, fail } = require('./_helpers')
 const { enqueueGroupResultNotifications } = require('../shared/services/groupResultNotifications')
 const { processPendingGroupResultNotificationJobs } = require('../shared/services/groupResultNotificationDelivery')
 const { cleanupExpiredPackageGroups } = require('../shared/services/packageGroupStore')

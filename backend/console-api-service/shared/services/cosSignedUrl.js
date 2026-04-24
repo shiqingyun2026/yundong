@@ -27,12 +27,12 @@ const buildGetAuthQuery = ({ objectPath, host, now = Math.floor(Date.now() / 100
   const signature = hmacSha1(signKey, stringToSign)
 
   return [
-    `q-sign-algorithm=sha1`,
+    'q-sign-algorithm=sha1',
     `q-ak=${encodeURIComponent(config.secretId)}`,
     `q-sign-time=${encodeURIComponent(keyTime)}`,
     `q-key-time=${encodeURIComponent(keyTime)}`,
-    `q-header-list=host`,
-    `q-url-param-list=`,
+    'q-header-list=host',
+    'q-url-param-list=',
     `q-signature=${signature}`
   ].join('&')
 }
