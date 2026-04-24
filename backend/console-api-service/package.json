@@ -2,24 +2,12 @@
   "name": "lindong-backend",
   "version": "1.0.0",
   "private": true,
-  "main": "server.js",
+  "main": "console-api/server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
-    "deploy:sync": "node scripts/sync-deploy-targets.js",
-    "deploy:check": "node scripts/check-deploy-targets.js",
-    "miniprogram-container:start": "node miniprogram-container/server.js",
-    "miniprogram-container:dev": "node miniprogram-container/server.js",
+    "start": "node console-api/server.js",
+    "dev": "node console-api/server.js",
     "console:start": "node console-api/server.js",
-    "console:dev": "node console-api/server.js",
-    "cf:dev": "wrangler dev",
-    "cf:deploy": "wrangler deploy",
-    "seed:regression-course": "node scripts/create-test-course.js",
-    "ensure:bootstrap-admin": "node scripts/ensure-bootstrap-admin.js",
-    "verify:course-lifecycle": "node scripts/verify-course-lifecycle.js",
-    "verify:group-rules": "node scripts/verify-group-rules.js",
-    "verify:admin-seed": "node scripts/verify-admin-seed.js",
-    "verify:console-api-smoke": "node --test tests/console-api.smoke.test.js"
+    "console:dev": "node console-api/server.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",

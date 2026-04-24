@@ -5,7 +5,6 @@
 .wrangler
 node_modules
 tests
-console-api
 miniprogram-cloud
 migrations
 scripts
