@@ -100,18 +100,61 @@ const formatLocationFallbackText = (value, province = '') => {
   return stripKnownLocationSegments(normalized, [province])
 }
 
+const extractLocationLeafPart = (value, province = '') => {
+  const normalized = formatLocationFallbackText(value, province)
+  if (!normalized) {
+    return ''
+  }
+
+  const slashParts = normalized
+    .split('/')
+    .map(part => collapseLocationText(part))
+    .filter(Boolean)
+
+  return slashParts.length ? slashParts[slashParts.length - 1] : normalized
+}
+
+const extractLocationPathParts = (value, province = '') => {
+  const normalized = formatLocationFallbackText(value, province)
+  if (!normalized) {
+    return []
+  }
+
+  return normalized
+    .split('/')
+    .map(part => collapseLocationText(part))
+    .filter(Boolean)
+}
+
 const formatMiniProgramLocationText = pkg => {
   const source = pkg || {}
   const province = pickFirstNonEmptyString([source.location_province, source.locationProvince])
-  const city = pickFirstNonEmptyString([source.location_city, source.locationCity])
-  const district = pickFirstNonEmptyString([source.location_district, source.locationDistrict])
+  const city = extractLocationLeafPart(
+    pickFirstNonEmptyString([source.location_city, source.locationCity]),
+    province
+  )
+  const districtPathParts = extractLocationPathParts(
+    pickFirstNonEmptyString([source.location_district, source.locationDistrict]),
+    province
+  )
+  const district = districtPathParts.length ? districtPathParts[districtPathParts.length - 1] : ''
+  const fallbackCity = !city && districtPathParts.length > 1 ? districtPathParts[districtPathParts.length - 2] : ''
   const community = pickFirstNonEmptyString([source.location_community, source.locationCommunity])
   const detail = pickFirstNonEmptyString([source.location_detail, source.locationDetail])
   const fallbackText = pickFirstNonEmptyString([source.location_text, source.locationText])
+  const resolvedCity = city || fallbackCity
 
-  const locationSegments = dedupeOrderedParts([province, city, district, community])
-  const normalizedCommunity = collapseLocationText(community)
-  let normalizedDetail = stripKnownLocationSegments(detail, locationSegments)
+  const locationSegments = dedupeOrderedParts([province, resolvedCity, district, community])
+  const compactLocationSegments = dedupeOrderedParts([
+    collapseLocationText(province).replace(/\s*\/\s*/g, ''),
+    collapseLocationText(resolvedCity).replace(/\s*\/\s*/g, ''),
+    collapseLocationText(district).replace(/\s*\/\s*/g, '')
+  ])
+  const normalizedCommunity = extractLocationLeafPart(community, province)
+  let normalizedDetail = extractLocationLeafPart(
+    stripKnownLocationSegments(detail, [...locationSegments, ...compactLocationSegments]),
+    province
+  )
 
   if (normalizedCommunity && normalizedDetail) {
     if (normalizedDetail.includes(normalizedCommunity)) {
@@ -122,7 +165,7 @@ const formatMiniProgramLocationText = pkg => {
   }
 
   const venueText = dedupeOrderedParts([normalizedCommunity, normalizedDetail]).join(' ')
-  const formatted = dedupeOrderedParts([collapseLocationText(city), collapseLocationText(district), venueText])
+  const formatted = dedupeOrderedParts([collapseLocationText(resolvedCity), collapseLocationText(district), venueText])
 
   if (formatted.length) {
     return formatted.join(' / ')
@@ -224,6 +267,27 @@ const fetchUsersByIds = async userIds => {
   }, {})
 }
 
+const logMiniProgramPackageLocationDebug = packages => {
+  const list = Array.isArray(packages) ? packages : []
+  if (!list.length) {
+    return
+  }
+
+  console.info(
+    '[packageReaders] home package location debug',
+    list.slice(0, 10).map(item => ({
+      id: item.id,
+      name: item.name,
+      location_province: item.location_province || '',
+      location_city: item.location_city || '',
+      location_district: item.location_district || '',
+      location_community: item.location_community || '',
+      location_detail: item.location_detail || '',
+      location_text: buildMiniProgramLocationText(item)
+    }))
+  )
+}
+
 const fetchMiniProgramPackageList = async ({
   page = 1,
   pageSize = 10,
@@ -297,7 +361,9 @@ const fetchMiniProgramPackageList = async ({
     })
 
   const from = (safePage - 1) * safePageSize
-  const list = sortedPackages.slice(from, from + safePageSize).map(item => {
+  const pagedPackages = sortedPackages.slice(from, from + safePageSize)
+  logMiniProgramPackageLocationDebug(pagedPackages)
+  const list = pagedPackages.map(item => {
     const maxSupportedPeople = Math.max(...(item.supported_people || [0]))
     const minMemberAmountFen = resolveLowestGroupPriceFen(item)
 
