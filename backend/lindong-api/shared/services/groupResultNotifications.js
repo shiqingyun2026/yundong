@@ -1,128 +1,16 @@
 const { env } = require('../../config/env')
 const {
-  coursesRepository,
+  coursePackagesRepository,
   groupResultNotificationJobsRepository,
   groupResultSubscriptionsRepository,
-  groupsRepository,
-  ordersRepository
+  ordersRepository,
+  packageGroupsRepository
 } = require('../../repositories')
+const { formatPackageDateTime } = require('./packageSchedule')
 
-const loadGroupWithCourse = async ({ supabase, groupId }) => {
-  if (env.useMySqlRepositories) {
-    const group = await groupsRepository.findGroupById(groupId)
-    if (!group) {
-      return null
-    }
-
-    const course = await coursesRepository.findCourseById(group.course_id)
-
-    return {
-      ...group,
-      course: course || null
-    }
-  }
-
-  const { data: group, error } = await supabase
-    .from('groups')
-    .select(
-      'id, course_id, status, current_count, target_count, expire_time, courses!inner(id, name, address, start_time)'
-    )
-    .eq('id', groupId)
-    .maybeSingle()
-
-  if (error) {
-    throw error
-  }
-
-  if (!group) {
-    return null
-  }
-
-  const course = Array.isArray(group.courses) ? group.courses[0] : group.courses
-
-  return {
-    ...group,
-    course: course || null
-  }
-}
-
-const listSuccessfulOrderUserIds = async ({ supabase, groupId }) => {
-  if (env.useMySqlRepositories) {
-    const orders = await ordersRepository.listOrdersByGroupId({
-      groupId,
-      status: 'success'
-    })
-
-    return [...new Set(orders.map(item => item.user_id).filter(Boolean))]
-  }
-
-  const { data, error } = await supabase
-    .from('orders')
-    .select('user_id')
-    .eq('group_id', groupId)
-    .eq('status', 'success')
-
-  if (error) {
-    throw error
-  }
-
-  return [...new Set((data || []).map(item => item.user_id).filter(Boolean))]
-}
-
-const listSubscribedRecipients = async ({ supabase, groupId, userIds }) => {
-  const ids = [...new Set((userIds || []).filter(Boolean))]
-  if (!ids.length) {
-    return []
-  }
-
-  if (env.useMySqlRepositories) {
-    return groupResultSubscriptionsRepository.listSubscriptionsByGroupAndUsers({
-      groupId,
-      userIds: ids,
-      status: 'subscribed'
-    })
-  }
-
-  const { data, error } = await supabase
-    .from('group_result_subscriptions')
-    .select('user_id, template_id, requested_at')
-    .eq('group_id', groupId)
-    .eq('status', 'subscribed')
-    .in('user_id', ids)
-
-  if (error) {
-    throw error
-  }
-
-  return data || []
-}
-
-const listExistingJobs = async ({ supabase, groupId, resultType, userIds }) => {
-  const ids = [...new Set((userIds || []).filter(Boolean))]
-  if (!ids.length) {
-    return []
-  }
-
-  if (env.useMySqlRepositories) {
-    return groupResultNotificationJobsRepository.listExistingNotificationJobs({
-      groupId,
-      resultType,
-      userIds: ids
-    })
-  }
-
-  const { data, error } = await supabase
-    .from('group_result_notification_jobs')
-    .select('user_id')
-    .eq('group_id', groupId)
-    .eq('result_type', resultType)
-    .in('user_id', ids)
-
-  if (error) {
-    throw error
-  }
-
-  return data || []
+const TEMPLATE_KEY_BY_RESULT_TYPE = {
+  success: 'groupSuccess',
+  failed: 'groupFail'
 }
 
 const normalizeResultType = status => {
@@ -137,34 +25,113 @@ const normalizeResultType = status => {
   return ''
 }
 
+const buildPackageLocationText = pkg => {
+  const parts = [pkg && pkg.location_district, pkg && pkg.location_community, pkg && pkg.location_detail]
+    .map(item => `${item || ''}`.trim())
+    .filter(Boolean)
+
+  return parts.join(' ')
+}
+
+const buildGroupCourseText = ({ pkg, group }) => {
+  const packageName = (pkg && pkg.name) || ''
+  const targetCount = Number(group && group.target_count) || 0
+  if (!packageName) {
+    return targetCount > 0 ? `${targetCount}人团` : ''
+  }
+
+  return targetCount > 0 ? `${packageName}(${targetCount}人团)` : packageName
+}
+
+const loadPackageGroupWithPackage = async ({ packageGroupId }) => {
+  if (!env.useMySqlRepositories) {
+    throw new Error('group result notifications currently require mysql repositories')
+  }
+
+  const group = await packageGroupsRepository.findPackageGroupById(packageGroupId)
+  if (!group) {
+    return null
+  }
+
+  const pkg = await coursePackagesRepository.findPackageById(group.package_id)
+
+  return {
+    ...group,
+    package: pkg || null
+  }
+}
+
+const listSuccessfulOrderUserIds = async ({ packageGroupId }) => {
+  const orders = await ordersRepository.listOrdersByPackageGroupId({
+    packageGroupId,
+    status: 'success'
+  })
+
+  return [...new Set(orders.map(item => item.user_id).filter(Boolean))]
+}
+
+const listSubscribedRecipients = async ({ packageGroupId, userIds, resultType }) => {
+  const ids = [...new Set((userIds || []).filter(Boolean))]
+  const templateKey = TEMPLATE_KEY_BY_RESULT_TYPE[resultType] || ''
+
+  if (!ids.length || !templateKey) {
+    return []
+  }
+
+  return groupResultSubscriptionsRepository.listSubscriptionsByGroupAndUsers({
+    groupId: packageGroupId,
+    userIds: ids,
+    status: 'subscribed',
+    templateKey
+  })
+}
+
+const listExistingJobs = async ({ packageGroupId, resultType, userIds }) => {
+  const ids = [...new Set((userIds || []).filter(Boolean))]
+  if (!ids.length) {
+    return []
+  }
+
+  return groupResultNotificationJobsRepository.listExistingNotificationJobs({
+    groupId: packageGroupId,
+    resultType,
+    userIds: ids
+  })
+}
+
 const buildMessageSnapshot = ({ group, resultType }) => {
-  const course = group && group.course ? group.course : {}
-  const courseName = course.name || ''
-  const courseAddress = course.address || ''
-  const courseStartTime = course.start_time || ''
+  const pkg = group && group.package ? group.package : {}
+  const groupCourseText = buildGroupCourseText({
+    pkg,
+    group
+  })
+  const courseAddress = buildPackageLocationText(pkg)
+  const courseStartTime =
+    resultType === 'success' && group && group.first_class_time
+      ? formatPackageDateTime(group.first_class_time)
+      : ''
 
   if (resultType === 'success') {
     return {
-      title: '拼团成功通知',
-      result_text: `你参与的“${courseName}”已拼团成功`,
-      action_text: '请按时到场',
-      course_name: courseName,
+      template_key: TEMPLATE_KEY_BY_RESULT_TYPE.success,
+      group_course: groupCourseText,
+      course_start_time: courseStartTime,
       course_address: courseAddress,
-      course_start_time: courseStartTime
+      warm_tips: '拼团已成功，客服稍后将拉您进去课程微信群，请留意后续通知'
     }
   }
 
   return {
-    title: '拼团失败通知',
-    result_text: `你参与的“${courseName}”未拼团成功`,
-    action_text: '系统将原路退款',
-    course_name: courseName,
-    course_address: courseAddress,
-    course_start_time: courseStartTime
+    template_key: TEMPLATE_KEY_BY_RESULT_TYPE.failed,
+    group_course: groupCourseText,
+    failed_reason: '拼团截止前未达到成团人数',
+    warm_tips: '本次拼团未成功，系统将自动原路退款，请留意微信支付到账通知'
   }
 }
 
 const enqueueGroupResultNotifications = async ({ supabase, groupId, resultType, now = new Date() }) => {
+  void supabase
+
   const normalizedResultType = normalizeResultType(resultType)
   if (!groupId || !normalizedResultType) {
     return {
@@ -175,9 +142,8 @@ const enqueueGroupResultNotifications = async ({ supabase, groupId, resultType, 
     }
   }
 
-  const group = await loadGroupWithCourse({
-    supabase,
-    groupId
+  const group = await loadPackageGroupWithPackage({
+    packageGroupId: groupId
   })
 
   if (!group || group.status !== normalizedResultType) {
@@ -190,13 +156,12 @@ const enqueueGroupResultNotifications = async ({ supabase, groupId, resultType, 
   }
 
   const userIds = await listSuccessfulOrderUserIds({
-    supabase,
-    groupId
+    packageGroupId: groupId
   })
   const recipients = await listSubscribedRecipients({
-    supabase,
-    groupId,
-    userIds
+    packageGroupId: groupId,
+    userIds,
+    resultType: normalizedResultType
   })
 
   if (!recipients.length) {
@@ -208,32 +173,32 @@ const enqueueGroupResultNotifications = async ({ supabase, groupId, resultType, 
     }
   }
 
+  const existingJobs = await listExistingJobs({
+    packageGroupId: groupId,
+    resultType: normalizedResultType,
+    userIds: recipients.map(item => item.user_id)
+  })
+  const existingUserIdSet = new Set(existingJobs.map(item => item.user_id).filter(Boolean))
   const timestamp = now.toISOString()
   const messageSnapshot = buildMessageSnapshot({
     group,
     resultType: normalizedResultType
   })
-  const existingJobs = await listExistingJobs({
-    supabase,
-    groupId,
-    resultType: normalizedResultType,
-    userIds: recipients.map(item => item.user_id)
-  })
-  const existingUserIdSet = new Set(existingJobs.map(item => item.user_id).filter(Boolean))
+
   const payload = recipients
     .filter(item => !existingUserIdSet.has(item.user_id))
     .map(item => ({
       user_id: item.user_id,
       group_id: group.id,
-      course_id: group.course_id,
+      course_id: group.package_id,
       result_type: normalizedResultType,
       template_id: item.template_id || '',
-    page_path: `/pages/group/detail/index?courseId=${group.course_id}&groupId=${group.id}`,
-    status: 'pending',
-    message_snapshot: messageSnapshot,
-    subscription_requested_at: item.requested_at || timestamp,
-    created_at: timestamp,
-    updated_at: timestamp
+      page_path: `/pages/group/detail/index?packageGroupId=${group.id}`,
+      status: 'pending',
+      message_snapshot: messageSnapshot,
+      subscription_requested_at: item.requested_at || timestamp,
+      created_at: timestamp,
+      updated_at: timestamp
     }))
 
   if (!payload.length) {
@@ -245,25 +210,10 @@ const enqueueGroupResultNotifications = async ({ supabase, groupId, resultType, 
     }
   }
 
-  let createdCount = 0
-
-  if (env.useMySqlRepositories) {
-    const beforeExistingCount = existingJobs.length
-    const jobs = await groupResultNotificationJobsRepository.createNotificationJobs(payload)
-    const createdJobs = jobs.filter(item => item.group_id === groupId && item.result_type === normalizedResultType)
-    createdCount = Math.max(0, createdJobs.length - beforeExistingCount)
-  } else {
-    const { data, error } = await supabase
-      .from('group_result_notification_jobs')
-      .insert(payload)
-      .select('id')
-
-    if (error) {
-      throw error
-    }
-
-    createdCount = (data || []).length
-  }
+  const beforeExistingCount = existingJobs.length
+  const jobs = await groupResultNotificationJobsRepository.createNotificationJobs(payload)
+  const createdJobs = jobs.filter(item => item.group_id === groupId && item.result_type === normalizedResultType)
+  const createdCount = Math.max(0, createdJobs.length - beforeExistingCount)
 
   return {
     groupId,

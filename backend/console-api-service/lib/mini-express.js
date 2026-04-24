@@ -1,8 +1,25 @@
 const http = require('node:http')
+const { env } = require('../config/env')
 
 const METHODS = new Set(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
 const CORS_ALLOW_HEADERS =
   'Content-Type, Authorization, X-WX-OPENID, X-WX-APPID, X-WX-UNIONID, X-WX-SERVICE'
+
+const getAllowedOrigin = requestOrigin => {
+  const configuredOrigins = [env.consoleOrigin, env.appOrigin]
+    .map(value => `${value || ''}`.trim())
+    .filter(Boolean)
+
+  if (!requestOrigin) {
+    return configuredOrigins[0] || '*'
+  }
+
+  if (configuredOrigins.length === 0) {
+    return '*'
+  }
+
+  return configuredOrigins.includes(requestOrigin) ? requestOrigin : ''
+}
 
 const normalizePath = value => {
   if (!value) {
@@ -142,6 +159,7 @@ const parseBody = async request => {
 
 const createResponseToolkit = () => {
   const headers = new Headers()
+  const cookieValues = []
 
   return {
     sent: false,
@@ -154,6 +172,34 @@ const createResponseToolkit = () => {
     },
     set(name, value) {
       headers.set(name, value)
+      return this
+    },
+    append(name, value) {
+      headers.append(name, value)
+      return this
+    },
+    cookie(name, value, options = {}) {
+      const segments = [`${name}=${value}`]
+
+      if (options.maxAge !== undefined) {
+        segments.push(`Max-Age=${Math.max(0, Number(options.maxAge) || 0)}`)
+      }
+
+      segments.push(`Path=${options.path || '/'}`)
+
+      if (options.httpOnly !== false) {
+        segments.push('HttpOnly')
+      }
+
+      if (options.sameSite) {
+        segments.push(`SameSite=${options.sameSite}`)
+      }
+
+      if (options.secure) {
+        segments.push('Secure')
+      }
+
+      cookieValues.push(segments.join('; '))
       return this
     },
     json(payload) {
@@ -173,6 +219,10 @@ const createResponseToolkit = () => {
       return this.send(payload)
     },
     toResponse() {
+      cookieValues.forEach(value => {
+        headers.append('set-cookie', value)
+      })
+
       const bodylessStatus = new Set([101, 103, 204, 205, 304])
       const payload = bodylessStatus.has(this.statusCode) ? null : this.body
       return new Response(payload, {
@@ -239,14 +289,18 @@ const createRouter = () => {
   router.fetch = async request => {
     const url = new URL(request.url)
     const path = normalizePath(url.pathname)
+    const requestOrigin = request.headers.get('origin') || ''
+    const allowedOrigin = getAllowedOrigin(requestOrigin)
 
     if (request.method.toUpperCase() === 'OPTIONS') {
       return new Response(null, {
         status: 204,
         headers: {
-          'access-control-allow-origin': '*',
+          ...(allowedOrigin ? { 'access-control-allow-origin': allowedOrigin } : {}),
           'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
-          'access-control-allow-headers': CORS_ALLOW_HEADERS
+          'access-control-allow-headers': CORS_ALLOW_HEADERS,
+          'access-control-allow-credentials': 'true',
+          vary: 'Origin'
         }
       })
     }
@@ -259,6 +313,20 @@ const createRouter = () => {
       path,
       query: Object.fromEntries(url.searchParams.entries()),
       headers: createHeadersObject(request.headers),
+      cookies: Object.fromEntries(
+        `${request.headers.get('cookie') || ''}`
+          .split(';')
+          .map(item => item.trim())
+          .filter(Boolean)
+          .map(item => {
+            const separatorIndex = item.indexOf('=')
+            if (separatorIndex <= 0) {
+              return [item, '']
+            }
+
+            return [item.slice(0, separatorIndex), decodeURIComponent(item.slice(separatorIndex + 1))]
+          })
+      ),
       ip: getClientIp(request.headers),
       body: parsedBody.body,
       rawBody: parsedBody.rawBody,
@@ -314,10 +382,12 @@ const createRouter = () => {
 
     await dispatch(0)
 
-    if (!res.headers.has('access-control-allow-origin')) {
-      res.headers.set('access-control-allow-origin', '*')
+    if (!res.headers.has('access-control-allow-origin') && allowedOrigin) {
+      res.headers.set('access-control-allow-origin', allowedOrigin)
       res.headers.set('access-control-allow-headers', CORS_ALLOW_HEADERS)
       res.headers.set('access-control-allow-methods', 'GET,POST,PUT,DELETE,OPTIONS')
+      res.headers.set('access-control-allow-credentials', 'true')
+      res.headers.set('vary', 'Origin')
     }
 
     return res.toResponse()

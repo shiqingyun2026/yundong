@@ -8,32 +8,53 @@ const readRequiredEnv = key => {
   return value
 }
 
-const parseTemplateFieldMap = () => {
-  const raw = `${process.env.WX_GROUP_RESULT_TEMPLATE_FIELD_MAP || ''}`.trim()
+const parseFieldMap = envKey => {
+  const raw = `${process.env[envKey] || ''}`.trim()
   if (!raw) {
-    throw new Error('WX_GROUP_RESULT_TEMPLATE_FIELD_MAP is required for wechat delivery mode')
+    throw new Error(`${envKey} is required for wechat delivery mode`)
   }
 
   let parsed = null
   try {
     parsed = JSON.parse(raw)
   } catch (error) {
-    throw new Error('WX_GROUP_RESULT_TEMPLATE_FIELD_MAP must be valid JSON')
+    throw new Error(`${envKey} must be valid JSON`)
   }
 
-  const normalized = {
-    title: parsed.title || '',
-    resultText: parsed.resultText || '',
-    actionText: parsed.actionText || '',
-    courseStartTime: parsed.courseStartTime || '',
-    courseAddress: parsed.courseAddress || ''
+  return parsed && typeof parsed === 'object' ? parsed : {}
+}
+
+const getTemplateFieldMapByTemplateKey = templateKey => {
+  if (templateKey === 'groupSuccess') {
+    const parsed = parseFieldMap('WX_GROUP_SUCCESS_TEMPLATE_FIELD_MAP')
+    if (!parsed.groupCourse || !parsed.courseStartTime || !parsed.courseAddress || !parsed.warmTips) {
+      throw new Error(
+        'WX_GROUP_SUCCESS_TEMPLATE_FIELD_MAP must define groupCourse, courseStartTime, courseAddress and warmTips'
+      )
+    }
+
+    return {
+      groupCourse: parsed.groupCourse,
+      courseStartTime: parsed.courseStartTime,
+      courseAddress: parsed.courseAddress,
+      warmTips: parsed.warmTips
+    }
   }
 
-  if (!normalized.title || !normalized.resultText || !normalized.actionText) {
-    throw new Error('WX_GROUP_RESULT_TEMPLATE_FIELD_MAP must define title, resultText and actionText')
+  if (templateKey === 'groupFail') {
+    const parsed = parseFieldMap('WX_GROUP_FAIL_TEMPLATE_FIELD_MAP')
+    if (!parsed.groupCourse || !parsed.failedReason || !parsed.warmTips) {
+      throw new Error('WX_GROUP_FAIL_TEMPLATE_FIELD_MAP must define groupCourse, failedReason and warmTips')
+    }
+
+    return {
+      groupCourse: parsed.groupCourse,
+      failedReason: parsed.failedReason,
+      warmTips: parsed.warmTips
+    }
   }
 
-  return normalized
+  throw new Error(`unsupported template key: ${templateKey || 'unknown'}`)
 }
 
 const buildPagePath = pagePath => {
@@ -52,31 +73,35 @@ const truncateValue = (value, maxLength = 20) => {
 
 const buildTemplateData = (job, fieldMap) => {
   const snapshot = job && job.message_snapshot ? job.message_snapshot : {}
-  const data = {}
 
-  data[fieldMap.title] = {
-    value: truncateValue(snapshot.title, 20)
-  }
-  data[fieldMap.resultText] = {
-    value: truncateValue(snapshot.result_text, 20)
-  }
-  data[fieldMap.actionText] = {
-    value: truncateValue(snapshot.action_text, 20)
-  }
-
-  if (fieldMap.courseStartTime) {
-    data[fieldMap.courseStartTime] = {
-      value: truncateValue(snapshot.course_start_time, 20)
+  if (snapshot.template_key === 'groupSuccess') {
+    return {
+      [fieldMap.groupCourse]: {
+        value: truncateValue(snapshot.group_course, 20)
+      },
+      [fieldMap.courseStartTime]: {
+        value: truncateValue(snapshot.course_start_time, 20)
+      },
+      [fieldMap.courseAddress]: {
+        value: truncateValue(snapshot.course_address, 20)
+      },
+      [fieldMap.warmTips]: {
+        value: truncateValue(snapshot.warm_tips, 20)
+      }
     }
   }
 
-  if (fieldMap.courseAddress) {
-    data[fieldMap.courseAddress] = {
-      value: truncateValue(snapshot.course_address, 20)
+  return {
+    [fieldMap.groupCourse]: {
+      value: truncateValue(snapshot.group_course, 20)
+    },
+    [fieldMap.failedReason]: {
+      value: truncateValue(snapshot.failed_reason, 20)
+    },
+    [fieldMap.warmTips]: {
+      value: truncateValue(snapshot.warm_tips, 20)
     }
   }
-
-  return data
 }
 
 const sendGroupResultSubscribeMessage = async ({ openId, job }) => {
@@ -84,8 +109,9 @@ const sendGroupResultSubscribeMessage = async ({ openId, job }) => {
     throw new Error('wechat recipient openid missing')
   }
 
+  const templateKey = job && job.message_snapshot ? job.message_snapshot.template_key : ''
   const accessToken = await getWechatAccessToken()
-  const fieldMap = parseTemplateFieldMap()
+  const fieldMap = getTemplateFieldMapByTemplateKey(templateKey)
   const miniprogramState = `${process.env.WX_MINIPROGRAM_STATE || 'developer'}`.trim()
   const payload = {
     touser: openId,

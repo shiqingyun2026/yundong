@@ -9,12 +9,152 @@ const {
   formatScheduleTextWithLockNote
 } = require('./packageSchedule')
 const { cleanupExpiredPackageGroups } = require('./packageGroupStore')
+const { signCosImageList, signCosPublicUrl, signCosUrlsInText } = require('./cosSignedUrl')
 
 const formatFenText = amountFen => (Number(amountFen || 0) / 100).toFixed(2)
 
-const buildLocationText = pkg => [pkg.location_community, pkg.location_detail].filter(Boolean).join(' ')
+const DEFAULT_MEMBER_AVATAR = '/assets/ant-icons/user-white.svg'
+
+const pickFirstNonEmptyString = values => {
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index]
+    if (value === null || value === undefined) {
+      continue
+    }
+
+    const normalized = `${value}`.trim()
+    if (normalized) {
+      return normalized
+    }
+  }
+
+  return ''
+}
+
+const escapeRegExp = value => `${value}`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const collapseLocationText = value =>
+  `${value || ''}`
+    .replace(/[／]/g, '/')
+    .replace(/[，,]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\s*\/\s*/g, ' / ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const dedupeOrderedParts = parts => {
+  const result = []
+
+  parts.forEach(part => {
+    if (!part) {
+      return
+    }
+
+    const normalized = collapseLocationText(part)
+    if (normalized && !result.includes(normalized)) {
+      result.push(normalized)
+    }
+  })
+
+  return result
+}
+
+const stripKnownLocationSegments = (value, segments = []) => {
+  let normalized = collapseLocationText(value)
+  if (!normalized) {
+    return ''
+  }
+
+  segments
+    .filter(Boolean)
+    .sort((left, right) => `${right}`.length - `${left}`.length)
+    .forEach(segment => {
+      const pattern = new RegExp(escapeRegExp(segment), 'g')
+      normalized = normalized.replace(pattern, ' ')
+    })
+
+  return collapseLocationText(
+    normalized
+      .replace(/[\u4e00-\u9fa5]{2,}(省|自治区|特别行政区)/g, ' ')
+      .replace(/\s*\/\s*/g, ' ')
+      .replace(/\s+/g, ' ')
+  )
+}
+
+const formatLocationFallbackText = (value, province = '') => {
+  const normalized = collapseLocationText(value)
+  if (!normalized) {
+    return ''
+  }
+
+  const slashParts = normalized
+    .split('/')
+    .map(part => collapseLocationText(part))
+    .filter(Boolean)
+
+  if (slashParts.length > 1) {
+    const filteredParts = slashParts.filter(part => part !== collapseLocationText(province) && !/省$/.test(part))
+    return dedupeOrderedParts(filteredParts).join(' / ')
+  }
+
+  return stripKnownLocationSegments(normalized, [province])
+}
+
+const formatMiniProgramLocationText = pkg => {
+  const source = pkg || {}
+  const province = pickFirstNonEmptyString([source.location_province, source.locationProvince])
+  const city = pickFirstNonEmptyString([source.location_city, source.locationCity])
+  const district = pickFirstNonEmptyString([source.location_district, source.locationDistrict])
+  const community = pickFirstNonEmptyString([source.location_community, source.locationCommunity])
+  const detail = pickFirstNonEmptyString([source.location_detail, source.locationDetail])
+  const fallbackText = pickFirstNonEmptyString([source.location_text, source.locationText])
+
+  const locationSegments = dedupeOrderedParts([province, city, district, community])
+  const normalizedCommunity = collapseLocationText(community)
+  let normalizedDetail = stripKnownLocationSegments(detail, locationSegments)
+
+  if (normalizedCommunity && normalizedDetail) {
+    if (normalizedDetail.includes(normalizedCommunity)) {
+      normalizedDetail = collapseLocationText(normalizedDetail.replace(new RegExp(escapeRegExp(normalizedCommunity), 'g'), ' '))
+    } else if (normalizedCommunity.includes(normalizedDetail)) {
+      normalizedDetail = ''
+    }
+  }
+
+  const venueText = dedupeOrderedParts([normalizedCommunity, normalizedDetail]).join(' ')
+  const formatted = dedupeOrderedParts([collapseLocationText(city), collapseLocationText(district), venueText])
+
+  if (formatted.length) {
+    return formatted.join(' / ')
+  }
+
+  return formatLocationFallbackText(fallbackText, province)
+}
+
+const buildLocationText = pkg => formatMiniProgramLocationText(pkg)
+
+const buildMiniProgramLocationText = pkg => formatMiniProgramLocationText(pkg)
 
 const buildAdminLocationText = pkg => [pkg.location_district, pkg.location_community, pkg.location_detail].filter(Boolean).join(' / ')
+
+const resolveLowestGroupPriceFen = pkg => {
+  const priceList = (pkg.group_price_config || [])
+    .map(item => Number(item && item.price_fen))
+    .filter(price => Number.isFinite(price) && price > 0)
+
+  if (priceList.length) {
+    return Math.min(...priceList)
+  }
+
+  const supportedPeople = (pkg.supported_people || []).map(item => Number(item)).filter(Boolean)
+  const maxSupportedPeople = supportedPeople.length ? Math.max(...supportedPeople) : 0
+
+  return calculatePackageMemberAmountFen({
+    totalPrice: pkg.total_price,
+    targetCount: maxSupportedPeople,
+    groupPriceConfig: pkg.group_price_config
+  })
+}
 
 const EARTH_RADIUS_METERS = 6371000
 
@@ -47,14 +187,25 @@ const ensureMySqlMode = () => {
   }
 }
 
-const resolvePackageStatus = ({ status, publishTime, now = new Date() }) => {
+const resolvePackageStatus = ({ status, publishTime, unpublishTime, now = new Date() }) => {
   if (Number(status) === 0) {
     return 'inactive'
   }
 
-  const publishDate = publishTime ? new Date(publishTime) : null
-  if (!publishDate || Number.isNaN(publishDate.getTime())) {
-    return 'pending'
+  if (unpublishTime) {
+    const unpublishDate = new Date(unpublishTime)
+    if (!Number.isNaN(unpublishDate.getTime()) && unpublishDate.getTime() <= now.getTime()) {
+      return 'inactive'
+    }
+  }
+
+  if (!publishTime) {
+    return 'active'
+  }
+
+  const publishDate = new Date(publishTime)
+  if (Number.isNaN(publishDate.getTime())) {
+    return 'active'
   }
 
   return publishDate.getTime() > now.getTime() ? 'pending' : 'active'
@@ -93,8 +244,14 @@ const fetchMiniProgramPackageList = async ({
     district,
     status: 1
   })
+  const visiblePackages = packages.filter(item => resolvePackageStatus({
+    status: item.status,
+    publishTime: item.publish_time,
+    unpublishTime: item.unpublish_time,
+    now
+  }) === 'active')
 
-  const packageIds = packages.map(item => item.id).filter(Boolean)
+  const packageIds = visiblePackages.map(item => item.id).filter(Boolean)
   await cleanupExpiredPackageGroups({
     packageIds,
     now
@@ -113,7 +270,7 @@ const fetchMiniProgramPackageList = async ({
     return result
   }, {})
 
-  const sortedPackages = packages
+  const sortedPackages = visiblePackages
     .map(item => {
       const distanceMeters = calculateDistanceMeters(
         {
@@ -141,20 +298,13 @@ const fetchMiniProgramPackageList = async ({
 
   const from = (safePage - 1) * safePageSize
   const list = sortedPackages.slice(from, from + safePageSize).map(item => {
-    const maxGroupConfig = [...(item.group_price_config || [])].sort((left, right) => right.target_count - left.target_count)[0]
-    const maxSupportedPeople = maxGroupConfig ? maxGroupConfig.target_count : Math.max(...(item.supported_people || [0]))
-    const minMemberAmountFen = maxGroupConfig
-      ? Number(maxGroupConfig.price_fen) || 0
-      : calculatePackageMemberAmountFen({
-          totalPrice: item.total_price,
-          targetCount: maxSupportedPeople,
-          groupPriceConfig: item.group_price_config
-        })
+    const maxSupportedPeople = Math.max(...(item.supported_people || [0]))
+    const minMemberAmountFen = resolveLowestGroupPriceFen(item)
 
     return {
       id: item.id,
       name: item.name,
-      cover: item.cover,
+      cover: signCosPublicUrl(item.cover),
       package_category: item.package_category || '体适能',
       class_count: Number(item.class_count) || 0,
       class_duration_minutes: Number(item.class_duration_minutes) || 0,
@@ -162,6 +312,7 @@ const fetchMiniProgramPackageList = async ({
       max_supported_people: maxSupportedPeople,
       min_member_amount_fen: minMemberAmountFen,
       min_member_amount_text: formatFenText(minMemberAmountFen),
+      location_city: item.location_city,
       location_district: item.location_district,
       location_community: item.location_community,
       location_detail: item.location_detail,
@@ -183,7 +334,15 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
   ensureMySqlMode()
 
   const pkg = await coursePackagesRepository.findPackageById(packageId)
-  if (!pkg || resolvePackageStatus({ status: pkg.status, publishTime: pkg.publish_time, now }) !== 'active') {
+  if (
+    !pkg ||
+    resolvePackageStatus({
+      status: pkg.status,
+      publishTime: pkg.publish_time,
+      unpublishTime: pkg.unpublish_time,
+      now
+    }) !== 'active'
+  ) {
     throw createPackageServiceError(404, 2001, '课包不存在')
   }
 
@@ -201,8 +360,8 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
   return {
     id: pkg.id,
     name: pkg.name,
-    cover: pkg.cover,
-    images: (pkg.images && pkg.images.length ? pkg.images : pkg.cover ? [pkg.cover] : []) || [],
+    cover: signCosPublicUrl(pkg.cover),
+    images: signCosImageList((pkg.images && pkg.images.length ? pkg.images : pkg.cover ? [pkg.cover] : []) || []),
     total_price_fen: Number(pkg.total_price) || 0,
     total_price_text: formatFenText(pkg.total_price),
     package_category: pkg.package_category || '体适能',
@@ -210,13 +369,14 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
     class_duration_minutes: Number(pkg.class_duration_minutes) || 0,
     group_price_config: pkg.group_price_config || [],
     supported_people: pkg.supported_people || [],
+    location_city: pkg.location_city,
     location_district: pkg.location_district,
     location_community: pkg.location_community,
     location_detail: pkg.location_detail,
     coach_name: pkg.coach_name,
-    coach_intro: pkg.coach_intro,
-    coach_certificates: pkg.coach_certificates || [],
-    description: pkg.description || '',
+    coach_intro: signCosUrlsInText(pkg.coach_intro || ''),
+    coach_certificates: signCosImageList(pkg.coach_certificates || []),
+    description: signCosUrlsInText(pkg.description || ''),
     insurance_desc: '课程期间统一赠送基础运动意外险，具体保障范围以投保说明为准。',
     active_groups: (activeGroups || [])
       .sort((left, right) => new Date(left.deadline).getTime() - new Date(right.deadline).getTime())
@@ -285,6 +445,7 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
     : []
   const scheduleMode = scheduleList.length ? 'locked' : 'pending'
   const userJoined = !!(userId && successOrders.some(item => item.user_id === userId))
+  const leaderOrder = successOrders.find(item => item.package_action === 'start') || successOrders[0] || null
 
   return {
     id: latestGroup.id,
@@ -292,8 +453,11 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
     package: {
       id: pkg.id,
       name: pkg.name,
-      location_text: buildLocationText(pkg),
-      coach_name: pkg.coach_name
+      location_city: pkg.location_city || '',
+      location_district: pkg.location_district || '',
+      location_community: pkg.location_community || '',
+      location_detail: pkg.location_detail || '',
+      location_text: buildMiniProgramLocationText(pkg)
     },
     target_count: Number(latestGroup.target_count) || 0,
     current_count: Number(latestGroup.current_count) || 0,
@@ -315,9 +479,22 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
     schedule_list: scheduleList,
     members: successOrders.map(order => ({
       user_id: order.user_id,
-      nickname: (usersById[order.user_id] && usersById[order.user_id].nickname) || '微信用户',
-      avatar_url: (usersById[order.user_id] && usersById[order.user_id].avatar_url) || ''
+      nickname:
+        (order.package_context && order.package_context.child_nickname) ||
+        (usersById[order.user_id] && usersById[order.user_id].nickname) ||
+        '微信用户',
+      avatar_url: DEFAULT_MEMBER_AVATAR
     })),
+    child_nickname:
+      (leaderOrder &&
+        leaderOrder.package_context &&
+        leaderOrder.package_context.child_nickname) ||
+      '',
+    child_age:
+      (leaderOrder &&
+        leaderOrder.package_context &&
+        leaderOrder.package_context.child_age) ||
+      null,
     user_joined: userJoined
   }
 }
@@ -374,11 +551,19 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
     })
 
     return {
+      order_id: order.id,
       package_group_id: group.id,
       package_id: group.package_id,
       package_name: pkg ? pkg.name : '',
       status: group.status,
+      location_city: pkg ? pkg.location_city || '' : '',
+      location_district: pkg ? pkg.location_district || '' : '',
+      location_community: pkg ? pkg.location_community || '' : '',
+      location_detail: pkg ? pkg.location_detail || '' : '',
       location_text: pkg ? buildLocationText(pkg) : '',
+      current_count: Number(group.current_count) || 0,
+      target_count: Number(group.target_count) || 0,
+      missing_count: Math.max(0, Number(group.target_count) - Number(group.current_count)),
       first_class_time: group.first_class_time ? formatPackageDateTime(group.first_class_time) : null,
       display_time_text: group.first_class_time
         ? formatPackageDateTime(group.first_class_time)
@@ -401,6 +586,7 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
 module.exports = {
   buildAdminLocationText,
   buildLocationText,
+  buildMiniProgramLocationText,
   fetchMiniProgramPackageDetail,
   fetchMiniProgramPackageGroupDetail,
   fetchMiniProgramPackageList,

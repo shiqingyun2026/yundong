@@ -240,20 +240,20 @@ Vercel 和 Cloudflare 本身不是“错”，但它们对应的是：
 
 不要压整个仓库，应该只上传云托管需要的后端最小代码包。
 
-截至 2026-04-18，这个最小代码包已经实际固化在：
+截至 2026-04-24，这个最小代码包已经收口为独立部署根目录：
 
-- [deploy-artifacts/lindong-api-deploy](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy)
+- [backend/lindong-api](/Users/yun/lindong/backend/lindong-api)
 
-**这就是当前 CloudBase 线上实际在跑的部署包。**
+**这就是当前 CloudBase 应使用的小程序后端部署目录。**
 
 - 真机看到的接口行为，最终以这里的代码为准
-- `backend/` 只是开发源码，没同步到这里就不会生效
-- 这轮已经确认过，很多问题都不是代码没改，而是部署包里还停留在旧版本
+- 不要再直接把混合 `backend/` 作为小程序后端部署目录
+- 这轮已经把旧的手工 `deploy-artifacts/lindong-api-deploy` 迁移掉，避免源码与部署包漂移
 
 并且真实验证过：
 
-- CloudBase 控制台当前用“本地文件夹上传”部署时，应以上述目录为准
-- 如果只改 `backend/` 但不更新 `deploy-artifacts/lindong-api-deploy/`，重新部署不会带上最新修复
+- CloudBase GitHub 部署时，应把构建目录指向 `backend/lindong-api`
+- 如果只改混合 `backend/` 而不重新生成并部署 `backend/lindong-api`，线上不会带上最新修复
 
 ### 6.4 当前验证状态
 

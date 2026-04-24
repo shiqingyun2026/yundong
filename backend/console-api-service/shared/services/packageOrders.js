@@ -16,6 +16,7 @@ const {
   normalizeHour,
   normalizeWeekday
 } = require('./packageSchedule')
+const { enqueueGroupResultNotifications } = require('./groupResultNotifications')
 const { cleanupExpiredPackageGroups, closePendingPackageOrdersByIds, listPendingOrderIdsForPackage } = require('./packageGroupStore')
 const { createPackageServiceError, isPackageServiceError } = require('./packageServiceError')
 
@@ -44,30 +45,64 @@ const validateWeekdayAndHour = ({ weekday, hour }) => {
   }
 }
 
-const hasUserActivePackageParticipation = async ({ userId, packageId }) => {
-  const successOrders = await ordersRepository.listOrders({
-    userId,
-    orderType: 2,
-    packageId,
-    status: 'success'
-  })
+const normalizeChildNickname = value => `${value || ''}`.trim()
 
-  if (!successOrders.length) {
-    return false
+const normalizeParentMobile = value => `${value ?? ''}`.replace(/\D/g, '').slice(0, 11)
+
+const normalizeChildAge = value => {
+  const trimmed = `${value ?? ''}`.trim()
+  if (!trimmed) {
+    return null
   }
 
-  const activeOrSuccessGroups = await packageGroupsRepository.listPackageGroups({
-    packageId,
-    statuses: ['active', 'success']
-  })
-  const activeOrSuccessGroupIds = new Set(activeOrSuccessGroups.map(item => item.id))
+  if (!/^\d+$/.test(trimmed)) {
+    return NaN
+  }
 
-  return successOrders.some(order => activeOrSuccessGroupIds.has(order.package_group_id))
+  return Number(trimmed)
 }
 
-const createPackageStartOrder = async ({ userId, packageId, targetCount, weekday, hour, now = new Date() }) => {
+const validateChildProfile = ({ childNickname, childAge, parentMobile }) => {
+  const normalizedNickname = normalizeChildNickname(childNickname)
+  if (!normalizedNickname) {
+    throw createPackageServiceError(400, 1001, '请填写孩子昵称')
+  }
+
+  const normalizedAge = normalizeChildAge(childAge)
+  if (!Number.isInteger(normalizedAge) || normalizedAge < 0) {
+    throw createPackageServiceError(400, 1001, '请填写孩子年龄')
+  }
+
+  const normalizedParentMobile = normalizeParentMobile(parentMobile)
+  if (!/^1\d{10}$/.test(normalizedParentMobile)) {
+    throw createPackageServiceError(400, 1001, '请填写正确的家长手机号')
+  }
+
+  return {
+    childNickname: normalizedNickname,
+    childAge: normalizedAge,
+    parentMobile: normalizedParentMobile
+  }
+}
+
+const createPackageStartOrder = async ({
+  userId,
+  packageId,
+  targetCount,
+  weekday,
+  hour,
+  childNickname,
+  childAge,
+  parentMobile,
+  now = new Date()
+}) => {
   ensureMySqlMode()
   validateWeekdayAndHour({ weekday, hour })
+  const normalizedChildProfile = validateChildProfile({
+    childNickname,
+    childAge,
+    parentMobile
+  })
 
   const pkg = await getPackageByIdOrThrow(packageId)
   if (Number(pkg.status) !== 1) {
@@ -83,15 +118,6 @@ const createPackageStartOrder = async ({ userId, packageId, targetCount, weekday
     packageId,
     now
   })
-
-  if (
-    await hasUserActivePackageParticipation({
-      userId,
-      packageId
-    })
-  ) {
-    throw createPackageServiceError(400, 2004, '该课包已参与进行中或已成团拼团，不可重复参与')
-  }
 
   await closePendingPackageOrdersByIds({
     orderIds: await listPendingOrderIdsForPackage({
@@ -115,7 +141,10 @@ const createPackageStartOrder = async ({ userId, packageId, targetCount, weekday
     package_context: {
       target_count: Number(targetCount),
       weekday: Number(weekday),
-      hour: Number(hour)
+      hour: Number(hour),
+      child_nickname: normalizedChildProfile.childNickname,
+      child_age: normalizedChildProfile.childAge,
+      parent_mobile: normalizedChildProfile.parentMobile
     },
     amount: memberAmountFen
   })
@@ -123,12 +152,28 @@ const createPackageStartOrder = async ({ userId, packageId, targetCount, weekday
   return {
     order,
     package: pkg,
-    memberAmountFen
+    memberAmountFen,
+    childNickname: normalizedChildProfile.childNickname,
+    childAge: normalizedChildProfile.childAge,
+    parentMobile: normalizedChildProfile.parentMobile
   }
 }
 
-const createPackageJoinOrder = async ({ userId, packageId, packageGroupId, now = new Date() }) => {
+const createPackageJoinOrder = async ({
+  userId,
+  packageId,
+  packageGroupId,
+  childNickname,
+  childAge,
+  parentMobile,
+  now = new Date()
+}) => {
   ensureMySqlMode()
+  const normalizedChildProfile = validateChildProfile({
+    childNickname,
+    childAge,
+    parentMobile
+  })
 
   const pkg = await getPackageByIdOrThrow(packageId)
   if (Number(pkg.status) !== 1) {
@@ -143,15 +188,6 @@ const createPackageJoinOrder = async ({ userId, packageId, packageGroupId, now =
   const group = await packageGroupsRepository.findPackageGroupById(packageGroupId)
   if (!group || group.package_id !== packageId) {
     throw createPackageServiceError(404, 2002, '拼团不存在')
-  }
-
-  if (
-    await hasUserActivePackageParticipation({
-      userId,
-      packageId
-    })
-  ) {
-    throw createPackageServiceError(400, 2004, '该课包已参与进行中或已成团拼团，不可重复参与')
   }
 
   if (!isPackageGroupJoinable(group, now)) {
@@ -178,6 +214,11 @@ const createPackageJoinOrder = async ({ userId, packageId, packageGroupId, now =
     package_id: packageId,
     package_group_id: packageGroupId,
     package_action: 'join',
+    package_context: {
+      child_nickname: normalizedChildProfile.childNickname,
+      child_age: normalizedChildProfile.childAge,
+      parent_mobile: normalizedChildProfile.parentMobile
+    },
     amount: memberAmountFen
   })
 
@@ -185,7 +226,10 @@ const createPackageJoinOrder = async ({ userId, packageId, packageGroupId, now =
     order,
     package: pkg,
     group,
-    memberAmountFen
+    memberAmountFen,
+    childNickname: normalizedChildProfile.childNickname,
+    childAge: normalizedChildProfile.childAge,
+    parentMobile: normalizedChildProfile.parentMobile
   }
 }
 
@@ -301,6 +345,15 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
       updated_at: now
     })
 
+    if (group.status === PACKAGE_GROUP_STATUS.SUCCESS) {
+      await enqueueGroupResultNotifications({
+        supabase: null,
+        groupId: group.id,
+        resultType: 'success',
+        now
+      })
+    }
+
     return {
       order: updatedOrder,
       status: 'success',
@@ -353,6 +406,15 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
       success_time: nextStatus === PACKAGE_GROUP_STATUS.SUCCESS ? now : group.success_time || null,
       first_class_time: nextStatus === PACKAGE_GROUP_STATUS.SUCCESS ? firstClassTime : group.first_class_time || null
     })
+
+    if (group.status !== PACKAGE_GROUP_STATUS.SUCCESS && updatedGroup.status === PACKAGE_GROUP_STATUS.SUCCESS) {
+      await enqueueGroupResultNotifications({
+        supabase: null,
+        groupId: updatedGroup.id,
+        resultType: 'success',
+        now
+      })
+    }
 
     return {
       order: updatedOrder,

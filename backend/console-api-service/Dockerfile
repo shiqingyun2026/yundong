@@ -6,10 +6,11 @@ COPY package.json package-lock.json ./
 RUN npm install --omit=dev
 
 COPY config ./config
-COPY console-api ./console-api
 COPY lib ./lib
 COPY middleware ./middleware
+COPY miniprogram-container ./miniprogram-container
 COPY repositories ./repositories
+COPY routes ./routes
 COPY shared ./shared
 COPY utils ./utils
 
@@ -18,4 +19,4 @@ ENV PORT=8000
 
 EXPOSE 8000
 
-CMD ["npm", "run", "console:start"]
+CMD ["npm", "run", "miniprogram-container:start"]

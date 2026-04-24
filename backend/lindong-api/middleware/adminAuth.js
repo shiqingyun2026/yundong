@@ -3,8 +3,10 @@ const jwt = require('jsonwebtoken')
 const adminAuthenticate = (req, res, next) => {
   const authorization = req.headers.authorization || ''
   const [scheme, token] = authorization.split(' ')
+  const cookieToken = req.cookies && req.cookies.console_admin_token
+  const sessionToken = scheme === 'Bearer' && token ? token : cookieToken
 
-  if (scheme !== 'Bearer' || !token) {
+  if (!sessionToken) {
     return res.status(401).json({
       code: 1002,
       message: 'token无效或过期'
@@ -12,7 +14,7 @@ const adminAuthenticate = (req, res, next) => {
   }
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET)
+    const payload = jwt.verify(sessionToken, process.env.JWT_SECRET)
 
     if (!payload || payload.type !== 'admin' || !payload.adminId) {
       return res.status(401).json({

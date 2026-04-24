@@ -1,7 +1,7 @@
 const crypto = require('crypto')
 
 const supabase = require('./supabase')
-const { env } = require('../config/env')
+const { env, isProductionLike } = require('../config/env')
 const adminUsersRepository = require('../repositories/adminUsersRepository')
 const adminLogRepository = require('../repositories/adminLogRepository')
 
@@ -16,6 +16,19 @@ const getBootstrapAdmin = () => ({
   role: process.env.ADMIN_BOOTSTRAP_ROLE || 'super_admin',
   status: 'active'
 })
+
+const assertSecureBootstrapAdmin = fallbackAdmin => {
+  if (!isProductionLike()) {
+    return
+  }
+
+  const usedDefaultUsername = !`${process.env.ADMIN_BOOTSTRAP_USERNAME || ''}`.trim()
+  const usedDefaultPassword = !`${process.env.ADMIN_BOOTSTRAP_PASSWORD || ''}`.trim()
+
+  if (usedDefaultUsername || usedDefaultPassword || fallbackAdmin.password === 'admin123456') {
+    throw new Error('ADMIN_BOOTSTRAP_USERNAME and ADMIN_BOOTSTRAP_PASSWORD must be explicitly configured in production-like environments')
+  }
+}
 
 const buildInternalAdminEmail = username => `${username}@admin.local`
 const isMySqlRepositoryMode = () => env.useMySqlRepositories
@@ -502,6 +515,7 @@ const writeAdminLog = async ({ adminId, action, targetType = '', targetId = '', 
 const ensureBootstrapAdmin = async () => {
   if (isMySqlRepositoryMode()) {
     const fallbackAdmin = getBootstrapAdmin()
+    assertSecureBootstrapAdmin(fallbackAdmin)
     const existing = await adminUsersRepository.findAdminByUsername(fallbackAdmin.username)
 
     if (existing) {
@@ -549,6 +563,7 @@ const ensureBootstrapAdmin = async () => {
   }
 
   const fallbackAdmin = getBootstrapAdmin()
+  assertSecureBootstrapAdmin(fallbackAdmin)
   const candidateId =
     fallbackAdmin.id === '00000000-0000-0000-0000-000000000001'
       ? crypto.randomUUID()
@@ -628,6 +643,7 @@ const ensureBootstrapAdmin = async () => {
 
 const ensureBootstrapAdminExists = async () => {
   const fallbackAdmin = getBootstrapAdmin()
+  assertSecureBootstrapAdmin(fallbackAdmin)
 
   if (isMySqlRepositoryMode()) {
     const existing = await adminUsersRepository.findAdminByUsername(fallbackAdmin.username)

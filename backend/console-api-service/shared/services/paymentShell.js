@@ -16,10 +16,17 @@ const createServiceError = (status, message) => {
   return error
 }
 
+const markPackageOrderPaymentSuccess = async payload => {
+  const packageOrders = require('./packageOrders')
+  return packageOrders.markPackageOrderPaymentSuccess(payload)
+}
+
 const resolvePaymentMode = () => {
   const mode = `${process.env.PAYMENT_PROVIDER_MODE || PAYMENT_MODE_MOCK}`.trim().toLowerCase()
   return mode === PAYMENT_MODE_WECHAT ? PAYMENT_MODE_WECHAT : PAYMENT_MODE_MOCK
 }
+
+const isWechatPaymentMode = () => resolvePaymentMode() === PAYMENT_MODE_WECHAT
 
 const buildOutTradeNo = order => {
   const base = (order && (order.order_no || order.id) ? `${order.order_no || order.id}` : '').replace(/[^a-zA-Z0-9_-]/g, '')
@@ -36,7 +43,7 @@ const getOrderForUser = async ({ supabase, userId, orderId }) => {
 
   const { data, error } = await supabase
     .from('orders')
-    .select('id, order_no, user_id, course_id, group_id, amount, status, created_at, pay_time, refund_time, refund_reason')
+    .select('id, order_no, user_id, order_type, course_id, group_id, package_id, package_group_id, package_action, amount, status, created_at, pay_time, refund_time, refund_reason')
     .eq('id', orderId)
     .eq('user_id', userId)
     .maybeSingle()
@@ -55,7 +62,7 @@ const getOrderById = async ({ supabase, orderId }) => {
 
   const { data, error } = await supabase
     .from('orders')
-    .select('id, order_no, user_id, course_id, group_id, amount, status, created_at, pay_time, refund_time, refund_reason')
+    .select('id, order_no, user_id, order_type, course_id, group_id, package_id, package_group_id, package_action, amount, status, created_at, pay_time, refund_time, refund_reason')
     .eq('id', orderId)
     .maybeSingle()
 
@@ -226,6 +233,97 @@ const ensureOrderPayable = order => {
   }
 }
 
+const closeOrderPayment = async ({ supabase, userId, orderId, now = new Date() }) => {
+  const order = await getOrderForUser({
+    supabase,
+    userId,
+    orderId
+  })
+
+  if (!order) {
+    throw createServiceError(404, 'order not found')
+  }
+
+  if (order.status === 'success') {
+    throw createServiceError(400, 'order is already paid')
+  }
+
+  if (order.status === 'refunded') {
+    throw createServiceError(400, 'order is refunded')
+  }
+
+  const timestamp = now.toISOString()
+  let closedOrder = order
+
+  if (order.status === 'pending') {
+    if (env.useMySqlRepositories) {
+      const closedOrders = await ordersRepository.closeOrdersByIds({
+        orderIds: [order.id],
+        now
+      })
+      closedOrder = (closedOrders || []).find(item => item.id === order.id) || await ordersRepository.findOrderById(order.id)
+    } else {
+      const { data, error } = await supabase
+        .from('orders')
+        .update({
+          status: 'closed',
+          updated_at: timestamp
+        })
+        .eq('id', order.id)
+        .eq('user_id', userId)
+        .eq('status', 'pending')
+        .select('*')
+        .maybeSingle()
+
+      if (error) {
+        throw error
+      }
+
+      closedOrder = data || await getOrderForUser({
+        supabase,
+        userId,
+        orderId: order.id
+      })
+    }
+  }
+
+  const paymentRecord = await getPaymentRecordByOrderId({
+    supabase,
+    orderId: order.id
+  })
+
+  if (paymentRecord && paymentRecord.status !== 'paid' && paymentRecord.status !== 'refunded') {
+    if (env.useMySqlRepositories) {
+      await paymentRecordsRepository.updatePaymentRecord(paymentRecord.id, {
+        status: 'closed',
+        callback_status: paymentRecord.callback_status || 'USER_CANCEL',
+        closed_at: paymentRecord.closed_at || timestamp,
+        updated_at: timestamp
+      })
+    } else {
+      const { error } = await supabase
+        .from('payment_records')
+        .update({
+          status: 'closed',
+          callback_status: paymentRecord.callback_status || 'USER_CANCEL',
+          closed_at: paymentRecord.closed_at || timestamp,
+          updated_at: timestamp
+        })
+        .eq('id', paymentRecord.id)
+
+      if (error) {
+        throw error
+      }
+    }
+  }
+
+  return {
+    orderId: order.id,
+    orderStatus: (closedOrder && closedOrder.status) || 'closed',
+    paymentRecordStatus: paymentRecord ? 'closed' : 'not_prepared'
+  }
+}
+
 const buildPaymentDescription = ({ order, user }) => {
   const parts = ['邻动体适能课程报名']
 
@@ -378,6 +476,8 @@ const getOrderPaymentStatus = async ({ supabase, userId, orderId }) => {
     orderNo: order.order_no || order.id,
     courseId: order.course_id,
     groupId: order.group_id,
+    packageId: order.package_id || '',
+    packageGroupId: order.package_group_id || '',
     amount: Number(order.amount) || 0,
     orderStatus: order.status || 'pending',
     payTime: order.pay_time || '',
@@ -506,13 +606,21 @@ const handleWechatPaymentCallback = async ({ supabase, payload, now = new Date()
     }
 
     if (order.status !== 'success') {
-      await markOrderPaymentSuccess({
-        supabase,
-        userId: order.user_id,
-        orderId: order.id,
-        groupId: order.group_id,
-        now
-      })
+      if (Number(order.order_type) === 2) {
+        await markPackageOrderPaymentSuccess({
+          userId: order.user_id,
+          orderId: order.id,
+          now
+        })
+      } else {
+        await markOrderPaymentSuccess({
+          supabase,
+          userId: order.user_id,
+          orderId: order.id,
+          groupId: order.group_id,
+          now
+        })
+      }
     }
 
     orderStatus = 'success'
@@ -680,10 +788,12 @@ const markPaymentRecordRefunded = async ({ supabase, orderId, reason = '', now =
 module.exports = {
   PAYMENT_MODE_MOCK,
   PAYMENT_MODE_WECHAT,
+  closeOrderPayment,
   createServiceError,
   prepareOrderPayment,
   getOrderPaymentStatus,
   handleWechatPaymentCallback,
+  isWechatPaymentMode,
   markPaymentRecordPaid,
   markPaymentRecordRefunded
 }

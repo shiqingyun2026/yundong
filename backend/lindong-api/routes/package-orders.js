@@ -13,7 +13,7 @@ const resolveSupabase = () => (env.useMySqlRepositories ? null : getSupabaseClie
 
 router.post('/start', authenticate, async (req, res) => {
   try {
-    const { packageId, targetCount, weekday, hour, childNickname, childAge } = req.body || {}
+    const { packageId, targetCount, weekday, hour, childNickname, childAge, parentMobile } = req.body || {}
     const result = await createPackageStartOrder({
       supabase: resolveSupabase(),
       userId: req.userId,
@@ -22,7 +22,8 @@ router.post('/start', authenticate, async (req, res) => {
       weekday,
       hour,
       childNickname,
-      childAge
+      childAge,
+      parentMobile
     })
 
     return ok(res, {
@@ -36,6 +37,7 @@ router.post('/start', authenticate, async (req, res) => {
       hour: Number(hour),
       child_nickname: result.childNickname,
       child_age: result.childAge,
+      parent_mobile: result.parentMobile,
       member_amount_fen: result.memberAmountFen,
       member_amount_text: formatFenText(result.memberAmountFen),
       status: result.order.status
@@ -47,14 +49,15 @@ router.post('/start', authenticate, async (req, res) => {
 
 router.post('/join', authenticate, async (req, res) => {
   try {
-    const { packageId, packageGroupId, childNickname, childAge } = req.body || {}
+    const { packageId, packageGroupId, childNickname, childAge, parentMobile } = req.body || {}
     const result = await createPackageJoinOrder({
       supabase: resolveSupabase(),
       userId: req.userId,
       packageId,
       packageGroupId,
       childNickname,
-      childAge
+      childAge,
+      parentMobile
     })
 
     return ok(res, {
@@ -66,6 +69,7 @@ router.post('/join', authenticate, async (req, res) => {
       packageGroupId: result.order.package_group_id,
       child_nickname: result.childNickname,
       child_age: result.childAge,
+      parent_mobile: result.parentMobile,
       member_amount_fen: result.memberAmountFen,
       member_amount_text: formatFenText(result.memberAmountFen),
       status: result.order.status

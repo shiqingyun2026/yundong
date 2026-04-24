@@ -11,7 +11,7 @@ Console 体系收口为两套 CloudBase 部署物：
   - 源码目录：[console](/Users/yun/lindong/console)
 - Console 后端：
   - CloudBase 云托管
-  - 部署包目录：[deploy-artifacts/lindong-console-api-deploy](/Users/yun/lindong/deploy-artifacts/lindong-console-api-deploy)
+  - 部署目录：[backend/console-api-service](/Users/yun/lindong/backend/console-api-service)
 
 不再建议继续把 Console 生产接口托管在 Cloudflare Workers。
 
@@ -49,11 +49,11 @@ React Router 子路由刷新必须配置：
 
 ### 3.1 真实部署包
 
-CloudBase 云托管当前建议使用独立最小部署包：
+CloudBase 云托管当前建议直接使用独立后端服务目录：
 
-- [deploy-artifacts/lindong-console-api-deploy](/Users/yun/lindong/deploy-artifacts/lindong-console-api-deploy)
+- [backend/console-api-service](/Users/yun/lindong/backend/console-api-service)
 
-这里是 Console 后端线上部署真源。
+这里是 Console 后端当前应使用的正式部署目录。
 
 ### 3.2 建议服务名
 
@@ -69,7 +69,7 @@ npm run console:start
 
 对应入口：
 
-- [console-api/server.js](/Users/yun/lindong/deploy-artifacts/lindong-console-api-deploy/console-api/server.js)
+- [console-api/server.js](/Users/yun/lindong/backend/console-api-service/console-api/server.js)
 
 ### 3.4 部署包包含内容
 
@@ -149,8 +149,8 @@ npm run console:start
 ## 6. 重要提醒
 
 1. Console 后端与小程序后端是两套独立云托管服务，不要共用一个部署目录。
-2. 小程序后端真实部署目录仍然是：
-   - [deploy-artifacts/lindong-api-deploy](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy)
-3. Console 后端真实部署目录现在改为：
-   - [deploy-artifacts/lindong-console-api-deploy](/Users/yun/lindong/deploy-artifacts/lindong-console-api-deploy)
-4. 以后若只改 `backend/console-api` 而没有同步 `deploy-artifacts/lindong-console-api-deploy`，CloudBase 线上不会生效。
+2. 小程序后端正式部署目录是：
+   - [backend/lindong-api](/Users/yun/lindong/backend/lindong-api)
+3. Console 后端正式部署目录是：
+   - [backend/console-api-service](/Users/yun/lindong/backend/console-api-service)
+4. 以后若只改混合 `backend/console-api` 而没有同步并部署 `backend/console-api-service`，CloudBase 线上不会生效。

@@ -474,14 +474,14 @@
 
 当前进度：
 
-- 已确认 CloudBase 控制台当前真实采用“本地文件夹上传”部署
-- 当前真实部署目录不是直接用 `backend/`，而是：
-  - `deploy-artifacts/lindong-api-deploy`
-- 已验证该目录可成功部署并拉起 `lindong-api`
+- 已确认 CloudBase 当前应使用独立后端部署根目录
+- 当前小程序后端部署目录不是直接用混合 `backend/`，而是：
+  - `backend/lindong-api`
+- 已验证该目录可作为 `lindong-api` 的独立构建根目录
 - 已明确当前排障约束：
-  - 如果只修改 `backend/` 而不更新 `deploy-artifacts/lindong-api-deploy/`，重新部署不会带上最新修复
+  - 如果只修改混合 `backend/` 而不重新同步并部署 `backend/lindong-api/`，重新部署不会带上最新修复
 - 仍待完成：
-  - 把“源码改动 -> 更新 deploy-artifacts -> 上传部署”流程脚本化，避免手工同步遗漏
+  - 把“源码改动 -> 同步正式服务根目录 -> CloudBase 部署”流程继续固化
 
 #### T4.2 部署小程序 API 服务
 

@@ -62,7 +62,7 @@
 - `packageReaders` 当前返回结构偏小程序，后台复用抽象还可继续优化
 - 自动失败退款已接入内部管理入口，但还未配置真实定时触发任务
 - `GET /api/package-groups/:id` 当前实现要求登录鉴权
-- 真实小程序云托管当前以 [deploy-artifacts/lindong-api-deploy](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy) 作为实际部署包；如果只改 `backend/` 而没有同步并重新部署该目录，真机看到的仍会是旧版本代码
+- 真实小程序云托管当前应以 [backend/lindong-api](/Users/yun/lindong/backend/lindong-api) 作为正式部署目录；如果只改混合 `backend/` 而没有同步并重新部署该目录，真机看到的仍会是旧版本代码
 
 ## 3. 第一期任务清单
 

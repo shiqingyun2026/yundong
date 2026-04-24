@@ -53,7 +53,7 @@
 当前建议将后台接口部署到独立 CloudBase 云托管服务：
 
 - 部署目录：
-  - [deploy-artifacts/lindong-console-api-deploy](/Users/yun/lindong/deploy-artifacts/lindong-console-api-deploy)
+  - [backend/console-api-service](/Users/yun/lindong/backend/console-api-service)
 - 建议服务名：
   - `lindong-console-api`
 - 发布说明：
@@ -115,40 +115,40 @@
 
 ### 4.2 当前真实环境部署方式
 
-CloudBase 控制台当前实际使用的是“本地文件夹上传”，不是直接拿 `backend/` 目录部署，而是部署最小代码包目录：
+CloudBase 当前应直接使用独立后端服务目录，而不是再维护手工 deploy artifact：
 
-- [deploy-artifacts/lindong-api-deploy](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy)
+- [backend/lindong-api](/Users/yun/lindong/backend/lindong-api)
 
-**这里是当前线上真实部署包的唯一真源。**
+**这里是当前小程序后端应使用的正式部署目录。**
 
-- 真机、小程序云托管、CloudBase 控制台实际跑的都是这个目录里的代码
-- 只修改 `backend/` 不会自动影响线上
-- 交接、排障、真机验证前，必须先确认 `deploy-artifacts/lindong-api-deploy/` 已同步到最新版本
-- 这轮很多“接口明明改了但线上没变化”的坑，根因都是部署包里还是旧代码
+- 真机、小程序云托管、CloudBase 控制台实际应部署这个目录里的代码
+- 不要再直接把混合 `backend/` 作为部署目录
+- 交接、排障、真机验证前，必须先确认 `backend/lindong-api/` 已同步到最新版本
+- 这轮已经把旧 deploy artifact 迁移掉，避免“代码改了但部署目录还是旧版”的问题
 
 Console 后端现在也建议采用完全一致的思路：
 
 - 独立部署目录：
-  - [deploy-artifacts/lindong-console-api-deploy](/Users/yun/lindong/deploy-artifacts/lindong-console-api-deploy)
-- 只修改 `backend/console-api` 不会自动影响 CloudBase 线上
-- 发布前必须同步该目录
+  - [backend/console-api-service](/Users/yun/lindong/backend/console-api-service)
+- 只修改混合 `backend/console-api` 不会自动影响 CloudBase 线上
+- 发布前必须同步并部署该目录
 
 已验证：
 
-- 如果只改 `backend/` 而不同步更新 `deploy-artifacts/lindong-api-deploy/`，重新部署后不会生效
-- 因此当前继续排障时，凡是要重新部署到 `lindong-api` 的改动，都必须同步到部署目录
-- 2026-04-20 课包拼团真机回归中已再次踩到“部署包文件仍是旧版”的问题，至少出现过以下漏同步文件：
+- 如果只改混合 `backend/` 而不重新同步更新 `backend/lindong-api/`，重新部署后不会生效
+- 因此当前继续排障时，凡是要重新部署到 `lindong-api` 的改动，都必须同步到正式部署目录
+- 2026-04-20 课包拼团真机回归中曾再次踩到“部署包文件仍是旧版”的问题，至少出现过以下漏同步文件：
   - `repositories/ordersRepository.js`
   - `routes/user.js`
   - `routes/payments.js`
   - `shared/services/paymentShell.js`
   - `repositories/paymentRecordsRepository.js`
 - 其中支付主链路最容易被旧文件卡住，真机支付前至少要核对：
-  - [routes/payments.js](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy/routes/payments.js)
-  - [shared/services/paymentShell.js](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy/shared/services/paymentShell.js)
-  - [repositories/paymentRecordsRepository.js](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy/repositories/paymentRecordsRepository.js)
-  - [repositories/ordersRepository.js](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy/repositories/ordersRepository.js)
-  - [routes/user.js](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy/routes/user.js)
+  - [routes/payments.js](/Users/yun/lindong/backend/lindong-api/routes/payments.js)
+  - [shared/services/paymentShell.js](/Users/yun/lindong/backend/lindong-api/shared/services/paymentShell.js)
+  - [repositories/paymentRecordsRepository.js](/Users/yun/lindong/backend/lindong-api/repositories/paymentRecordsRepository.js)
+  - [repositories/ordersRepository.js](/Users/yun/lindong/backend/lindong-api/repositories/ordersRepository.js)
+  - [routes/user.js](/Users/yun/lindong/backend/lindong-api/routes/user.js)
 
 ### 4.2.1 首页定位链路额外提醒
 
@@ -165,9 +165,9 @@ Console 后端现在也建议采用完全一致的思路：
 - 云函数环境变量 `TENCENT_MAP_KEY` 是否已配置
 - 云开发数据库集合 `ip_location_cache` 是否已创建
 
-这条链路和 `deploy-artifacts/lindong-api-deploy` 是两套独立部署物：
+这条链路和 `backend/lindong-api` 是两套独立部署物：
 
-- 后端接口改动要同步 `deploy-artifacts/lindong-api-deploy`
+- 后端接口改动要同步 `backend/lindong-api`
 - 首页定位 / POI 搜索改动要同步微信云函数 `cloudfunctions/ip-geolocation`
 
 2026-04-20 已补前端兜底：
@@ -241,18 +241,17 @@ CloudBase SQL 执行器当前兼容性较弱，不适合一次性执行复杂 DD
 
 ```text
 backend/
+  lindong-api/
+  console-api-service/
+  console-api/
   shared/
   miniprogram-container/
-  console-api/
 miniprogram/
   config/
   utils/
 docs/
   deploy/
   miniprogram/
-deploy-artifacts/
-  lindong-api-deploy/
-  lindong-console-api-deploy/
 ```
 
 ## 7. 当前仍未完成的部分
@@ -270,7 +269,7 @@ deploy-artifacts/
 
 ### 7.2 部署层
 
-- 需要把“源码改动 -> 更新 deploy-artifacts -> 上传部署”的流程沉淀成脚本，避免手工同步遗漏
+- 需要继续把“源码改动 -> 同步正式服务根目录 -> CloudBase 部署”的流程沉淀得更稳定
 - 线上最终发布策略还没定版
 
 ### 7.3 真支付 / 真通知
@@ -281,7 +280,7 @@ deploy-artifacts/
 ## 8. 接手建议
 
 1. 先继续做 `console-api` 的真实 MySQL 课程、订单写链路 smoke
-2. 再把 `deploy-artifacts/lindong-api-deploy` 的生成流程脚本化
+2. 再把 `backend/lindong-api` 和 `backend/console-api-service` 的生成流程继续收口
 3. 最后再推进真支付、真通知链路
 
 ## 9. 重要提醒
@@ -290,5 +289,5 @@ deploy-artifacts/
 - Console 不要接入 `callContainer`
 - 所有业务规则继续收口在共享层，不要在入口层重新发散
 - Console 代码入口统一以 `backend/console-api/*` 为准，不再保留 `backend/routes/admin/*` 兼容壳
-- 真实 CloudBase 部署当前以 [lindong-api-deploy](/Users/yun/lindong/deploy-artifacts/lindong-api-deploy) 为准，不要误以为直接部署 `backend/` 就会生效
-- 真机验收前先核对部署包版本，避免拿旧包代码做回归
+- 真实 CloudBase 部署当前应以 [backend/lindong-api](/Users/yun/lindong/backend/lindong-api) 与 [backend/console-api-service](/Users/yun/lindong/backend/console-api-service) 为准
+- 真机验收前先核对正式部署目录版本，避免拿旧代码做回归

@@ -115,7 +115,23 @@ const validateJob = job => {
     return 'page_path_missing'
   }
 
-  if (!job.message_snapshot || !job.message_snapshot.title || !job.message_snapshot.result_text) {
+  if (!job.message_snapshot || !job.message_snapshot.template_key || !job.message_snapshot.group_course) {
+    return 'message_snapshot_incomplete'
+  }
+
+  if (
+    job.message_snapshot.template_key === 'groupSuccess' &&
+    (!job.message_snapshot.course_start_time ||
+      !job.message_snapshot.course_address ||
+      !job.message_snapshot.warm_tips)
+  ) {
+    return 'message_snapshot_incomplete'
+  }
+
+  if (
+    job.message_snapshot.template_key === 'groupFail' &&
+    (!job.message_snapshot.failed_reason || !job.message_snapshot.warm_tips)
+  ) {
     return 'message_snapshot_incomplete'
   }
 

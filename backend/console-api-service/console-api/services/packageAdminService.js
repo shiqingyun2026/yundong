@@ -53,6 +53,23 @@ const toMap = (list = [], key = 'id') =>
 
 const normalizeText = value => `${value || ''}`.trim()
 
+const normalizePackageContext = value => {
+  if (!value || typeof value !== 'object') {
+    return {}
+  }
+
+  return value
+}
+
+const pickParentMobile = context => normalizeText(context.parent_mobile || context.parent_phone || context.phone)
+
+const pickChildNickname = context => normalizeText(context.child_nickname)
+
+const pickChildAge = context => {
+  const number = Number(context.child_age)
+  return Number.isFinite(number) && number > 0 ? number : null
+}
+
 const normalizeOptionalNumber = value => {
   if (value === undefined) {
     return undefined
@@ -113,10 +130,17 @@ const normalizePackageStatusFilter = value => {
   return normalizePackageStatus(value)
 }
 
-const resolvePackageStatus = ({ status, publishTime, now = new Date() }) => {
+const resolvePackageStatus = ({ status, publishTime, unpublishTime, now = new Date() }) => {
   const normalizedStatus = normalizePackageStatus(status)
   if (normalizedStatus === PACKAGE_STATUS.INACTIVE) {
     return PACKAGE_STATUS.INACTIVE
+  }
+
+  if (unpublishTime) {
+    const unpublishDate = new Date(unpublishTime)
+    if (!Number.isNaN(unpublishDate.getTime()) && unpublishDate.getTime() <= now.getTime()) {
+      return PACKAGE_STATUS.INACTIVE
+    }
   }
 
   const publishDate = publishTime ? new Date(publishTime) : null
@@ -284,9 +308,11 @@ const mapPackagePayloadToDb = ({ payload = {}, admin = {}, create = false, exist
 
   if (create) {
     const publishTime = dbPayload.publish_time !== undefined ? dbPayload.publish_time : payload.publish_time
+    const unpublishTime = dbPayload.unpublish_time !== undefined ? dbPayload.unpublish_time : payload.unpublish_time
     dbPayload.status = resolvePackageStatus({
       status: PACKAGE_STATUS.PENDING,
       publishTime,
+      unpublishTime,
       now
     })
     dbPayload.created_by = admin.id || null
@@ -298,11 +324,18 @@ const mapPackagePayloadToDb = ({ payload = {}, admin = {}, create = false, exist
         : existing
           ? existing.publish_time
           : payload.publish_time
+    const unpublishTime =
+      dbPayload.unpublish_time !== undefined
+        ? dbPayload.unpublish_time
+        : existing
+          ? existing.unpublish_time
+          : payload.unpublish_time
 
     if (normalizePackageStatus(currentStatus) !== PACKAGE_STATUS.INACTIVE) {
       dbPayload.status = resolvePackageStatus({
         status: currentStatus,
         publishTime,
+        unpublishTime,
         now
       })
     }
@@ -316,6 +349,7 @@ const mapPackageListItem = (item, { now = new Date() } = {}) => {
   const resolvedStatus = resolvePackageStatus({
     status: item.status,
     publishTime: item.publish_time,
+    unpublishTime: item.unpublish_time,
     now
   })
 
@@ -375,6 +409,7 @@ const listAdminPackages = async ({ query = {}, now = new Date() }) => {
     return resolvePackageStatus({
       status: item.status,
       publishTime: item.publish_time,
+      unpublishTime: item.unpublish_time,
       now
     }) === status
   })
@@ -421,7 +456,14 @@ const createAdminPackage = async ({ payload = {}, admin = {}, ip = null, now = n
     detail: {
       name: created.name,
       package_category: created.package_category || '体适能',
-      status: mapPackageStatus(resolvePackageStatus({ status: created.status, publishTime: created.publish_time, now })),
+      status: mapPackageStatus(
+        resolvePackageStatus({
+          status: created.status,
+          publishTime: created.publish_time,
+          unpublishTime: created.unpublish_time,
+          now
+        })
+      ),
       total_price_fen: Number(created.total_price) || 0,
       class_count: Number(created.class_count) || 0,
       class_duration_minutes: Number(created.class_duration_minutes) || 0,
@@ -463,8 +505,22 @@ const updateAdminPackage = async ({ packageId, payload = {}, admin = {}, ip = nu
     detail: {
       name: updated.name,
       package_category: updated.package_category || '体适能',
-      previous_status: mapPackageStatus(resolvePackageStatus({ status: existing.status, publishTime: existing.publish_time, now })),
-      next_status: mapPackageStatus(resolvePackageStatus({ status: updated.status, publishTime: updated.publish_time, now })),
+      previous_status: mapPackageStatus(
+        resolvePackageStatus({
+          status: existing.status,
+          publishTime: existing.publish_time,
+          unpublishTime: existing.unpublish_time,
+          now
+        })
+      ),
+      next_status: mapPackageStatus(
+        resolvePackageStatus({
+          status: updated.status,
+          publishTime: updated.publish_time,
+          unpublishTime: updated.unpublish_time,
+          now
+        })
+      ),
       total_price_fen: Number(updated.total_price) || 0,
       class_count: Number(updated.class_count) || 0,
       class_duration_minutes: Number(updated.class_duration_minutes) || 0,
@@ -490,6 +546,7 @@ const offlineAdminPackage = async ({ packageId, admin = {}, ip = null, now = new
   const currentStatus = resolvePackageStatus({
     status: existing.status,
     publishTime: existing.publish_time,
+    unpublishTime: existing.unpublish_time,
     now
   })
 
@@ -619,6 +676,179 @@ const listAdminPackageGroups = async ({ query = {}, now = new Date() }) => {
   }
 }
 
+const getAdminPackageGroupDetail = async ({ packageGroupId, now = new Date() }) => {
+  ensureMySqlMode()
+
+  let group = await packageGroupsRepository.findPackageGroupById(packageGroupId)
+  ensureFound(group, {
+    responseCode: 2004,
+    message: '课包拼团不存在'
+  })
+
+  await cleanupExpiredPackageGroups({
+    packageId: group.package_id,
+    now
+  })
+
+  group = await packageGroupsRepository.findPackageGroupById(packageGroupId)
+
+  const orders = await ordersRepository.listOrdersByPackageGroupId({ packageGroupId })
+  const userIds = [...new Set(orders.map(item => item.user_id).filter(Boolean))]
+  const [pkg, users] = await Promise.all([
+    coursePackagesRepository.findPackageById(group.package_id),
+    userIds.length ? usersRepository.listUsersByIds(userIds) : Promise.resolve([])
+  ])
+
+  ensureFound(pkg, {
+    responseCode: 2001,
+    message: '课包不存在'
+  })
+
+  const usersById = toMap(users)
+  const memberAmountFen = calculatePackageMemberAmountFen({
+    totalPrice: pkg.total_price,
+    targetCount: group.target_count,
+    groupPriceConfig: pkg.group_price_config
+  })
+  const scheduleList = group.first_class_time
+    ? buildPackageLessonSchedule({
+        firstClassTime: group.first_class_time,
+        weeks: 5
+      })
+    : []
+
+  const sortedOrders = [...orders].sort(
+    (left, right) => new Date(left.created_at || 0).getTime() - new Date(right.created_at || 0).getTime()
+  )
+  const leaderOrder = sortedOrders.find(item => item.package_action === 'start') || sortedOrders[0] || null
+  const paidOrders = sortedOrders.filter(item => item.status === 'success')
+  const refundedOrders = sortedOrders.filter(item => item.status === 'refunded')
+  const pendingOrders = sortedOrders.filter(item => item.status === 'pending')
+
+  const members = sortedOrders.map(order => {
+    const context = normalizePackageContext(order.package_context)
+    const user = usersById[order.user_id] || {}
+
+    return {
+      order_id: order.id,
+      order_no: order.order_no || order.id,
+      user_id: order.user_id || '',
+      user_nickname: user.nickname || '',
+      role: order.package_action === 'start' ? 'leader' : 'member',
+      action: order.package_action || '',
+      child_nickname: pickChildNickname(context),
+      child_age: pickChildAge(context),
+      parent_mobile: pickParentMobile(context),
+      joined_at: formatDateTime(order.pay_time || order.created_at),
+      order_status: mapOrderStatus(order.status)
+    }
+  })
+
+  const anomalies = []
+  if (group.status === 'failed' && paidOrders.length > 0) {
+    anomalies.push('已失败拼团仍存在未退款成功订单')
+  }
+  if (group.status === 'active' && group.deadline && new Date(group.deadline).getTime() <= now.getTime()) {
+    anomalies.push('进行中拼团已超过截止时间')
+  }
+  if ((Number(group.current_count) || 0) !== paidOrders.length) {
+    anomalies.push('当前人数与已支付有效订单数不一致')
+  }
+  if (group.status === 'success' && !group.first_class_time) {
+    anomalies.push('已成团但缺失首课时间')
+  }
+  if (
+    paidOrders.some(order => {
+      const context = normalizePackageContext(order.package_context)
+      return !pickChildNickname(context) || !pickChildAge(context) || !pickParentMobile(context)
+    })
+  ) {
+    anomalies.push('成员报名信息存在缺失')
+  }
+
+  return {
+    id: group.id,
+    package_id: group.package_id || '',
+    package_name: pkg.name || '',
+    package_status: mapPackageStatus(
+      resolvePackageStatus({
+        status: pkg.status,
+        publishTime: pkg.publish_time,
+        unpublishTime: pkg.unpublish_time,
+        now
+      })
+    ),
+    package_status_text: mapPackageStatusText(
+      resolvePackageStatus({
+        status: pkg.status,
+        publishTime: pkg.publish_time,
+        unpublishTime: pkg.unpublish_time,
+        now
+      })
+    ),
+    status: group.status || 'active',
+    creator_id: group.creator_id || '',
+    target_count: Number(group.target_count) || 0,
+    current_count: Number(group.current_count) || 0,
+    member_amount_fen: memberAmountFen,
+    member_amount_text: formatFenText(memberAmountFen),
+    weekday: Number(group.weekday) || 0,
+    hour: Number(group.hour) || 0,
+    schedule_text: group.first_class_time
+      ? `首课时间 ${formatPackageDateTime(group.first_class_time)}，共5次`
+      : formatPendingPackageScheduleText({
+          weekday: group.weekday,
+          hour: group.hour
+        }),
+    first_class_time: group.first_class_time ? formatPackageDateTime(group.first_class_time) : null,
+    schedule_list: scheduleList,
+    create_time: formatDateTime(group.created_at),
+    deadline: formatDateTime(group.deadline),
+    success_time: formatDateTime(group.success_time),
+    leader: leaderOrder
+      ? {
+          order_id: leaderOrder.id,
+          order_no: leaderOrder.order_no || leaderOrder.id,
+          action: leaderOrder.package_action || 'start',
+          child_nickname: pickChildNickname(normalizePackageContext(leaderOrder.package_context)),
+          child_age: pickChildAge(normalizePackageContext(leaderOrder.package_context)),
+          parent_mobile: pickParentMobile(normalizePackageContext(leaderOrder.package_context)),
+          joined_at: formatDateTime(leaderOrder.pay_time || leaderOrder.created_at)
+        }
+      : null,
+    summary: {
+      paid_order_count: paidOrders.length,
+      refunded_order_count: refundedOrders.length,
+      pending_order_count: pendingOrders.length
+    },
+    anomalies,
+    members,
+    orders: sortedOrders.map(order => {
+      const context = normalizePackageContext(order.package_context)
+      const user = usersById[order.user_id] || {}
+
+      return {
+        id: order.id,
+        order_no: order.order_no || order.id,
+        user_id: order.user_id || '',
+        nickname: user.nickname || '',
+        child_nickname: pickChildNickname(context),
+        child_age: pickChildAge(context),
+        phone: pickParentMobile(context),
+        amount_fen: Number(order.amount) || 0,
+        amount_text: formatFenText(order.amount),
+        status: mapOrderStatus(order.status),
+        action: order.package_action || '',
+        refund_reason: order.refund_reason || '',
+        refund_type: order.refund_reason === AUTO_REFUND_REASON ? 'system' : order.refund_reason ? 'manual' : '',
+        create_time: formatDateTime(order.created_at),
+        pay_time: formatDateTime(order.pay_time),
+        refund_time: formatDateTime(order.refund_time)
+      }
+    })
+  }
+}
+
 const mapOrderStatus = status => status || 'pending'
 
 const listAdminPackageOrders = async ({ query = {} }) => {
@@ -656,7 +886,9 @@ const listAdminPackageOrders = async ({ query = {} }) => {
         order_no: order.order_no || order.id,
         user_id: order.user_id || '',
         nickname: user.nickname || '',
-        phone: '',
+        child_nickname: pickChildNickname(normalizePackageContext(order.package_context)),
+        child_age: pickChildAge(normalizePackageContext(order.package_context)),
+        phone: pickParentMobile(normalizePackageContext(order.package_context)),
         avatar_url: user.avatar_url || '',
         package_id: order.package_id || '',
         package_name: pkg.name || '',
@@ -684,6 +916,8 @@ const listAdminPackageOrders = async ({ query = {} }) => {
         item.id.includes(keyword) ||
         item.order_no.includes(keyword) ||
         item.nickname.includes(keyword) ||
+        item.child_nickname.includes(keyword) ||
+        `${item.child_age || ''}`.includes(keyword) ||
         item.phone.includes(keyword) ||
         item.package_name.includes(keyword) ||
         item.package_group_id.includes(keyword)
@@ -820,6 +1054,7 @@ const refundAdminPackageOrder = async ({ orderId, reason, admin = {}, ip = null,
 module.exports = {
   createAdminPackage,
   geocodePackageAddress,
+  getAdminPackageGroupDetail,
   getAdminPackageDetail,
   listAdminPackageGroups,
   listAdminPackageOrders,
