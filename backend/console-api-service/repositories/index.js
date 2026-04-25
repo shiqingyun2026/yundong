@@ -7,6 +7,7 @@ module.exports = {
   groupResultNotificationJobsRepository: require('./groupResultNotificationJobsRepository'),
   groupResultSubscriptionsRepository: require('./groupResultSubscriptionsRepository'),
   groupsRepository: require('./groupsRepository'),
+  miniProgramBannersRepository: require('./miniProgramBannersRepository'),
   ordersRepository: require('./ordersRepository'),
   packageGroupsRepository: require('./packageGroupsRepository'),
   paymentRecordsRepository: require('./paymentRecordsRepository'),

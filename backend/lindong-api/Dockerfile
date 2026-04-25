@@ -6,6 +6,7 @@ COPY package.json package-lock.json ./
 RUN npm install --omit=dev
 
 COPY config ./config
+COPY data ./data
 COPY lib ./lib
 COPY middleware ./middleware
 COPY miniprogram-container ./miniprogram-container

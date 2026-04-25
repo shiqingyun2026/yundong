@@ -2,6 +2,8 @@ const fs = require('node:fs/promises')
 const path = require('node:path')
 const crypto = require('node:crypto')
 
+const miniProgramBannersRepository = require('../../repositories/miniProgramBannersRepository')
+
 const STORE_PATH = path.join(__dirname, '../../data/miniprogram-banners.json')
 
 const DEFAULT_BANNERS = [
@@ -17,10 +19,48 @@ const DEFAULT_BANNERS = [
     status: 'active',
     created_at: '2026-04-22T00:00:00.000Z',
     updated_at: '2026-04-22T00:00:00.000Z'
+  },
+  {
+    id: 'home-banner-package-detail-demo',
+    image_url: '',
+    title: '连续 5 次训练计划',
+    jump_type: 'packageDetail',
+    jump_target: 'package-1',
+    sort: 20,
+    online_time: '2026-01-01T00:00:00.000Z',
+    offline_time: '2027-01-01T00:00:00.000Z',
+    status: 'active',
+    created_at: '2026-04-22T00:00:00.000Z',
+    updated_at: '2026-04-22T00:00:00.000Z'
+  },
+  {
+    id: 'home-banner-location-search',
+    image_url: '',
+    title: '按社区快速找课',
+    jump_type: 'miniprogramPage',
+    jump_target: '/pages/location-search/index',
+    sort: 30,
+    online_time: '2026-01-01T00:00:00.000Z',
+    offline_time: '2027-01-01T00:00:00.000Z',
+    status: 'active',
+    created_at: '2026-04-22T00:00:00.000Z',
+    updated_at: '2026-04-22T00:00:00.000Z'
   }
 ]
 
 const normalizeText = value => `${value || ''}`.trim()
+
+const isDatabaseUnavailable = error =>
+  error &&
+  (
+    error.code === 'MYSQL2_MISSING' ||
+    error.code === 'ER_NO_SUCH_TABLE' ||
+    error.code === 'ER_BAD_DB_ERROR' ||
+    error.code === 'ECONNREFUSED' ||
+    error.code === 'ENOTFOUND' ||
+    error.code === 'ETIMEDOUT' ||
+    /mysql/i.test(error.message || '')
+  )
 
 const normalizeBannerRecord = item => ({
   id: normalizeText(item && item.id) || crypto.randomUUID(),
@@ -46,6 +86,15 @@ const ensureStoreFile = async () => {
 }
 
 const readBannerStore = async () => {
+  try {
+    const records = await miniProgramBannersRepository.listBanners()
+    return records.map(normalizeBannerRecord)
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) {
+      throw error
+    }
+  }
+
   await ensureStoreFile()
   const raw = await fs.readFile(STORE_PATH, 'utf8')
 
@@ -59,6 +108,14 @@ const readBannerStore = async () => {
 
 const writeBannerStore = async banners => {
   const normalized = (Array.isArray(banners) ? banners : []).map(normalizeBannerRecord)
+  try {
+    return await miniProgramBannersRepository.replaceBanners(normalized)
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) {
+      throw error
+    }
+  }
+
   await fs.mkdir(path.dirname(STORE_PATH), { recursive: true })
   await fs.writeFile(STORE_PATH, `${JSON.stringify(normalized, null, 2)}\n`, 'utf8')
   return normalized
