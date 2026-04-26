@@ -71,6 +71,7 @@ Query：
         "id": "pkg_001",
         "name": "周末体适能5次课包",
         "cover": "https://...",
+        "age_range": "4-8岁",
         "max_supported_people": 8,
         "min_member_amount_fen": 16666,
         "min_member_amount_text": "166.66",
@@ -108,6 +109,7 @@ Query：
     "images": ["https://..."],
     "total_price_fen": 133333,
     "total_price_text": "1333.33",
+    "age_range": "4-8岁",
     "supported_people": [2, 4, 6, 8],
     "location_district": "南山区",
     "location_community": "深圳湾社区",
@@ -365,6 +367,7 @@ Query：
         "id": "pkg_001",
         "name": "周末体适能5次课包",
         "total_price_fen": 133333,
+        "age_range": "4-8岁",
         "supported_people": [2, 4, 6, 8],
         "location_text": "南山区 / 深圳湾社区 / 会所二楼活动室",
         "coach_name": "教练A",
@@ -385,6 +388,7 @@ Query：
 ```json
 {
   "name": "周末体适能5次课包",
+  "age_range": "4-8岁",
   "cover": "https://...",
   "images": ["https://..."],
   "total_price_fen": 133333,

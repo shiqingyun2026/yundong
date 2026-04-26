@@ -7,36 +7,79 @@
 
   <scroll-view wx:if="{{!loading && groupDetail}}" class="group-scroll" scroll-y>
     <view class="page-shell detail-content">
-      <view class="weui-panel weui-ext-card page-section card-shadow">
+      <view wx:if="{{showSuccessEntry}}" class="weui-panel weui-ext-card page-section card-shadow success-entry-card">
+        <view class="success-entry-icon">✓</view>
+        <view class="success-entry-title">{{successTitle}}</view>
+        <view class="success-entry-desc">{{successDesc}}</view>
+
+        <view wx:if="{{groupDetail.status === 'active'}}" class="success-highlight-row">
+          <view class="success-highlight-item">
+            <view class="success-highlight-label">当前进度</view>
+            <view class="success-highlight-value">{{groupDetail.currentCount}} / {{groupDetail.targetCount}}</view>
+          </view>
+          <view class="success-highlight-item">
+            <view class="success-highlight-label">还差人数</view>
+            <view class="success-highlight-value success-highlight-value-strong">{{missingCount}}人</view>
+          </view>
+          <view class="success-highlight-item success-highlight-item-time">
+            <view class="success-highlight-label">剩余时间</view>
+            <view class="success-highlight-value success-highlight-value-time">{{groupDetail.remainingPlainText}}</view>
+          </view>
+        </view>
+
+        <button
+          wx:if="{{groupDetail.status === 'active' && groupDetail.userJoined}}"
+          class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary success-primary-button"
+          open-type="share"
+        >
+          <view class="weui-ext-button__inner">邀请好友参团</view>
+        </button>
+
+        <button
+          wx:if="{{showSubscribeCard}}"
+          class="weui-btn weui-ext-button weui-ext-button--large success-secondary-button"
+          loading="{{subscribeSubmitting}}"
+          disabled="{{subscribeSubmitting || subscribed || !subscribeEnabled}}"
+          bindtap="handleSubscribeTap"
+        >
+          <view class="weui-ext-button__inner">
+            {{subscribed ? '已订阅拼团通知' : (subscribeSubmitting ? '订阅中...' : '订阅拼团通知')}}
+          </view>
+        </button>
+
+        <view wx:if="{{showSubscribeCard && subscribeStatusText}}" class="subscribe-status {{subscribeStatusTone === 'success' ? 'subscribe-status-success' : 'subscribe-status-muted'}}">
+          {{subscribeStatusText}}
+        </view>
+      </view>
+
+      <view class="weui-panel weui-ext-card page-section card-shadow course-info-card">
         <view class="course-title">{{groupDetail.packageInfo.name}}</view>
-        <view class="group-price-tag">{{groupDetail.targetCount}}人成团，每人¥{{groupDetail.memberAmountDisplayText || groupDetail.memberAmountText}}</view>
+        <view class="group-tag-row">
+          <view class="group-price-tag">{{groupDetail.targetCount}}人成团</view>
+          <view class="group-price-tag">每人 ¥{{groupDetail.memberAmountDisplayText || groupDetail.memberAmountText}}</view>
+        </view>
 
         <view class="info-list">
-          <view class="info-item">
-            <view class="info-label">上课时间</view>
+          <view class="info-row">
+            <view class="info-icon">📅</view>
             <view class="info-value">{{groupDetail.scheduleMode === 'locked' ? groupDetail.firstClassTimeText : groupDetail.scheduleText}}</view>
           </view>
-          <view class="info-item">
-            <view class="info-label">上课地点</view>
+          <view class="info-row">
+            <view class="info-icon">📍</view>
             <view class="info-value">{{groupDetail.packageInfo.locationText}}</view>
+          </view>
+          <view wx:if="{{groupDetail.scheduleMode !== 'locked'}}" class="info-row">
+            <view class="info-icon">🔒</view>
+            <view class="info-value">成团后自动锁定首课日期</view>
           </view>
         </view>
       </view>
 
-      <view class="weui-panel weui-ext-card page-section card-shadow">
-        <view class="section-title">拼团进度</view>
-        <view class="progress-header">
-          <view class="progress-text">{{groupDetail.currentCount}} / {{groupDetail.targetCount}}</view>
-          <view wx:if="{{groupDetail.status === 'active'}}" class="remaining-text">
-            {{groupDetail.remainingText}}
-          </view>
-        </view>
-        <view class="progress-track">
-          <view class="progress-bar" style="width: {{groupDetail.progressPercent}};"></view>
-        </view>
-        <view wx:if="{{groupDetail.status !== 'active'}}" class="section-desc progress-desc">
-          {{bottomStatusText}}
-        </view>
+      <view class="weui-panel weui-ext-card page-section card-shadow group-rules-card">
+        <view class="section-title">拼团说明</view>
+        <view class="section-desc">满 {{groupDetail.targetCount}} 人成团</view>
+        <view class="section-desc">拼团截止时间：开团成功后 48 小时</view>
+        <view class="section-desc">未成团退款规则：48 小时内未成团将自动原路退款</view>
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
@@ -52,24 +95,26 @@
 
       <view wx:if="{{groupDetail.scheduleMode === 'locked' && groupDetail.scheduleList.length}}" class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">5次课时安排</view>
-        <view wx:for="{{groupDetail.scheduleList}}" wx:key="index" class="schedule-item">
-          <view class="schedule-index">第{{item.index}}次</view>
-          <view class="schedule-text">{{item.display_text}}</view>
+        <view class="schedule-list">
+          <view wx:for="{{groupDetail.scheduleList}}" wx:key="index" class="schedule-item">
+            <view class="schedule-index">第{{item.index}}次</view>
+            <view class="schedule-text">{{item.display_text}}</view>
+          </view>
         </view>
       </view>
 
-      <view class="bottom-space"></view>
+      <view class="bottom-space {{showSuccessEntry ? 'bottom-space--success-entry' : ''}}"></view>
     </view>
   </scroll-view>
 
-  <view wx:if="{{!loading && groupDetail}}" class="bottom-bar">
-    <block wx:if="{{groupDetail.status === 'active' && groupDetail.userJoined}}">
+  <view wx:if="{{!loading && groupDetail && !showSuccessEntry}}" class="bottom-bar">
+    <block wx:if="{{showPrimaryShareAction}}">
       <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary bottom-button" open-type="share">
-        <view class="weui-ext-button__inner">邀请好友</view>
+        <view class="weui-ext-button__inner">邀请好友参团</view>
       </button>
     </block>
 
-    <block wx:elif="{{groupDetail.status === 'active' && !groupDetail.userJoined}}">
+    <block wx:elif="{{showJoinAction}}">
       <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary bottom-button" bindtap="handleJoinGroup">
         <view class="weui-ext-button__inner">立即参团</view>
       </button>

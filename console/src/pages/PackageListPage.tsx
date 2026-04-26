@@ -144,6 +144,7 @@ export function PackageListPage() {
                 <tr>
                   <th>课包名称</th>
                   <th>类型</th>
+                  <th>适用年龄</th>
                   <th>节数/时长</th>
                   <th>支持人数</th>
                   <th>地点</th>
@@ -157,6 +158,7 @@ export function PackageListPage() {
                   <tr key={item.id}>
                     <td>{item.name || '-'}</td>
                     <td>{item.package_category || '-'}</td>
+                    <td>{item.age_range || '-'}</td>
                     <td>{item.class_count > 0 && item.class_duration_minutes > 0 ? `${item.class_count}节 / ${item.class_duration_minutes}分钟` : '-'}</td>
                     <td>{formatSupportedPeople(item.supported_people)}</td>
                     <td>{item.location_text || '-'}</td>

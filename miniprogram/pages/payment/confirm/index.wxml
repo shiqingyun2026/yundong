@@ -18,41 +18,47 @@
           <view class="order-value">{{targetCount}} 人团</view>
         </view>
         <view class="order-item">
-          <view class="order-label">孩子昵称</view>
+          <view class="order-label">学生昵称</view>
           <input
             class="order-input"
             type="text"
             maxlength="20"
-            placeholder="请输入孩子昵称"
+            placeholder="请输入学生昵称"
             cursor-spacing="24"
+            confirm-type="done"
             value="{{childNickname}}"
             bindinput="handleChildNicknameInput"
+            bindconfirm="handleStudentInputConfirm"
           />
         </view>
         <view class="order-item">
           <view class="order-label">年龄</view>
           <input
             class="order-input"
-            type="number"
+            type="text"
+            inputmode="numeric"
             maxlength="2"
             placeholder="请输入年龄"
             cursor-spacing="24"
             confirm-type="done"
             value="{{childAge}}"
             bindinput="handleChildAgeInput"
+            bindconfirm="handleStudentInputConfirm"
           />
         </view>
         <view class="order-item">
           <view class="order-label">家长手机号</view>
           <input
             class="order-input"
-            type="number"
+            type="text"
+            inputmode="numeric"
             maxlength="11"
             placeholder="请输入家长手机号"
             cursor-spacing="24"
             confirm-type="done"
             value="{{parentMobile}}"
             bindinput="handleParentMobileInput"
+            bindconfirm="handleStudentInputConfirm"
           />
         </view>
       </view>
@@ -100,6 +106,7 @@
               <mp-checkbox
                 extClass="payment-agreement-item"
                 value="agree"
+                label=""
                 checked="{{agreementChecked}}"
               />
             </mp-checkbox-group>

@@ -1,6 +1,5 @@
 const {
   START_HOUR_OPTIONS,
-  WEEKDAY_LABELS,
   calculatePackageMemberAmountFen,
   closePaymentOrder,
   createPackageStartOrder,
@@ -12,9 +11,19 @@ const {
 } = require('../../../utils/package')
 const { loginAndStoreSession } = require('../../../utils/auth')
 
-const weekdayOptions = Object.keys(WEEKDAY_LABELS).map(key => ({
+const START_PAGE_WEEKDAY_LABELS = {
+  1: '一',
+  2: '二',
+  3: '三',
+  4: '四',
+  5: '五',
+  6: '六',
+  7: '天'
+}
+
+const weekdayOptions = Object.keys(START_PAGE_WEEKDAY_LABELS).map(key => ({
   value: Number(key),
-  label: WEEKDAY_LABELS[key]
+  label: START_PAGE_WEEKDAY_LABELS[key]
 }))
 
 const hourOptions = START_HOUR_OPTIONS.map(hour => ({
@@ -130,7 +139,10 @@ Page({
 
     try {
       const packageDetail = await fetchPackageDetail(packageId)
-      const defaultTargetCount = this.data.selectedTargetCount || packageDetail.supportedPeople[0] || 2
+      const preferredTargetCount = packageDetail.supportedPeople.includes(4)
+        ? 4
+        : (packageDetail.supportedPeople[0] || 2)
+      const defaultTargetCount = this.data.selectedTargetCount || preferredTargetCount
 
       this.setData({
         packageDetail,
@@ -219,6 +231,10 @@ Page({
     })
   },
 
+  handleStudentInputConfirm() {
+    wx.hideKeyboard()
+  },
+
   handleOpenAgreement() {
     wx.navigateTo({
       url: '/pages/service-agreement/index'
@@ -261,7 +277,7 @@ Page({
 
     if (!`${this.data.childNickname || ''}`.trim()) {
       wx.showToast({
-        title: '请填写孩子昵称',
+        title: '请填写学生昵称',
         icon: 'none'
       })
       return
@@ -269,7 +285,7 @@ Page({
 
     if (!/^\d+$/.test(`${this.data.childAge || ''}`)) {
       wx.showToast({
-        title: '请填写孩子年龄',
+        title: '请填写学生年龄',
         icon: 'none'
       })
       return
@@ -359,9 +375,10 @@ Page({
 
       wx.redirectTo({
         url:
-          `/pages/payment/result/index?status=success` +
-          `&packageId=${this.data.packageId}` +
-          `&packageGroupId=${encodeURIComponent(nextPackageGroupId)}`
+          `/pages/group/detail/index?packageGroupId=${encodeURIComponent(nextPackageGroupId)}` +
+          `&entry=paymentSuccess` +
+          `&action=start` +
+          `&packageId=${this.data.packageId}`
       })
     } catch (error) {
       const message = `${error && (error.errMsg || error.message || '')}`.toLowerCase()

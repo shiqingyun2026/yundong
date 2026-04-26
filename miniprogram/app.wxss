@@ -97,7 +97,7 @@ image {
   margin: 0;
   padding: 0 32rpx;
   border: none;
-  border-radius: 999rpx;
+  border-radius: 8rpx;
   font-size: 30rpx;
   font-weight: 600;
   line-height: 1;
@@ -151,7 +151,7 @@ image {
 }
 
 .weui-ext-button[disabled] {
-  opacity: 0.6;
+  opacity: 0.4;
 }
 
 .weui-ext-tag.weui-badge {

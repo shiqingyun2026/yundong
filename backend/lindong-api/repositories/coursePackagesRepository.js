@@ -10,6 +10,7 @@ const PACKAGE_SELECT_FIELDS = `
   images,
   total_price,
   package_category,
+  age_range,
   class_count,
   class_duration_minutes,
   supported_people,
@@ -94,6 +95,7 @@ const normalizePackage = row => {
     images: Array.isArray(row.images) ? row.images : parseJsonField(row.images) || [],
     total_price: Number(row.total_price) || 0,
     package_category: normalizePackageCategory(row.package_category),
+    age_range: row.age_range || row.age_limit || '',
     class_count: Number(row.class_count) || 0,
     class_duration_minutes: Number(row.class_duration_minutes) || 0,
     supported_people: normalizeSupportedPeople(row.supported_people),
@@ -204,6 +206,7 @@ const createPackage = async payload => {
     images: JSON.stringify(Array.isArray(payload.images) ? payload.images : []),
     total_price: Number(payload.total_price || 0),
     package_category: normalizePackageCategory(payload.package_category),
+    age_range: payload.age_range || '',
     class_count: Number(payload.class_count || 0),
     class_duration_minutes: Number(payload.class_duration_minutes || 0),
     supported_people: stringifySupportedPeople(payload.supported_people),
@@ -222,13 +225,13 @@ const createPackage = async payload => {
   await execute(
     `
       insert into course_packages (
-        id, name, cover, images, total_price, package_category, class_count, class_duration_minutes, supported_people, group_price_config,
+        id, name, cover, images, total_price, package_category, age_range, class_count, class_duration_minutes, supported_people, group_price_config,
         location_district, location_community, location_detail,
         longitude, latitude, coach_name, coach_intro, coach_certificates,
         description, deadline_hours, publish_time, unpublish_time, status, created_at, updated_at,
         created_by, updated_by
       ) values (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
         ?, ?, ?,
         ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?, ?,
@@ -242,6 +245,7 @@ const createPackage = async payload => {
       data.images,
       data.total_price,
       data.package_category,
+      data.age_range,
       data.class_count,
       data.class_duration_minutes,
       data.supported_people,
@@ -287,6 +291,7 @@ const updatePackage = async (id, payload = {}) => {
   assign('images', payload.images, value => JSON.stringify(Array.isArray(value) ? value : []))
   assign('total_price', payload.total_price, value => Number(value || 0))
   assign('package_category', payload.package_category, normalizePackageCategory)
+  assign('age_range', payload.age_range)
   assign('class_count', payload.class_count, value => Number(value || 0))
   assign('class_duration_minutes', payload.class_duration_minutes, value => Number(value || 0))
   assign('supported_people', payload.supported_people, stringifySupportedPeople)

@@ -70,13 +70,13 @@
 
 .info-label {
   font-size: 24rpx;
-  color: #8f96a3;
+  color: #888888;
 }
 
 .info-value {
   margin-top: 8rpx;
   font-size: 28rpx;
-  color: #1f2329;
+  color: #353535;
   line-height: 1.7;
 }
 
@@ -136,6 +136,19 @@
   line-height: 1.8;
 }
 
+.group-rules-card {
+  padding: 28rpx 0;
+}
+
+.group-rules-card .section-title,
+.group-rules-card .section-desc {
+  padding: 0 32rpx;
+}
+
+.group-rules-card .section-desc {
+  margin-top: 12rpx;
+}
+
 .group-panel,
 .group-empty {
   margin-top: 20rpx;
@@ -150,8 +163,16 @@
 .group-item-card {
   padding: 22rpx 24rpx;
   border-radius: 24rpx;
-  background: #f8fafc;
-  border: 1rpx solid #e7ecf3;
+  background: #ffffff;
+  border: 1px solid #E5E5E5;
+}
+
+.group-item-card--clickable {
+  cursor: pointer;
+}
+
+.group-item-card--disabled {
+  opacity: 0.72;
 }
 
 .group-item-header {
@@ -169,24 +190,27 @@
   line-height: 1.6;
 }
 
-.group-item-status {
-  padding: 8rpx 18rpx;
-  border-radius: 999rpx;
+.weui-ext-tag.group-item-status {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
   font-size: 22rpx;
   font-weight: 600;
+  line-height: 1.2;
 }
 
-.group-item-status-ongoing {
-  background: var(--brand-primary-soft);
-  color: var(--brand-primary);
+.weui-ext-tag.group-item-status-ongoing {
+  color: #1f2329;
 }
 
-.group-item-status-success {
+.weui-ext-tag.group-item-status-success {
   background: #ecfbf3;
   color: #18a058;
 }
 
-.group-item-status-failed {
+.weui-ext-tag.group-item-status-failed {
   background: #f4f6f8;
   color: #8f96a3;
 }
@@ -259,7 +283,7 @@
 }
 
 .group-item-footer {
-  margin-top: 20rpx;
+  margin-top: 6rpx;
   align-items: flex-end;
 }
 
@@ -274,11 +298,27 @@
   min-width: 0;
 }
 
-.join-button {
+.join-button.weui-btn.weui-ext-button {
   flex-shrink: 0;
-  min-width: 248rpx;
+  width: 168rpx;
+  height: auto;
+  min-height: 0;
+  min-width: 0;
   margin: 0;
+  padding: 8rpx 0;
   align-self: flex-end;
+  border: none;
+  border-radius: 20rpx;
+  background: rgba(26, 188, 197, 0.1);
+  color: #1abcc5;
+  font-size: 26rpx;
+  line-height: 1.3;
+}
+
+.join-button .weui-ext-button__inner {
+  white-space: nowrap;
+  transform: scale(0.82);
+  transform-origin: center;
 }
 
 .group-progress-text {
@@ -327,6 +367,7 @@
   left: 0;
   z-index: 20;
   display: flex;
+  justify-content: center;
   align-items: center;
   gap: 20rpx;
   padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom));

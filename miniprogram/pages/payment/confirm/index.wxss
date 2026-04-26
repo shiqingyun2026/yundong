@@ -1,9 +1,12 @@
 .payment-page {
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
   background: #f7f8fa;
 }
 
 .payment-scroll {
+  flex: 1;
   height: 100vh;
 }
 
@@ -12,35 +15,48 @@
 }
 
 .order-title {
-  font-size: 34rpx;
-  font-weight: 700;
+  padding: 0 32rpx;
+  font-size: 32rpx;
+  font-weight: 600;
   line-height: 1.5;
   color: #1f2329;
 }
 
 .order-item {
-  margin-top: 20rpx;
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  margin-top: 16rpx;
+  padding: 0 32rpx;
+  border-top: 1px solid #f7f7f7;
 }
 
 .order-label {
-  font-size: 24rpx;
-  color: #8f96a3;
+  width: 160rpx;
+  flex-shrink: 0;
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #353535;
+  line-height: 1.4;
 }
 
 .order-value {
-  margin-top: 8rpx;
+  flex: 1;
+  min-width: 0;
   font-size: 28rpx;
-  line-height: 1.7;
-  color: #1f2329;
+  line-height: 1.4;
+  color: #353535;
+  text-align: right;
 }
 
 .order-input {
-  margin-top: 8rpx;
-  padding: 22rpx 24rpx;
-  border-radius: 20rpx;
-  background: #f7f8fa;
+  flex: 1;
+  height: 88rpx;
+  padding: 0;
+  background: transparent;
   font-size: 28rpx;
-  color: #1f2329;
+  color: #353535;
+  text-align: right;
 }
 
 .rich-text {
@@ -111,7 +127,8 @@
 
 .payment-agreement-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  padding: 0 32rpx;
 }
 
 .payment-agreement-cells.weui-cells__group {
@@ -131,6 +148,8 @@
 
 .payment-agreement-item.weui-cell {
   padding: 0;
+  min-height: 48rpx;
+  margin-right: 8rpx;
   background: transparent;
 }
 
@@ -138,10 +157,29 @@
   display: none;
 }
 
+.payment-agreement-item.weui-check__label {
+  min-width: 48rpx;
+}
+
+.payment-agreement-item .weui-cell__hd,
 .payment-agreement-item .weui-cell__bd {
-  font-size: 26rpx;
-  line-height: 1.7;
-  color: #3c4655;
+  flex: none;
+  padding: 0;
+}
+
+.payment-agreement-item .weui-cell__bd {
+  display: none;
+}
+
+.payment-agreement-item .weui-icon-checked {
+  display: block;
+  width: 40rpx;
+  height: 40rpx;
+  background-size: 100% 100%;
+}
+
+.payment-agreement-item .weui-check + .weui-icon-checked.weui-icon-is-checked {
+  background-image: url("data:image/svg+xml,%3Csvg width='25' height='24' viewBox='0 0 25 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='0.5' width='24' height='24' rx='12' fill='%231ABCC5'/%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M10.2712 16.2899L6.5 12.5187L7.44281 11.5759L10.7426 14.8757L18.2851 7.33325L19.2279 8.27606L11.214 16.2899C10.9537 16.5503 10.5316 16.5503 10.2712 16.2899Z' fill='white'/%3E%3C/svg%3E%0A");
 }
 
 .agreement-link {
@@ -150,7 +188,7 @@
 
 .payment-agreement-inline {
   flex: 1;
-  padding-left: 16rpx;
+  padding-left: 0;
   font-size: 26rpx;
   line-height: 1.7;
   color: #3c4655;
@@ -166,18 +204,28 @@
   bottom: 0;
   left: 0;
   z-index: 20;
-  padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20rpx 0 calc(20rpx + env(safe-area-inset-bottom));
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 -8rpx 24rpx rgba(31, 35, 41, 0.06);
 }
 
 .payment-button {
-  width: 100%;
+  width: calc(100% - 64rpx) !important;
+  margin: 0 32rpx !important;
+  height: 96rpx !important;
+  padding: 0 !important;
+  border-radius: 16rpx !important;
+  box-shadow: 0 8rpx 24rpx var(--brand-primary-shadow-strong);
 }
 
 .mock-fail-button {
   height: 72rpx;
   margin-top: 12rpx;
+  width: calc(100% - 64rpx);
   border: none;
   background: transparent;
   color: #8f96a3;

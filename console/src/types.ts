@@ -276,6 +276,7 @@ export interface PackageListItem {
   name: string
   cover: string
   package_category: CourseCategory
+  age_range: string
   class_count: number
   class_duration_minutes: number
   group_price_config: Array<{

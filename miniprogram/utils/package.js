@@ -327,6 +327,9 @@ const formatCountdownText = remainingSeconds => {
   return '即将截止'
 }
 
+const formatCountdownPlainText = remainingSeconds =>
+  formatCountdownText(remainingSeconds).replace(/^剩余\s*/, '')
+
 const formatPackageDateTimeText = value => {
   const date = safeDate(value)
   if (!date) {
@@ -347,6 +350,7 @@ const normalizePackageCard = item => ({
   name: item.name || '',
   cover: item.cover || '',
   packageCategory: item.package_category || '体适能',
+  ageRange: item.age_range || item.ageRange || '',
   classCount: Number(item.class_count || item.classCount) || 0,
   maxSupportedPeople: Number(item.max_supported_people) || 0,
   minMemberAmountFen: Number(item.min_member_amount_fen) || 0,
@@ -377,6 +381,7 @@ const normalizeActiveGroup = item => {
     status: item.status || 'active',
     remainingSeconds: Math.max(0, Number(item.remaining_seconds) || 0),
     remainingText: formatCountdownText(item.remaining_seconds),
+    remainingPlainText: formatCountdownPlainText(item.remaining_seconds),
     memberAmountFen: Number(item.member_amount_fen) || 0,
     memberAmountText: `${item.member_amount_text || formatFenText(item.member_amount_fen)}`,
     memberAmountDisplayText: formatDisplayAmount(item.member_amount_text || formatFenText(item.member_amount_fen)),
@@ -396,6 +401,7 @@ const normalizePackageDetail = payload => ({
   totalPriceFen: Number(payload.total_price_fen) || 0,
   totalPriceText: `${payload.total_price_text || formatFenText(payload.total_price_fen)}`,
   totalPriceDisplayText: formatDisplayAmount(payload.total_price_text || formatFenText(payload.total_price_fen)),
+  ageRange: payload.age_range || payload.ageRange || '',
   groupPriceConfig: normalizeGroupPriceConfig(payload.group_price_config || payload.groupPriceConfig),
   supportedPeople: Array.isArray(payload.supported_people) ? payload.supported_people.map(item => Number(item)).filter(Boolean) : [],
   supportedPeopleText: Array.isArray(payload.supported_people) ? payload.supported_people.map(item => `${item}人团`).join(' | ') : '',
@@ -422,12 +428,14 @@ const normalizePackageGroupDetail = payload => ({
   packageInfo: {
     id: payload.package && payload.package.id ? payload.package.id : '',
     name: payload.package && payload.package.name ? payload.package.name : '',
+    ageRange: payload.package && payload.package.age_range ? payload.package.age_range : '',
     locationText: payload.package ? formatPackageLocationText(payload.package) : ''
   },
   targetCount: Number(payload.target_count) || 0,
   currentCount: Number(payload.current_count) || 0,
   remainingSeconds: Math.max(0, Number(payload.remaining_seconds) || 0),
   remainingText: formatCountdownText(payload.remaining_seconds),
+  remainingPlainText: formatCountdownPlainText(payload.remaining_seconds),
   memberAmountFen: Number(payload.member_amount_fen) || 0,
   memberAmountText: `${payload.member_amount_text || formatFenText(payload.member_amount_fen)}`,
   memberAmountDisplayText: formatDisplayAmount(payload.member_amount_text || formatFenText(payload.member_amount_fen)),

@@ -1,12 +1,12 @@
 .location-search-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #fbfcff 0%, #f3f6fb 100%);
+  background: linear-gradient(180deg, #fbfcff 0%, #f7f8fa 100%);
 }
 
 .page-header {
   padding-bottom: 24rpx;
   background: #ffffff;
-  box-shadow: 0 12rpx 30rpx rgba(15, 23, 42, 0.05);
+  box-shadow: 0 12rpx 30rpx rgba(31, 35, 41, 0.05);
 }
 
 .header-back,
@@ -40,14 +40,14 @@
   gap: 16rpx;
   margin: 0 24rpx;
   padding: 14rpx 18rpx;
-  border-radius: 28rpx;
+  border-radius: 24rpx;
   background: #ffffff;
 }
 
 .city-pill {
   flex-shrink: 0;
   padding-right: 18rpx;
-  border-right: 1rpx solid #edf1f7;
+  border-right: 1rpx solid #e5e5e5;
   color: #1f2329;
   font-size: 26rpx;
   font-weight: 600;
@@ -67,7 +67,7 @@
   align-items: center;
   gap: 20rpx;
   padding: 24rpx;
-  border-radius: 28rpx;
+  border-radius: 24rpx;
   background: linear-gradient(180deg, var(--brand-primary-soft) 0%, var(--brand-primary-soft-strong) 100%);
 }
 
@@ -135,7 +135,7 @@
   justify-content: center;
   width: 132rpx;
   height: 132rpx;
-  border-radius: 36rpx;
+  border-radius: 24rpx;
   background: radial-gradient(circle, rgba(26, 188, 197, 0.16) 0%, rgba(26, 188, 197, 0.06) 70%, rgba(26, 188, 197, 0) 100%);
   box-shadow: 0 22rpx 56rpx rgba(26, 188, 197, 0.08);
 }
@@ -153,7 +153,7 @@
 .state-title {
   margin-top: 34rpx;
   color: #1f2329;
-  font-size: 40rpx;
+  font-size: 36rpx;
   font-weight: 700;
 }
 
@@ -190,7 +190,7 @@
   gap: 20rpx;
   margin-top: 18rpx;
   padding: 24rpx;
-  border-radius: 28rpx;
+  border-radius: 24rpx;
   background: #ffffff;
 }
 
@@ -210,18 +210,18 @@
 }
 
 .result-icon.warm {
-  color: #ff7a45;
-  background: #fff2eb;
+  color: var(--brand-primary);
+  background: var(--brand-primary-soft);
 }
 
 .result-icon.violet {
-  color: #8b5cf6;
-  background: #f4eeff;
+  color: var(--brand-primary);
+  background: var(--brand-primary-soft);
 }
 
 .result-icon.green {
-  color: #10b981;
-  background: #ebfbf5;
+  color: var(--brand-primary);
+  background: var(--brand-primary-soft);
 }
 
 .result-content {

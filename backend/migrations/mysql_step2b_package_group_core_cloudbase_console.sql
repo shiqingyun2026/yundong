@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS `course_packages` (
   images TEXT,
   total_price INT DEFAULT 0,
   package_category VARCHAR(20) NOT NULL DEFAULT '体适能',
+  age_range VARCHAR(100) NOT NULL DEFAULT '',
   supported_people VARCHAR(32) DEFAULT NULL,
   location_district VARCHAR(50) DEFAULT NULL,
   location_community VARCHAR(50) DEFAULT NULL,

@@ -5,14 +5,14 @@
 .profile-card,
 .menu-card {
   margin-bottom: 24rpx;
-  padding: 40rpx 32rpx;
+  padding: 32rpx;
   background: #ffffff;
-  border-radius: 32rpx;
+  border-radius: 24rpx;
 }
 
 .menu-card {
-  padding-top: 28rpx;
-  padding-bottom: 28rpx;
+  padding-top: 24rpx;
+  padding-bottom: 24rpx;
   background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
 }
 
@@ -70,13 +70,13 @@
 }
 
 .profile-name {
-  font-size: 36rpx;
+  font-size: 34rpx;
   font-weight: 700;
   color: #1f2329;
 }
 
 .profile-name-guest {
-  font-size: 40rpx;
+  font-size: 36rpx;
 }
 
 .logout-button {
@@ -84,8 +84,8 @@
 }
 
 .menu-title {
-  font-size: 36rpx;
-  font-weight: 400;
+  font-size: 32rpx;
+  font-weight: 500;
   color: #1f2329;
 }
 
@@ -111,7 +111,7 @@
   width: 240rpx;
   height: 240rpx;
   margin: 0 auto;
-  border-radius: 20rpx;
+  border-radius: 16rpx;
   background: #eef2f7;
 }
 

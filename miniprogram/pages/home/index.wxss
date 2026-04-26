@@ -30,7 +30,7 @@
 
 .location-chevron {
   margin-left: 12rpx;
-  color: #000000;
+  color: #353535;
   font-size: 32rpx;
   font-weight: 700;
   line-height: 1;
@@ -39,7 +39,7 @@
 
 .location-text {
   overflow: hidden;
-  color: #000000;
+  color: #353535;
   font-size: 30rpx;
   font-weight: 700;
   white-space: nowrap;
@@ -161,8 +161,14 @@
 }
 
 .notice-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 88rpx;
+  min-height: 88rpx;
+  padding: 0 16rpx;
   color: var(--brand-primary);
-  font-size: 24rpx;
+  font-size: 28rpx;
   font-weight: 600;
 }
 

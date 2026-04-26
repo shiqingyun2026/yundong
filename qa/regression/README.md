@@ -39,6 +39,37 @@ Characteristics:
 - uses mocked admin API responses for deterministic page regression
 - suitable for fast UI regression after console/frontend changes
 
+### 1.5. Miniapp logic regression
+
+Run from `/Users/yun/lindong/qa/regression` with `npm run test:miniprogram`.
+
+Current coverage:
+
+- `tests/miniprogram/package.utils.test.cjs`
+  - package price calculation
+  - location text normalization
+  - package detail and package-group detail normalization
+- `tests/miniprogram/course.detail.page.test.cjs`
+  - course detail login gate for start/join actions
+  - authenticated join-group navigation
+- `tests/miniprogram/payment.confirm.page.test.cjs`
+  - join-group form validation
+  - payment amount display
+  - canceled payment rollback and redirect
+  - mock payment success redirect
+- `tests/miniprogram/group.list.page.test.cjs`
+  - tab-based filtering
+  - pagination append on reach-bottom
+- `tests/miniprogram/group.detail.page.test.cjs`
+  - payment-success entry state presentation
+  - subscription success flow
+
+Characteristics:
+
+- runs with `node:test`, no simulator dependency
+- exercises real miniapp page methods and shared business helpers
+- focuses on stable regression of core order, group, and revisit flows
+
 ### 2. Console live smoke
 
 Run from `/Users/yun/lindong/qa/regression` with `npm run test:console-live`.
@@ -94,6 +125,18 @@ Run from `/Users/yun/lindong/qa/regression`:
 npm install
 npx playwright install chromium
 npm test
+```
+
+Miniapp logic regression:
+
+```bash
+npm run test:miniprogram
+```
+
+Full local regression:
+
+```bash
+npm run test:all
 ```
 
 Headed mode:
@@ -154,6 +197,11 @@ Latest verified local baseline on 2026-04-22:
 - `frontend` lint/build: passed
 - `console` lint/build: passed
 
+Expanded local baseline target from 2026-04-24:
+
+- miniapp logic regression: package utils, course detail, payment confirm, my group list, group detail
+- local Playwright regression: `frontend` + `console`
+
 Production verification status on 2026-04-22:
 
 - production console page can be opened and login page can be reached
@@ -165,7 +213,7 @@ The current automation is useful, but it is not full coverage of all critical bu
 
 Not fully covered yet:
 
-- WeChat miniprogram end-to-end flows
+- WeChat miniprogram real device / simulator end-to-end flows
 - real payment, group join, and post-payment user-side state transitions
 - banner management regression
 - package offline flow regression

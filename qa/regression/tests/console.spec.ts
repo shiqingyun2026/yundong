@@ -195,6 +195,7 @@ test('console package create page can submit a new package and redirect back to 
   const packageForm = page.locator('form').first()
 
   await packageForm.getByLabel(/课包名称/).fill('[回归] 周末体适能课包')
+  await packageForm.getByLabel(/适用年龄/).fill('4-8岁')
   await packageForm.getByLabel(/课程节数/).fill('10')
   await packageForm.getByLabel(/单节课时长（分钟）/).fill('90')
   await packageForm.getByLabel(/开团截止时长/).fill('48')
@@ -216,6 +217,7 @@ test('console package create page can submit a new package and redirect back to 
   await expect(page).toHaveURL(/\/packages$/)
   expect(createPayload).not.toBeNull()
   expect(createPayload?.name).toBe('[回归] 周末体适能课包')
+  expect(createPayload?.age_range).toBe('4-8岁')
   expect(createPayload?.class_count).toBe(10)
   expect(createPayload?.class_duration_minutes).toBe(90)
   expect(createPayload?.supported_people).toEqual([4])
@@ -258,6 +260,7 @@ test('console package create page shows validation error when group pricing is m
   const packageForm = page.locator('form').first()
 
   await packageForm.getByLabel(/课包名称/).fill('[回归] 缺少团型售价')
+  await packageForm.getByLabel(/适用年龄/).fill('4-8岁')
   await packageForm.getByLabel(/课程节数/).fill('8')
   await packageForm.getByLabel(/单节课时长（分钟）/).fill('60')
   await packageForm.getByLabel(/^区/).selectOption('南山区')
@@ -286,6 +289,7 @@ test('console package edit page can update and view linked package group and ord
       await fulfillJson(route, {
         id: 'pkg-edit-1',
         name: '[回归] 课包编辑页',
+        age_range: '4-8岁',
         cover: 'https://example.com/package.jpg',
         images: ['https://example.com/package-gallery-1.jpg'],
         class_count: 5,
@@ -427,12 +431,12 @@ test('console package edit page can update and view linked package group and ord
   expect(requests[0]?.body?.name).toBe('[回归] 课包编辑页-已更新')
 
   await page.goto('/packages/pkg-edit-1')
-  await page.getByRole('link', { name: '查看拼团' }).click()
+  await page.locator('.page-actions').getByRole('link', { name: '查看拼团' }).click()
   await expect(page).toHaveURL(/\/package-groups\?package_id=pkg-edit-1$/)
   await expect(page.getByText('pkg-group-1')).toBeVisible()
 
   await page.goto('/packages/pkg-edit-1')
-  await page.getByRole('link', { name: '查看订单' }).click()
+  await page.locator('.page-actions').getByRole('link', { name: '查看订单' }).click()
   await expect(page).toHaveURL(/\/package-orders\?package_id=pkg-edit-1$/)
   await expect(page.getByText('LDPKG-EDIT-01')).toBeVisible()
 })
@@ -813,6 +817,7 @@ test('console package edit page can offline a package and return to the list', a
   const packageState = {
     id: 'pkg-offline-1',
     name: '[回归] 待下架课包',
+    age_range: '4-8岁',
     cover: 'https://example.com/package-offline.jpg',
     images: ['https://example.com/package-offline.jpg'],
     class_count: 6,

@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS `course_packages` (
   images JSON NULL,
   total_price INT NOT NULL DEFAULT 0,
   package_category VARCHAR(20) NOT NULL DEFAULT '体适能',
+  age_range VARCHAR(100) NOT NULL DEFAULT '',
   supported_people VARCHAR(32) NOT NULL DEFAULT '',
   location_district VARCHAR(50) NOT NULL DEFAULT '',
   location_community VARCHAR(50) NOT NULL DEFAULT '',

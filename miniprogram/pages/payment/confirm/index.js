@@ -188,6 +188,10 @@ Page({
     })
   },
 
+  handleStudentInputConfirm() {
+    wx.hideKeyboard()
+  },
+
   handleOpenAgreement() {
     wx.navigateTo({
       url: '/pages/service-agreement/index'
@@ -217,11 +221,11 @@ Page({
 
     if (this.data.action === 'join') {
       if (!`${this.data.childNickname || ''}`.trim()) {
-        throw new Error('请填写孩子昵称')
+        throw new Error('请填写学生昵称')
       }
 
       if (!/^\d+$/.test(`${this.data.childAge || ''}`)) {
-        throw new Error('请填写孩子年龄')
+        throw new Error('请填写学生年龄')
       }
 
       if (!/^1\d{10}$/.test(`${this.data.parentMobile || ''}`)) {
@@ -238,11 +242,11 @@ Page({
     }
 
     if (!`${this.data.childNickname || ''}`.trim()) {
-      throw new Error('请填写孩子昵称')
+      throw new Error('请填写学生昵称')
     }
 
     if (!/^\d+$/.test(`${this.data.childAge || ''}`)) {
-      throw new Error('请填写孩子年龄')
+      throw new Error('请填写学生年龄')
     }
 
     if (!/^1\d{10}$/.test(`${this.data.parentMobile || ''}`)) {
@@ -341,9 +345,10 @@ Page({
 
       wx.redirectTo({
         url:
-          `/pages/payment/result/index?status=success` +
-          `&packageId=${this.data.packageId}` +
-          `&packageGroupId=${encodeURIComponent(nextPackageGroupId)}`
+          `/pages/group/detail/index?packageGroupId=${encodeURIComponent(nextPackageGroupId)}` +
+          `&entry=paymentSuccess` +
+          `&action=${this.data.action}` +
+          `&packageId=${this.data.packageId}`
       })
     } catch (error) {
       const message = `${error && (error.errMsg || error.message || '')}`.toLowerCase()

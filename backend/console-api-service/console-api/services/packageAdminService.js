@@ -191,6 +191,7 @@ const validatePackagePayload = (payload = {}, { partial = false } = {}) => {
   const requiredFields = [
     ['name', '课包名称不能为空'],
     ['package_category', '课包类型不能为空'],
+    ['age_range', '适用年龄不能为空'],
     ['cover', '封面图不能为空'],
     ['location_district', '所在区域不能为空'],
     ['location_community', '小区名称不能为空'],
@@ -266,6 +267,7 @@ const mapPackagePayloadToDb = ({ payload = {}, admin = {}, create = false, exist
 
   assign('name', 'name', normalizeText)
   assign('package_category', 'package_category', normalizePackageCategory)
+  assign('age_range', 'age_range', normalizeText)
   assign('cover', 'cover', normalizeText)
   assign('images', 'images', value => {
     const items = Array.isArray(value) ? value.filter(Boolean) : []
@@ -360,6 +362,7 @@ const mapPackageListItem = (item, { now = new Date() } = {}) => {
     total_price_fen: Number(item.total_price) || 0,
     total_price_text: formatFenText(item.total_price),
     package_category: item.package_category || '体适能',
+    age_range: item.age_range || item.age_limit || '',
     class_count: Number(item.class_count) || 0,
     class_duration_minutes: Number(item.class_duration_minutes) || 0,
     group_price_config: item.group_price_config || [],
@@ -456,6 +459,7 @@ const createAdminPackage = async ({ payload = {}, admin = {}, ip = null, now = n
     detail: {
       name: created.name,
       package_category: created.package_category || '体适能',
+      age_range: created.age_range || '',
       status: mapPackageStatus(
         resolvePackageStatus({
           status: created.status,
@@ -505,6 +509,7 @@ const updateAdminPackage = async ({ packageId, payload = {}, admin = {}, ip = nu
     detail: {
       name: updated.name,
       package_category: updated.package_category || '体适能',
+      age_range: updated.age_range || '',
       previous_status: mapPackageStatus(
         resolvePackageStatus({
           status: existing.status,

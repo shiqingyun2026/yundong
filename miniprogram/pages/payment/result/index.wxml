@@ -6,7 +6,7 @@
         extClass="result-icon-image"
         icon="{{isSuccess ? 'done' : 'close'}}"
         type="filled"
-        color="{{isSuccess ? '#1f9d63' : '#ff4d4f'}}"
+        color="{{isSuccess ? '#1abcc5' : '#ff4d4f'}}"
         size="{{56}}"
       />
     </view>

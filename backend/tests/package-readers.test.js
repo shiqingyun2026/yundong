@@ -62,6 +62,7 @@ test('package readers only return packages inside the publish window for mini pr
             name: '云test',
             cover: 'https://example.com/visible.jpg',
             package_category: '体适能',
+            age_range: '4-8岁',
             class_count: 5,
             class_duration_minutes: 60,
             group_price_config: [
@@ -165,6 +166,7 @@ test('package readers only return packages inside the publish window for mini pr
   assert.equal(result.list.length, 1)
   assert.equal(result.list[0].id, 'pkg-visible')
   assert.equal(result.list[0].name, '云test')
+  assert.equal(result.list[0].age_range, '4-8岁')
   assert.equal(result.list[0].min_member_amount_fen, 5000)
   assert.equal(result.list[0].min_member_amount_text, '50.00')
 })

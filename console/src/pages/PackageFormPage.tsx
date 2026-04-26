@@ -36,6 +36,7 @@ const emptyPackage: PackageDetail = {
   name: '',
   cover: '',
   package_category: '体适能',
+  age_range: '',
   class_count: 0,
   class_duration_minutes: 0,
   group_price_config: [],
@@ -103,6 +104,7 @@ const buildPayload = (form: PackageDetail) => {
   return {
     name: form.name.trim(),
     package_category: form.package_category,
+    age_range: form.age_range.trim(),
     cover: form.cover.trim(),
     images: form.cover.trim() ? [form.cover.trim()] : [],
     class_count: Number(form.class_count) || 0,
@@ -512,6 +514,12 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
       return
     }
 
+    if (!form.age_range.trim()) {
+      setError('请填写适用年龄')
+      setSaving(false)
+      return
+    }
+
     if (!form.publish_time) {
       setError('请填写上架时间')
       setSaving(false)
@@ -608,6 +616,15 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 <option value="体适能">体适能</option>
                 <option value="跳绳">跳绳</option>
               </select>
+            </label>
+            <label>
+              <span>适用年龄<RequiredMark /></span>
+              <input
+                value={form.age_range}
+                onChange={event => updateField('age_range', event.target.value)}
+                placeholder="如：4-8岁"
+                disabled={isReadOnly}
+              />
             </label>
             <label>
               <span>课程节数<RequiredMark /></span>

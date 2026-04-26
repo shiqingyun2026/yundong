@@ -1,5 +1,10 @@
 const { fetchPackageGroupDetail } = require('../../../utils/package')
 const { loginAndStoreSession } = require('../../../utils/auth')
+const {
+  requestGroupResultSubscription,
+  reportGroupResultSubscription,
+  resolveGroupResultTemplateIds
+} = require('../../../utils/notification')
 
 const STATUS_MAP = {
   active: {
@@ -19,17 +24,38 @@ const STATUS_MAP = {
 Page({
   data: {
     packageGroupId: '',
+    packageId: '',
+    entry: '',
+    action: 'start',
     loading: true,
     groupDetail: null,
     statusText: '',
     statusClassName: '',
-    bottomStatusText: '拼团失败，已退款'
+    bottomStatusText: '拼团失败，已退款',
+    showSuccessEntry: false,
+    successTitle: '支付成功',
+    successDesc: '',
+    missingCount: 0,
+    primaryActionText: '邀请好友参团',
+    showPrimaryShareAction: false,
+    showJoinAction: false,
+    showSubscribeCard: false,
+    subscribeEnabled: false,
+    subscribeSubmitting: false,
+    subscribeStatusText: '',
+    subscribeStatusTone: 'muted',
+    subscribed: false
   },
 
   async onLoad(options) {
     this._isAlive = true
     this.setData({
-      packageGroupId: options.packageGroupId || options.groupId || ''
+      packageGroupId: options.packageGroupId || options.groupId || '',
+      packageId: options.packageId || '',
+      entry: options.entry || '',
+      action: options.action || 'start',
+      showSuccessEntry: options.entry === 'paymentSuccess',
+      subscribeEnabled: this.resolveSubscribeEnabled()
     })
 
     await this.ensureLogin()
@@ -71,11 +97,29 @@ Page({
 
   updateGroupPresentation(groupDetail) {
     const statusInfo = STATUS_MAP[groupDetail.status] || STATUS_MAP.active
+    const missingCount = Math.max(0, (groupDetail.targetCount || 0) - (groupDetail.currentCount || 0))
+    const isPaymentSuccessEntry = this.data.entry === 'paymentSuccess'
+    const isShareEntry = this.data.entry === 'share'
+    const isActive = groupDetail.status === 'active'
+    const showSuccessEntry = isPaymentSuccessEntry
+    const showSubscribeCard = isPaymentSuccessEntry && isActive
+    const successDesc = isPaymentSuccessEntry
+      ? this.resolveSuccessDesc(groupDetail, missingCount)
+      : ''
+    const showPrimaryShareAction = isActive && !!groupDetail.userJoined && !isShareEntry
+    const showJoinAction = isActive && (!groupDetail.userJoined || isShareEntry)
 
     this.safeSetData({
       groupDetail,
       statusText: statusInfo.text,
       statusClassName: statusInfo.className,
+      showSuccessEntry,
+      successDesc,
+      missingCount,
+      showSubscribeCard,
+      primaryActionText: showPrimaryShareAction ? '邀请好友参团' : showJoinAction ? '立即参团' : '',
+      showPrimaryShareAction,
+      showJoinAction,
       bottomStatusText:
         groupDetail.status === 'success'
           ? '已成团，等待上课'
@@ -83,6 +127,23 @@ Page({
             ? '拼团失败，已退款'
             : '邀请好友一起参团'
     })
+  },
+
+  resolveSubscribeEnabled() {
+    const templateIds = resolveGroupResultTemplateIds()
+    return !!(templateIds.groupSuccess && templateIds.groupFail && wx.requestSubscribeMessage)
+  },
+
+  resolveSuccessDesc(groupDetail, missingCount) {
+    if (!groupDetail || groupDetail.status !== 'active') {
+      return '你已完成支付，可在当前页查看拼团状态。'
+    }
+
+    if (this.data.action === 'join') {
+      return missingCount > 0 ? `你已成功参团，还差${missingCount}人成团` : '你已成功参团，当前拼团已满足成团条件'
+    }
+
+    return missingCount > 0 ? `你已成功开团，还差${missingCount}人成团` : '你已成功开团，当前拼团已满足成团条件'
   },
 
   async loadGroupDetail(packageGroupId) {
@@ -123,9 +184,69 @@ Page({
     }
 
     return {
-      title: `邀请你加入「${groupDetail.packageInfo.name}」拼团`,
-      path: `/pages/group/detail/index?packageGroupId=${groupDetail.id}`,
+      title:
+        groupDetail.status === 'active'
+          ? `还差${Math.max(0, groupDetail.targetCount - groupDetail.currentCount)}人，来拼「${groupDetail.packageInfo.name}」`
+          : `邀请你查看「${groupDetail.packageInfo.name}」拼团详情`,
+      path:
+        `/pages/group/detail/index?packageGroupId=${encodeURIComponent(groupDetail.id)}` +
+        `&packageId=${encodeURIComponent(groupDetail.packageInfo.id || '')}` +
+        `&entry=share&action=join`,
       imageUrl: ''
+    }
+  },
+
+  async handleSubscribeTap() {
+    if (!this.data.showSubscribeCard || !this.data.subscribeEnabled || this.data.subscribeSubmitting || this.data.subscribed) {
+      return
+    }
+
+    this.safeSetData({
+      subscribeSubmitting: true,
+      subscribeStatusText: '正在发起订阅...',
+      subscribeStatusTone: 'muted'
+    })
+
+    try {
+      const payload = await requestGroupResultSubscription({
+        groupId: this.data.packageGroupId,
+        courseId: this.data.packageId || (this.data.groupDetail && this.data.groupDetail.packageInfo.id) || ''
+      })
+
+      try {
+        await reportGroupResultSubscription(payload)
+      } catch (reportError) {
+        console.warn('[group/detail] report subscribe result failed', reportError)
+      }
+
+      if (payload.ok) {
+        this.safeSetData({
+          subscribed: true,
+          subscribeStatusText: '订阅成功，后续会通过微信通知你拼团结果。',
+          subscribeStatusTone: 'success'
+        })
+        return
+      }
+
+      if (payload.skipped) {
+        this.safeSetData({
+          subscribeStatusText:
+            payload.reason === 'template_not_configured'
+              ? '通知模板暂未配置完成，请在“我的拼团”里留意结果。'
+              : '当前微信版本不支持订阅通知，请在“我的拼团”里留意结果。',
+          subscribeStatusTone: 'muted'
+        })
+        return
+      }
+
+      this.safeSetData({
+        subscribeStatusText: '你暂未订阅通知，后续可在“我的拼团”里查看拼团状态。',
+        subscribeStatusTone: 'muted'
+      })
+    } finally {
+      this.safeSetData({
+        subscribeSubmitting: false
+      })
     }
   },
 

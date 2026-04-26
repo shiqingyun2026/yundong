@@ -81,8 +81,8 @@
 }
 
 .status-ongoing {
-  background: #e8f7ee;
-  color: #1f9d63;
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
 }
 
 .status-success {

@@ -149,6 +149,7 @@ const createPackageRepositoryState = () => ({
       images: [],
       total_price: 1000,
       package_category: '体适能',
+      age_range: '4-8岁',
       class_count: 10,
       class_duration_minutes: 60,
       supported_people: [2, 4],
@@ -856,6 +857,7 @@ test('admin package create requires valid package category', async () => {
         payload: {
           name: '测试课包',
           package_category: '篮球',
+          age_range: '4-8岁',
           cover: 'https://example.com/pkg.png',
           total_price_fen: 1000,
           class_count: 10,
@@ -887,6 +889,7 @@ test('admin package create does not require coach name', async () => {
     payload: {
       name: '测试课包',
       package_category: '体适能',
+      age_range: '4-8岁',
       cover: 'https://example.com/pkg.png',
       total_price_fen: 1000,
       class_count: 10,
@@ -912,6 +915,7 @@ test('admin package create derives total price from group price config', async (
     payload: {
       name: '测试课包',
       package_category: '体适能',
+      age_range: '4-8岁',
       cover: 'https://example.com/pkg.png',
       class_count: 10,
       class_duration_minutes: 60,
@@ -940,6 +944,7 @@ test('admin package create derives supported people from group price config', as
     payload: {
       name: '测试课包',
       package_category: '体适能',
+      age_range: '4-8岁',
       cover: 'https://example.com/pkg-new.png',
       class_count: 12,
       class_duration_minutes: 90,
@@ -962,6 +967,7 @@ test('admin package create derives supported people from group price config', as
   const created = state.packages.at(-1)
 
   assert.deepEqual(created.supported_people, [4, 6])
+  assert.equal(created.age_range, '4-8岁')
   assert.deepEqual(created.group_price_config, [
     { target_count: 4, price_fen: 45000 },
     { target_count: 6, price_fen: 30000 }

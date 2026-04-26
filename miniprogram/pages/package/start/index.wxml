@@ -30,55 +30,111 @@
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">选择每周上课时间</view>
-        <view class="picker-label">星期</view>
-        <picker mode="selector" range="{{weekdayOptions}}" range-key="label" value="{{selectedWeekdayIndex}}" bindchange="handleWeekdayChange">
-          <view class="picker-value">{{weekdayOptions[selectedWeekdayIndex].label}}</view>
-        </picker>
-
-        <view class="picker-label picker-label-second">上课时间</view>
-        <picker mode="selector" range="{{hourOptions}}" range-key="label" value="{{selectedHourIndex}}" bindchange="handleHourChange">
-          <view class="picker-value">{{hourOptions[selectedHourIndex].label}}</view>
-        </picker>
+        <mp-cells extClass="start-form-cells start-schedule-cells">
+          <mp-cell
+            extClass="start-form-cell start-form-cell--picker start-schedule-cell"
+            hasHeader="{{true}}"
+            hasBody="{{true}}"
+            hasFooter="{{false}}"
+          >
+            <view slot="title" class="start-form-label">星期</view>
+            <picker
+              class="start-form-picker"
+              mode="selector"
+              range="{{weekdayOptions}}"
+              range-key="label"
+              value="{{selectedWeekdayIndex}}"
+              bindchange="handleWeekdayChange"
+            >
+              <view class="start-form-value">{{weekdayOptions[selectedWeekdayIndex].label}}</view>
+            </picker>
+          </mp-cell>
+          <mp-cell
+            extClass="start-form-cell start-form-cell--picker start-schedule-cell"
+            hasHeader="{{true}}"
+            hasBody="{{true}}"
+            hasFooter="{{false}}"
+          >
+            <view slot="title" class="start-form-label">上课时间</view>
+            <picker
+              class="start-form-picker"
+              mode="selector"
+              range="{{hourOptions}}"
+              range-key="label"
+              value="{{selectedHourIndex}}"
+              bindchange="handleHourChange"
+            >
+              <view class="start-form-value">{{hourOptions[selectedHourIndex].label}}</view>
+            </picker>
+          </mp-cell>
+        </mp-cells>
 
         <view class="section-desc">系统会在成团后自动锁定首课日期，并连续生成 5 次课时。</view>
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
-        <view class="section-title">孩子信息</view>
-        <view class="picker-label">孩子昵称</view>
-        <input
-          class="form-input"
-          type="text"
-          maxlength="20"
-          placeholder="请输入孩子昵称"
-          cursor-spacing="24"
-          value="{{childNickname}}"
-          bindinput="handleChildNicknameInput"
-        />
-
-        <view class="picker-label picker-label-second">年龄</view>
-        <input
-          class="form-input"
-          type="number"
-          maxlength="2"
-          placeholder="请输入年龄"
-          cursor-spacing="24"
-          confirm-type="done"
-          value="{{childAge}}"
-          bindinput="handleChildAgeInput"
-        />
-
-        <view class="picker-label picker-label-second">家长手机号</view>
-        <input
-          class="form-input"
-          type="number"
-          maxlength="11"
-          placeholder="请输入家长手机号"
-          cursor-spacing="24"
-          confirm-type="done"
-          value="{{parentMobile}}"
-          bindinput="handleParentMobileInput"
-        />
+        <view class="section-title">学生信息</view>
+        <mp-cells extClass="start-form-cells child-form-cells">
+          <mp-cell
+            extClass="start-form-cell child-form-cell"
+            hasHeader="{{true}}"
+            hasBody="{{true}}"
+            hasFooter="{{false}}"
+          >
+            <view slot="title" class="start-form-label">学生昵称</view>
+            <input
+              class="start-form-input"
+              type="text"
+              maxlength="20"
+              placeholder="请输入学生昵称"
+              cursor-spacing="24"
+              confirm-type="done"
+              value="{{childNickname}}"
+              bindinput="handleChildNicknameInput"
+              bindconfirm="handleStudentInputConfirm"
+            />
+          </mp-cell>
+          <mp-cell
+            extClass="start-form-cell child-form-cell"
+            hasHeader="{{true}}"
+            hasBody="{{true}}"
+            hasFooter="{{false}}"
+          >
+            <view slot="title" class="start-form-label">年龄</view>
+            <input
+              class="start-form-input"
+              type="text"
+              inputmode="numeric"
+              maxlength="2"
+              placeholder="请输入年龄"
+              cursor-spacing="24"
+              confirm-type="done"
+              value="{{childAge}}"
+              bindinput="handleChildAgeInput"
+              bindconfirm="handleStudentInputConfirm"
+            />
+          </mp-cell>
+          <mp-cell
+            extClass="start-form-cell child-form-cell"
+            hasHeader="{{true}}"
+            hasBody="{{true}}"
+            hasFooter="{{false}}"
+          >
+            <view slot="title" class="start-form-label">家长手机号</view>
+            <input
+              class="start-form-input"
+              type="text"
+              inputmode="numeric"
+              maxlength="11"
+              placeholder="请输入家长手机号"
+              cursor-spacing="24"
+              confirm-type="done"
+              value="{{parentMobile}}"
+              bindinput="handleParentMobileInput"
+              bindconfirm="handleStudentInputConfirm"
+            />
+          </mp-cell>
+        </mp-cells>
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
@@ -96,6 +152,7 @@
               <mp-checkbox
                 extClass="payment-agreement-item"
                 value="agree"
+                label=""
                 checked="{{agreementChecked}}"
               />
             </mp-checkbox-group>

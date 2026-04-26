@@ -202,8 +202,8 @@ Page({
   },
 
   handleJoinGroup(event) {
-    const { groupId } = event.currentTarget.dataset
-    if (!groupId) {
+    const { groupId, canJoin } = event.currentTarget.dataset
+    if (!groupId || canJoin === false) {
       return
     }
 
