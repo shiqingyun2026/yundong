@@ -33,8 +33,7 @@ Page({
     statusClassName: '',
     bottomStatusText: '拼团失败，已退款',
     showSuccessEntry: false,
-    successTitle: '支付成功',
-    successDesc: '',
+    successSummaryText: '',
     missingCount: 0,
     primaryActionText: '邀请好友参团',
     showPrimaryShareAction: false,
@@ -103,9 +102,7 @@ Page({
     const isActive = groupDetail.status === 'active'
     const showSuccessEntry = isPaymentSuccessEntry
     const showSubscribeCard = isPaymentSuccessEntry && isActive
-    const successDesc = isPaymentSuccessEntry
-      ? this.resolveSuccessDesc(groupDetail, missingCount)
-      : ''
+    const successSummaryText = isPaymentSuccessEntry ? this.resolveSuccessSummaryText(groupDetail, missingCount) : ''
     const showPrimaryShareAction = isActive && !!groupDetail.userJoined && !isShareEntry
     const showJoinAction = isActive && (!groupDetail.userJoined || isShareEntry)
 
@@ -114,7 +111,7 @@ Page({
       statusText: statusInfo.text,
       statusClassName: statusInfo.className,
       showSuccessEntry,
-      successDesc,
+      successSummaryText,
       missingCount,
       showSubscribeCard,
       primaryActionText: showPrimaryShareAction ? '邀请好友参团' : showJoinAction ? '立即参团' : '',
@@ -134,16 +131,17 @@ Page({
     return !!(templateIds.groupSuccess && templateIds.groupFail && wx.requestSubscribeMessage)
   },
 
-  resolveSuccessDesc(groupDetail, missingCount) {
-    if (!groupDetail || groupDetail.status !== 'active') {
-      return '你已完成支付，可在当前页查看拼团状态。'
+  resolveSuccessSummaryText(groupDetail, missingCount) {
+    if (!groupDetail || groupDetail.status === 'success') {
+      return '已成团'
     }
 
-    if (this.data.action === 'join') {
-      return missingCount > 0 ? `你已成功参团，还差${missingCount}人成团` : '你已成功参团，当前拼团已满足成团条件'
+    if (groupDetail.status === 'failed') {
+      return '拼团失败'
     }
 
-    return missingCount > 0 ? `你已成功开团，还差${missingCount}人成团` : '你已成功开团，当前拼团已满足成团条件'
+    const prefix = this.data.action === 'join' ? '已参团' : '已开团'
+    return missingCount > 0 ? `${prefix} · 还差${missingCount}人成团` : `${prefix} · 即将成团`
   },
 
   async loadGroupDetail(packageGroupId) {

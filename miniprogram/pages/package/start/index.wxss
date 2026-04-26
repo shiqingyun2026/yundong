@@ -24,6 +24,20 @@
   margin-top: 12rpx;
 }
 
+.start-page .notice-card {
+  padding: 28rpx 0;
+}
+
+.start-page .notice-card .section-title,
+.start-page .notice-card .section-desc {
+  padding: 0 32rpx;
+  text-align: left;
+}
+
+.start-page .notice-item {
+  margin-top: 14rpx;
+}
+
 .target-grid {
   display: flex;
   flex-wrap: wrap;

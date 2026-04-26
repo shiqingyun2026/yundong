@@ -135,6 +135,20 @@
   color: #1f2329;
 }
 
+.notice-card {
+  padding: 28rpx 0;
+}
+
+.notice-card .section-title,
+.notice-card .section-desc {
+  padding: 0 32rpx;
+  text-align: left;
+}
+
+.notice-item {
+  margin-top: 14rpx;
+}
+
 .payment-agreement-row {
   display: flex;
   align-items: center;

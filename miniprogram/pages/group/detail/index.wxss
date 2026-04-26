@@ -35,12 +35,18 @@
   font-weight: 700;
 }
 
-.success-entry-title {
+.success-entry-title,
+.success-entry-status {
   margin-top: 18rpx;
   font-size: 38rpx;
   font-weight: 700;
   color: #1f2329;
   line-height: 1.35;
+}
+
+.success-entry-status {
+  font-size: 34rpx;
+  white-space: nowrap;
 }
 
 .success-entry-desc {
@@ -51,44 +57,63 @@
 }
 
 .success-highlight-row {
-  display: flex;
-  gap: 12rpx;
+  display: block;
   margin-top: 24rpx;
-  text-align: left;
+  text-align: center;
 }
 
-.success-highlight-item {
+.success-progress-line {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  width: 100%;
+}
+
+.success-progress-track {
   flex: 1;
   min-width: 0;
-  padding: 18rpx 16rpx;
-  border-radius: 18rpx;
-  background: #f4f8fb;
+  height: 16rpx;
+  overflow: hidden;
+  border-radius: 8rpx;
+  background: #f0f0f0;
 }
 
-.success-highlight-item-time {
-  flex: 1.3;
+.success-progress-bar {
+  height: 100%;
+  border-radius: 8rpx;
+  background: #1abcc5;
 }
 
-.success-highlight-label {
-  font-size: 22rpx;
-  color: #86909c;
-}
-
-.success-highlight-value {
-  margin-top: 8rpx;
+.success-progress-count {
+  flex-shrink: 0;
+  min-width: 72rpx;
   font-size: 28rpx;
-  font-weight: 600;
-  color: #1f2329;
-  line-height: 1.35;
-  white-space: nowrap;
+  font-weight: 500;
+  color: #353535;
+  line-height: 1.4;
+  text-align: right;
 }
 
-.success-highlight-value-strong {
-  color: var(--brand-primary);
+.success-countdown-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8rpx;
+  gap: 8rpx;
 }
 
-.success-highlight-value-time {
-  font-size: 26rpx;
+.success-countdown-icon {
+  width: 24rpx;
+  height: 24rpx;
+  flex-shrink: 0;
+}
+
+.success-countdown-text {
+  font-size: 24rpx;
+  font-weight: 500;
+  color: #f56c6c;
+  line-height: 1.45;
+  text-align: center;
 }
 
 .success-primary-button {
@@ -115,10 +140,25 @@
 .group-detail-page .group-rules-card .section-title,
 .group-detail-page .group-rules-card .section-desc {
   padding: 0 32rpx;
+  text-align: left;
 }
 
 .group-detail-page .group-rules-card .section-desc {
   margin-top: 12rpx;
+}
+
+.group-detail-page .notice-card {
+  padding: 28rpx 0;
+}
+
+.group-detail-page .notice-card .section-title,
+.group-detail-page .notice-card .section-desc {
+  padding: 0 32rpx;
+  text-align: left;
+}
+
+.group-detail-page .notice-card .notice-item {
+  margin-top: 14rpx;
 }
 
 .title-row,

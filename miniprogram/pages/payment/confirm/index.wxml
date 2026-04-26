@@ -94,13 +94,22 @@
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">拼团说明</view>
-        <view class="section-desc">满 {{targetCount}} 人成团</view>
-        <view class="section-desc">
-          拼团截止时间：{{packageGroupDetail ? packageGroupDetail.remainingText : '开团成功后 48 小时'}}
-        </view>
-        <view class="section-desc">
-          未成团退款规则：48 小时内未成团将自动原路退款
-        </view>
+        <view class="section-desc">· 满员即成团</view>
+        <view class="section-desc">· 拼团截止时间：开团后48小时</view>
+        <view class="section-desc">· 未成团退款规则：48小时内容未成团将自动原路退款</view>
+      </view>
+
+      <view class="weui-panel weui-ext-card page-section card-shadow notice-card">
+        <view class="section-title">上课注意事项</view>
+        <view class="section-desc notice-item">· 开团后，按固定课时进行上课。</view>
+        <view class="section-desc notice-item">· 极端天气，课程顺延至下周。</view>
+        <view class="section-desc notice-item">· 请假人数过半，课程顺延至下周，个人请假，不退费不补课。</view>
+        <view class="section-desc notice-item">· 上课期间，课程不得转让，不可更换学员。</view>
+        <view class="section-desc notice-item">· 饭后至少半个小时再运动，请家长提前做好安排。</view>
+        <view class="section-desc notice-item">· 上课前替换换好运动服和运动鞋，并准备好饮用水。</view>
+        <view class="section-desc notice-item">· 如学员有特殊情况，请提前告知。</view>
+        <view class="section-desc notice-item">· 每次上课，至少要求一个家长全程在场。</view>
+        <view class="section-desc notice-item">· 建议家长提前给孩子购买意外险。</view>
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">

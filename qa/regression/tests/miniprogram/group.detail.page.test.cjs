@@ -13,6 +13,13 @@ const activeGroupDetail = {
   targetCount: 4,
   currentCount: 2,
   userJoined: true,
+  members: [
+    {
+      user_id: 'user-1',
+      nickname: '小满',
+      displayText: '小满   6岁'
+    }
+  ],
   packageInfo: {
     id: 'package_seed_active_002',
     name: '[测试] 深圳宝安体能进阶·等待上课'
@@ -51,7 +58,8 @@ test('miniprogram group detail page: payment success entry shows active status p
   assert.equal(page.data.showSuccessEntry, true)
   assert.equal(page.data.showSubscribeCard, true)
   assert.equal(page.data.primaryActionText, '邀请好友参团')
-  assert.match(page.data.successDesc, /还差2人成团/)
+  assert.equal(page.data.successSummaryText, '已参团 · 还差2人成团')
+  assert.equal(page.data.groupDetail.members[0].displayText, '小满   6岁')
 
   packageUtils.fetchPackageGroupDetail = originalFetchPackageGroupDetail
   authUtils.loginAndStoreSession = originalLoginAndStoreSession

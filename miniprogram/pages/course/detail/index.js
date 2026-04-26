@@ -1,11 +1,5 @@
 const { fetchPackageDetail } = require('../../../utils/package')
 
-const SERVICE_DIALOG_BUTTONS = [
-  {
-    text: '关闭'
-  }
-]
-
 Page({
   data: {
     packageId: '',
@@ -14,8 +8,7 @@ Page({
     loading: true,
     showServiceModal: false,
     showLoginSheet: false,
-    pendingLoginAction: null,
-    serviceDialogButtons: SERVICE_DIALOG_BUTTONS
+    pendingLoginAction: null
   },
 
   async onLoad(options) {
@@ -105,9 +98,7 @@ Page({
     })
   },
 
-  handleServiceDialogTap() {
-    this.handleCloseService()
-  },
+  noop() {},
 
   handleHeroImageError(event) {
     const { index } = event.currentTarget.dataset

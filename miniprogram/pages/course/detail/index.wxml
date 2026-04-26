@@ -108,9 +108,9 @@
 
       <view class="weui-panel weui-ext-card page-section card-shadow group-rules-card">
         <view class="section-title">拼团说明</view>
-        <view class="section-desc">满员即成团，可选择当前进行中的拼团直接加入</view>
-        <view class="section-desc">拼团截止时间：开团成功后 48 小时</view>
-        <view class="section-desc">未成团退款规则：48 小时内未成团将自动原路退款</view>
+        <view class="section-desc">· 满员即成团，可选择当前进行中的拼团直接加入。</view>
+        <view class="section-desc">· 拼团截止时间：开团后48小时。</view>
+        <view class="section-desc">· 未成团退款规则：48小时内容未成团将自动原路退款。</view>
       </view>
 
       <view class="bottom-space"></view>
@@ -132,20 +132,21 @@
     </button>
   </view>
 
-  <mp-dialog
-    wx:if="{{packageDetail}}"
-    show="{{showServiceModal}}"
-    title="联系客服"
-    root-portal="{{true}}"
-    extClass="service-dialog"
-    buttons="{{serviceDialogButtons}}"
-    bind:close="handleCloseService"
-    bind:buttontap="handleServiceDialogTap"
-  >
-    <view class="service-modal-content">
-      <view class="service-tip">请联系运营同学获取企业微信二维码。</view>
+  <view wx:if="{{showServiceModal}}" class="service-modal-mask" bindtap="handleCloseService">
+    <view class="service-modal-card" catchtap="noop">
+      <view class="service-modal-title">请添加客服微信</view>
+      <view class="service-qrcode-wrap">
+        <image class="service-qrcode" src="/assets/service-wechat-qrcode.jpg" mode="aspectFill"></image>
+      </view>
+      <button
+        class="weui-btn weui-ext-button service-close-button"
+        type="button"
+        bindtap="handleCloseService"
+      >
+        <view class="weui-ext-button__inner">关闭</view>
+      </button>
     </view>
-  </mp-dialog>
+  </view>
 
   <login-sheet
     show="{{showLoginSheet}}"
