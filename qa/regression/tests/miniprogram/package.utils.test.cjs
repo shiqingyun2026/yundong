@@ -8,7 +8,7 @@ const {
   normalizePackageGroupDetail
 } = require('../../../../miniprogram/utils/package')
 
-test('miniprogram package utils: location text collapses province and duplicate venue segments', () => {
+test('miniprogram package utils: location text uses city, district, and community only', () => {
   const locationText = formatPackageLocationText({
     location_province: '广东省',
     location_city: '深圳市',
@@ -17,7 +17,7 @@ test('miniprogram package utils: location text collapses province and duplicate 
     location_detail: '深圳湾社区 会所二楼活动室'
   })
 
-  assert.equal(locationText, '深圳市 / 南山区 / 深圳湾社区 会所二楼活动室')
+  assert.equal(locationText, '深圳市 / 南山区 / 深圳湾社区')
 })
 
 test('miniprogram package utils: configured group price takes precedence over total price average', () => {
@@ -58,14 +58,24 @@ test('miniprogram package utils: package detail normalization exposes active gro
         remaining_seconds: 7200,
         member_amount_fen: 49500,
         schedule_text: '每周六 10:00，共5次'
+      },
+      {
+        id: 'pkg-group-expired',
+        target_count: 4,
+        current_count: 4,
+        status: 'active',
+        remaining_seconds: 0,
+        member_amount_fen: 49500,
+        schedule_text: '每周日 10:00，共5次'
       }
     ]
   })
 
   assert.equal(detail.totalPriceDisplayText, '1980')
   assert.equal(detail.supportedGroupPriceList[0].memberAmountDisplayText, '495')
+  assert.equal(detail.activeGroups.length, 1)
   assert.equal(detail.activeGroups[0].joinButtonText, '还缺2人，立即拼')
-  assert.equal(detail.locationText, '深圳市 / 南山区 / 科技园社区 二楼体能室')
+  assert.equal(detail.locationText, '深圳市 / 南山区 / 科技园社区')
 })
 
 test('miniprogram package utils: group detail normalization keeps schedule and member presentation', () => {
@@ -83,15 +93,18 @@ test('miniprogram package utils: group detail normalization keeps schedule and m
     target_count: 4,
     current_count: 4,
     member_amount_fen: 49500,
-    schedule_text: '每周六 10:00，共5次',
+    schedule_text: '每周六 10:00，共5次，成团后锁定首课日期',
     first_class_time: '2026-05-01 10:00:00',
     schedule_list: [{ class_time: '2026-05-01 10:00:00' }],
-    members: [{ nickname: '测试家长02', child_nickname: '小满' }],
+    members: [{ nickname: '测试家长02', child_nickname: '小满', child_age: 10, avatar_url: '' }],
     user_joined: true
   })
 
-  assert.equal(detail.packageInfo.locationText, '深圳市 / 宝安区 / 壹方城 L2 训练区')
+  assert.equal(detail.packageInfo.locationText, '深圳市 / 宝安区 / 壹方城')
+  assert.equal(detail.scheduleDisplayText, '每周六 10:00 共5节课')
   assert.equal(detail.progressPercent, '100%')
+  assert.equal(detail.members[0].avatar_url, '/assets/member-default-avatar.jpg')
   assert.equal(detail.members[0].displayName, '小满')
+  assert.equal(detail.members[0].displayText, '小满   10岁')
   assert.match(detail.firstClassTimeText, /05月01日/)
 })

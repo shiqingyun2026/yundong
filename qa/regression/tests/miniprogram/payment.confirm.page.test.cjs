@@ -31,6 +31,9 @@ test('miniprogram payment confirm page: join flow validates parent fields before
     currentCount: 2,
     memberAmountFen: 49500,
     status: 'active',
+    scheduleText: '每周六 10:00，共5次，成团后锁定首课日期',
+    scheduleDisplayText: '每周六 10:00 共5节课',
+    members: [{ displayText: '小雨   10岁', avatar_url: '/assets/member-default-avatar.jpg' }],
     packageInfo: { id: 'package_seed_active_002', name: '课包' }
   })
   authUtils.loginAndStoreSession = async () => ({ token: 'seed-token' })
@@ -48,6 +51,7 @@ test('miniprogram payment confirm page: join flow validates parent fields before
   )
 
   assert.equal(page.data.paymentAmountButtonText, '495元')
+  assert.equal(page.data.packageGroupDetail.scheduleDisplayText, '每周六 10:00 共5节课')
   assert.equal(calls.setNavigationBarTitle[0].title, '参与拼团')
 
   packageUtils.fetchPackageDetail = originalFetchPackageDetail

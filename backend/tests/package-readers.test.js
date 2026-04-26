@@ -249,6 +249,116 @@ test('package readers sign cos cover urls for private bucket access', async () =
   assert.match(result.list[0].cover, /q-signature=/)
 })
 
+test('package detail hides groups once their deadline has arrived', async () => {
+  clearModules([
+    'config/env.js',
+    'config/storage.js',
+    'repositories/index.js',
+    'shared/domain/packageGroupRules.js',
+    'shared/services/packageGroupStore.js',
+    'shared/services/cosSignedUrl.js',
+    'shared/services/packageReaders.js',
+    'shared/services/packageSchedule.js'
+  ])
+
+  const listedGroupArgs = []
+  const now = new Date('2026-04-21T12:00:00.000Z')
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true
+    }
+  })
+
+  mockModule('config/storage.js', {
+    getStorageProviderName: () => 'supabase',
+    getCosStorageConfig: () => ({
+      bucket: '',
+      region: '',
+      secretId: '',
+      secretKey: '',
+      expiresSeconds: 900
+    })
+  })
+
+  mockModule('repositories/index.js', {
+    coursePackagesRepository: {
+      findPackageById: async () => ({
+        id: 'pkg-1',
+        name: '云test',
+        total_price: 12000,
+        group_price_config: [{ target_count: 4, price_fen: 3000 }],
+        supported_people: [4],
+        status: 1,
+        publish_time: '2026-04-21T00:00:00.000Z',
+        unpublish_time: null,
+        location_city: '深圳市',
+        location_district: '南山区',
+        location_community: '科技园社区',
+        location_detail: 'A场地'
+      })
+    },
+    packageGroupsRepository: {
+      listPackageGroups: async args => {
+        listedGroupArgs.push(args)
+        return [
+          {
+            id: 'group-active',
+            package_id: 'pkg-1',
+            status: 'active',
+            target_count: 4,
+            current_count: 2,
+            weekday: 6,
+            hour: 10,
+            deadline: '2026-04-21T13:00:00.000Z'
+          },
+          {
+            id: 'group-deadline-arrived',
+            package_id: 'pkg-1',
+            status: 'active',
+            target_count: 4,
+            current_count: 4,
+            weekday: 7,
+            hour: 10,
+            deadline: '2026-04-21T12:00:00.000Z'
+          }
+        ]
+      }
+    },
+    ordersRepository: {},
+    usersRepository: {}
+  })
+
+  mockModule('shared/domain/packageGroupRules.js', {
+    calculatePackageMemberAmountFen: ({ groupPriceConfig = [] }) => Number(groupPriceConfig[0] && groupPriceConfig[0].price_fen) || 0
+  })
+
+  mockModule('shared/services/packageGroupStore.js', {
+    cleanupExpiredPackageGroups: async () => {}
+  })
+
+  mockModule('shared/services/packageSchedule.js', {
+    buildPackageLessonSchedule: () => [],
+    formatPackageDateTime: value => value,
+    formatPendingPackageScheduleText: () => '每周六 10:00，共5次',
+    formatScheduleTextWithLockNote: () => '每周六 10:00，共5次，成团后锁定首课日期'
+  })
+
+  const { fetchMiniProgramPackageDetail } = require(path.join(backendRoot, 'shared/services/packageReaders.js'))
+  const result = await fetchMiniProgramPackageDetail({
+    packageId: 'pkg-1',
+    now
+  })
+
+  assert.deepEqual(listedGroupArgs[0], {
+    packageId: 'pkg-1',
+    statuses: ['active'],
+    afterDeadline: now
+  })
+  assert.deepEqual(result.active_groups.map(item => item.id), ['group-active'])
+  assert.equal(result.active_groups[0].remaining_seconds, 3600)
+})
+
 test('package group detail returns leader child profile, default member avatars and countdown', async () => {
   clearModules([
     'config/env.js',
@@ -354,14 +464,16 @@ test('package group detail returns leader child profile, default member avatars 
     now: new Date('2026-04-21T10:00:00.000Z')
   })
 
-  assert.equal(result.package.location_text, '深圳市 / 南山区 / 科技园社区 A场地')
+  assert.equal(result.package.location_text, '深圳市 / 南山区 / 科技园社区')
   assert.equal(result.child_nickname, '小满')
   assert.equal(result.child_age, 6)
   assert.equal(result.remaining_seconds, 172800)
   assert.equal(result.members.length, 2)
   assert.equal(result.members[0].nickname, '小满')
-  assert.equal(result.members[0].avatar_url, '/assets/ant-icons/user-white.svg')
+  assert.equal(result.members[0].child_age, 6)
+  assert.equal(result.members[0].avatar_url, '/assets/member-default-avatar.jpg')
   assert.equal(result.members[1].nickname, '乐乐')
+  assert.equal(result.members[1].child_age, 5)
 })
 
 test('user package group list returns missing count for active groups', async () => {
@@ -462,5 +574,5 @@ test('user package group list returns missing count for active groups', async ()
   assert.equal(result.list[0].target_count, 4)
   assert.equal(result.list[0].current_count, 2)
   assert.equal(result.list[0].missing_count, 2)
-  assert.equal(result.list[0].location_text, '深圳市 / 南山区 / 科技园社区 A场地')
+  assert.equal(result.list[0].location_text, '深圳市 / 南山区 / 科技园社区')
 })

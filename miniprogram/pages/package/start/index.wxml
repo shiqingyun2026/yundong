@@ -142,7 +142,6 @@
         <view class="section-desc">满 {{selectedTargetCount}} 人成团</view>
         <view class="section-desc">拼团截止时间：开团成功后 48 小时</view>
         <view class="section-desc">未成团退款规则：48 小时内未成团将自动原路退款</view>
-        <view class="section-desc">支付成功后才会真正创建拼团，系统会在成团后锁定首课日期。</view>
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">

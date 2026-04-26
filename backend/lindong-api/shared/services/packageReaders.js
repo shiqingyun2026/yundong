@@ -13,7 +13,7 @@ const { signCosImageList, signCosPublicUrl, signCosUrlsInText } = require('./cos
 
 const formatFenText = amountFen => (Number(amountFen || 0) / 100).toFixed(2)
 
-const DEFAULT_MEMBER_AVATAR = '/assets/ant-icons/user-white.svg'
+const DEFAULT_MEMBER_AVATAR = '/assets/member-default-avatar.jpg'
 
 const pickFirstNonEmptyString = values => {
   for (let index = 0; index < values.length; index += 1) {
@@ -140,32 +140,15 @@ const formatMiniProgramLocationText = pkg => {
   const district = districtPathParts.length ? districtPathParts[districtPathParts.length - 1] : ''
   const fallbackCity = !city && districtPathParts.length > 1 ? districtPathParts[districtPathParts.length - 2] : ''
   const community = pickFirstNonEmptyString([source.location_community, source.locationCommunity])
-  const detail = pickFirstNonEmptyString([source.location_detail, source.locationDetail])
   const fallbackText = pickFirstNonEmptyString([source.location_text, source.locationText])
   const resolvedCity = city || fallbackCity
 
-  const locationSegments = dedupeOrderedParts([province, resolvedCity, district, community])
-  const compactLocationSegments = dedupeOrderedParts([
-    collapseLocationText(province).replace(/\s*\/\s*/g, ''),
-    collapseLocationText(resolvedCity).replace(/\s*\/\s*/g, ''),
-    collapseLocationText(district).replace(/\s*\/\s*/g, '')
-  ])
   const normalizedCommunity = extractLocationLeafPart(community, province)
-  let normalizedDetail = extractLocationLeafPart(
-    stripKnownLocationSegments(detail, [...locationSegments, ...compactLocationSegments]),
-    province
-  )
-
-  if (normalizedCommunity && normalizedDetail) {
-    if (normalizedDetail.includes(normalizedCommunity)) {
-      normalizedDetail = collapseLocationText(normalizedDetail.replace(new RegExp(escapeRegExp(normalizedCommunity), 'g'), ' '))
-    } else if (normalizedCommunity.includes(normalizedDetail)) {
-      normalizedDetail = ''
-    }
-  }
-
-  const venueText = dedupeOrderedParts([normalizedCommunity, normalizedDetail]).join(' ')
-  const formatted = dedupeOrderedParts([collapseLocationText(resolvedCity), collapseLocationText(district), venueText])
+  const formatted = dedupeOrderedParts([
+    collapseLocationText(resolvedCity),
+    collapseLocationText(district),
+    normalizedCommunity
+  ])
 
   if (formatted.length) {
     return formatted.join(' / ')
@@ -447,6 +430,7 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
     description: signCosUrlsInText(pkg.description || ''),
     insurance_desc: '课程期间统一赠送基础运动意外险，具体保障范围以投保说明为准。',
     active_groups: (activeGroups || [])
+      .filter(group => group && group.deadline && new Date(group.deadline).getTime() > now.getTime())
       .sort((left, right) => new Date(left.deadline).getTime() - new Date(right.deadline).getTime())
       .map(group => {
         const memberAmountFen = calculatePackageMemberAmountFen({
@@ -552,6 +536,11 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
         (order.package_context && order.package_context.child_nickname) ||
         (usersById[order.user_id] && usersById[order.user_id].nickname) ||
         '微信用户',
+      child_nickname: (order.package_context && order.package_context.child_nickname) || '',
+      child_age:
+        order.package_context && order.package_context.child_age !== undefined && order.package_context.child_age !== null
+          ? Number(order.package_context.child_age) || 0
+          : null,
       avatar_url: DEFAULT_MEMBER_AVATAR
     })),
     child_nickname:

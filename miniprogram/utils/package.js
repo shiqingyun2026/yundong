@@ -12,6 +12,7 @@ const WEEKDAY_LABELS = {
 }
 
 const START_HOUR_OPTIONS = [9, 10, 11, 14, 15, 16, 17, 18, 19]
+const DEFAULT_MEMBER_AVATAR = '/assets/member-default-avatar.jpg'
 
 const pickFirstNonEmptyString = values => {
   for (let index = 0; index < values.length; index += 1) {
@@ -138,32 +139,15 @@ const formatPackageLocationText = payload => {
   const district = districtPathParts.length ? districtPathParts[districtPathParts.length - 1] : ''
   const fallbackCity = !city && districtPathParts.length > 1 ? districtPathParts[districtPathParts.length - 2] : ''
   const community = pickFirstNonEmptyString([source.location_community, source.locationCommunity])
-  const detail = pickFirstNonEmptyString([source.location_detail, source.locationDetail])
   const fallbackText = pickFirstNonEmptyString([source.location_text, source.locationText])
   const resolvedCity = city || fallbackCity
 
-  const locationSegments = dedupeOrderedParts([province, resolvedCity, district, community])
-  const compactLocationSegments = dedupeOrderedParts([
-    collapseLocationText(province).replace(/\s*\/\s*/g, ''),
-    collapseLocationText(resolvedCity).replace(/\s*\/\s*/g, ''),
-    collapseLocationText(district).replace(/\s*\/\s*/g, '')
-  ])
   const normalizedCommunity = extractLocationLeafPart(community, province)
-  let normalizedDetail = extractLocationLeafPart(
-    stripKnownLocationSegments(detail, [...locationSegments, ...compactLocationSegments]),
-    province
-  )
-
-  if (normalizedCommunity && normalizedDetail) {
-    if (normalizedDetail.includes(normalizedCommunity)) {
-      normalizedDetail = collapseLocationText(normalizedDetail.replace(new RegExp(escapeRegExp(normalizedCommunity), 'g'), ' '))
-    } else if (normalizedCommunity.includes(normalizedDetail)) {
-      normalizedDetail = ''
-    }
-  }
-
-  const venueText = dedupeOrderedParts([normalizedCommunity, normalizedDetail]).join(' ')
-  const formatted = dedupeOrderedParts([collapseLocationText(resolvedCity), collapseLocationText(district), venueText])
+  const formatted = dedupeOrderedParts([
+    collapseLocationText(resolvedCity),
+    collapseLocationText(district),
+    normalizedCommunity
+  ])
 
   if (formatted.length) {
     return formatted.join(' / ')
@@ -345,6 +329,20 @@ const formatScheduleList = scheduleList =>
     display_text: item.display_text || formatPackageDateTimeText(item.class_time)
   }))
 
+const formatScheduleDisplayText = value => {
+  const normalized = `${value || ''}`.trim()
+  if (!normalized) {
+    return ''
+  }
+
+  const matched = normalized.match(/^(每?周[一二三四五六日天])\s+(\d{1,2}:00)/)
+  if (!matched) {
+    return normalized.split(/[，,]/)[0] || normalized
+  }
+
+  return `${matched[1]} ${matched[2].padStart(5, '0')} 共5节课`
+}
+
 const normalizePackageCard = item => ({
   id: item.package_id || item.packageId || item.id || '',
   name: item.name || '',
@@ -419,7 +417,9 @@ const normalizePackageDetail = payload => ({
   coachCertificates: Array.isArray(payload.coach_certificates) ? payload.coach_certificates : [],
   description: payload.description || '',
   insuranceDesc: payload.insurance_desc || '',
-  activeGroups: Array.isArray(payload.active_groups) ? payload.active_groups.map(normalizeActiveGroup) : []
+  activeGroups: Array.isArray(payload.active_groups)
+    ? payload.active_groups.map(normalizeActiveGroup).filter(group => group.remainingSeconds > 0)
+    : []
 })
 
 const normalizePackageGroupDetail = payload => ({
@@ -441,6 +441,7 @@ const normalizePackageGroupDetail = payload => ({
   memberAmountDisplayText: formatDisplayAmount(payload.member_amount_text || formatFenText(payload.member_amount_fen)),
   scheduleMode: payload.schedule_mode || 'pending',
   scheduleText: payload.schedule_text || '',
+  scheduleDisplayText: formatScheduleDisplayText(payload.schedule_text),
   firstClassTime: payload.first_class_time || '',
   firstClassTimeText: payload.first_class_time ? formatPackageDateTimeText(payload.first_class_time) : '',
   scheduleList: formatScheduleList(payload.schedule_list),
@@ -449,7 +450,15 @@ const normalizePackageGroupDetail = payload => ({
   members: Array.isArray(payload.members)
     ? payload.members.map(member => ({
         ...member,
-        displayName: member.display_name || member.child_nickname || member.nickname || '孩子昵称未填写'
+        avatar_url: member.avatar_url || DEFAULT_MEMBER_AVATAR,
+        childAge: member.child_age === null || member.child_age === undefined ? null : Number(member.child_age) || 0,
+        displayName: member.display_name || member.child_nickname || member.nickname || '孩子昵称未填写',
+        displayText: [
+          member.display_name || member.child_nickname || member.nickname || '孩子昵称未填写',
+          member.child_age === null || member.child_age === undefined || !Number(member.child_age)
+            ? ''
+            : `${Number(member.child_age)}岁`
+        ].filter(Boolean).join('   ')
       }))
     : [],
   userJoined: !!payload.user_joined,
