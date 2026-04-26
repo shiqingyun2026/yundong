@@ -756,8 +756,12 @@ test('console banner list page can query create and edit banners', async ({ page
 
   await expect(page).toHaveURL(/\/banners\/banner-created-1$/)
   await expect(page.getByRole('heading', { name: 'Banner 详情' })).toBeVisible()
+  await expect(page.getByText('2026-05-01 09:00:00')).toBeVisible()
+  await expect(page.getByText('2026-05-31 23:00:00')).toBeVisible()
 
   await page.getByRole('link', { name: '编辑 Banner' }).click()
+  await expect(page.getByLabel('上线时间')).toHaveValue('2026-05-01T09:00')
+  await expect(page.getByLabel('下线时间')).toHaveValue('2026-05-31T23:00')
   await page.getByLabel('Banner 标题').fill('首页夏季活动-已更新')
   await page.getByRole('button', { name: '保存 Banner' }).click()
 

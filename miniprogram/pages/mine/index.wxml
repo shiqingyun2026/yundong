@@ -45,20 +45,21 @@
     </mp-cell>
   </mp-cells>
 
-  <mp-dialog
-    show="{{showServiceModal}}"
-    title="联系客服"
-    root-portal="{{true}}"
-    extClass="service-dialog"
-    buttons="{{serviceDialogButtons}}"
-    bind:close="handleCloseService"
-    bind:buttontap="handleServiceDialogTap"
-  >
-    <view class="service-modal-content">
-      <image class="service-qrcode" src="{{serviceQrCode}}" mode="aspectFit"></image>
-      <view class="service-tip">请使用微信扫码联系专属客服</view>
+  <view wx:if="{{showServiceModal}}" class="service-modal-mask" bindtap="handleCloseService">
+    <view class="service-modal-card" catchtap="noop">
+      <view class="service-modal-title">请添加客服微信</view>
+      <view class="service-qrcode-wrap">
+        <image class="service-qrcode" src="/assets/service-wechat-qrcode.jpg" mode="aspectFill"></image>
+      </view>
+      <button
+        class="weui-btn weui-ext-button service-close-button"
+        type="button"
+        bindtap="handleCloseService"
+      >
+        <view class="weui-ext-button__inner">关闭</view>
+      </button>
     </view>
-  </mp-dialog>
+  </view>
 
   <login-sheet
     show="{{showLoginSheet}}"

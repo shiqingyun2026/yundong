@@ -1,10 +1,3 @@
-const SERVICE_QR_CODE = 'https://dummyimage.com/240x240/e8f8f9/1abcc5.png&text=%E5%AE%A2%E6%9C%8D%E4%BA%8C%E7%BB%B4%E7%A0%81'
-const SERVICE_DIALOG_BUTTONS = [
-  {
-    text: '关闭'
-  }
-]
-
 Page({
   data: {
     userInfo: null,
@@ -24,9 +17,7 @@ Page({
         key: 'service',
         title: '联系客服'
       }
-    ],
-    serviceQrCode: SERVICE_QR_CODE,
-    serviceDialogButtons: SERVICE_DIALOG_BUTTONS
+    ]
   },
 
   onShow() {
@@ -163,7 +154,5 @@ Page({
     })
   },
 
-  handleServiceDialogTap() {
-    this.handleCloseService()
-  }
+  noop() {}
 })

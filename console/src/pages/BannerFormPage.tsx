@@ -29,8 +29,8 @@ const toDateTimeLocal = (value?: string) => {
     return ''
   }
 
-  const offset = 8 * 60 * 60 * 1000
-  return new Date(date.getTime() + offset).toISOString().slice(0, 16)
+  const offset = date.getTimezoneOffset() * 60 * 1000
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
 }
 
 const buildPayload = (form: BannerDetail) => ({
@@ -51,8 +51,8 @@ const getStatusText = (status: BannerDetail['status']) => {
 
 const getNowLocalInputValue = () => {
   const now = new Date()
-  const offset = 8 * 60 * 60 * 1000
-  return new Date(now.getTime() + offset).toISOString().slice(0, 16)
+  const offset = now.getTimezoneOffset() * 60 * 1000
+  return new Date(now.getTime() - offset).toISOString().slice(0, 16)
 }
 
 export function BannerFormPage({ mode }: { mode: BannerPageMode }) {

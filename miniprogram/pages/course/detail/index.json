@@ -2,7 +2,6 @@
   "navigationBarTitleText": "课程详情",
   "usingComponents": {
     "mp-toptips": "../../../vendor/weui-miniprogram/toptips/toptips",
-    "mp-dialog": "../../../vendor/weui-miniprogram/dialog/dialog",
     "mp-icon": "../../../vendor/weui-miniprogram/icon/icon",
     "mp-badge": "../../../vendor/weui-miniprogram/badge/badge",
     "mp-loading": "../../../vendor/weui-miniprogram/loading/loading",

@@ -3,7 +3,7 @@ const crypto = require('node:crypto')
 const { readBannerStore, writeBannerStore } = require('../../shared/services/bannerStore')
 const { getBannerStatus, syncBannerStoreStatus } = require('../../shared/services/bannerState')
 const { writeAdminLog } = require('../../utils/adminStore')
-const { formatDateTime, getPagination } = require('../routes/_helpers')
+const { formatDateTime, getPagination, parseShanghaiDateTimeInput } = require('../routes/_helpers')
 const { ensureCondition, ensureFound } = require('./_guards')
 
 const BANNER_JUMP_TYPES = ['none', 'packageDetail', 'customUrl', 'miniprogramPage']
@@ -19,7 +19,12 @@ const normalizeDateTimeValue = value => {
     return null
   }
 
-  const date = value instanceof Date ? value : new Date(value)
+  const isoValue = parseShanghaiDateTimeInput(value)
+  if (!isoValue) {
+    return null
+  }
+
+  const date = new Date(isoValue)
   return Number.isNaN(date.getTime()) ? null : date.toISOString()
 }
 
