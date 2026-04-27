@@ -3,31 +3,12 @@ const { post } = require('./request')
 // Development-only mock login switch. Keep disabled for production releases.
 const USE_MOCK_USER = false
 const MOCK_OPEN_ID = 'seed0326_u02'
-const GENERATED_USER_INFO_STORAGE_KEY = 'generatedLoginUserInfo'
-
-const buildRandomNickname = () => `用户${Math.floor(1000 + Math.random() * 9000)}`
-
-const getGeneratedUserInfo = () => {
-  const existing = wx.getStorageSync(GENERATED_USER_INFO_STORAGE_KEY)
-
-  if (existing && existing.nickName) {
-    return existing
-  }
-
-  const generatedUserInfo = {
-    nickName: buildRandomNickname(),
-    avatarUrl: ''
-  }
-
-  wx.setStorageSync(GENERATED_USER_INFO_STORAGE_KEY, generatedUserInfo)
-  return generatedUserInfo
-}
 
 const clearGeneratedUserInfo = () => {
-  wx.removeStorageSync(GENERATED_USER_INFO_STORAGE_KEY)
+  wx.removeStorageSync('generatedLoginUserInfo')
 }
 
-const pickUserInfo = (payload, fallbackUserInfo) => {
+const pickUserInfo = payload => {
   const source =
     (payload && (payload.userInfo || payload.user || payload.profile)) ||
     payload ||
@@ -38,13 +19,11 @@ const pickUserInfo = (payload, fallbackUserInfo) => {
       source.nickName ||
       source.nickname ||
       source.name ||
-      fallbackUserInfo.nickName ||
       '',
     avatarUrl:
       source.avatarUrl ||
       source.avatar ||
       source.avatar_url ||
-      fallbackUserInfo.avatarUrl ||
       ''
   }
 }
@@ -121,8 +100,7 @@ const login = async userInfo => {
   return {
     token: result.token,
     userInfo: {
-      ...pickUserInfo(result, userInfo || getGeneratedUserInfo()),
-      ...getGeneratedUserInfo(),
+      ...pickUserInfo(result),
       avatarUrl: ''
     }
   }

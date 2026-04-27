@@ -2,6 +2,8 @@ const jwt = require('jsonwebtoken')
 const { userIdentitiesRepository, usersRepository } = require('../../repositories')
 const { exchangeCodeForSession } = require('./wechatMiniProgram')
 
+const buildRandomUserNickname = () => `微信用户${Math.floor(100000 + Math.random() * 900000)}`
+
 const resolveMiniProgramOpenId = ({ code, mockOpenId, openId }) => {
   if (openId) {
     return openId
@@ -95,7 +97,7 @@ const loginMiniProgramUser = async ({ code, mockOpenId, openId, unionId = '', ap
   if (!user) {
     user = await usersRepository.createUser({
       openid: resolvedOpenId,
-      nickname: '微信用户',
+      nickname: buildRandomUserNickname(),
       avatarUrl: ''
     })
 
@@ -115,7 +117,7 @@ const loginMiniProgramUser = async ({ code, mockOpenId, openId, unionId = '', ap
   return {
     token,
     userInfo: {
-      nickName: user.nickname || '微信用户',
+      nickName: user.nickname || buildRandomUserNickname(),
       avatarUrl: user.avatar_url || ''
     }
   }

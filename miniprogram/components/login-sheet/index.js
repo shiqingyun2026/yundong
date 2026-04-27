@@ -110,7 +110,7 @@ Component({
       })
     },
 
-    async handleGetPhoneNumber(event) {
+    handlePhoneVerifyTap() {
       if (this.data.loginLoading) {
         return
       }
@@ -120,6 +120,11 @@ Component({
           title: '请先阅读并勾选用户协议',
           icon: 'none'
         })
+      }
+    },
+
+    async handleGetPhoneNumber(event) {
+      if (this.data.loginLoading) {
         return
       }
 

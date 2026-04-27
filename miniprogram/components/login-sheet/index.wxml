@@ -26,6 +26,16 @@
 
     <view class="login-sheet-action-group">
       <button
+        wx:if="{{!agreed}}"
+        class="weui-btn weui-ext-button weui-ext-button--block weui-ext-button--large weui-ext-button--primary login-sheet-primary"
+        bindtap="handlePhoneVerifyTap"
+        disabled="{{loginLoading}}"
+      >
+        <view class="weui-ext-button__inner">手机号快速验证</view>
+      </button>
+
+      <button
+        wx:else
         class="weui-btn weui-ext-button weui-ext-button--block weui-ext-button--large weui-ext-button--primary login-sheet-primary"
         open-type="getPhoneNumber"
         bindgetphonenumber="handleGetPhoneNumber"

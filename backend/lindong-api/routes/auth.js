@@ -107,7 +107,7 @@ router.post('/phone', authenticate, async (req, res) => {
         { expiresIn: '7d' }
       ),
       userInfo: {
-        nickName: updatedUser && updatedUser.nickname ? updatedUser.nickname : '微信用户',
+        nickName: updatedUser && updatedUser.nickname ? updatedUser.nickname : '',
         avatarUrl: updatedUser && updatedUser.avatar_url ? updatedUser.avatar_url : '',
         phone: updatedUser && updatedUser.phone ? updatedUser.phone : phoneInfo.purePhoneNumber
       }
