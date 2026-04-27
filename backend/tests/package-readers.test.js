@@ -395,6 +395,10 @@ test('package group detail returns leader child profile, default member avatars 
         name: '云test',
         total_price: 12000,
         group_price_config: [{ target_count: 4, price_fen: 3000 }],
+        coach_name: '教练A',
+        coach_intro: '<p>教练介绍</p>',
+        coach_certificates: ['cert-a.png'],
+        description: '<p>课程介绍</p>',
         location_city: '深圳市',
         location_district: '南山区',
         location_community: '科技园社区',
@@ -465,6 +469,10 @@ test('package group detail returns leader child profile, default member avatars 
   })
 
   assert.equal(result.package.location_text, '深圳市 / 南山区 / 科技园社区')
+  assert.equal(result.package.description, '<p>课程介绍</p>')
+  assert.equal(result.package.coach_name, '教练A')
+  assert.equal(result.package.coach_intro, '<p>教练介绍</p>')
+  assert.deepEqual(result.package.coach_certificates, ['cert-a.png'])
   assert.equal(result.child_nickname, '小满')
   assert.equal(result.child_age, 6)
   assert.equal(result.remaining_seconds, 172800)

@@ -9,7 +9,7 @@
     <view class="page-shell detail-content">
       <view wx:if="{{showSuccessEntry}}" class="weui-panel weui-ext-card page-section card-shadow success-entry-card">
         <view class="success-entry-icon">✓</view>
-        <view class="success-entry-status">{{successSummaryText}}</view>
+        <view class="success-entry-title">开团成功</view>
 
         <view wx:if="{{groupDetail.status === 'active'}}" class="success-highlight-row">
           <view class="success-progress-line">
@@ -19,8 +19,7 @@
             <view class="success-progress-count">{{groupDetail.currentCount}}/{{groupDetail.targetCount}}</view>
           </view>
           <view class="success-countdown-row">
-            <image class="success-countdown-icon" src="/assets/icons/status-info-primary.svg" mode="aspectFit"></image>
-            <view class="success-countdown-text">剩余 {{groupDetail.remainingPlainText}}</view>
+            <view class="success-countdown-text">还差{{missingCount}}人成团，剩余{{groupDetail.remainingPlainText}}</view>
           </view>
         </view>
 
@@ -58,34 +57,54 @@
 
         <view class="info-list">
           <view class="info-row">
-            <view class="info-icon">📅</view>
+            <image class="info-icon-image" src="/assets/icons/status-info-primary.svg" mode="aspectFit"></image>
             <view class="info-value">{{groupDetail.scheduleMode === 'locked' ? groupDetail.firstClassTimeText : groupDetail.scheduleText}}</view>
           </view>
           <view class="info-row">
-            <view class="info-icon">📍</view>
+            <image class="info-icon-image" src="/assets/icons/location-primary.svg" mode="aspectFit"></image>
             <view class="info-value">{{groupDetail.packageInfo.locationText}}</view>
           </view>
         </view>
       </view>
 
-      <view class="weui-panel weui-ext-card page-section card-shadow group-rules-card">
-        <view class="section-title">拼团说明</view>
-        <view class="section-desc">· 满员即成团</view>
-        <view class="section-desc">· 拼团截止时间：开团后48小时</view>
-        <view class="section-desc">· 未成团退款规则：48小时内容未成团将自动原路退款</view>
+      <view wx:if="{{groupDetail.packageInfo.description}}" class="weui-panel weui-ext-card page-section card-shadow intro-card">
+        <view class="section-title">课程介绍</view>
+        <rich-text class="rich-text" nodes="{{groupDetail.packageInfo.description}}"></rich-text>
       </view>
 
-      <view class="weui-panel weui-ext-card page-section card-shadow notice-card">
-        <view class="section-title">上课注意事项</view>
-        <view class="section-desc notice-item">· 开团后，按固定课时进行上课。</view>
-        <view class="section-desc notice-item">· 极端天气，课程顺延至下周。</view>
-        <view class="section-desc notice-item">· 请假人数过半，课程顺延至下周，个人请假，不退费不补课。</view>
-        <view class="section-desc notice-item">· 上课期间，课程不得转让，不可更换学员。</view>
-        <view class="section-desc notice-item">· 饭后至少半个小时再运动，请家长提前做好安排。</view>
-        <view class="section-desc notice-item">· 上课前替换换好运动服和运动鞋，并准备好饮用水。</view>
-        <view class="section-desc notice-item">· 如学员有特殊情况，请提前告知。</view>
-        <view class="section-desc notice-item">· 每次上课，至少要求一个家长全程在场。</view>
-        <view class="section-desc notice-item">· 建议家长提前给孩子购买意外险。</view>
+      <view wx:if="{{groupDetail.packageInfo.coachName || groupDetail.packageInfo.coachIntro || groupDetail.packageInfo.coachCertificates.length}}" class="weui-panel weui-ext-card page-section card-shadow intro-card">
+        <view class="section-title">教练信息</view>
+        <view wx:if="{{groupDetail.packageInfo.coachName}}" class="coach-name">{{groupDetail.packageInfo.coachName}}</view>
+        <rich-text wx:if="{{groupDetail.packageInfo.coachIntro}}" class="rich-text" nodes="{{groupDetail.packageInfo.coachIntro}}"></rich-text>
+        <view wx:if="{{groupDetail.packageInfo.coachCertificates.length}}" class="certificate-list">
+          <image
+            wx:for="{{groupDetail.packageInfo.coachCertificates}}"
+            wx:key="*this"
+            class="certificate-image"
+            src="{{item}}"
+            mode="aspectFill"
+            data-url="{{item}}"
+            bindtap="handlePreviewCertificate"
+          ></image>
+        </view>
+      </view>
+
+      <view class="weui-panel weui-ext-card page-section card-shadow group-rules-card">
+        <view class="section-title">拼团说明</view>
+        <view class="rule-list">
+          <view class="rule-item">
+            <view class="rule-dot"></view>
+            <view class="rule-text">满员即成团</view>
+          </view>
+          <view class="rule-item">
+            <view class="rule-dot"></view>
+            <view class="rule-text">拼团截止时间：开团后 48 小时</view>
+          </view>
+          <view class="rule-item">
+            <view class="rule-dot"></view>
+            <view class="rule-text">未成团退款规则：48 小时内未成团将自动原路退款</view>
+          </view>
+        </view>
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
@@ -93,7 +112,11 @@
         <view wx:if="{{groupDetail.members.length}}" class="member-list-block">
           <view wx:for="{{groupDetail.members}}" wx:key="user_id" class="member-item">
             <image class="member-avatar" src="{{item.avatar_url}}" mode="aspectFill"></image>
-            <view class="member-name">{{item.displayText || item.displayName || item.nickname}}</view>
+            <view class="member-meta">
+              <view class="member-name-row">
+                <view class="member-name">{{item.displayText || item.displayName || item.nickname}}</view>
+              </view>
+            </view>
           </view>
         </view>
         <view wx:else class="section-desc">暂未获取到成员信息</view>

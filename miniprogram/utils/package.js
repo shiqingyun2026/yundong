@@ -429,6 +429,13 @@ const normalizePackageGroupDetail = payload => ({
     id: payload.package && payload.package.id ? payload.package.id : '',
     name: payload.package && payload.package.name ? payload.package.name : '',
     ageRange: payload.package && payload.package.age_range ? payload.package.age_range : '',
+    description: payload.package && payload.package.description ? payload.package.description : '',
+    coachName: payload.package && payload.package.coach_name ? payload.package.coach_name : '',
+    coachIntro: payload.package && payload.package.coach_intro ? payload.package.coach_intro : '',
+    coachCertificates:
+      payload.package && Array.isArray(payload.package.coach_certificates)
+        ? payload.package.coach_certificates
+        : [],
     locationText: payload.package ? formatPackageLocationText(payload.package) : ''
   },
   targetCount: Number(payload.target_count) || 0,

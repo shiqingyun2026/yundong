@@ -22,7 +22,11 @@ const activeGroupDetail = {
   ],
   packageInfo: {
     id: 'package_seed_active_002',
-    name: '[测试] 深圳宝安体能进阶·等待上课'
+    name: '[测试] 深圳宝安体能进阶·等待上课',
+    description: '<p>课程介绍</p>',
+    coachName: '王教练',
+    coachIntro: '<p>教练介绍</p>',
+    coachCertificates: ['https://example.com/cert.jpg']
   }
 }
 
@@ -60,6 +64,9 @@ test('miniprogram group detail page: payment success entry shows active status p
   assert.equal(page.data.primaryActionText, '邀请好友参团')
   assert.equal(page.data.successSummaryText, '已参团 · 还差2人成团')
   assert.equal(page.data.groupDetail.members[0].displayText, '小满   6岁')
+  assert.equal(page.data.groupDetail.packageInfo.description, '<p>课程介绍</p>')
+  assert.equal(page.data.groupDetail.packageInfo.coachName, '王教练')
+  assert.deepEqual(page.data.groupDetail.packageInfo.coachCertificates, ['https://example.com/cert.jpg'])
 
   packageUtils.fetchPackageGroupDetail = originalFetchPackageGroupDetail
   authUtils.loginAndStoreSession = originalLoginAndStoreSession

@@ -248,6 +248,24 @@ Page({
     }
   },
 
+  handlePreviewCertificate(event) {
+    const url = event.currentTarget.dataset.url
+    const certificates =
+      (this.data.groupDetail &&
+        this.data.groupDetail.packageInfo &&
+        this.data.groupDetail.packageInfo.coachCertificates) ||
+      []
+
+    if (!url || !certificates.length) {
+      return
+    }
+
+    wx.previewImage({
+      urls: certificates,
+      current: url
+    })
+  },
+
   handleJoinGroup() {
     const { groupDetail } = this.data
     if (!groupDetail || groupDetail.status !== 'active') {
