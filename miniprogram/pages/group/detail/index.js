@@ -26,13 +26,18 @@ Page({
     packageGroupId: '',
     packageId: '',
     entry: '',
+    source: '',
     action: 'start',
+    successType: '',
+    selectedChildNickname: '',
+    selectedChildAge: '',
     loading: true,
     groupDetail: null,
     statusText: '',
     statusClassName: '',
     bottomStatusText: '拼团失败，已退款',
     showSuccessEntry: false,
+    successEntryTitle: '',
     successSummaryText: '',
     missingCount: 0,
     primaryActionText: '邀请好友参团',
@@ -52,7 +57,11 @@ Page({
       packageGroupId: options.packageGroupId || options.groupId || '',
       packageId: options.packageId || '',
       entry: options.entry || '',
+      source: options.source || '',
       action: options.action || 'start',
+      successType: options.successType || '',
+      selectedChildNickname: decodeURIComponent(options.selectedChildNickname || ''),
+      selectedChildAge: decodeURIComponent(options.selectedChildAge || ''),
       showSuccessEntry: options.entry === 'paymentSuccess',
       subscribeEnabled: this.resolveSubscribeEnabled()
     })
@@ -105,12 +114,30 @@ Page({
     const successSummaryText = isPaymentSuccessEntry ? this.resolveSuccessSummaryText(groupDetail, missingCount) : ''
     const showPrimaryShareAction = isActive && !!groupDetail.userJoined && !isShareEntry
     const showJoinAction = isActive && (!groupDetail.userJoined || isShareEntry)
+    const normalizedSelectedAge =
+      this.data.selectedChildAge === '' || this.data.selectedChildAge === null || this.data.selectedChildAge === undefined
+        ? null
+        : Number(this.data.selectedChildAge) || 0
+    const members = Array.isArray(groupDetail.members)
+      ? groupDetail.members.map(member => ({
+          ...member,
+          isCurrentOrderChild:
+            this.data.source === 'myGroupList' &&
+            !!this.data.selectedChildNickname &&
+            (member.displayName || member.child_nickname || member.nickname || '') === this.data.selectedChildNickname &&
+            (normalizedSelectedAge === null || Number(member.childAge) === normalizedSelectedAge)
+        }))
+      : []
 
     this.safeSetData({
-      groupDetail,
+      groupDetail: {
+        ...groupDetail,
+        members
+      },
       statusText: statusInfo.text,
       statusClassName: statusInfo.className,
       showSuccessEntry,
+      successEntryTitle: showSuccessEntry ? this.resolveSuccessEntryTitle() : '',
       successSummaryText,
       missingCount,
       showSubscribeCard,
@@ -142,6 +169,10 @@ Page({
 
     const prefix = this.data.action === 'join' ? '已参团' : '已开团'
     return missingCount > 0 ? `${prefix} · 还差${missingCount}人成团` : `${prefix} · 即将成团`
+  },
+
+  resolveSuccessEntryTitle() {
+    return this.data.successType === 'join' ? '参团成功' : '开团成功'
   },
 
   async loadGroupDetail(packageGroupId) {

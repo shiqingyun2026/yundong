@@ -519,6 +519,10 @@ test('user package group list returns missing count for active groups', async ()
         {
           id: 'order-1',
           package_group_id: 'group-1',
+          package_context: {
+            child_nickname: '小满',
+            child_age: 6
+          },
           updated_at: '2026-04-21T10:00:00.000Z',
           created_at: '2026-04-21T09:00:00.000Z'
         }
@@ -583,4 +587,6 @@ test('user package group list returns missing count for active groups', async ()
   assert.equal(result.list[0].current_count, 2)
   assert.equal(result.list[0].missing_count, 2)
   assert.equal(result.list[0].location_text, '深圳市 / 南山区 / 科技园社区')
+  assert.equal(result.list[0].child_nickname, '小满')
+  assert.equal(result.list[0].child_age, 6)
 })

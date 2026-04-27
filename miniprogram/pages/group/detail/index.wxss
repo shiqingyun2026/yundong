@@ -296,6 +296,21 @@
   gap: 12rpx;
 }
 
+.member-current-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40rpx;
+  padding: 0 16rpx;
+  border-radius: 999rpx;
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+  font-size: 22rpx;
+  font-weight: 600;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
 .schedule-list {
   margin-top: 16rpx;
   border-top: 1px solid #f7f7f7;

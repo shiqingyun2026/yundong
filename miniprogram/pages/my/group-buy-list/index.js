@@ -86,13 +86,17 @@ Page({
   },
 
   handleOpenDetail(event) {
-    const { groupId } = event.currentTarget.dataset
+    const { groupId, childNickname = '', childAge = '' } = event.currentTarget.dataset
     if (!groupId) {
       return
     }
 
     wx.navigateTo({
-      url: `/pages/group/detail/index?packageGroupId=${groupId}`
+      url:
+        `/pages/group/detail/index?packageGroupId=${groupId}` +
+        `&source=myGroupList` +
+        `&selectedChildNickname=${encodeURIComponent(childNickname)}` +
+        `&selectedChildAge=${encodeURIComponent(childAge === null || childAge === undefined ? '' : `${childAge}`)}`
     })
   }
 })

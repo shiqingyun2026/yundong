@@ -377,6 +377,7 @@ Page({
         url:
           `/pages/group/detail/index?packageGroupId=${encodeURIComponent(nextPackageGroupId)}` +
           `&entry=paymentSuccess` +
+          `&successType=start` +
           `&action=start` +
           `&packageId=${this.data.packageId}`
       })

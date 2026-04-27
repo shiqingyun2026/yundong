@@ -617,6 +617,12 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
       package_group_id: group.id,
       package_id: group.package_id,
       package_name: pkg ? pkg.name : '',
+      child_nickname:
+        (order.package_context && order.package_context.child_nickname) || '',
+      child_age:
+        order.package_context && order.package_context.child_age !== undefined && order.package_context.child_age !== null
+          ? Number(order.package_context.child_age) || 0
+          : null,
       age_range: pkg ? pkg.age_range || '' : '',
       status: group.status,
       location_city: pkg ? pkg.location_city || '' : '',

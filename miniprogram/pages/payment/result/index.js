@@ -15,6 +15,7 @@ Page({
     packageId: '',
     packageGroupId: '',
     action: 'start',
+    successType: 'start',
     targetCount: 0,
     weekday: 6,
     hour: 10,
@@ -38,6 +39,7 @@ Page({
       packageId: options.packageId || '',
       packageGroupId: options.packageGroupId || '',
       action: options.action || 'start',
+      successType: options.successType || (options.action === 'join' ? 'join' : 'start'),
       targetCount: Number(options.targetCount) || 0,
       weekday: Number(options.weekday) || 6,
       hour: Number(options.hour) || 10,
@@ -123,7 +125,12 @@ Page({
 
     if (this.data.status === 'success' && this.data.packageGroupId) {
       wx.redirectTo({
-        url: `/pages/group/detail/index?packageGroupId=${this.data.packageGroupId}`
+        url:
+          `/pages/group/detail/index?packageGroupId=${this.data.packageGroupId}` +
+          `&entry=paymentSuccess` +
+          `&successType=${this.data.successType}` +
+          `&action=${this.data.action}` +
+          `&packageId=${this.data.packageId}`
       })
       return
     }

@@ -480,6 +480,11 @@ const normalizeUserPackageGroupListItem = item => ({
   packageGroupId: item.package_group_id || '',
   packageId: item.package_id || '',
   packageName: item.package_name || '',
+  childNickname: item.child_nickname || item.childNickname || '',
+  childAge:
+    item.child_age === null || item.child_age === undefined
+      ? null
+      : Number(item.child_age) || 0,
   status: item.status || 'active',
   locationText: formatPackageLocationText(item),
   currentCount: Number(item.current_count) || 0,

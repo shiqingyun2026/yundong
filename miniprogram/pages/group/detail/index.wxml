@@ -9,7 +9,7 @@
     <view class="page-shell detail-content">
       <view wx:if="{{showSuccessEntry}}" class="weui-panel weui-ext-card page-section card-shadow success-entry-card">
         <view class="success-entry-icon">✓</view>
-        <view class="success-entry-title">开团成功</view>
+        <view class="success-entry-title">{{successEntryTitle}}</view>
 
         <view wx:if="{{groupDetail.status === 'active'}}" class="success-highlight-row">
           <view class="success-progress-line">
@@ -115,6 +115,7 @@
             <view class="member-meta">
               <view class="member-name-row">
                 <view class="member-name">{{item.displayText || item.displayName || item.nickname}}</view>
+                <view wx:if="{{item.isCurrentOrderChild}}" class="member-current-tag">本次报名</view>
               </view>
             </view>
           </view>
