@@ -66,11 +66,11 @@ const mapBannerDetail = item => ({
   jump_type: item.jump_type || 'none',
   jump_target: item.jump_target || '',
   sort: Number(item.sort || 0),
-  online_time: item.online_time || '',
-  offline_time: item.offline_time || '',
+  online_time: formatDateTime(item.online_time),
+  offline_time: formatDateTime(item.offline_time),
   status: getBannerStatus(item),
-  created_at: item.created_at || '',
-  updated_at: item.updated_at || ''
+  created_at: formatDateTime(item.created_at),
+  updated_at: formatDateTime(item.updated_at)
 })
 
 const validateBannerPayload = (payload = {}, { partial = false, existing = null, now = new Date() } = {}) => {

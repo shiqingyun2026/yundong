@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { PageBackButton } from '../components/PageBackButton'
 import { api, uploadImage } from '../lib/api'
 import type { BannerDetail, BannerJumpType } from '../types'
+import { toDateTimeLocal } from './courseFormHelpers'
 
 type BannerPageMode = 'create' | 'edit' | 'view'
 
@@ -17,20 +18,6 @@ const emptyBanner: BannerDetail = {
   online_time: '',
   offline_time: '',
   status: 'pending'
-}
-
-const toDateTimeLocal = (value?: string) => {
-  if (!value) {
-    return ''
-  }
-
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return ''
-  }
-
-  const offset = date.getTimezoneOffset() * 60 * 1000
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
 }
 
 const buildPayload = (form: BannerDetail) => ({

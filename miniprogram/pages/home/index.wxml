@@ -35,7 +35,6 @@
           />
           <view class="banner-overlay">
             <view wx:if="{{item.kicker}}" class="banner-kicker">{{item.kicker}}</view>
-            <view class="banner-title">{{item.title}}</view>
             <view wx:if="{{item.desc}}" class="banner-desc">{{item.desc}}</view>
           </view>
         </view>

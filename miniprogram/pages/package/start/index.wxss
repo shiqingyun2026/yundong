@@ -28,14 +28,40 @@
   padding: 28rpx 0;
 }
 
-.start-page .notice-card .section-title,
-.start-page .notice-card .section-desc {
+.start-page .notice-card .section-title {
   padding: 0 32rpx;
   text-align: left;
 }
 
+.start-page .notice-list {
+  margin-top: 16rpx;
+  padding: 0 32rpx;
+}
+
 .start-page .notice-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+}
+
+.start-page .notice-item + .notice-item {
   margin-top: 14rpx;
+}
+
+.start-page .notice-dot {
+  width: 8rpx;
+  height: 8rpx;
+  margin-top: 14rpx;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  flex-shrink: 0;
+}
+
+.start-page .notice-text {
+  flex: 1;
+  font-size: 26rpx;
+  line-height: 1.7;
+  color: #5f6b7a;
 }
 
 .target-grid {

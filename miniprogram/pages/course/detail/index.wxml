@@ -108,9 +108,20 @@
 
       <view class="weui-panel weui-ext-card page-section card-shadow group-rules-card">
         <view class="section-title">拼团说明</view>
-        <view class="section-desc">· 满员即成团，可选择当前进行中的拼团直接加入。</view>
-        <view class="section-desc">· 拼团截止时间：开团后48小时。</view>
-        <view class="section-desc">· 未成团退款规则：48小时内容未成团将自动原路退款。</view>
+        <view class="notice-list">
+          <view class="notice-item">
+            <view class="notice-dot"></view>
+            <view class="notice-text">满员即成团，可选择当前进行中的拼团直接加入。</view>
+          </view>
+          <view class="notice-item">
+            <view class="notice-dot"></view>
+            <view class="notice-text">拼团截止时间：开团后48小时。</view>
+          </view>
+          <view class="notice-item">
+            <view class="notice-dot"></view>
+            <view class="notice-text">未成团退款规则：48小时内未成团将自动原路退款。</view>
+          </view>
+        </view>
       </view>
 
       <view class="bottom-space"></view>

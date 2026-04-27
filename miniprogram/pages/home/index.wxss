@@ -104,13 +104,6 @@
   opacity: 0.86;
 }
 
-.banner-title {
-  margin-top: 14rpx;
-  font-size: 40rpx;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
 .banner-desc {
   margin-top: 14rpx;
   max-width: 420rpx;
