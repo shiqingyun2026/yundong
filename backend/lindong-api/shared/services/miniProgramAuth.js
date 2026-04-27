@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken')
-const { env } = require('../../config/env')
-const usersRepository = require('../../repositories/usersRepository')
+const { userIdentitiesRepository, usersRepository } = require('../../repositories')
 const { exchangeCodeForSession } = require('./wechatMiniProgram')
 
 const resolveMiniProgramOpenId = ({ code, mockOpenId, openId }) => {
@@ -57,7 +56,7 @@ const resolveWechatIdentity = async ({ code, mockOpenId, openId, unionId = '', a
   }
 }
 
-const loginMiniProgramUser = async ({ supabase, code, mockOpenId, openId, unionId = '', appId = '', sessionKey = '' }) => {
+const loginMiniProgramUser = async ({ code, mockOpenId, openId, unionId = '', appId = '', sessionKey = '' }) => {
   const wechatIdentity = await resolveWechatIdentity({
     code,
     mockOpenId,
@@ -75,60 +74,36 @@ const loginMiniProgramUser = async ({ supabase, code, mockOpenId, openId, unionI
     throw error
   }
 
-  if (env.useMySqlRepositories) {
-    let user = await usersRepository.findUserByOpenId(resolvedOpenId)
-
-    if (!user) {
-      user = await usersRepository.createUser({
-        openid: resolvedOpenId,
-        nickname: '微信用户',
-        avatarUrl: ''
-      })
-    }
-
-    const token = jwt.sign(
-      { userId: user.id },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    )
-
-    return {
-      token,
-      userInfo: {
-        nickName: user.nickname || '微信用户',
-        avatarUrl: user.avatar_url || ''
-      }
-    }
-  }
-
-  const { data: existingUser, error: queryError } = await supabase
-    .from('users')
-    .select('id, nickname, avatar_url')
-    .eq('openid', resolvedOpenId)
-    .maybeSingle()
-
-  if (queryError) {
-    throw queryError
-  }
-
-  let user = existingUser
+  const identity = await userIdentitiesRepository.findIdentity({
+    identityType: 'wechat_openid',
+    identityKey: resolvedOpenId
+  })
+  let user = identity && identity.user_id ? await usersRepository.findUserById(identity.user_id) : null
 
   if (!user) {
-    const { data: insertedUser, error: insertError } = await supabase
-      .from('users')
-      .insert({
-        openid: resolvedOpenId,
-        nickname: '微信用户',
-        avatar_url: ''
+    user = await usersRepository.findUserByOpenId(resolvedOpenId)
+
+    if (user && user.id) {
+      await userIdentitiesRepository.assignIdentityToUser({
+        userId: user.id,
+        identityType: 'wechat_openid',
+        identityKey: resolvedOpenId
       })
-      .select('id, nickname, avatar_url')
-      .single()
-
-    if (insertError) {
-      throw insertError
     }
+  }
 
-    user = insertedUser
+  if (!user) {
+    user = await usersRepository.createUser({
+      openid: resolvedOpenId,
+      nickname: '微信用户',
+      avatarUrl: ''
+    })
+
+    await userIdentitiesRepository.assignIdentityToUser({
+      userId: user.id,
+      identityType: 'wechat_openid',
+      identityKey: resolvedOpenId
+    })
   }
 
   const token = jwt.sign(

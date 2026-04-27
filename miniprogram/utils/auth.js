@@ -130,6 +130,32 @@ const login = async userInfo => {
 
 const loginWithWechat = async () => login()
 
+const bindPhoneNumber = async phoneCode => {
+  if (!phoneCode) {
+    throw new Error('手机号授权失败，请重试')
+  }
+
+  const result = await post(
+    '/api/auth/phone',
+    {
+      code: phoneCode
+    },
+    {
+      showLoading: true,
+      loadingText: '获取手机号中',
+      showErrorToast: false
+    }
+  )
+
+  return {
+    token: result.token || '',
+    phoneNumber: result.phoneNumber || '',
+    purePhoneNumber: result.purePhoneNumber || '',
+    countryCode: result.countryCode || '',
+    userInfo: result.userInfo || null
+  }
+}
+
 const loginAndStoreSession = async () => {
   const result = await loginWithWechat()
   const app = typeof getApp === 'function' ? getApp() : null
@@ -149,11 +175,69 @@ const loginAndStoreSession = async () => {
   return result
 }
 
+const ensureSilentLogin = async () => {
+  const existingToken = wx.getStorageSync('token')
+
+  if (existingToken) {
+    return {
+      token: existingToken,
+      userInfo: wx.getStorageSync('userInfo') || null,
+      silent: true
+    }
+  }
+
+  return loginAndStoreSession()
+}
+
+const ensurePhoneIdentity = async phoneCode => {
+  const loginResult = await ensureSilentLogin()
+  const bindResult = await bindPhoneNumber(phoneCode)
+  const nextUserInfo = {
+    ...(loginResult.userInfo || {}),
+    ...((bindResult && bindResult.userInfo) || {}),
+    phone: (bindResult && bindResult.purePhoneNumber) || ''
+  }
+  const app = typeof getApp === 'function' ? getApp() : null
+  const nextToken = (bindResult && bindResult.token) || loginResult.token || ''
+
+  if (app && typeof app.setUserInfo === 'function') {
+    app.setUserInfo(nextUserInfo)
+  } else {
+    wx.setStorageSync('userInfo', nextUserInfo)
+  }
+
+  if (nextToken) {
+    if (app && typeof app.setToken === 'function') {
+      app.setToken(nextToken)
+    } else {
+      wx.setStorageSync('token', nextToken)
+    }
+  }
+
+  return {
+    ...loginResult,
+    token: nextToken,
+    userInfo: nextUserInfo,
+    phoneNumber: bindResult.phoneNumber,
+    purePhoneNumber: bindResult.purePhoneNumber,
+    countryCode: bindResult.countryCode
+  }
+}
+
+const hasBoundPhoneNumber = () => {
+  const userInfo = wx.getStorageSync('userInfo') || {}
+  return /^1\d{10}$/.test(`${userInfo.phone || ''}`)
+}
+
 module.exports = {
   getUserProfile,
   login,
   loginWithWechat,
   loginAndStoreSession,
+  ensureSilentLogin,
+  bindPhoneNumber,
+  ensurePhoneIdentity,
+  hasBoundPhoneNumber,
   clearGeneratedUserInfo,
   authDebugConfig: {
     USE_MOCK_USER,

@@ -8,6 +8,7 @@ const {
   resolveSubscribeTemplateIdsByEnv
 } = require('./config/env')
 const { resolveRuntimeInfo } = require('./utils/util')
+const { ensureSilentLogin } = require('./utils/auth')
 
 App({
   async onLaunch() {
@@ -19,9 +20,18 @@ App({
     this.syncAgreementState()
     this.syncLocationState()
     wx.removeStorageSync('phoneNumber')
+    this.bootstrapSilentLogin()
   },
 
   onShow() {},
+
+  async bootstrapSilentLogin() {
+    try {
+      await ensureSilentLogin()
+    } catch (error) {
+      console.warn('[app] silent login failed', error)
+    }
+  },
 
   initRuntimeEnv() {
     const envVersion = getMiniProgramEnvVersion()

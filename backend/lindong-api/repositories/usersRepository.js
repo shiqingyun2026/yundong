@@ -12,12 +12,13 @@ const normalizeUser = row => {
     openid: row.openid,
     nickname: row.nickname || '',
     avatar_url: row.avatar_url || '',
+    phone: row.phone || '',
     created_at: row.created_at || null,
     updated_at: row.updated_at || null
   }
 }
 
-const createUser = async ({ id = crypto.randomUUID(), openid, nickname = '微信用户', avatarUrl = '' }) => {
+const createUser = async ({ id = crypto.randomUUID(), openid, nickname = '微信用户', avatarUrl = '', phone = '' }) => {
   const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ')
 
   await execute(
@@ -27,10 +28,11 @@ const createUser = async ({ id = crypto.randomUUID(), openid, nickname = '微信
         openid,
         nickname,
         avatar_url,
+        phone,
         created_at
-      ) values (?, ?, ?, ?, ?)
+      ) values (?, ?, ?, ?, ?, ?)
     `,
-    [id, openid, nickname, avatarUrl, timestamp]
+    [id, openid, nickname, avatarUrl, phone, timestamp]
   )
 
   return findUserById(id)
@@ -40,6 +42,7 @@ const findUserById = async id => {
   const rows = await query(
     `
       select id, openid, nickname, avatar_url, created_at, updated_at
+      , phone
       from users
       where id = ?
       limit 1
@@ -54,11 +57,27 @@ const findUserByOpenId = async openid => {
   const rows = await query(
     `
       select id, openid, nickname, avatar_url, created_at, updated_at
+      , phone
       from users
       where openid = ?
       limit 1
     `,
     [openid]
+  )
+
+  return normalizeUser(rows[0])
+}
+
+const findUserByPhone = async phone => {
+  const rows = await query(
+    `
+      select id, openid, nickname, avatar_url, created_at, updated_at
+      , phone
+      from users
+      where phone = ?
+      limit 1
+    `,
+    [phone]
   )
 
   return normalizeUser(rows[0])
@@ -74,6 +93,7 @@ const listUsersByIds = async userIds => {
   const rows = await query(
     `
       select id, openid, nickname, avatar_url, created_at, updated_at
+      , phone
       from users
       where id in (${placeholders})
     `,
@@ -96,6 +116,7 @@ const listUsers = async ({ keyword = '' } = {}) => {
   const rows = await query(
     `
       select id, openid, nickname, avatar_url, created_at, updated_at
+      , phone
       from users
       ${whereSql}
       order by created_at desc
@@ -132,11 +153,27 @@ const updateUserProfile = async ({ id, nickname, avatarUrl }) => {
   return findUserById(id)
 }
 
+const updateUserPhone = async ({ id, phone }) => {
+  await execute(
+    `
+      update users
+      set phone = ?,
+          updated_at = ?
+      where id = ?
+    `,
+    [phone, new Date().toISOString().slice(0, 19).replace('T', ' '), id]
+  )
+
+  return findUserById(id)
+}
+
 module.exports = {
   createUser,
   findUserById,
   findUserByOpenId,
+  findUserByPhone,
   listUsers,
   listUsersByIds,
-  updateUserProfile
+  updateUserProfile,
+  updateUserPhone
 }

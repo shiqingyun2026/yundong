@@ -190,6 +190,19 @@ const formatDisplayAmount = value => {
   return normalized
 }
 
+const normalizeRichTextImages = html => {
+  const content = `${html || ''}`.trim()
+  if (!content) {
+    return ''
+  }
+
+  return content.replace(/<img\b([^>]*)>/gi, (match, attrs = '') => {
+    const normalizedAttrs = `${attrs}`.replace(/\sstyle\s*=\s*(['"]).*?\1/gi, '')
+
+    return `<img${normalizedAttrs} style="display:block;box-sizing:border-box;max-width:100%;width:100%;height:auto;margin:0 auto;" />`
+  })
+}
+
 const normalizeGroupPriceConfig = value => {
   const items = Array.isArray(value) ? value : []
 
@@ -413,9 +426,9 @@ const normalizePackageDetail = payload => ({
   locationText: formatPackageLocationText(payload),
   locationDisplayText: formatPackageLocationText(payload),
   coachName: payload.coach_name || '',
-  coachIntro: payload.coach_intro || '',
+  coachIntro: normalizeRichTextImages(payload.coach_intro || ''),
   coachCertificates: Array.isArray(payload.coach_certificates) ? payload.coach_certificates : [],
-  description: payload.description || '',
+  description: normalizeRichTextImages(payload.description || ''),
   insuranceDesc: payload.insurance_desc || '',
   activeGroups: Array.isArray(payload.active_groups)
     ? payload.active_groups.map(normalizeActiveGroup).filter(group => group.remainingSeconds > 0)
@@ -429,9 +442,9 @@ const normalizePackageGroupDetail = payload => ({
     id: payload.package && payload.package.id ? payload.package.id : '',
     name: payload.package && payload.package.name ? payload.package.name : '',
     ageRange: payload.package && payload.package.age_range ? payload.package.age_range : '',
-    description: payload.package && payload.package.description ? payload.package.description : '',
+    description: normalizeRichTextImages(payload.package && payload.package.description ? payload.package.description : ''),
     coachName: payload.package && payload.package.coach_name ? payload.package.coach_name : '',
-    coachIntro: payload.package && payload.package.coach_intro ? payload.package.coach_intro : '',
+    coachIntro: normalizeRichTextImages(payload.package && payload.package.coach_intro ? payload.package.coach_intro : ''),
     coachCertificates:
       payload.package && Array.isArray(payload.package.coach_certificates)
         ? payload.package.coach_certificates

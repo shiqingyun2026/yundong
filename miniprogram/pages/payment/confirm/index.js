@@ -10,7 +10,7 @@ const {
   mockPaymentSuccess,
   preparePayment
 } = require('../../../utils/package')
-const { loginAndStoreSession } = require('../../../utils/auth')
+const { ensureSilentLogin } = require('../../../utils/auth')
 
 const invokeWechatPayment = paymentParams =>
   new Promise((resolve, reject) => {
@@ -198,12 +198,8 @@ Page({
   },
 
   async ensureLogin() {
-    if (wx.getStorageSync('token')) {
-      return true
-    }
-
     try {
-      await loginAndStoreSession()
+      await ensureSilentLogin()
       return true
     } catch (error) {
       return false

@@ -1,18 +1,32 @@
 const jwt = require('jsonwebtoken')
 const { resolveWechatIdentityFromHeaders } = require('../shared/utils/wechatIdentity')
 const { env } = require('../config/env')
-const usersRepository = require('../repositories/usersRepository')
+const { userIdentitiesRepository, usersRepository } = require('../repositories')
 
 const authenticate = async (req, res, next) => {
   const wechatIdentity = resolveWechatIdentityFromHeaders(req.headers)
 
   if (env.useMySqlRepositories && wechatIdentity.openId) {
     try {
-      const user = await usersRepository.findUserByOpenId(wechatIdentity.openId)
+      const identity = await userIdentitiesRepository.findIdentity({
+        identityType: 'wechat_openid',
+        identityKey: wechatIdentity.openId
+      })
+      const user = identity && identity.user_id
+        ? await usersRepository.findUserById(identity.user_id)
+        : await usersRepository.findUserByOpenId(wechatIdentity.openId)
 
       if (!user || !user.id) {
         return res.status(401).json({
           message: 'Unauthorized'
+        })
+      }
+
+      if ((!identity || !identity.user_id) && user.id) {
+        await userIdentitiesRepository.assignIdentityToUser({
+          userId: user.id,
+          identityType: 'wechat_openid',
+          identityKey: wechatIdentity.openId
         })
       }
 

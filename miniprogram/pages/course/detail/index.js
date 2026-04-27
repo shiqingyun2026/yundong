@@ -11,6 +11,12 @@ Page({
     pendingLoginAction: null
   },
 
+  isPhoneBound() {
+    const app = getApp()
+    const userInfo = (app && app.globalData && app.globalData.userInfo) || wx.getStorageSync('userInfo') || {}
+    return /^1\d{10}$/.test(`${userInfo.phone || ''}`)
+  },
+
   async onLoad(options) {
     const packageId = options.id || ''
     this.setData({
@@ -180,7 +186,7 @@ Page({
   },
 
   handleStartGroup() {
-    if (!wx.getStorageSync('token')) {
+    if (!this.isPhoneBound()) {
       this.openLoginSheet({
         type: 'start-group'
       })
@@ -198,7 +204,7 @@ Page({
       return
     }
 
-    if (!wx.getStorageSync('token')) {
+    if (!this.isPhoneBound()) {
       this.openLoginSheet({
         type: 'join-group',
         groupId

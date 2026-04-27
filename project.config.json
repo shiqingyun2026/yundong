@@ -4,7 +4,28 @@
   "cloudfunctionRoot": "cloudfunctions/",
   "libVersion": "3.15.0",
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      {
+        "type": "folder",
+        "value": "miniprogram/node_modules"
+      },
+      {
+        "type": "folder",
+        "value": "miniprogram/scripts"
+      },
+      {
+        "type": "folder",
+        "value": "miniprogram/docs"
+      },
+      {
+        "type": "file",
+        "value": "miniprogram/package-lock.json"
+      },
+      {
+        "type": "file",
+        "value": "miniprogram/package.json"
+      }
+    ],
     "include": []
   },
   "setting": {

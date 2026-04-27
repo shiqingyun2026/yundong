@@ -11,5 +11,6 @@ module.exports = {
   ordersRepository: require('./ordersRepository'),
   packageGroupsRepository: require('./packageGroupsRepository'),
   paymentRecordsRepository: require('./paymentRecordsRepository'),
+  userIdentitiesRepository: require('./userIdentitiesRepository'),
   usersRepository: require('./usersRepository')
 }

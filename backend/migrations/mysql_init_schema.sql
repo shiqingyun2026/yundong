@@ -21,11 +21,26 @@ CREATE TABLE IF NOT EXISTS `users` (
   openid VARCHAR(128) NOT NULL,
   nickname VARCHAR(100) NOT NULL DEFAULT '',
   avatar_url VARCHAR(1024) NOT NULL DEFAULT '',
+  phone VARCHAR(20) NOT NULL DEFAULT '',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uniq_users_openid (openid),
   KEY idx_users_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `user_identities` (
+  id CHAR(36) NOT NULL,
+  user_id CHAR(36) NOT NULL,
+  identity_type VARCHAR(32) NOT NULL,
+  identity_key VARCHAR(191) NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  last_used_at DATETIME NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uniq_user_identities_type_key (identity_type, identity_key),
+  KEY idx_user_identities_user_id (user_id),
+  CONSTRAINT fk_user_identities_user_id FOREIGN KEY (user_id) REFERENCES `users`(id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `courses` (

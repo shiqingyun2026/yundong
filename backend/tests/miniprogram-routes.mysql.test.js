@@ -16,6 +16,7 @@ const mockModule = (relativePath, exports) => {
 
 const loadAppForMySqlRoutes = ({ paymentProviderMode = 'mock' } = {}) => {
   process.env.PAYMENT_PROVIDER_MODE = paymentProviderMode
+  process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret'
 
   const targets = [
     'app.js',
@@ -23,6 +24,7 @@ const loadAppForMySqlRoutes = ({ paymentProviderMode = 'mock' } = {}) => {
     'utils/getSupabaseClient.js',
     'middleware/auth.js',
     'repositories/index.js',
+    'repositories/userIdentitiesRepository.js',
     'repositories/usersRepository.js',
     'shared/utils/miniProgramIdentity.js',
     'shared/utils/wechatIdentity.js',
@@ -35,6 +37,7 @@ const loadAppForMySqlRoutes = ({ paymentProviderMode = 'mock' } = {}) => {
     'shared/services/packageOrders.js',
     'shared/services/paymentShell.js',
     'shared/services/wechatMiniProgram.js',
+    'shared/services/userAccountMerge.js',
     'shared/services/wechatMiniProgramNotifications.js',
     'shared/services/groupResultNotificationDelivery.js',
     'shared/services/groupResultNotifications.js',
@@ -55,6 +58,10 @@ const loadAppForMySqlRoutes = ({ paymentProviderMode = 'mock' } = {}) => {
     delete require.cache[modulePath]
   })
 
+  const identityStore = new Map([
+    ['wechat_openid:wx-openid-1', { user_id: 'user-from-cloudbase' }]
+  ])
+
   mockModule('config/env.js', {
     env: {
       useMySqlRepositories: true,
@@ -70,22 +77,78 @@ const loadAppForMySqlRoutes = ({ paymentProviderMode = 'mock' } = {}) => {
   })
 
   mockModule('repositories/usersRepository.js', {
+    findUserById: async id => ({
+      id,
+      openid: id === 'user-from-cloudbase' ? 'wx-openid-1' : 'wx-openid-2',
+      nickname: '微信用户',
+      avatar_url: '',
+      phone: id === 'user-from-cloudbase' ? '13800138000' : ''
+    }),
     findUserByOpenId: async openId => {
       if (openId === 'wx-openid-1') {
         return {
           id: 'user-from-cloudbase',
-          openid: openId
+          openid: openId,
+          nickname: '微信用户',
+          avatar_url: '',
+          phone: ''
+        }
+      }
+
+      if (openId === 'wx-openid-2') {
+        return {
+          id: 'user-from-openid-2',
+          openid: openId,
+          nickname: '微信用户2',
+          avatar_url: '',
+          phone: ''
         }
       }
 
       return null
-    }
+    },
+    findUserByPhone: async phone => {
+      if (phone === '13800138000') {
+        return {
+          id: 'user-from-cloudbase',
+          openid: 'wx-openid-1',
+          nickname: '微信用户',
+          avatar_url: '',
+          phone
+        }
+      }
+
+      return null
+    },
+    updateUserPhone: async ({ id, phone }) => ({
+      id,
+      nickname: '微信用户',
+      avatar_url: '',
+      phone
+    })
+  })
+
+  mockModule('repositories/userIdentitiesRepository.js', {
+    findIdentity: async ({ identityType, identityKey }) => identityStore.get(`${identityType}:${identityKey}`) || null,
+    assignIdentityToUser: async ({ userId, identityType, identityKey }) => {
+      const record = {
+        user_id: userId,
+        identity_type: identityType,
+        identity_key: identityKey
+      }
+      identityStore.set(`${identityType}:${identityKey}`, record)
+      return record
+    },
+    listIdentitiesByUserId: async userId =>
+      [...identityStore.values()].filter(item => item.user_id === userId)
   })
 
   mockModule('repositories/index.js', {
     groupResultSubscriptionsRepository: {
       upsertSubscription: async payload => payload
     },
+    userIdentitiesRepository: require(path.join(backendRoot, 'repositories/userIdentitiesRepository.js')),
+    usersRepository: require(path.join(backendRoot, 'repositories/usersRepository.js')),
     ordersRepository: {
       findOrderForUser: async ({ orderId }) => {
         if (orderId === 'package-order-start-1' || orderId === 'package-order-join-1') {
@@ -114,7 +177,12 @@ const loadAppForMySqlRoutes = ({ paymentProviderMode = 'mock' } = {}) => {
       code,
       openId,
       unionId,
-      appId
+      appId,
+      token: 'stub-token',
+      userInfo: {
+        nickName: '微信用户',
+        avatarUrl: ''
+      }
     })
   })
 
@@ -293,7 +361,35 @@ const loadAppForMySqlRoutes = ({ paymentProviderMode = 'mock' } = {}) => {
   })
 
   mockModule('shared/services/wechatMiniProgram.js', {
-    verifyWechatPayCallbackSignature: () => true
+    verifyWechatPayCallbackSignature: () => true,
+    exchangePhoneNumberCode: async code => ({
+      phoneNumber: '+8613800138000',
+      purePhoneNumber: '13800138000',
+      countryCode: '86',
+      codeEcho: code
+    })
+  })
+
+  mockModule('shared/services/userAccountMerge.js', {
+    mergeUserAccountsByPhone: async ({ phone, currentUserId, currentOpenId }) => {
+      if (phone === '13800138000' && currentUserId === 'user-from-openid-2') {
+        identityStore.set('wechat_openid:wx-openid-2', {
+          user_id: 'user-from-cloudbase',
+          identity_type: 'wechat_openid',
+          identity_key: currentOpenId
+        })
+
+        return {
+          merged: true,
+          userId: 'user-from-cloudbase'
+        }
+      }
+
+      return {
+        merged: false,
+        userId: currentUserId
+      }
+    }
   })
 
   mockModule('shared/services/groupResultNotifications.js', {
@@ -467,7 +563,9 @@ test('mini program routes work in mysql mode without supabase client', async () 
     ])
 
   assert.equal(login.status, 200)
-  assert.equal(login.body.supabaseWasPassed, null)
+  assert.equal(typeof login.body.token, 'string')
+  assert.equal(login.body.token.length > 0, true)
+  assert.equal(login.body.userInfo.nickName, '微信用户')
 
   assert.equal(banners.status, 200)
   assert.equal(banners.body.code, 0)
@@ -539,10 +637,9 @@ test('mini program login accepts cloudbase identity headers in mysql mode', asyn
   })
 
   assert.equal(login.status, 200)
-  assert.equal(login.body.supabaseWasPassed, null)
-  assert.equal(login.body.openId, 'wx-openid-1')
-  assert.equal(login.body.unionId, 'wx-unionid-1')
-  assert.equal(login.body.appId, 'wx-appid-1')
+  assert.equal(typeof login.body.token, 'string')
+  assert.equal(login.body.token.length > 0, true)
+  assert.equal(login.body.userInfo.nickName, '微信用户')
 })
 
 test('course active group resolves optional user from cloudbase headers before bearer token', async () => {
@@ -671,6 +768,18 @@ test('protected mini program routes accept trusted cloudbase identity without be
     pathname: '/api/user/package-groups',
     headers: cloudbaseHeaders
   })
+  const bindPhone = await requestJson({
+    app,
+    method: 'POST',
+    pathname: '/api/auth/phone',
+    headers: {
+      ...cloudbaseHeaders,
+      'Content-Type': 'application/json'
+    },
+    body: {
+      code: 'phone-code-1'
+    }
+  })
 
   assert.equal(packageGroupDetail.status, 200)
   assert.equal(packageGroupDetail.body.data.userId, 'user-from-cloudbase')
@@ -717,6 +826,12 @@ test('protected mini program routes accept trusted cloudbase identity without be
   assert.equal(userPackageGroups.body.data.userId, 'user-from-cloudbase')
   assert.equal(userPackageGroups.body.data.supabaseWasPassed, null)
 
+  assert.equal(bindPhone.status, 200)
+  assert.equal(bindPhone.body.purePhoneNumber, '13800138000')
+  assert.equal(bindPhone.body.userInfo.phone, '13800138000')
+  assert.equal(typeof bindPhone.body.token, 'string')
+  assert.equal(bindPhone.body.token.length > 0, true)
+
   assert.equal(subscription.status, 200)
   assert.equal(subscription.body.user_id, 'user-from-cloudbase')
   assert.equal(subscription.body.template_key, 'groupSuccess')
@@ -725,6 +840,41 @@ test('protected mini program routes accept trusted cloudbase identity without be
   assert.equal(invalidSubscription.body.message, 'templateKey is invalid')
   assert.equal(subscription.body.group_id, 'package-group-1')
   assert.equal(subscription.body.course_id, 'package-1')
+})
+
+test('phone binding merges a different wechat openid into the existing phone account', async () => {
+  const app = loadAppForMySqlRoutes()
+
+  const bindPhone = await requestJson({
+    app,
+    method: 'POST',
+    pathname: '/api/auth/phone',
+    headers: {
+      'x-wx-openid': 'wx-openid-2',
+      'x-wx-service': 'lindong-api'
+    },
+    body: {
+      code: 'phone-code-1'
+    }
+  })
+
+  const userGroups = await requestJson({
+    app,
+    pathname: '/api/user/groups',
+    headers: {
+      'x-wx-openid': 'wx-openid-2',
+      'x-wx-service': 'lindong-api'
+    }
+  })
+
+  assert.equal(bindPhone.status, 200)
+  assert.equal(bindPhone.body.purePhoneNumber, '13800138000')
+  assert.equal(bindPhone.body.userInfo.phone, '13800138000')
+  assert.equal(typeof bindPhone.body.token, 'string')
+  assert.equal(bindPhone.body.token.length > 0, true)
+
+  assert.equal(userGroups.status, 200)
+  assert.equal(userGroups.body.userId, 'user-from-cloudbase')
 })
 
 test('mock payment success is disabled in wechat payment mode', async () => {

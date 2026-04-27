@@ -138,6 +138,41 @@ const exchangeCodeForSession = async code => {
   }
 }
 
+const exchangePhoneNumberCode = async code => {
+  const accessToken = await getWechatAccessToken()
+  const payload = await fetchJson(
+    `${WECHAT_API_BASE}/wxa/business/getuserphonenumber?access_token=${encodeURIComponent(accessToken)}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        code
+      })
+    }
+  )
+
+  if (!payload || payload.errcode) {
+    const error = new Error((payload && payload.errmsg) || 'failed to exchange phone number code')
+    error.payload = payload
+    throw error
+  }
+
+  const phoneInfo = payload.phone_info || {}
+  const purePhoneNumber = `${phoneInfo.purePhoneNumber || ''}`.trim()
+
+  if (!purePhoneNumber) {
+    throw new Error('wechat phone number missing')
+  }
+
+  return {
+    phoneNumber: `${phoneInfo.phoneNumber || purePhoneNumber}`.trim(),
+    purePhoneNumber,
+    countryCode: `${phoneInfo.countryCode || ''}`.trim()
+  }
+}
+
 const randomNonce = (size = 32) => crypto.randomBytes(size).toString('hex').slice(0, size)
 
 const signWithMerchantPrivateKey = message => {
@@ -292,6 +327,7 @@ module.exports = {
   getMiniProgramAppSecret,
   getWechatAccessToken,
   exchangeCodeForSession,
+  exchangePhoneNumberCode,
   createMiniProgramPayment,
   buildMiniProgramPaymentParams,
   decryptWechatPayResource,

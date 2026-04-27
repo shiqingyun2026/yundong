@@ -1,4 +1,4 @@
-const { loginAndStoreSession } = require('../../utils/auth')
+const { ensurePhoneIdentity } = require('../../utils/auth')
 
 const HIDE_DURATION = 300
 
@@ -110,7 +110,7 @@ Component({
       })
     },
 
-    async handleLoginTap() {
+    async handleGetPhoneNumber(event) {
       if (this.data.loginLoading) {
         return
       }
@@ -128,7 +128,15 @@ Component({
       })
 
       try {
-        const result = await loginAndStoreSession()
+        const detail = (event && event.detail) || {}
+        const phoneCode = detail.code
+        const errMsg = `${detail.errMsg || ''}`
+
+        if (!phoneCode || /fail|deny|cancel/i.test(errMsg)) {
+          throw new Error('你已取消手机号授权')
+        }
+
+        const result = await ensurePhoneIdentity(phoneCode)
 
         this.triggerEvent('success', {
           result
