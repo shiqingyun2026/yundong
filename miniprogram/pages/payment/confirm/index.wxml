@@ -152,21 +152,12 @@
         </view>
       </view>
 
-      <view class="weui-panel weui-ext-card page-section card-shadow">
-        <view class="payment-agreement-row">
-          <mp-cells extClass="payment-agreement-cells">
-            <mp-checkbox-group bind:change="handleAgreementChange">
-              <mp-checkbox
-                extClass="payment-agreement-item"
-                value="agree"
-                label=""
-                checked="{{agreementChecked}}"
-              />
-            </mp-checkbox-group>
-          </mp-cells>
+      <view class="weui-panel weui-ext-card page-section card-shadow payment-agreement-card">
+        <view class="payment-agreement-row" bindtap="handleAgreementToggle">
+          <view class="payment-agreement-check {{agreementChecked ? 'payment-agreement-check--checked' : ''}}"></view>
           <view class="payment-agreement-inline">
             <text>我已阅读并同意</text>
-            <text class="agreement-link" bindtap="handleOpenAgreement">《课程服务协议》</text>
+            <text class="agreement-link" catchtap="handleOpenAgreement">《课程服务协议》</text>
           </view>
         </view>
       </view>

@@ -161,10 +161,9 @@ Page({
     }
   },
 
-  handleAgreementChange(event) {
-    const values = event.detail.value || []
+  handleAgreementToggle() {
     this.safeSetData({
-      agreementChecked: values.includes('agree')
+      agreementChecked: !this.data.agreementChecked
     })
   },
 

@@ -186,6 +186,10 @@
   background: #ffffff;
 }
 
+.payment-agreement-card {
+  padding: 28rpx 0;
+}
+
 .payment-agreement-row {
   display: flex;
   align-items: center;

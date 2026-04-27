@@ -175,61 +175,45 @@
   color: #5f6b7a;
 }
 
+.payment-agreement-card {
+  padding: 28rpx 0;
+}
+
 .payment-agreement-row {
   display: flex;
   align-items: center;
   padding: 0 32rpx;
-}
-
-.payment-agreement-cells.weui-cells__group {
-  margin-top: 0;
-  flex: none;
-}
-
-.payment-agreement-cells .weui-cells {
-  margin-top: 0;
-  background: transparent;
-}
-
-.payment-agreement-cells .weui-cells::before,
-.payment-agreement-cells .weui-cells::after {
-  display: none;
-}
-
-.payment-agreement-item.weui-cell {
-  padding: 0;
   min-height: 48rpx;
-  margin-right: 8rpx;
-  background: transparent;
 }
 
-.payment-agreement-item.weui-cell::before {
-  display: none;
-}
-
-.payment-agreement-item.weui-check__label {
-  min-width: 48rpx;
-}
-
-.payment-agreement-item .weui-cell__hd,
-.payment-agreement-item .weui-cell__bd {
+.payment-agreement-check {
+  position: relative;
   flex: none;
-  padding: 0;
+  width: 36rpx;
+  height: 36rpx;
+  margin-right: 12rpx;
+  border: 2rpx solid #cfd7e6;
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: #fff;
 }
 
-.payment-agreement-item .weui-cell__bd {
-  display: none;
+.payment-agreement-check--checked {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary);
 }
 
-.payment-agreement-item .weui-icon-checked {
-  display: block;
-  width: 40rpx;
-  height: 40rpx;
-  background-size: 100% 100%;
-}
-
-.payment-agreement-item .weui-check + .weui-icon-checked.weui-icon-is-checked {
-  background-image: url("data:image/svg+xml,%3Csvg width='25' height='24' viewBox='0 0 25 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='0.5' width='24' height='24' rx='12' fill='%231ABCC5'/%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M10.2712 16.2899L6.5 12.5187L7.44281 11.5759L10.7426 14.8757L18.2851 7.33325L19.2279 8.27606L11.214 16.2899C10.9537 16.5503 10.5316 16.5503 10.2712 16.2899Z' fill='white'/%3E%3C/svg%3E%0A");
+.payment-agreement-check--checked::after {
+  content: '';
+  position: absolute;
+  top: 8rpx;
+  left: 12rpx;
+  width: 8rpx;
+  height: 14rpx;
+  border-right: 3rpx solid #fff;
+  border-bottom: 3rpx solid #fff;
+  transform: rotate(45deg);
+  box-sizing: border-box;
 }
 
 .agreement-link {

@@ -197,7 +197,7 @@
         </view>
       </view>
 
-      <view class="weui-panel weui-ext-card page-section card-shadow">
+      <view class="weui-panel weui-ext-card page-section card-shadow payment-agreement-card">
         <view class="payment-agreement-row">
           <mp-cells extClass="payment-agreement-cells">
             <mp-checkbox-group bind:change="handleAgreementChange">
