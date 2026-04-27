@@ -117,7 +117,7 @@ export function BannerListPage() {
             查询
           </button>
           <Link className="primary-button link-button compact-action-button" to="/banners/new">
-            新建 Banner
+            新建
           </Link>
         </div>
       </section>

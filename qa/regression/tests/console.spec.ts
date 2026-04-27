@@ -738,12 +738,14 @@ test('console banner list page can query create and edit banners', async ({ page
   await expect(page).toHaveURL(/keyword=%E6%98%A5%E5%AD%A3/)
   await expect(page.getByText('首页春季活动')).toBeVisible()
 
-  await page.getByRole('link', { name: '新建 Banner' }).click()
+  await page.getByRole('link', { name: '新建' }).click()
   await expect(page.getByRole('heading', { name: '新建 Banner' })).toBeVisible()
+  await expect(page.getByText('排序（数字越小，越靠前）')).toBeVisible()
+  await expect(page.getByText('状态')).toHaveCount(0)
   await page.getByLabel('Banner 标题').fill('首页夏季活动')
   await page.getByLabel('跳转类型').selectOption('customUrl')
   await page.getByLabel('跳转目标').fill('https://example.com/summer')
-  await page.getByLabel('排序').fill('20')
+  await page.getByLabel('排序（数字越小，越靠前）').fill('20')
   await page.getByLabel('上线时间').fill('2026-05-01T09:00')
   await page.getByLabel('下线时间').fill('2026-05-31T23:00')
   await page.getByLabel('上传图片').setInputFiles({
@@ -752,18 +754,20 @@ test('console banner list page can query create and edit banners', async ({ page
     buffer: Buffer.from('fake-banner-image')
   })
   await expect(page.getByRole('img', { name: 'Banner' })).toBeVisible()
-  await page.locator('form').getByRole('button', { name: '创建 Banner' }).click()
+  await page.locator('form').getByRole('button', { name: '保存' }).click()
 
   await expect(page).toHaveURL(/\/banners\/banner-created-1$/)
   await expect(page.getByRole('heading', { name: 'Banner 详情' })).toBeVisible()
-  await expect(page.getByText('2026-05-01 09:00:00')).toBeVisible()
-  await expect(page.getByText('2026-05-31 23:00:00')).toBeVisible()
+  await expect(page.getByLabel('上线时间')).toHaveValue('2026-05-01T09:00')
+  await expect(page.getByLabel('下线时间')).toHaveValue('2026-05-31T23:00')
 
   await page.getByRole('link', { name: '编辑 Banner' }).click()
   await expect(page.getByLabel('上线时间')).toHaveValue('2026-05-01T09:00')
   await expect(page.getByLabel('下线时间')).toHaveValue('2026-05-31T23:00')
+  await expect(page.getByText('排序（数字越小，越靠前）')).toBeVisible()
+  await expect(page.getByText('状态')).toHaveCount(0)
   await page.getByLabel('Banner 标题').fill('首页夏季活动-已更新')
-  await page.getByRole('button', { name: '保存 Banner' }).click()
+  await page.getByRole('button', { name: '保存' }).click()
 
   await expect(page).toHaveURL(/\/banners\/banner-created-1$/)
   await expect(page.getByLabel('Banner 标题')).toHaveValue('首页夏季活动-已更新')
@@ -810,7 +814,9 @@ test('console banner create page shows backend save error', async ({ page }) => 
     buffer: Buffer.from('fake-banner-image')
   })
 
-  await page.getByRole('button', { name: '创建 Banner' }).click()
+  await expect(page.getByText('排序（数字越小，越靠前）')).toBeVisible()
+  await expect(page.getByText('状态')).toHaveCount(0)
+  await page.getByRole('button', { name: '保存' }).click()
 
   await expect(page).toHaveURL(/\/banners\/new$/)
   await expect(page.getByText('Banner 保存失败，请稍后重试')).toBeVisible()

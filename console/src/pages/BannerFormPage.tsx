@@ -30,12 +30,6 @@ const buildPayload = (form: BannerDetail) => ({
   offline_time: form.offline_time || ''
 })
 
-const getStatusText = (status: BannerDetail['status']) => {
-  if (status === 'active') return '已上线'
-  if (status === 'inactive') return '已下线'
-  return '待上线'
-}
-
 const getNowLocalInputValue = () => {
   const now = new Date()
   const offset = now.getTimezoneOffset() * 60 * 1000
@@ -242,7 +236,7 @@ export function BannerFormPage({ mode }: { mode: BannerPageMode }) {
                 <input value={form.jump_target} disabled={!isEditable} onChange={event => updateField('jump_target', event.target.value)} />
               </label>
               <label className="filter-field">
-                <span>排序</span>
+                <span>排序（数字越小，越靠前）</span>
                 <input type="number" value={form.sort} disabled={!isEditable} onChange={event => updateField('sort', Number(event.target.value) || 0)} />
               </label>
               <label className="filter-field">
@@ -264,10 +258,6 @@ export function BannerFormPage({ mode }: { mode: BannerPageMode }) {
                   onChange={event => updateField('offline_time', event.target.value)}
                 />
               </label>
-              <label className="filter-field">
-                <span>状态</span>
-                <input value={getStatusText(form.status)} disabled />
-              </label>
               <div className="filter-field filter-field-full">
                 <span>Banner 图片</span>
                 {form.image_url ? <img className="image-preview" src={form.image_url} alt="Banner" /> : <div className="upload-placeholder">暂未上传图片</div>}
@@ -286,7 +276,7 @@ export function BannerFormPage({ mode }: { mode: BannerPageMode }) {
           <section className="panel">
             <div className="page-actions page-actions-end">
               <button className="primary-button compact-action-button" type="submit" disabled={saving}>
-                {saving ? '保存中...' : mode === 'create' ? '创建 Banner' : '保存 Banner'}
+                {saving ? '保存中...' : '保存'}
               </button>
             </div>
           </section>
