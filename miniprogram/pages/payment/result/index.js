@@ -106,7 +106,7 @@ Page({
 
     return {
       title: '支付失败',
-      desc: '本次支付未完成，你可以重新支付或返回首页。',
+      desc: '本次支付未完成，请重新支付或先返回首页。',
       primaryText: '重新支付',
       showHomeButton: true,
       isSuccess: false

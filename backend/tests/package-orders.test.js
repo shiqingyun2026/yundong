@@ -166,6 +166,100 @@ test('package orders allow the same user to join the same package group multiple
   assert.equal(secondPayment.packageGroupId, 'group-1')
 })
 
+test('package start payment creates group with configured deadline hours', async () => {
+  clearModules([
+    'config/env.js',
+    'repositories/index.js',
+    'shared/services/packageGroupStore.js',
+    'shared/services/groupResultNotifications.js',
+    'shared/services/paymentShell.js',
+    'shared/services/packageOrders.js'
+  ])
+
+  const state = {
+    group: null,
+    orders: [
+      {
+        id: 'order-start-1',
+        user_id: 'user-1',
+        order_type: 2,
+        package_id: 'pkg-1',
+        package_group_id: null,
+        package_action: 'start',
+        package_context: {
+          target_count: 4,
+          weekday: 6,
+          hour: 10
+        },
+        status: 'pending'
+      }
+    ]
+  }
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true
+    }
+  })
+
+  mockModule('repositories/index.js', {
+    coursePackagesRepository: {
+      findPackageById: async () => ({
+        id: 'pkg-1',
+        status: 1,
+        total_price: 12000,
+        supported_people: [4],
+        group_price_config: [{ target_count: 4, price_fen: 3000 }],
+        deadline_hours: 45
+      })
+    },
+    ordersRepository: {
+      findOrderForUser: async ({ userId, orderId }) =>
+        state.orders.find(order => order.id === orderId && order.user_id === userId) || null,
+      updateOrder: async (orderId, patch) => {
+        const order = state.orders.find(item => item.id === orderId)
+        Object.assign(order, patch)
+        return { ...order }
+      }
+    },
+    packageGroupsRepository: {
+      createPackageGroup: async payload => {
+        state.group = {
+          id: 'group-start-1',
+          ...payload
+        }
+        return { ...state.group }
+      },
+      listPackageGroups: async () => []
+    }
+  })
+
+  mockModule('shared/services/packageGroupStore.js', {
+    cleanupExpiredPackageGroups: async () => ({ groupIds: [], refundedOrderIds: [], closedOrderIds: [] }),
+    closePendingPackageOrdersByIds: async () => [],
+    listPendingOrderIdsForPackage: async () => []
+  })
+
+  mockModule('shared/services/groupResultNotifications.js', {
+    enqueueGroupResultNotifications: async () => ({})
+  })
+
+  mockModule('shared/services/paymentShell.js', {
+    markPaymentRecordRefunded: async () => ({})
+  })
+
+  const { markPackageOrderPaymentSuccess } = require(path.join(backendRoot, 'shared/services/packageOrders.js'))
+  await markPackageOrderPaymentSuccess({
+    userId: 'user-1',
+    orderId: 'order-start-1',
+    now: new Date('2026-04-22T10:00:00.000Z')
+  })
+
+  assert.equal(state.group.deadline.toISOString(), '2026-04-24T07:00:00.000Z')
+  assert.equal(state.orders[0].status, 'success')
+  assert.equal(state.orders[0].package_group_id, 'group-start-1')
+})
+
 test('package orders enqueue group success notification when join payment completes the group', async () => {
   clearModules([
     'config/env.js',

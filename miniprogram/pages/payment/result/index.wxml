@@ -6,40 +6,38 @@
         extClass="result-icon-image"
         icon="{{isSuccess ? 'done' : 'close'}}"
         type="filled"
-        color="{{isSuccess ? '#1abcc5' : '#ff4d4f'}}"
+        color="{{isSuccess ? '#1abcc5' : '#ff6b6b'}}"
         size="{{56}}"
       />
     </view>
-    <mp-msg
-      extClass="payment-result-msg"
-      title="{{title}}"
-      desc="{{desc}}"
-    >
-      <view wx:if="{{status === 'success'}}" slot="extend" class="weui-panel weui-ext-card subscribe-card">
-        <view class="subscribe-title">订阅拼团通知</view>
-        <view class="subscribe-desc">开团成功或参团支付成功后，你可以订阅微信通知。后续拼团成功或失败时，会第一时间通知你。</view>
-        <button
-          wx:if="{{subscribeEnabled}}"
-          class="weui-btn weui-ext-button weui-ext-button--medium subscribe-button"
-          loading="{{subscribeSubmitting}}"
-          disabled="{{subscribeSubmitting}}"
-          bindtap="handleSubscribeTap"
-        >
-          <view class="weui-ext-button__inner">{{subscribeSubmitting ? '订阅中...' : '订阅微信通知'}}</view>
-        </button>
-        <view wx:if="{{subscribeStatusText}}" class="subscribe-status {{subscribeStatusTone === 'success' ? 'subscribe-status-success' : 'subscribe-status-muted'}}">
-          {{subscribeStatusText}}
-        </view>
-      </view>
-      <view slot="handle">
-        <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary result-button" bindtap="handlePrimaryAction">
-          <view class="weui-ext-button__inner">{{primaryText}}</view>
-        </button>
+    <view class="result-title">{{title}}</view>
+    <view class="result-desc">{{desc}}</view>
 
-        <button wx:if="{{showHomeButton}}" class="weui-btn weui-ext-button weui-ext-button--medium weui-ext-button--text secondary-text-button" bindtap="handleSecondaryAction">
-          <view class="weui-ext-button__inner">返回首页</view>
-        </button>
+    <view wx:if="{{status === 'success'}}" class="weui-panel weui-ext-card subscribe-card">
+      <view class="subscribe-title">订阅拼团通知</view>
+      <view class="subscribe-desc">开团成功或参团支付成功后，你可以订阅微信通知。后续拼团成功或失败时，会第一时间通知你。</view>
+      <button
+        wx:if="{{subscribeEnabled}}"
+        class="weui-btn weui-ext-button weui-ext-button--medium subscribe-button"
+        loading="{{subscribeSubmitting}}"
+        disabled="{{subscribeSubmitting}}"
+        bindtap="handleSubscribeTap"
+      >
+        <view class="weui-ext-button__inner">{{subscribeSubmitting ? '订阅中...' : '订阅微信通知'}}</view>
+      </button>
+      <view wx:if="{{subscribeStatusText}}" class="subscribe-status {{subscribeStatusTone === 'success' ? 'subscribe-status-success' : 'subscribe-status-muted'}}">
+        {{subscribeStatusText}}
       </view>
-    </mp-msg>
+    </view>
+
+    <view class="result-action-group">
+      <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary result-button" bindtap="handlePrimaryAction">
+        <view class="weui-ext-button__inner">{{primaryText}}</view>
+      </button>
+
+      <button wx:if="{{showHomeButton}}" class="weui-btn weui-ext-button weui-ext-button--medium secondary-button-outline" bindtap="handleSecondaryAction">
+        <view class="weui-ext-button__inner">返回首页</view>
+      </button>
+    </view>
   </view>
 </view>

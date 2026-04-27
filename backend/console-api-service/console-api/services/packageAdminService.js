@@ -28,6 +28,7 @@ const PACKAGE_STATUS = {
   ACTIVE: 1,
   PENDING: 2
 }
+const FIXED_PACKAGE_DEADLINE_HOURS = 48
 
 const ensureMySqlMode = () => {
   ensureCondition(env.useMySqlRepositories, {
@@ -287,7 +288,7 @@ const mapPackagePayloadToDb = ({ payload = {}, admin = {}, create = false, exist
   assign('coach_intro', 'coach_intro', normalizeText)
   assign('coach_certificates', 'coach_certificates', value => (Array.isArray(value) ? value.filter(Boolean) : []))
   assign('description', 'description', normalizeText)
-  assign('deadline_hours', 'deadline_hours', value => Number(value) || 48)
+  dbPayload.deadline_hours = FIXED_PACKAGE_DEADLINE_HOURS
   assign('publish_time', 'publish_time', normalizeDateTimeValue)
   assign('unpublish_time', 'unpublish_time', normalizeDateTimeValue)
 

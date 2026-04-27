@@ -24,6 +24,7 @@ type GroupPriceConfigRow = PackageDetail['group_price_config'][number] & {
 }
 
 const RequiredMark = () => <span className="required-mark">*</span>
+const FIXED_PACKAGE_DEADLINE_HOURS = 48
 
 const createGroupPriceRow = (value?: Partial<GroupPriceConfigRow>): GroupPriceConfigRow => ({
   _rowId: value?._rowId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -121,7 +122,7 @@ const buildPayload = (form: PackageDetail) => {
     description: form.description.trim(),
     publish_time: form.publish_time,
     unpublish_time: form.unpublish_time || '',
-    deadline_hours: Number(form.deadline_hours) || 48
+    deadline_hours: FIXED_PACKAGE_DEADLINE_HOURS
   }
 }
 
@@ -650,10 +651,8 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
               <span>开团截止时长（小时）</span>
               <input
                 type="number"
-                min="1"
-                value={form.deadline_hours}
-                onChange={event => updateField('deadline_hours', Number(event.target.value))}
-                disabled={isReadOnly}
+                value={FIXED_PACKAGE_DEADLINE_HOURS}
+                disabled
               />
             </label>
             <label>

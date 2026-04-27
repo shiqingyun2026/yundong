@@ -1,12 +1,16 @@
 .result-page {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
   min-height: 100vh;
   padding: 24rpx;
   background: #f7f8fa;
 }
 
 .result-card {
-  margin-top: 120rpx;
-  padding: 48rpx 32rpx;
+  width: 100%;
+  margin-top: 112rpx;
+  padding: 56rpx 40rpx 48rpx;
   border-radius: 24rpx;
   background: #ffffff;
   text-align: center;
@@ -33,17 +37,28 @@
 }
 
 .icon-fail {
-  background: #fff1f0;
-  color: #ff4d4f;
+  background: #fff3f2;
+  color: #ff6b6b;
 }
 
-.result-button {
-  width: 100%;
-  margin-top: 32rpx;
+.result-title {
+  margin-top: 24rpx;
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #1f2329;
+  line-height: 1.35;
+}
+
+.result-desc {
+  margin: 18rpx auto 0;
+  max-width: 560rpx;
+  font-size: 28rpx;
+  line-height: 1.7;
+  color: #5f6b7a;
 }
 
 .subscribe-card {
-  margin-top: 28rpx;
+  margin-top: 36rpx;
   padding: 24rpx;
   border-radius: 16rpx;
   background: linear-gradient(180deg, #ffffff 0%, var(--brand-primary-soft) 100%);
@@ -84,23 +99,31 @@
   color: #86909c;
 }
 
-.secondary-text-button {
-  width: 100%;
-  height: 72rpx;
-  margin-top: 20rpx;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: #5f6b7a;
-  font-size: 26rpx;
-  line-height: 72rpx;
+.result-action-group {
+  width: calc(100% + 48rpx);
+  margin-top: 40rpx;
+  margin-left: -24rpx;
+  margin-right: -24rpx;
+}
+
+.result-button.weui-btn.weui-ext-button,
+.secondary-button-outline.weui-btn.weui-ext-button {
+  width: calc(100% - 64rpx) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.secondary-button-outline.weui-btn.weui-ext-button {
+  height: 88rpx;
+  margin-top: 20rpx !important;
+  border: 2rpx solid var(--brand-primary-border) !important;
+  border-radius: 16rpx !important;
+  background: #ffffff !important;
+  color: var(--brand-primary) !important;
 }
 
 .result-button::after,
-.subscribe-button::after {
-  border: none;
-}
-
-.secondary-text-button::after {
+.subscribe-button::after,
+.secondary-button-outline::after {
   border: none;
 }

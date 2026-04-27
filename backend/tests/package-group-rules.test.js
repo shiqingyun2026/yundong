@@ -49,10 +49,10 @@ test('package group rules calculate member amount and platform subsidy', () => {
 test('package group rules build deadline and next status', () => {
   const deadline = buildPackageDeadline({
     createdAt: '2026-04-19T10:00:00.000Z',
-    deadlineHours: 48
+    deadlineHours: 45
   })
 
-  assert.equal(deadline.toISOString(), '2026-04-21T10:00:00.000Z')
+  assert.equal(deadline.toISOString(), '2026-04-21T07:00:00.000Z')
   assert.equal(
     computePackageGroupNextStatus({
       currentCount: 4,

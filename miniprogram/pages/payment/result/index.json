@@ -2,7 +2,6 @@
   "navigationBarTitleText": "支付结果",
   "usingComponents": {
     "mp-toptips": "../../../vendor/weui-miniprogram/toptips/toptips",
-    "mp-msg": "../../../vendor/weui-miniprogram/msg/msg",
     "mp-icon": "../../../vendor/weui-miniprogram/icon/icon"
   }
 }
