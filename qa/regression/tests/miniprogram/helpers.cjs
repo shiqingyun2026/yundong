@@ -6,6 +6,7 @@ const createWxMock = () => {
     showToast: [],
     navigateTo: [],
     redirectTo: [],
+    switchTab: [],
     previewImage: [],
     showTabBar: [],
     hideTabBar: [],
@@ -35,6 +36,9 @@ const createWxMock = () => {
     },
     redirectTo(payload) {
       calls.redirectTo.push(payload)
+    },
+    switchTab(payload) {
+      calls.switchTab.push(payload)
     },
     previewImage(payload) {
       calls.previewImage.push(payload)

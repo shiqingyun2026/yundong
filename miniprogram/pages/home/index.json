@@ -1,5 +1,7 @@
 {
   "navigationStyle": "custom",
+  "enableShareAppMessage": true,
+  "enableShareTimeline": true,
   "enablePullDownRefresh": true,
   "usingComponents": {
     "mp-navigation-bar": "../../components/navigation-bar/index",

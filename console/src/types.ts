@@ -330,7 +330,8 @@ export interface PackageGroupListItem {
   hour: number
   schedule_text: string
   first_class_time: string | null
-  schedule_list: string[]
+  schedule_list: PackageGroupLessonItem[]
+  coach_assignment: PackageGroupCoachAssignment | null
   create_time: string
   success_time: string
 }
@@ -392,7 +393,8 @@ export interface PackageGroupDetail {
   hour: number
   schedule_text: string
   first_class_time: string | null
-  schedule_list: string[]
+  schedule_list: PackageGroupLessonItem[]
+  coach_assignment: PackageGroupCoachAssignment | null
   create_time: string
   deadline: string
   success_time: string
@@ -413,6 +415,22 @@ export interface PackageGroupDetail {
   anomalies: string[]
   members: PackageGroupDetailMember[]
   orders: PackageGroupDetailOrder[]
+}
+
+export interface PackageGroupLessonItem {
+  index: number
+  class_time: string
+  display_text: string
+  coach_name: string
+}
+
+export interface PackageGroupCoachAssignment {
+  default_coach_name: string
+  lessons: Array<{
+    index: number
+    class_time: string
+    coach_name: string
+  }>
 }
 
 export interface PackageOrderListItem {

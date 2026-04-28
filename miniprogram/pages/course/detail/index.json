@@ -1,5 +1,7 @@
 {
   "navigationBarTitleText": "课程详情",
+  "enableShareAppMessage": true,
+  "enableShareTimeline": true,
   "usingComponents": {
     "mp-toptips": "../../../vendor/weui-miniprogram/toptips/toptips",
     "mp-icon": "../../../vendor/weui-miniprogram/icon/icon",

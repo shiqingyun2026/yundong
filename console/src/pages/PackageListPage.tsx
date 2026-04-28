@@ -14,8 +14,16 @@ const getStatusText = (status: PackageListItem['status']) => {
 const formatSupportedPeople = (supportedPeople: number[]) =>
   supportedPeople.length ? supportedPeople.map(item => `${item}人团`).join(' / ') : '-'
 
+const getDistrictTail = (value: string) => {
+  const normalized = `${value || ''}`
+    .split('/')
+    .map(item => item.trim())
+    .filter(Boolean)
+  return normalized.length ? normalized[normalized.length - 1] : ''
+}
+
 const getListLocationText = (item: PackageListItem) => {
-  const district = `${item.location_district || ''}`.trim()
+  const district = getDistrictTail(item.location_district || '')
   const community = `${item.location_community || ''}`.trim()
   return [district, community].filter(Boolean).join(' / ') || '-'
 }
@@ -29,6 +37,7 @@ export function PackageListPage() {
   const [pagination, setPagination] = useState({ total: 0, total_pages: 1, page: 1, size: 10 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [actioningId, setActioningId] = useState('')
 
   const applySearch = (
     nextKeyword = keyword,
@@ -93,6 +102,31 @@ export function PackageListPage() {
     setStatus(nextStatus)
     void fetchList(nextKeyword, nextPackageCategory, nextStatus, nextPage)
   }, [searchParams])
+
+  const handleOffline = async (item: PackageListItem) => {
+    if (item.status !== 'active') {
+      return
+    }
+
+    if (
+      !window.confirm(
+        '确认下架该课包吗？\n下架后，该课包将不会继续在小程序首页展示。\n如有进行中的拼团，将自动扭转拼团状态为失败，并退款。'
+      )
+    ) {
+      return
+    }
+
+    try {
+      setActioningId(item.id)
+      setError('')
+      await api.put(`/packages/${item.id}/offline`)
+      await fetchList(keyword, packageCategory, status, pagination.page)
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : '下架课包失败')
+    } finally {
+      setActioningId('')
+    }
+  }
 
   return (
     <section className="stack">
@@ -189,6 +223,11 @@ export function PackageListPage() {
                         <Link className="table-link" to={`/package-orders?package_id=${item.id}`}>
                           查看订单
                         </Link>
+                        {item.status === 'active' ? (
+                          <button className="table-link button-as-link" type="button" disabled={actioningId === item.id} onClick={() => void handleOffline(item)}>
+                            {actioningId === item.id ? '下架中...' : '下架'}
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>

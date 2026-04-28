@@ -124,6 +124,10 @@ const loadConsoleAppWithMockedPackageService = () => {
       calls.push(['getAdminPackageGroupDetail', payload])
       return { id: payload.packageGroupId, package_name: '课包拼团详情' }
     },
+    updateAdminPackageGroupCoachAssignment: async payload => {
+      calls.push(['updateAdminPackageGroupCoachAssignment', payload])
+      return { id: payload.packageGroupId, coach_assignment: payload.payload }
+    },
     listAdminPackageOrders: async payload => {
       calls.push(['listAdminPackageOrders', payload])
       return { total: 1, page: 1, size: 10, list: [{ id: 'ord-1' }] }
@@ -187,7 +191,8 @@ const createPackageRepositoryState = () => ({
       first_class_time: null,
       deadline: '2026-04-20T10:00:00.000Z',
       created_at: '2026-04-18T10:00:00.000Z',
-      success_time: null
+      success_time: null,
+      coach_assignment: null
     },
     {
       id: 'pg-success',
@@ -201,7 +206,8 @@ const createPackageRepositoryState = () => ({
       first_class_time: '2026-04-25T10:00:00.000Z',
       deadline: '2026-04-20T10:00:00.000Z',
       created_at: '2026-04-18T10:00:00.000Z',
-      success_time: '2026-04-18T11:00:00.000Z'
+      success_time: '2026-04-18T11:00:00.000Z',
+      coach_assignment: null
     },
     {
       id: 'pg-expired',
@@ -215,7 +221,8 @@ const createPackageRepositoryState = () => ({
       first_class_time: null,
       deadline: '2026-04-18T10:00:00.000Z',
       created_at: '2026-04-16T10:00:00.000Z',
-      success_time: null
+      success_time: null,
+      coach_assignment: null
     }
   ]),
   orders: clone([
@@ -650,6 +657,19 @@ test('admin package routes are mounted behind admin authentication', async () =>
     pathname: '/api/admin/package-groups/pg-1',
     headers
   })
+  const updateCoachAssignment = await requestJson({
+    app,
+    method: 'PUT',
+    pathname: '/api/admin/package-groups/pg-1/coach-assignment',
+    headers,
+    body: {
+      default_coach_name: '王教练',
+      lessons: [
+        { index: 1, coach_name: '王教练' },
+        { index: 2, coach_name: '李教练' }
+      ]
+    }
+  })
   const listOrders = await requestJson({
     app,
     pathname: '/api/admin/package-orders?status=success',
@@ -677,6 +697,8 @@ test('admin package routes are mounted behind admin authentication', async () =>
   assert.equal(updatePackage.body.data.name, '编辑课包')
   assert.equal(listGroups.body.data.list[0].id, 'pg-1')
   assert.equal(groupDetail.body.data.id, 'pg-1')
+  assert.equal(updateCoachAssignment.body.data.id, 'pg-1')
+  assert.equal(updateCoachAssignment.body.data.coach_assignment.default_coach_name, '王教练')
   assert.equal(listOrders.body.data.list[0].id, 'ord-1')
   assert.equal(refund.body.data.status, 'refunded')
   assert.deepEqual(
@@ -693,6 +715,7 @@ test('admin package routes are mounted behind admin authentication', async () =>
       'updateAdminPackage',
       'listAdminPackageGroups',
       'getAdminPackageGroupDetail',
+      'updateAdminPackageGroupCoachAssignment',
       'listAdminPackageOrders',
       'refundAdminPackageOrder'
     ]
@@ -721,6 +744,37 @@ test('admin package group detail returns leader, members, orders, and anomalies'
   assert.deepEqual(result.anomalies, [])
 })
 
+test('admin package group coach assignment persists default coach and per-lesson overrides', async () => {
+  const { packageAdminService, state } = loadPackageServicesWithState()
+
+  const result = await packageAdminService.updateAdminPackageGroupCoachAssignment({
+    packageGroupId: 'pg-success',
+    payload: {
+      default_coach_name: '王教练',
+      lessons: [
+        { index: 1, coach_name: '王教练' },
+        { index: 2, coach_name: '李教练' },
+        { index: 5, coach_name: '' }
+      ]
+    },
+    admin: {
+      id: 'admin-1',
+      username: 'root',
+      role: 'super_admin'
+    },
+    ip: '127.0.0.1',
+    now: new Date('2026-04-19T08:00:00.000Z')
+  })
+
+  assert.equal(result.coach_assignment.default_coach_name, '王教练')
+  assert.equal(result.schedule_list.length, 5)
+  assert.equal(result.schedule_list[0].coach_name, '王教练')
+  assert.equal(result.schedule_list[1].coach_name, '李教练')
+  assert.equal(result.schedule_list[4].coach_name, '王教练')
+  assert.equal(state.groups.find(item => item.id === 'pg-success').coach_assignment.default_coach_name, '王教练')
+  assert.equal(state.adminLogWrites.at(-1).action, 'package_group_assign_coach')
+})
+
 test('admin package order list exposes child profile and parent mobile from package context', async () => {
   const { packageAdminService } = loadPackageServicesWithState()
 
@@ -734,6 +788,19 @@ test('admin package order list exposes child profile and parent mobile from pack
   assert.equal(result.list[0].child_nickname.length > 0, true)
   assert.equal(typeof result.list[0].child_age, 'number')
   assert.equal(result.list[0].phone.startsWith('138'), true)
+})
+
+test('admin package order list filters by package_group_id', async () => {
+  const { packageAdminService } = loadPackageServicesWithState()
+
+  const result = await packageAdminService.listAdminPackageOrders({
+    query: {
+      package_group_id: 'pg-success'
+    }
+  })
+
+  assert.equal(result.list.length > 0, true)
+  assert.equal(result.list.every(item => item.package_group_id === 'pg-success'), true)
 })
 
 test('admin package detail and order list tolerate legacy or missing package context fields', async () => {

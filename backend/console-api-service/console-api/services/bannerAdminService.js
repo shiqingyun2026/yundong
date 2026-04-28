@@ -2,6 +2,7 @@ const crypto = require('node:crypto')
 
 const { readBannerStore, writeBannerStore } = require('../../shared/services/bannerStore')
 const { getBannerStatus, syncBannerStoreStatus } = require('../../shared/services/bannerState')
+const { signCosPublicUrl } = require('../../shared/services/cosSignedUrl')
 const { writeAdminLog } = require('../../utils/adminStore')
 const { formatDateTime, getPagination, parseShanghaiDateTimeInput } = require('../routes/_helpers')
 const { ensureCondition, ensureFound } = require('./_guards')
@@ -47,7 +48,7 @@ const safeWriteAdminLog = async payload => {
 
 const mapBannerListItem = item => ({
   id: item.id,
-  image_url: item.image_url || '',
+  image_url: signCosPublicUrl(item.image_url || ''),
   title: item.title || '',
   jump_type: item.jump_type || 'none',
   jump_target: item.jump_target || '',
@@ -61,7 +62,7 @@ const mapBannerListItem = item => ({
 
 const mapBannerDetail = item => ({
   id: item.id,
-  image_url: item.image_url || '',
+  image_url: signCosPublicUrl(item.image_url || ''),
   title: item.title || '',
   jump_type: item.jump_type || 'none',
   jump_target: item.jump_target || '',

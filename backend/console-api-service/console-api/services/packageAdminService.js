@@ -125,6 +125,67 @@ const toMap = (list = [], key = 'id') =>
 
 const normalizeText = value => `${value || ''}`.trim()
 
+const normalizeCoachAssignment = value => {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const lessons = Array.isArray(value.lessons)
+    ? value.lessons
+        .map(item => {
+          if (!item || typeof item !== 'object') {
+            return null
+          }
+
+          const index = Number(item.index)
+          const classTime = normalizeText(item.class_time)
+          const coachName = normalizeText(item.coach_name)
+          if (!Number.isInteger(index) || index <= 0 || !classTime) {
+            return null
+          }
+
+          return {
+            index,
+            class_time: classTime,
+            coach_name: coachName
+          }
+        })
+        .filter(Boolean)
+        .sort((left, right) => left.index - right.index)
+    : []
+
+  return {
+    default_coach_name: normalizeText(value.default_coach_name),
+    lessons
+  }
+}
+
+const buildLessonCoachSchedule = ({ scheduleList = [], coachAssignment = null }) => {
+  const normalizedAssignment = normalizeCoachAssignment(coachAssignment)
+  const lessonCoachMap = (normalizedAssignment && normalizedAssignment.lessons) || []
+  const coachByKey = lessonCoachMap.reduce((result, item) => {
+    result[`${item.index}::${item.class_time}`] = item.coach_name
+    return result
+  }, {})
+
+  return (scheduleList || []).map((item, index) => {
+    const classTime = normalizeText(item && (item.class_time || item.display_text))
+    const lessonIndex = Number(item && item.index) || index + 1
+    const coachName = coachByKey[`${lessonIndex}::${classTime}`] || normalizedAssignment?.default_coach_name || ''
+
+    return {
+      index: lessonIndex,
+      class_time: classTime,
+      display_text: normalizeText(item && item.display_text) || classTime,
+      coach_name: coachName
+    }
+  })
+}
+
+const formatCoachLabel = coachName => normalizeText(coachName) || '教练待定'
+
+const formatLessonCoachText = lesson => `${lesson.display_text || lesson.class_time || '-'} ${formatCoachLabel(lesson.coach_name)}`
+
 const normalizePackageContext = value => {
   if (!value || typeof value !== 'object') {
     return {}
@@ -722,12 +783,16 @@ const listAdminPackageGroups = async ({ query = {}, now = new Date() }) => {
       targetCount: group.target_count,
       groupPriceConfig: pkg.group_price_config
     })
-    const scheduleList = group.first_class_time
+    const baseScheduleList = group.first_class_time
       ? buildPackageLessonSchedule({
           firstClassTime: group.first_class_time,
           weeks: 5
         })
       : []
+    const lessonSchedule = buildLessonCoachSchedule({
+      scheduleList: baseScheduleList,
+      coachAssignment: group.coach_assignment
+    })
 
     return {
       id: group.id,
@@ -753,7 +818,8 @@ const listAdminPackageGroups = async ({ query = {}, now = new Date() }) => {
             hour: group.hour
           }),
       first_class_time: group.first_class_time ? formatPackageDateTime(group.first_class_time) : null,
-      schedule_list: scheduleList,
+      schedule_list: lessonSchedule,
+      coach_assignment: normalizeCoachAssignment(group.coach_assignment),
       create_time: formatDateTime(group.created_at),
       success_time: formatDateTime(group.success_time)
     }
@@ -802,12 +868,16 @@ const getAdminPackageGroupDetail = async ({ packageGroupId, now = new Date() }) 
     targetCount: group.target_count,
     groupPriceConfig: pkg.group_price_config
   })
-  const scheduleList = group.first_class_time
+  const baseScheduleList = group.first_class_time
     ? buildPackageLessonSchedule({
         firstClassTime: group.first_class_time,
         weeks: 5
       })
     : []
+  const lessonSchedule = buildLessonCoachSchedule({
+    scheduleList: baseScheduleList,
+    coachAssignment: group.coach_assignment
+  })
 
   const sortedOrders = [...orders].sort(
     (left, right) => new Date(left.created_at || 0).getTime() - new Date(right.created_at || 0).getTime()
@@ -893,7 +963,8 @@ const getAdminPackageGroupDetail = async ({ packageGroupId, now = new Date() }) 
           hour: group.hour
         }),
     first_class_time: group.first_class_time ? formatPackageDateTime(group.first_class_time) : null,
-    schedule_list: scheduleList,
+    schedule_list: lessonSchedule,
+    coach_assignment: normalizeCoachAssignment(group.coach_assignment),
     create_time: formatDateTime(group.created_at),
     deadline: formatDateTime(group.deadline),
     success_time: formatDateTime(group.success_time),
@@ -941,6 +1012,84 @@ const getAdminPackageGroupDetail = async ({ packageGroupId, now = new Date() }) 
   }
 }
 
+const updateAdminPackageGroupCoachAssignment = async ({ packageGroupId, payload = {}, admin = {}, ip = null, now = new Date() }) => {
+  ensureMySqlMode()
+
+  const group = await packageGroupsRepository.findPackageGroupById(packageGroupId)
+  ensureFound(group, {
+    responseCode: 2004,
+    message: '课包拼团不存在'
+  })
+
+  ensureCondition(group.status === 'success', {
+    responseCode: 1001,
+    statusCode: 400,
+    message: '仅已成团拼团支持安排教练'
+  })
+
+  ensureCondition(!!group.first_class_time, {
+    responseCode: 1001,
+    statusCode: 400,
+    message: '当前拼团尚未生成排课信息，暂不能安排教练'
+  })
+
+  const baseScheduleList = buildPackageLessonSchedule({
+    firstClassTime: group.first_class_time,
+    weeks: 5
+  })
+
+  const defaultCoachName = normalizeText(payload.default_coach_name)
+  const inputLessons = Array.isArray(payload.lessons) ? payload.lessons : []
+  const providedLessonMap = inputLessons.reduce((result, item) => {
+    if (!item || typeof item !== 'object') {
+      return result
+    }
+
+    const index = Number(item.index)
+    if (!Number.isInteger(index) || index <= 0) {
+      return result
+    }
+
+    result[index] = normalizeText(item.coach_name)
+    return result
+  }, {})
+
+  const lessons = baseScheduleList.map((item, index) => ({
+    index: Number(item.index) || index + 1,
+    class_time: normalizeText(item.display_text || item.class_time),
+    coach_name: providedLessonMap[Number(item.index) || index + 1] || defaultCoachName || ''
+  }))
+
+  const coachAssignment = {
+    default_coach_name: defaultCoachName,
+    lessons
+  }
+
+  await packageGroupsRepository.updatePackageGroup(packageGroupId, {
+    coach_assignment: coachAssignment
+  })
+
+  await safeWriteAdminLog({
+    adminId: admin.id || '',
+    adminUsername: admin.username || '',
+    adminRole: admin.role || '',
+    action: 'package_group_assign_coach',
+    targetType: 'package_group',
+    targetId: packageGroupId,
+    detail: {
+      default_coach_name: defaultCoachName,
+      lessons
+    },
+    ip,
+    createdAt: now
+  })
+
+  return getAdminPackageGroupDetail({
+    packageGroupId,
+    now
+  })
+}
+
 const mapOrderStatus = status => status || 'pending'
 
 const listAdminPackageOrders = async ({ query = {} }) => {
@@ -948,11 +1097,13 @@ const listAdminPackageOrders = async ({ query = {} }) => {
 
   const { page, size, from, to } = getPagination(query)
   const packageId = normalizeText(query.package_id)
+  const packageGroupId = normalizeText(query.package_group_id)
   const status = normalizeText(query.status)
   const keyword = normalizeText(query.keyword)
   const orders = await ordersRepository.listOrders({
     orderType: 2,
     packageId,
+    packageGroupId,
     status
   })
   const userIds = [...new Set(orders.map(item => item.user_id).filter(Boolean))]
@@ -1154,5 +1305,6 @@ module.exports = {
   offlineAdminPackage,
   refundAdminPackageOrder,
   searchPackageLocations,
-  updateAdminPackage
+  updateAdminPackage,
+  updateAdminPackageGroupCoachAssignment
 }

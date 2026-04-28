@@ -6,11 +6,20 @@
   </view>
 
   <scroll-view wx:if="{{!loading && packageDetail}}" class="detail-scroll" scroll-y>
-    <swiper class="hero-swiper" indicator-dots autoplay circular>
-      <swiper-item wx:for="{{packageDetail.images}}" wx:key="*this">
-        <image class="hero-image" src="{{item}}" mode="aspectFill"></image>
-      </swiper-item>
-    </swiper>
+    <view class="hero-swiper-wrap">
+      <swiper class="hero-swiper" autoplay circular bindchange="handleHeroSwiperChange">
+        <swiper-item wx:for="{{heroImages}}" wx:key="id">
+          <image class="hero-image" src="{{item.url}}" mode="aspectFill" data-index="{{index}}" binderror="handleHeroImageError"></image>
+        </swiper-item>
+      </swiper>
+      <view wx:if="{{heroImages.length > 1}}" class="hero-indicator">
+        <view
+          wx:for="{{heroImages}}"
+          wx:key="id"
+          class="hero-indicator-dot {{heroCurrent === index ? 'hero-indicator-dot--active' : ''}}"
+        ></view>
+      </view>
+    </view>
 
     <view class="detail-content">
       <view class="weui-panel weui-ext-card page-section card-shadow">

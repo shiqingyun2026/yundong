@@ -825,6 +825,7 @@ test('console banner list page can query create and edit banners', async ({ page
     buffer: Buffer.from('fake-banner-image')
   })
   await expect(page.getByRole('img', { name: 'Banner' })).toBeVisible()
+  await expect(page.getByRole('img', { name: 'Banner' })).toHaveAttribute('src', /blob:|https:\/\/example\.com\/uploads\//)
   await page.locator('form').getByRole('button', { name: '保存' }).click()
 
   await expect(page).toHaveURL(/\/banners\/banner-created-1$/)
@@ -963,6 +964,63 @@ test('console package edit page can offline a package and return to the list', a
   await expect(page).toHaveURL(/\/packages$/)
   const targetRow = page.locator('tr', { hasText: '[回归] 待下架课包' })
   await expect(targetRow).toBeVisible()
+  await expect(targetRow.getByRole('cell', { name: '已下架' })).toBeVisible()
+})
+
+test('console package list page can offline an active package directly', async ({ page }) => {
+  await bootstrapSession(page)
+  const packageState = {
+    id: 'pkg-list-offline-1',
+    name: '[回归] 列表下架课包',
+    cover: 'https://example.com/package-list-offline.jpg',
+    package_category: '体适能',
+    age_range: '4-8岁',
+    class_count: 6,
+    class_duration_minutes: 60,
+    group_price_config: [{ target_count: 4, price_fen: 38800 }],
+    supported_people: [4],
+    location_text: '广东省 / 深圳市 / 南山区 / 科技园社区 / 活动中心',
+    location_district: '广东省 / 深圳市 / 南山区',
+    location_community: '科技园社区',
+    location_detail: '活动中心',
+    coach_name: '下架教练',
+    status: 'active',
+    deadline_hours: 48,
+    publish_time: '2026-04-20 09:00:00',
+    unpublish_time: '',
+    create_time: '2026-04-20 10:00:00',
+    update_time: '2026-04-20 11:00:00'
+  }
+
+  await page.route(adminApiPattern('\\/packages\\/pkg-list-offline-1\\/offline$'), async route => {
+    if (route.request().method() === 'OPTIONS') {
+      await fulfillJson(route, {})
+      return
+    }
+
+    packageState.status = 'inactive'
+    packageState.unpublish_time = '2026-04-22 10:00:00'
+    await fulfillJson(route, { id: packageState.id })
+  })
+
+  await page.route(adminApiPattern('\\/packages(\\?.*)?$'), async route => {
+    await fulfillJson(route, {
+      list: [packageState],
+      total: 1,
+      total_pages: 1,
+      page: 1,
+      size: 10
+    })
+  })
+
+  await page.goto('/packages')
+  const targetRow = page.locator('tr', { hasText: '[回归] 列表下架课包' })
+  await expect(targetRow.getByRole('cell', { name: '南山区 / 科技园社区' })).toBeVisible()
+  page.once('dialog', dialog => {
+    expect(dialog.message()).toContain('如有进行中的拼团，将自动扭转拼团状态为失败，并退款')
+    dialog.accept()
+  })
+  await targetRow.getByRole('button', { name: '下架' }).click()
   await expect(targetRow.getByRole('cell', { name: '已下架' })).toBeVisible()
 })
 

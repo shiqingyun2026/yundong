@@ -10,7 +10,8 @@ const {
   offlineAdminPackage,
   refundAdminPackageOrder,
   searchPackageLocations,
-  updateAdminPackage
+  updateAdminPackage,
+  updateAdminPackageGroupCoachAssignment
 } = require('../services/packageAdminService')
 
 const geocodePackageHandler = createOkHandler('解析坐标失败', req =>
@@ -75,6 +76,15 @@ const getAdminPackageGroupDetailHandler = createOkHandler('获取课包拼团详
   })
 )
 
+const updateAdminPackageGroupCoachAssignmentHandler = createOkHandler('更新课包拼团教练安排失败', req =>
+  updateAdminPackageGroupCoachAssignment({
+    packageGroupId: req.params.id,
+    payload: req.body || {},
+    admin: req.admin || {},
+    ip: req.ip || null
+  })
+)
+
 const listAdminPackageOrdersHandler = createOkHandler('获取课包订单列表失败', req =>
   listAdminPackageOrders({
     query: req.query || {}
@@ -101,5 +111,6 @@ module.exports = {
   offlineAdminPackageHandler,
   refundAdminPackageOrderHandler,
   searchPackageLocationsHandler,
-  updateAdminPackageHandler
+  updateAdminPackageHandler,
+  updateAdminPackageGroupCoachAssignmentHandler
 }

@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { PageBackButton } from '../components/PageBackButton'
 import { api, uploadImage } from '../lib/api'
 import { sanitizeRichHtml } from '../lib/html'
-import type { CourseLocationSuggestion, PackageDetail, PackageGroupListItem, PackageGroupListResponse } from '../types'
+import type { CourseLocationSuggestion, PackageDetail, PackageGroupLessonItem, PackageGroupListItem, PackageGroupListResponse } from '../types'
 import { REGION_OPTIONS, toDateTimeLocal } from './courseFormHelpers'
 
 type PackagePageMode = 'create' | 'edit' | 'view'
@@ -101,48 +101,8 @@ const getPackageGroupStatusText = (status: PackageGroupListItem['status']) => {
   return '进行中'
 }
 
-const formatScheduleList = (scheduleList: unknown[]) =>
-  scheduleList
-    .map(item => {
-      if (typeof item === 'string') {
-        return item
-      }
-
-      if (!item || typeof item !== 'object') {
-        return ''
-      }
-
-      const scheduleItem = item as Record<string, unknown>
-      const textFields = ['schedule_text', 'text', 'label', 'display_text', 'lesson_text']
-      for (const field of textFields) {
-        const value = scheduleItem[field]
-        if (typeof value === 'string' && value.trim()) {
-          return value.trim()
-        }
-      }
-
-      const dateValue = ['date', 'class_date', 'lesson_date', 'start_date']
-        .map(field => scheduleItem[field])
-        .find(value => typeof value === 'string' && value.trim())
-      const timeValue = ['time', 'start_time', 'class_time', 'lesson_time']
-        .map(field => scheduleItem[field])
-        .find(value => typeof value === 'string' && value.trim())
-
-      if (typeof dateValue === 'string' && typeof timeValue === 'string') {
-        return `${dateValue.trim()} ${timeValue.trim()}`
-      }
-
-      if (typeof dateValue === 'string') {
-        return dateValue.trim()
-      }
-
-      if (typeof timeValue === 'string') {
-        return timeValue.trim()
-      }
-
-      return JSON.stringify(item)
-    })
-    .filter(Boolean)
+const formatScheduleList = (scheduleList: PackageGroupLessonItem[]) =>
+  scheduleList.map(item => `第${item.index}节 ${item.display_text || item.class_time} ${item.coach_name.trim() || '教练待定'}`)
 
 const buildPayload = (form: PackageDetail) => {
   const groupPriceConfig = normalizeGroupPriceConfig(form.group_price_config)
@@ -1113,7 +1073,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                             <div>
                               <span>{item.schedule_text || '-'}</span>
                               {item.schedule_list.length ? (
-                                <p className="table-subtext">{formatScheduleList(item.schedule_list as unknown[]).join(' / ')}</p>
+                                <p className="table-subtext">{formatScheduleList(item.schedule_list).join(' / ')}</p>
                               ) : null}
                             </div>
                           </td>

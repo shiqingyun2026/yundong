@@ -46,6 +46,7 @@ const HOME_BANNERS = [
 ]
 
 const LOCATION_TIMEOUT_MS = 5000
+const HOME_SHARE_TITLE = '家门口的少儿运动团课'
 
 const buildLocationKey = location =>
   location ? `${location.latitude || ''}:${location.longitude || ''}:${location.source || ''}:${location.name || ''}` : ''
@@ -506,6 +507,19 @@ Page({
         title: '当前版本暂不支持打开外部链接',
         icon: 'none'
       })
+    }
+  },
+
+  onShareAppMessage() {
+    return {
+      title: HOME_SHARE_TITLE,
+      path: '/pages/home/index'
+    }
+  },
+
+  onShareTimeline() {
+    return {
+      title: HOME_SHARE_TITLE
     }
   }
 })

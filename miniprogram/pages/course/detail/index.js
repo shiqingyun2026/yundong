@@ -1,10 +1,13 @@
 const { fetchPackageDetail } = require('../../../utils/package')
 
+const HOME_PAGE_PATH = '/pages/home/index'
+
 Page({
   data: {
     packageId: '',
     packageDetail: null,
     heroImages: [],
+    heroCurrent: 0,
     loading: true,
     showServiceModal: false,
     showLoginSheet: false,
@@ -47,6 +50,9 @@ Page({
         title: '课程信息不存在',
         icon: 'none'
       })
+      wx.switchTab({
+        url: HOME_PAGE_PATH
+      })
       return
     }
 
@@ -64,12 +70,16 @@ Page({
 
       this.setData({
         packageDetail,
-        heroImages
+        heroImages,
+        heroCurrent: 0
       })
     } catch (error) {
       wx.showToast({
-        title: '课程详情加载失败',
+        title: error && error.message ? error.message : '课程详情加载失败',
         icon: 'none'
+      })
+      wx.switchTab({
+        url: HOME_PAGE_PATH
       })
     } finally {
       this.setData({
@@ -122,6 +132,13 @@ Page({
             }
           : item
       )
+    })
+  },
+
+  handleHeroSwiperChange(event) {
+    const current = Number(event.detail && event.detail.current)
+    this.setData({
+      heroCurrent: Number.isInteger(current) && current >= 0 ? current : 0
     })
   },
 
@@ -222,8 +239,18 @@ Page({
     const { packageDetail, packageId } = this.data
 
     return {
-      title: packageDetail ? `邀请你一起拼「${packageDetail.name}」` : '邻动体适能课程拼团',
+      title: packageDetail ? `${packageDetail.name}｜家门口组团上课` : '家门口的少儿运动团课',
       path: `/pages/course/detail/index?id=${packageId}`,
+      imageUrl: packageDetail && packageDetail.cover ? packageDetail.cover : ''
+    }
+  },
+
+  onShareTimeline() {
+    const { packageDetail, packageId } = this.data
+
+    return {
+      title: packageDetail ? `${packageDetail.name}｜家门口组团上课` : '家门口的少儿运动团课',
+      query: `id=${packageId}`,
       imageUrl: packageDetail && packageDetail.cover ? packageDetail.cover : ''
     }
   }

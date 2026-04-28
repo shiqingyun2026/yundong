@@ -758,6 +758,36 @@ select {
   color: #31414c;
 }
 
+.inline-editor-panel {
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(247, 241, 231, 0.5);
+  border: 1px solid rgba(20, 58, 82, 0.08);
+}
+
+.lesson-coach-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.lesson-coach-card {
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(20, 58, 82, 0.1);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.lesson-coach-card strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.lesson-coach-card p {
+  margin: 0 0 10px;
+  color: #31414c;
+}
+
 .group-price-stack {
   display: flex;
   flex-direction: column;

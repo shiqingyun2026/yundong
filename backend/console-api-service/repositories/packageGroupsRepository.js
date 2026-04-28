@@ -1,6 +1,22 @@
 const { execute, query } = require('../config/db')
 const { buildInClause, createUuid, toDbDateTime } = require('./_helpers')
 
+const parseJsonField = value => {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+
+  if (typeof value === 'object') {
+    return value
+  }
+
+  try {
+    return JSON.parse(value)
+  } catch (error) {
+    return null
+  }
+}
+
 const PACKAGE_GROUP_SELECT_FIELDS = `
   id,
   package_id,
@@ -13,7 +29,8 @@ const PACKAGE_GROUP_SELECT_FIELDS = `
   first_class_time,
   deadline,
   created_at,
-  success_time
+  success_time,
+  coach_assignment
 `
 
 const normalizePackageGroup = row => {
@@ -33,7 +50,8 @@ const normalizePackageGroup = row => {
     first_class_time: row.first_class_time || null,
     deadline: row.deadline || null,
     created_at: row.created_at || null,
-    success_time: row.success_time || null
+    success_time: row.success_time || null,
+    coach_assignment: parseJsonField(row.coach_assignment) || null
   }
 }
 
@@ -49,14 +67,15 @@ const createPackageGroup = async ({
   first_class_time = null,
   deadline,
   created_at = new Date(),
-  success_time = null
+  success_time = null,
+  coach_assignment = null
 }) => {
   await execute(
     `
       insert into package_groups (
         id, package_id, creator_id, target_count, current_count, status,
-        weekday, hour, first_class_time, deadline, created_at, success_time
-      ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        weekday, hour, first_class_time, deadline, created_at, success_time, coach_assignment
+      ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       id,
@@ -70,7 +89,8 @@ const createPackageGroup = async ({
       first_class_time ? toDbDateTime(first_class_time) : null,
       toDbDateTime(deadline),
       toDbDateTime(created_at) || toDbDateTime(new Date()),
-      success_time ? toDbDateTime(success_time) : null
+      success_time ? toDbDateTime(success_time) : null,
+      coach_assignment ? JSON.stringify(coach_assignment) : null
     ]
   )
 
@@ -217,6 +237,7 @@ const updatePackageGroup = async (id, payload = {}) => {
   assign('deadline', payload.deadline, value => (value ? toDbDateTime(value) : null))
   assign('created_at', payload.created_at, value => (value ? toDbDateTime(value) : null))
   assign('success_time', payload.success_time, value => (value ? toDbDateTime(value) : null))
+  assign('coach_assignment', payload.coach_assignment, value => (value ? JSON.stringify(value) : null))
 
   if (!updates.length) {
     return findPackageGroupById(id)

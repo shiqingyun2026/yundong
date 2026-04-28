@@ -45,6 +45,7 @@ export function BannerFormPage({ mode }: { mode: BannerPageMode }) {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
+  const [localPreviewUrl, setLocalPreviewUrl] = useState('')
 
   const pageTitle = mode === 'create' ? '新建 Banner' : mode === 'edit' ? '编辑 Banner' : 'Banner 详情'
   const copyFrom = searchParams.get('copyFrom') || ''
@@ -79,6 +80,7 @@ export function BannerFormPage({ mode }: { mode: BannerPageMode }) {
           online_time: toDateTimeLocal(data.online_time),
           offline_time: toDateTimeLocal(data.offline_time)
         })
+        setLocalPreviewUrl('')
       } catch (fetchError) {
         setError(fetchError instanceof Error ? fetchError.message : '获取 Banner 详情失败')
       } finally {
@@ -97,18 +99,34 @@ export function BannerFormPage({ mode }: { mode: BannerPageMode }) {
       return
     }
 
+    const nextPreviewUrl = URL.createObjectURL(file)
+
     try {
       setUploading(true)
       setError('')
+      if (localPreviewUrl) {
+        URL.revokeObjectURL(localPreviewUrl)
+      }
+      setLocalPreviewUrl(nextPreviewUrl)
       const imageUrl = await uploadImage(file, 'course-cover')
       updateField('image_url', imageUrl)
     } catch (uploadError) {
+      URL.revokeObjectURL(nextPreviewUrl)
+      setLocalPreviewUrl('')
       setError(uploadError instanceof Error ? uploadError.message : '上传 Banner 图片失败')
     } finally {
       setUploading(false)
       event.target.value = ''
     }
   }
+
+  useEffect(() => {
+    return () => {
+      if (localPreviewUrl) {
+        URL.revokeObjectURL(localPreviewUrl)
+      }
+    }
+  }, [localPreviewUrl])
 
   const validateBeforeSubmit = () => {
     if (!form.image_url.trim()) {
@@ -260,7 +278,11 @@ export function BannerFormPage({ mode }: { mode: BannerPageMode }) {
               </label>
               <div className="filter-field filter-field-full">
                 <span>Banner 图片</span>
-                {form.image_url ? <img className="image-preview" src={form.image_url} alt="Banner" /> : <div className="upload-placeholder">暂未上传图片</div>}
+                {localPreviewUrl || form.image_url ? (
+                  <img className="image-preview" src={localPreviewUrl || form.image_url} alt="Banner" />
+                ) : (
+                  <div className="upload-placeholder">暂未上传图片</div>
+                )}
                 {isEditable ? (
                   <label className="secondary-button link-button compact-action-button" style={{ width: 'fit-content' }}>
                     {uploading ? '上传中...' : '上传图片'}

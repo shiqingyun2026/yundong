@@ -113,6 +113,28 @@ export function PackageGroupDetailPage() {
       {detail ? (
         <section className="panel stack">
           <div>
+            <p className="section-kicker">Lessons</p>
+            <h3>排课与教练安排</h3>
+          </div>
+          {detail.schedule_list.length ? (
+            <div className="lesson-coach-grid">
+              {detail.schedule_list.map(item => (
+                <div key={`${item.index}-${item.class_time}`} className="lesson-coach-card">
+                  <strong>第{item.index}节</strong>
+                  <p>{item.display_text || item.class_time || '-'}</p>
+                  <p className="table-subtext">教练：{item.coach_name.trim() || '教练待定'}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="muted-text">当前未生成排课信息。</p>
+          )}
+        </section>
+      ) : null}
+
+      {detail ? (
+        <section className="panel stack">
+          <div>
             <p className="section-kicker">Leader</p>
             <h3>团长信息</h3>
           </div>
