@@ -1,5 +1,6 @@
 const { env } = require('../config/env')
 const { coursePackagesRepository } = require('../repositories')
+const { parseShanghaiDate } = require('../shared/utils/dateTime')
 const { writeAdminLog } = require('./adminStore')
 
 const PACKAGE_STATUS = {
@@ -13,8 +14,7 @@ const safeDate = value => {
     return null
   }
 
-  const date = value instanceof Date ? value : new Date(value)
-  return Number.isNaN(date.getTime()) ? null : date
+  return parseShanghaiDate(value)
 }
 
 const safeWriteAdminLog = async payload => {

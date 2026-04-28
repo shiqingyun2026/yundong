@@ -10,6 +10,7 @@ const {
 } = require('./packageSchedule')
 const { cleanupExpiredPackageGroups } = require('./packageGroupStore')
 const { signCosImageList, signCosPublicUrl, signCosUrlsInText } = require('./cosSignedUrl')
+const { parseShanghaiDate } = require('../utils/dateTime')
 
 const formatFenText = amountFen => (Number(amountFen || 0) / 100).toFixed(2)
 
@@ -219,8 +220,8 @@ const resolvePackageStatus = ({ status, publishTime, unpublishTime, now = new Da
   }
 
   if (unpublishTime) {
-    const unpublishDate = new Date(unpublishTime)
-    if (!Number.isNaN(unpublishDate.getTime()) && unpublishDate.getTime() <= now.getTime()) {
+    const unpublishDate = parseShanghaiDate(unpublishTime)
+    if (unpublishDate && unpublishDate.getTime() <= now.getTime()) {
       return 'inactive'
     }
   }
@@ -229,8 +230,8 @@ const resolvePackageStatus = ({ status, publishTime, unpublishTime, now = new Da
     return 'active'
   }
 
-  const publishDate = new Date(publishTime)
-  if (Number.isNaN(publishDate.getTime())) {
+  const publishDate = parseShanghaiDate(publishTime)
+  if (!publishDate) {
     return 'active'
   }
 
@@ -340,7 +341,7 @@ const fetchMiniProgramPackageList = async ({
         return leftDistance - rightDistance
       }
 
-      return new Date(right.created_at || 0).getTime() - new Date(left.created_at || 0).getTime()
+      return (parseShanghaiDate(right.created_at || 0)?.getTime() || 0) - (parseShanghaiDate(left.created_at || 0)?.getTime() || 0)
     })
 
   const from = (safePage - 1) * safePageSize
@@ -430,9 +431,17 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
     description: signCosUrlsInText(pkg.description || ''),
     insurance_desc: '课程期间统一赠送基础运动意外险，具体保障范围以投保说明为准。',
     active_groups: (activeGroups || [])
-      .filter(group => group && group.deadline && new Date(group.deadline).getTime() > now.getTime())
-      .sort((left, right) => new Date(left.deadline).getTime() - new Date(right.deadline).getTime())
+      .filter(group => {
+        const deadline = parseShanghaiDate(group && group.deadline)
+        return !!deadline && deadline.getTime() > now.getTime()
+      })
+      .sort((left, right) => {
+        const leftDeadline = parseShanghaiDate(left.deadline)
+        const rightDeadline = parseShanghaiDate(right.deadline)
+        return (leftDeadline ? leftDeadline.getTime() : 0) - (rightDeadline ? rightDeadline.getTime() : 0)
+      })
       .map(group => {
+        const deadline = parseShanghaiDate(group.deadline)
         const memberAmountFen = calculatePackageMemberAmountFen({
           totalPrice: pkg.total_price,
           targetCount: group.target_count,
@@ -444,7 +453,7 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
           target_count: Number(group.target_count) || 0,
           current_count: Number(group.current_count) || 0,
           status: group.status,
-          remaining_seconds: Math.max(0, Math.floor((new Date(group.deadline).getTime() - now.getTime()) / 1000)),
+          remaining_seconds: deadline ? Math.max(0, Math.floor((deadline.getTime() - now.getTime()) / 1000)) : 0,
           member_amount_fen: memberAmountFen,
           member_amount_text: formatFenText(memberAmountFen),
           schedule_text: formatPendingPackageScheduleText({
@@ -519,8 +528,8 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
     target_count: Number(latestGroup.target_count) || 0,
     current_count: Number(latestGroup.current_count) || 0,
     remaining_seconds:
-      latestGroup.status === 'active'
-        ? Math.max(0, Math.floor((new Date(latestGroup.deadline).getTime() - now.getTime()) / 1000))
+      latestGroup.status === 'active' && parseShanghaiDate(latestGroup.deadline)
+        ? Math.max(0, Math.floor((parseShanghaiDate(latestGroup.deadline).getTime() - now.getTime()) / 1000))
         : 0,
     member_amount_fen: memberAmountFen,
     member_amount_text: formatFenText(memberAmountFen),
@@ -600,7 +609,11 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
   const listSource = (orders || [])
     .filter(order => refreshedGroupById[order.package_group_id])
     .filter(order => normalizedStatus === 'all' || refreshedGroupById[order.package_group_id].status === normalizedStatus)
-    .sort((left, right) => new Date(right.updated_at || right.created_at).getTime() - new Date(left.updated_at || left.created_at).getTime())
+    .sort(
+      (left, right) =>
+        (parseShanghaiDate(right.updated_at || right.created_at)?.getTime() || 0) -
+        (parseShanghaiDate(left.updated_at || left.created_at)?.getTime() || 0)
+    )
 
   const from = (safePage - 1) * safePageSize
   const list = listSource.slice(from, from + safePageSize).map(order => {

@@ -17,9 +17,10 @@ const {
   formatPendingPackageScheduleText
 } = require('../../shared/services/packageSchedule')
 const { buildAdminLocationText, formatFenText } = require('../../shared/services/packageReaders')
+const { parseShanghaiDate } = require('../../shared/utils/dateTime')
 const { markPaymentRecordRefunded } = require('../../shared/services/paymentShell')
 const { writeAdminLog } = require('../../utils/adminStore')
-const { formatDateTime, getPagination } = require('../routes/_helpers')
+const { formatDateTime, getPagination, parseShanghaiDateTimeInput } = require('../routes/_helpers')
 const { geocodeAddressWithTencentMap, searchPlacesWithTencentMap } = require('./tencentMapService')
 const { ensureCondition, ensureFound } = require('./_guards')
 
@@ -225,7 +226,12 @@ const normalizeDateTimeValue = value => {
     return null
   }
 
-  const date = value instanceof Date ? value : new Date(value)
+  const isoValue = parseShanghaiDateTimeInput(value)
+  if (!isoValue) {
+    return null
+  }
+
+  const date = new Date(isoValue)
   return Number.isNaN(date.getTime()) ? null : date.toISOString()
 }
 
@@ -270,14 +276,14 @@ const resolvePackageStatus = ({ status, publishTime, unpublishTime, now = new Da
   }
 
   if (unpublishTime) {
-    const unpublishDate = new Date(unpublishTime)
-    if (!Number.isNaN(unpublishDate.getTime()) && unpublishDate.getTime() <= now.getTime()) {
+    const unpublishDate = parseShanghaiDate(unpublishTime)
+    if (unpublishDate && unpublishDate.getTime() <= now.getTime()) {
       return PACKAGE_STATUS.INACTIVE
     }
   }
 
-  const publishDate = publishTime ? new Date(publishTime) : null
-  if (!publishDate || Number.isNaN(publishDate.getTime())) {
+  const publishDate = parseShanghaiDate(publishTime)
+  if (!publishDate) {
     return PACKAGE_STATUS.PENDING
   }
 
@@ -778,6 +784,7 @@ const listAdminPackageGroups = async ({ query = {}, now = new Date() }) => {
 
   const list = groups.map(group => {
     const pkg = packagesById[group.package_id] || {}
+    const deadline = parseShanghaiDate(group.deadline)
     const memberAmountFen = calculatePackageMemberAmountFen({
       totalPrice: pkg.total_price,
       targetCount: group.target_count,
@@ -805,10 +812,7 @@ const listAdminPackageGroups = async ({ query = {}, now = new Date() }) => {
       member_amount_fen: memberAmountFen,
       member_amount_text: formatFenText(memberAmountFen),
       deadline: formatDateTime(group.deadline),
-      remaining_seconds:
-        group.status === 'active'
-          ? Math.max(0, Math.floor((new Date(group.deadline).getTime() - now.getTime()) / 1000))
-          : 0,
+      remaining_seconds: group.status === 'active' && deadline ? Math.max(0, Math.floor((deadline.getTime() - now.getTime()) / 1000)) : 0,
       weekday: Number(group.weekday) || 0,
       hour: Number(group.hour) || 0,
       schedule_text: group.first_class_time
@@ -880,7 +884,8 @@ const getAdminPackageGroupDetail = async ({ packageGroupId, now = new Date() }) 
   })
 
   const sortedOrders = [...orders].sort(
-    (left, right) => new Date(left.created_at || 0).getTime() - new Date(right.created_at || 0).getTime()
+    (left, right) =>
+      (parseShanghaiDate(left.created_at || 0)?.getTime() || 0) - (parseShanghaiDate(right.created_at || 0)?.getTime() || 0)
   )
   const leaderOrder = sortedOrders.find(item => item.package_action === 'start') || sortedOrders[0] || null
   const paidOrders = sortedOrders.filter(item => item.status === 'success')
@@ -910,7 +915,8 @@ const getAdminPackageGroupDetail = async ({ packageGroupId, now = new Date() }) 
   if (group.status === 'failed' && paidOrders.length > 0) {
     anomalies.push('已失败拼团仍存在未退款成功订单')
   }
-  if (group.status === 'active' && group.deadline && new Date(group.deadline).getTime() <= now.getTime()) {
+  const deadline = parseShanghaiDate(group.deadline)
+  if (group.status === 'active' && deadline && deadline.getTime() <= now.getTime()) {
     anomalies.push('进行中拼团已超过截止时间')
   }
   if ((Number(group.current_count) || 0) !== paidOrders.length) {

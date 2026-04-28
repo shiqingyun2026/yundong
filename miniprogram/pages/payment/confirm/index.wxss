@@ -183,37 +183,14 @@
   display: flex;
   align-items: center;
   padding: 0 32rpx;
-  min-height: 48rpx;
+  min-height: 52rpx;
 }
 
-.payment-agreement-check {
-  position: relative;
+.payment-agreement-check-icon {
   flex: none;
   width: 36rpx;
   height: 36rpx;
   margin-right: 12rpx;
-  border: 2rpx solid #cfd7e6;
-  border-radius: 50%;
-  box-sizing: border-box;
-  background: #fff;
-}
-
-.payment-agreement-check--checked {
-  border-color: var(--brand-primary);
-  background: var(--brand-primary);
-}
-
-.payment-agreement-check--checked::after {
-  content: '';
-  position: absolute;
-  top: 8rpx;
-  left: 12rpx;
-  width: 8rpx;
-  height: 14rpx;
-  border-right: 3rpx solid #fff;
-  border-bottom: 3rpx solid #fff;
-  transform: rotate(45deg);
-  box-sizing: border-box;
 }
 
 .agreement-link {

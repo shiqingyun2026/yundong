@@ -1008,6 +1008,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
             <div className="detail-grid">
               <div className="detail-card">
                 <strong>课包信息</strong>
+                <p>课包ID：{form.id || id || '-'}</p>
                 <p>课包类型：{form.package_category || '-'}</p>
                 <p>课程节数：{form.class_count || '-'} 节</p>
                 <p>单节时长：{form.class_duration_minutes || '-'} 分钟</p>

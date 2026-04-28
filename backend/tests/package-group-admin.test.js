@@ -60,6 +60,21 @@ const createAdminToken = () =>
     { expiresIn: '7d' }
   )
 
+const withTimezone = async (timezone, run) => {
+  const previousTimezone = process.env.TZ
+  process.env.TZ = timezone
+
+  try {
+    return await run()
+  } finally {
+    if (previousTimezone === undefined) {
+      delete process.env.TZ
+    } else {
+      process.env.TZ = previousTimezone
+    }
+  }
+}
+
 const loadConsoleAppWithMockedPackageService = () => {
   const calls = []
   clearModules([
@@ -1071,6 +1086,23 @@ test('admin package detail auto switches active package to inactive after unpubl
 
   assert.equal(result.status, 'inactive')
   assert.equal(result.status_text, '已下架')
+})
+
+test('admin package detail formats MySQL DATETIME publish time consistently under UTC runtime', async () => {
+  await withTimezone('UTC', async () => {
+    const { packageAdminService, state } = loadPackageServicesWithState()
+    state.packages[0].publish_time = '2026-04-21 10:00:00'
+    state.packages[0].unpublish_time = null
+    state.packages[0].status = 2
+
+    const result = await packageAdminService.getAdminPackageDetail({
+      packageId: 'PKG-20260418-0001',
+      now: new Date('2026-04-21T01:30:00.000Z')
+    })
+
+    assert.equal(result.publish_time, '2026-04-21 10:00:00')
+    assert.equal(result.status, 'pending')
+  })
 })
 
 test('admin package offline updates package to inactive', async () => {

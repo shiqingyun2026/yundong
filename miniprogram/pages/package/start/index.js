@@ -204,10 +204,9 @@ Page({
     })
   },
 
-  handleAgreementChange(event) {
-    const values = event.detail.value || []
+  handleAgreementToggle() {
     this.setData({
-      agreementChecked: values.includes('agree')
+      agreementChecked: !this.data.agreementChecked
     })
   },
 

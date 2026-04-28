@@ -21,6 +21,21 @@ const clearModules = relativePaths => {
   })
 }
 
+const withTimezone = async (timezone, run) => {
+  const previousTimezone = process.env.TZ
+  process.env.TZ = timezone
+
+  try {
+    return await run()
+  } finally {
+    if (previousTimezone === undefined) {
+      delete process.env.TZ
+    } else {
+      process.env.TZ = previousTimezone
+    }
+  }
+}
+
 test('package readers only return packages inside the publish window for mini program home', async () => {
   clearModules([
     'config/env.js',
@@ -357,6 +372,102 @@ test('package detail hides groups once their deadline has arrived', async () => 
   })
   assert.deepEqual(result.active_groups.map(item => item.id), ['group-active'])
   assert.equal(result.active_groups[0].remaining_seconds, 3600)
+})
+
+test('package readers treat MySQL DATETIME publish window as Shanghai time under UTC runtime', async () => {
+  await withTimezone('UTC', async () => {
+    clearModules([
+      'config/env.js',
+      'config/storage.js',
+      'repositories/index.js',
+      'shared/domain/packageGroupRules.js',
+      'shared/services/packageGroupStore.js',
+      'shared/services/cosSignedUrl.js',
+      'shared/services/packageReaders.js'
+    ])
+
+    mockModule('config/env.js', {
+      env: {
+        useMySqlRepositories: true
+      }
+    })
+
+    mockModule('config/storage.js', {
+      getStorageProviderName: () => 'supabase',
+      getCosStorageConfig: () => ({
+        bucket: '',
+        region: '',
+        secretId: '',
+        secretKey: '',
+        expiresSeconds: 900
+      })
+    })
+
+    mockModule('repositories/index.js', {
+      coursePackagesRepository: {
+        listPackages: async () => [
+          {
+            id: 'pkg-datetime-pending',
+            name: '待上架课包',
+            cover: 'https://example.com/pending.jpg',
+            package_category: '体适能',
+            class_count: 5,
+            class_duration_minutes: 60,
+            group_price_config: [{ target_count: 4, price_fen: 4000 }],
+            supported_people: [4],
+            location_district: '龙岗区',
+            location_community: '云社区',
+            location_detail: 'B 栋',
+            latitude: 22.61,
+            longitude: 114.21,
+            status: 1,
+            publish_time: '2026-04-21 10:00:00',
+            unpublish_time: null,
+            created_at: '2026-04-20 09:00:00'
+          },
+          {
+            id: 'pkg-datetime-active',
+            name: '已上架课包',
+            cover: 'https://example.com/active.jpg',
+            package_category: '体适能',
+            class_count: 5,
+            class_duration_minutes: 60,
+            group_price_config: [{ target_count: 2, price_fen: 5000 }],
+            supported_people: [2],
+            location_district: '龙岗区',
+            location_community: '云社区',
+            location_detail: 'A 栋',
+            latitude: 22.6,
+            longitude: 114.2,
+            status: 1,
+            publish_time: '2026-04-21 08:00:00',
+            unpublish_time: null,
+            created_at: '2026-04-20 08:00:00'
+          }
+        ]
+      },
+      ordersRepository: {},
+      packageGroupsRepository: {
+        listPackageGroups: async () => []
+      },
+      usersRepository: {}
+    })
+
+    mockModule('shared/domain/packageGroupRules.js', {
+      calculatePackageMemberAmountFen: ({ groupPriceConfig = [] }) => Number(groupPriceConfig[0] && groupPriceConfig[0].price_fen) || 0
+    })
+
+    mockModule('shared/services/packageGroupStore.js', {
+      cleanupExpiredPackageGroups: async () => {}
+    })
+
+    const { fetchMiniProgramPackageList } = require(path.join(backendRoot, 'shared/services/packageReaders.js'))
+    const result = await fetchMiniProgramPackageList({
+      now: new Date('2026-04-21T01:30:00.000Z')
+    })
+
+    assert.deepEqual(result.list.map(item => item.id), ['pkg-datetime-active'])
+  })
 })
 
 test('package group detail returns leader child profile, default member avatars and countdown', async () => {

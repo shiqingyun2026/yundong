@@ -1,3 +1,5 @@
+const { parseShanghaiDate } = require('../utils/dateTime')
+
 const pad = value => `${value}`.padStart(2, '0')
 
 const WEEKDAY_LABELS = {
@@ -39,8 +41,8 @@ const formatScheduleTextWithLockNote = ({ weekday, hour }) =>
   `${formatPendingPackageScheduleText({ weekday, hour })}，成团后锁定首课日期`
 
 const formatPackageDateTime = value => {
-  const date = value instanceof Date ? value : new Date(value)
-  if (Number.isNaN(date.getTime())) {
+  const date = parseShanghaiDate(value)
+  if (!date) {
     return ''
   }
 
@@ -52,9 +54,9 @@ const formatPackageDateTime = value => {
 const computeFirstPackageClassTime = ({ successTime, weekday, hour }) => {
   const normalizedWeekday = normalizeWeekday(weekday)
   const normalizedHour = normalizeHour(hour)
-  const baseTime = successTime instanceof Date ? new Date(successTime.getTime()) : new Date(successTime)
+  const baseTime = parseShanghaiDate(successTime)
 
-  if (!normalizedWeekday || normalizedHour < 0 || Number.isNaN(baseTime.getTime())) {
+  if (!normalizedWeekday || normalizedHour < 0 || !baseTime) {
     return null
   }
 
@@ -75,10 +77,10 @@ const computeFirstPackageClassTime = ({ successTime, weekday, hour }) => {
 }
 
 const buildPackageLessonSchedule = ({ firstClassTime, weeks = 5 }) => {
-  const firstDate = firstClassTime instanceof Date ? new Date(firstClassTime.getTime()) : new Date(firstClassTime)
+  const firstDate = parseShanghaiDate(firstClassTime)
   const totalWeeks = Math.max(1, Number(weeks) || 5)
 
-  if (Number.isNaN(firstDate.getTime())) {
+  if (!firstDate) {
     return []
   }
 

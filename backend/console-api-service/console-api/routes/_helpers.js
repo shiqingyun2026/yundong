@@ -1,3 +1,5 @@
+const { parseShanghaiDate } = require('../../shared/utils/dateTime')
+
 const normalizeBoolean = value => value === true || value === 'true' || value === 1 || value === '1'
 
 const ok = (res, data = {}, message = 'ok') =>
@@ -27,8 +29,8 @@ const getPagination = query => {
 }
 
 const getShanghaiDateParts = value => {
-  const date = value instanceof Date ? value : new Date(value)
-  if (Number.isNaN(date.getTime())) {
+  const date = parseShanghaiDate(value)
+  if (!date) {
     return null
   }
 
@@ -72,7 +74,12 @@ const mapCourseStatus = startTime => {
     return 0
   }
 
-  return new Date(startTime).getTime() > Date.now() ? 0 : 1
+  const startDate = parseShanghaiDate(startTime)
+  if (!startDate) {
+    return 0
+  }
+
+  return startDate.getTime() > Date.now() ? 0 : 1
 }
 
 const pickFirst = value => (Array.isArray(value) ? value[0] : value)

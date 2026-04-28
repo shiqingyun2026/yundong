@@ -154,7 +154,11 @@
 
       <view class="weui-panel weui-ext-card page-section card-shadow payment-agreement-card">
         <view class="payment-agreement-row" bindtap="handleAgreementToggle">
-          <view class="payment-agreement-check {{agreementChecked ? 'payment-agreement-check--checked' : ''}}"></view>
+          <image
+            class="payment-agreement-check-icon"
+            src="{{agreementChecked ? '/assets/icons/check-one-primary.svg' : '/assets/icons/check-one-muted.svg'}}"
+            mode="aspectFit"
+          ></image>
           <view class="payment-agreement-inline">
             <text>我已阅读并同意</text>
             <text class="agreement-link" catchtap="handleOpenAgreement">《课程服务协议》</text>
