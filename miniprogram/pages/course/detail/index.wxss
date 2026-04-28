@@ -4,6 +4,18 @@
   background: #f7f8fa;
 }
 
+.service-contact-button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  line-height: normal;
+}
+
+.service-contact-button::after {
+  border: 0;
+}
+
 .detail-scroll {
   height: 100vh;
 }
@@ -434,7 +446,8 @@
 }
 
 .service-entry {
-  width: 104rpx;
+  flex: 1;
+  min-width: 0;
   text-align: center;
 }
 
@@ -461,7 +474,8 @@
 }
 
 .bottom-action {
-  flex: 1;
+  flex: 5;
+  min-width: 0;
 }
 
 .service-modal-mask {

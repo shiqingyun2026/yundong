@@ -138,12 +138,16 @@
   </scroll-view>
 
   <view wx:if="{{!loading && packageDetail}}" class="bottom-bar">
-    <view class="service-entry" bindtap="handleOpenService">
+    <button
+      class="service-entry service-contact-button"
+      open-type="contact"
+      bindcontact="handleContact"
+    >
       <view class="service-icon">
         <mp-icon extClass="service-icon-image" icon="contacts" type="filled" color="#1abcc5" size="{{28}}" />
       </view>
       <view class="service-text">客服</view>
-    </view>
+    </button>
     <button
       class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary bottom-action"
       bindtap="handleStartGroup"

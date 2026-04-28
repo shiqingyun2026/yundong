@@ -102,7 +102,7 @@ Page({
     })
   },
 
-  handleOpenService() {
+  handleOpenServiceFallback() {
     this.setData({
       showServiceModal: true
     })
@@ -112,6 +112,12 @@ Page({
     this.setData({
       showServiceModal: false
     })
+  },
+
+  handleContact(event) {
+    if (event && event.detail) {
+      console.log('[course-detail] contact event', event.detail)
+    }
   },
 
   noop() {},

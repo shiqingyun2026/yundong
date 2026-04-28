@@ -3,7 +3,6 @@ Page({
     userInfo: null,
     showLoginSheet: false,
     pendingLoginAction: '',
-    showServiceModal: false,
     menuList: [
       {
         key: 'group-buy',
@@ -12,10 +11,6 @@ Page({
       {
         key: 'agreements',
         title: '用户协议和隐私政策'
-      },
-      {
-        key: 'service',
-        title: '联系客服'
       }
     ]
   },
@@ -61,13 +56,6 @@ Page({
       }
 
       this.openGroupBuyList()
-      return
-    }
-
-    if (key === 'service') {
-      this.setData({
-        showServiceModal: true
-      })
       return
     }
 
@@ -148,11 +136,9 @@ Page({
     })
   },
 
-  handleCloseService() {
-    this.setData({
-      showServiceModal: false
-    })
-  },
-
-  noop() {}
+  handleContact(event) {
+    if (event && event.detail) {
+      console.log('[mine] contact event', event.detail)
+    }
+  }
 })

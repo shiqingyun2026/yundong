@@ -119,3 +119,27 @@ test('miniprogram course detail page: unavailable course shows toast and switche
 
   packageUtils.fetchPackageDetail = originalFetchPackageDetail
 })
+
+test('miniprogram course detail page: fallback customer service entry opens qr modal', async () => {
+  const originalFetchPackageDetail = packageUtils.fetchPackageDetail
+  const { wx } = createWxMock()
+  global.wx = wx
+  global.getApp = () => ({})
+
+  packageUtils.fetchPackageDetail = async () => ({
+    id: 'package_seed_active_004',
+    name: '[测试] 深圳福田体适能课',
+    images: ['https://example.com/a.png'],
+    coachCertificates: [],
+    cover: 'https://example.com/a.png'
+  })
+
+  const page = createPageHarness(loadPageDefinition('pages/course/detail/index.js'))
+  await page.onLoad({ id: 'package_seed_active_004' })
+
+  page.handleOpenServiceFallback()
+
+  assert.equal(page.data.showServiceModal, true)
+
+  packageUtils.fetchPackageDetail = originalFetchPackageDetail
+})
