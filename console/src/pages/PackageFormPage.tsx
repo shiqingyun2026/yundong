@@ -609,6 +609,12 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
       {!loading ? (
         <form className="stack" onSubmit={handleSubmit}>
           <div className="form-grid">
+            {mode !== 'create' ? (
+              <label>
+                <span>课包ID</span>
+                <input value={form.id || id || ''} disabled />
+              </label>
+            ) : null}
             <label>
               <span>课包名称<RequiredMark /></span>
               <input value={form.name} onChange={event => updateField('name', event.target.value)} disabled={!isEditable} />

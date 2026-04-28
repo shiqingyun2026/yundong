@@ -43,6 +43,7 @@
 - 课包订单内部主键 `orders.id` 继续保持 UUID，仅承担内部数据关联职责。
 - 课包订单业务单号 `orders.order_no` 使用规则编号：`LDPKG-YYYYMMDD-######`。
 - 历史课包 ID、拼团 ID 允许继续保留 UUID；系统需兼容历史 UUID 与新规则编号并存。
+- 后台和服务端统一负责生成上述编号，前端、小程序端和运营后台都不允许自行拼接编号。
 
 ## 2. 用户与目标
 
@@ -433,6 +434,8 @@ Banner 规则：
 - 家长端当前只展示课程拼团。
 - 后台当前主流程只开放课包管理、课包拼团和课包订单。
 - console 课包管理列表与课包详情页需显式展示课包 ID，作为后台主查询和核对字段之一。
+- console 拼团列表、拼团详情页需显式展示拼团 ID。
+- console 课包订单列表、详情页需显式展示订单号 `orders.order_no`，避免将 `orders.id` 作为运营主查询字段。
 
 ### 5.2 课程表 `course_packages`
 
@@ -462,6 +465,12 @@ Banner 规则：
 | publish_time / unpublish_time | 上架 / 下架时间 |
 | status | pending / active / inactive |
 
+补充说明：
+
+- `course_packages.id` 同时承担数据主键与运营识别编号职责。
+- console 课包管理列表、课包详情页、关联跳转链接均使用该字段。
+- 课包搜索需兼容按 `PKG-*` 编号或课程名称查询。
+
 ### 5.3 拼团表 `package_groups`
 
 | 字段 | 说明 |
@@ -479,11 +488,19 @@ Banner 规则：
 | created_at | 开团支付成功创建团时间 |
 | success_time | 成团时间 |
 
+补充说明：
+
+- `package_groups.id` 同时承担数据主键与运营识别编号职责。
+- console 拼团列表、拼团详情页、订单关联跳转均使用该字段。
+- 拼团搜索需兼容按 `PG-*` 编号查询。
+
 ### 5.4 订单表 `orders`
 
 | 字段 | 说明 |
 | --- | --- |
 | order_type | 1 单次课程，2 课程拼团 |
+| id | 内部订单主键；保持 UUID，不作为运营主展示字段 |
+| order_no | 课包订单号；新增数据格式为 `LDPKG-YYYYMMDD-######` |
 | package_id | 课程 ID，关联 `course_packages.id`，兼容历史 UUID 与新规则 ID |
 | package_group_id | 拼团 ID，关联 `package_groups.id`，兼容历史 UUID 与新规则 ID |
 | package_action | start / join |
@@ -500,6 +517,7 @@ Banner 规则：
 - `orders.order_no` 为运营查询和客服沟通使用的订单号。
 - 新增课包订单号格式为 `LDPKG-YYYYMMDD-######`。
 - console 后台列表、详情和搜索默认优先使用 `order_no`，而不是 `orders.id`。
+- 微信支付、支付记录、回调日志等课包订单相关链路在对外展示时优先记录和展示 `order_no`，内部关联仍使用 `orders.id`。
 
 ### 5.5 前台字段映射
 

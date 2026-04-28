@@ -182,6 +182,7 @@ export function PackageListPage() {
             <table className="data-table">
               <thead>
                 <tr>
+                  <th>课包ID</th>
                   <th>课包名称</th>
                   <th>类型</th>
                   <th>适用年龄</th>
@@ -196,11 +197,9 @@ export function PackageListPage() {
               <tbody>
                 {items.map(item => (
                   <tr key={item.id}>
+                    <td>{item.id || '-'}</td>
                     <td>
-                      <div>
-                        <strong>{item.name || '-'}</strong>
-                        <p className="table-subtext">课包编号：{item.id || '-'}</p>
-                      </div>
+                      {item.name || '-'}
                     </td>
                     <td>{item.package_category || '-'}</td>
                     <td>{item.age_range || '-'}</td>
