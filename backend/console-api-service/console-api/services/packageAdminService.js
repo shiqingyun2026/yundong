@@ -46,6 +46,77 @@ const safeWriteAdminLog = async payload => {
   }
 }
 
+const failActivePackageGroups = async ({ packageId, now = new Date() }) => {
+  const activeGroups = await packageGroupsRepository.listPackageGroups({
+    packageId,
+    statuses: ['active']
+  })
+  const groupIds = activeGroups.map(item => item.id).filter(Boolean)
+
+  if (!groupIds.length) {
+    return {
+      groupIds: [],
+      refundedOrderIds: [],
+      closedOrderIds: []
+    }
+  }
+
+  await packageGroupsRepository.bulkUpdatePackageGroupStatus({
+    packageGroupIds: groupIds,
+    status: 'failed'
+  })
+
+  const pendingOrders = (
+    await Promise.all(
+      groupIds.map(groupId =>
+        ordersRepository.listOrdersByPackageGroupId({
+          packageGroupId: groupId,
+          status: 'pending'
+        })
+      )
+    )
+  ).flat()
+
+  const successOrders = (
+    await Promise.all(
+      groupIds.map(groupId =>
+        ordersRepository.listOrdersByPackageGroupId({
+          packageGroupId: groupId,
+          status: 'success'
+        })
+      )
+    )
+  ).flat()
+
+  const closedOrders = await closePendingPackageOrdersByIds({
+    orderIds: pendingOrders.map(item => item.id).filter(Boolean),
+    now
+  })
+
+  await Promise.all(
+    successOrders.map(async order => {
+      await ordersRepository.updateOrder(order.id, {
+        status: 'refunded',
+        refund_time: now,
+        refund_reason: AUTO_REFUND_REASON,
+        updated_at: now
+      })
+      await markPaymentRecordRefunded({
+        supabase: null,
+        orderId: order.id,
+        reason: AUTO_REFUND_REASON,
+        now
+      })
+    })
+  )
+
+  return {
+    groupIds,
+    refundedOrderIds: successOrders.map(item => item.id).filter(Boolean),
+    closedOrderIds: (closedOrders || []).map(item => item.id).filter(Boolean)
+  }
+}
+
 const toMap = (list = [], key = 'id') =>
   list.reduce((result, item) => {
     result[item[key]] = item
@@ -154,7 +225,7 @@ const resolvePackageStatus = ({ status, publishTime, unpublishTime, now = new Da
 
 const canOfflinePackage = status => {
   const resolvedStatus = normalizePackageStatus(status)
-  return resolvedStatus === PACKAGE_STATUS.PENDING || resolvedStatus === PACKAGE_STATUS.ACTIVE
+  return resolvedStatus === PACKAGE_STATUS.ACTIVE
 }
 
 const mapPackageStatus = value => {
@@ -169,6 +240,11 @@ const mapPackageStatusText = value => {
   if (status === 'active') return '已上架'
   if (status === 'pending') return '待上架'
   return '已下架'
+}
+
+const canEditPackage = status => {
+  const resolvedStatus = normalizePackageStatus(status)
+  return resolvedStatus === PACKAGE_STATUS.PENDING || resolvedStatus === PACKAGE_STATUS.INACTIVE
 }
 
 const normalizeSupportedPeople = value => coursePackagesRepository.normalizeSupportedPeople(value)
@@ -490,6 +566,17 @@ const updateAdminPackage = async ({ packageId, payload = {}, admin = {}, ip = nu
     responseCode: 2001,
     message: '课包不存在'
   })
+  const currentStatus = resolvePackageStatus({
+    status: existing.status,
+    publishTime: existing.publish_time,
+    unpublishTime: existing.unpublish_time,
+    now
+  })
+  ensureCondition(canEditPackage(existing.status), {
+    responseCode: 1001,
+    statusCode: 400,
+    message: '已上架课包不可编辑'
+  })
   validatePackagePayload(payload, { partial: true })
 
   const updated = await coursePackagesRepository.updatePackage(
@@ -511,14 +598,7 @@ const updateAdminPackage = async ({ packageId, payload = {}, admin = {}, ip = nu
       name: updated.name,
       package_category: updated.package_category || '体适能',
       age_range: updated.age_range || '',
-      previous_status: mapPackageStatus(
-        resolvePackageStatus({
-          status: existing.status,
-          publishTime: existing.publish_time,
-          unpublishTime: existing.unpublish_time,
-          now
-        })
-      ),
+      previous_status: mapPackageStatus(currentStatus),
       next_status: mapPackageStatus(
         resolvePackageStatus({
           status: updated.status,
@@ -562,6 +642,9 @@ const offlineAdminPackage = async ({ packageId, admin = {}, ip = null, now = new
     message: '当前课包状态不支持下架'
   })
 
+  const expiredCleanupResult = await cleanupExpiredPackageGroups({ packageId, now })
+  const activeGroupCleanupResult = await failActivePackageGroups({ packageId, now })
+
   const offlinedAt = now.toISOString()
   const updated = await coursePackagesRepository.updatePackage(packageId, {
     status: PACKAGE_STATUS.INACTIVE,
@@ -580,7 +663,10 @@ const offlineAdminPackage = async ({ packageId, admin = {}, ip = null, now = new
       previous_status: mapPackageStatus(currentStatus),
       next_status: mapPackageStatus(PACKAGE_STATUS.INACTIVE),
       offline_at: formatDateTime(offlinedAt),
-      unpublish_time: formatDateTime(updated.unpublish_time)
+      unpublish_time: formatDateTime(updated.unpublish_time),
+      auto_failed_group_ids: [...new Set([...(expiredCleanupResult.groupIds || []), ...(activeGroupCleanupResult.groupIds || [])])],
+      auto_refunded_order_ids: [...new Set([...(expiredCleanupResult.refundedOrderIds || []), ...(activeGroupCleanupResult.refundedOrderIds || [])])],
+      auto_closed_order_ids: [...new Set([...(expiredCleanupResult.closedOrderIds || []), ...(activeGroupCleanupResult.closedOrderIds || [])])]
     },
     ip
   })

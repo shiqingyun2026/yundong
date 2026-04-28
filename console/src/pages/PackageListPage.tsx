@@ -14,6 +14,12 @@ const getStatusText = (status: PackageListItem['status']) => {
 const formatSupportedPeople = (supportedPeople: number[]) =>
   supportedPeople.length ? supportedPeople.map(item => `${item}人团`).join(' / ') : '-'
 
+const getListLocationText = (item: PackageListItem) => {
+  const district = `${item.location_district || ''}`.trim()
+  const community = `${item.location_community || ''}`.trim()
+  return [district, community].filter(Boolean).join(' / ') || '-'
+}
+
 export function PackageListPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [keyword, setKeyword] = useState('')
@@ -161,7 +167,7 @@ export function PackageListPage() {
                     <td>{item.age_range || '-'}</td>
                     <td>{item.class_count > 0 && item.class_duration_minutes > 0 ? `${item.class_count}节 / ${item.class_duration_minutes}分钟` : '-'}</td>
                     <td>{formatSupportedPeople(item.supported_people)}</td>
-                    <td>{item.location_text || '-'}</td>
+                    <td>{getListLocationText(item)}</td>
                     <td>{getStatusText(item.status)}</td>
                     <td>{item.publish_time || '-'}</td>
                     <td>
@@ -169,9 +175,11 @@ export function PackageListPage() {
                         <Link className="table-link" to={`/packages/${item.id}`}>
                           查看
                         </Link>
-                        <Link className="table-link" to={`/packages/${item.id}/edit`}>
-                          编辑
-                        </Link>
+                        {item.status !== 'active' ? (
+                          <Link className="table-link" to={`/packages/${item.id}/edit`}>
+                            编辑
+                          </Link>
+                        ) : null}
                         <Link className="table-link" to={`/packages/new?copyFrom=${item.id}`}>
                           复制
                         </Link>

@@ -93,11 +93,56 @@ const getStatusText = (status: PackageDetail['status']) => {
   return '已下架'
 }
 
+const canEditPackage = (status: PackageDetail['status']) => status === 'pending' || status === 'inactive'
+
 const getPackageGroupStatusText = (status: PackageGroupListItem['status']) => {
   if (status === 'success') return '已成团'
   if (status === 'failed') return '已失败'
   return '进行中'
 }
+
+const formatScheduleList = (scheduleList: unknown[]) =>
+  scheduleList
+    .map(item => {
+      if (typeof item === 'string') {
+        return item
+      }
+
+      if (!item || typeof item !== 'object') {
+        return ''
+      }
+
+      const scheduleItem = item as Record<string, unknown>
+      const textFields = ['schedule_text', 'text', 'label', 'display_text', 'lesson_text']
+      for (const field of textFields) {
+        const value = scheduleItem[field]
+        if (typeof value === 'string' && value.trim()) {
+          return value.trim()
+        }
+      }
+
+      const dateValue = ['date', 'class_date', 'lesson_date', 'start_date']
+        .map(field => scheduleItem[field])
+        .find(value => typeof value === 'string' && value.trim())
+      const timeValue = ['time', 'start_time', 'class_time', 'lesson_time']
+        .map(field => scheduleItem[field])
+        .find(value => typeof value === 'string' && value.trim())
+
+      if (typeof dateValue === 'string' && typeof timeValue === 'string') {
+        return `${dateValue.trim()} ${timeValue.trim()}`
+      }
+
+      if (typeof dateValue === 'string') {
+        return dateValue.trim()
+      }
+
+      if (typeof timeValue === 'string') {
+        return timeValue.trim()
+      }
+
+      return JSON.stringify(item)
+    })
+    .filter(Boolean)
 
 const buildPayload = (form: PackageDetail) => {
   const groupPriceConfig = normalizeGroupPriceConfig(form.group_price_config)
@@ -231,8 +276,9 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
     setForm(current => ({ ...current, [key]: value }))
   }
 
-  const canOfflinePackage = mode !== 'create' && form.status !== 'inactive'
+  const canOfflinePackage = mode !== 'create' && form.status === 'active'
   const isReadOnly = mode === 'view'
+  const isEditable = !isReadOnly && (mode === 'create' || canEditPackage(form.status))
   const pageTitle = mode === 'create' ? '新建课包' : mode === 'edit' ? '编辑课包' : '课包详情'
   const cityOptions = REGION_OPTIONS.find(item => item.value === province)?.cities || []
   const districtOptions = cityOptions.find(item => item.value === city)?.districts || []
@@ -474,7 +520,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
 
     if (
       !window.confirm(
-        '确认下架该课程吗？\n下架后，该课程将不会继续在小程序首页展示。\n如该课程存在未完成的拼团，系统将按原价退回相关订单金额。'
+        '确认下架该课包吗？\n下架后，该课包将不会继续在小程序首页展示。\n如有进行中的拼团，将自动扭转拼团状态为失败，并退款。'
       )
     ) {
       return
@@ -577,7 +623,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
           </div>
           {mode !== 'create' && id ? (
             <div className="button-row">
-              {mode === 'view' ? (
+              {mode === 'view' && canEditPackage(form.status) ? (
                 <Link className="secondary-button" to={`/packages/${id}/edit`}>
                   编辑
                 </Link>
@@ -605,14 +651,14 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
           <div className="form-grid">
             <label>
               <span>课包名称<RequiredMark /></span>
-              <input value={form.name} onChange={event => updateField('name', event.target.value)} disabled={isReadOnly} />
+              <input value={form.name} onChange={event => updateField('name', event.target.value)} disabled={!isEditable} />
             </label>
             <label>
               <span>课包类型<RequiredMark /></span>
               <select
                 value={form.package_category}
                 onChange={event => updateField('package_category', event.target.value as PackageDetail['package_category'])}
-                disabled={isReadOnly}
+                disabled={!isEditable}
               >
                 <option value="体适能">体适能</option>
                 <option value="跳绳">跳绳</option>
@@ -624,7 +670,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 value={form.age_range}
                 onChange={event => updateField('age_range', event.target.value)}
                 placeholder="如：4-8岁"
-                disabled={isReadOnly}
+                disabled={!isEditable}
               />
             </label>
             <label>
@@ -634,7 +680,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 min="1"
                 value={form.class_count}
                 onChange={event => updateField('class_count', Number(event.target.value))}
-                disabled={isReadOnly}
+                disabled={!isEditable}
               />
             </label>
             <label>
@@ -644,7 +690,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 min="1"
                 value={form.class_duration_minutes}
                 onChange={event => updateField('class_duration_minutes', Number(event.target.value))}
-                disabled={isReadOnly}
+                disabled={!isEditable}
               />
             </label>
             <label>
@@ -661,7 +707,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 type="datetime-local"
                 value={form.publish_time}
                 onChange={event => updateField('publish_time', event.target.value)}
-                disabled={isReadOnly}
+                disabled={!isEditable}
               />
             </label>
             <label>
@@ -670,7 +716,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 type="datetime-local"
                 value={form.unpublish_time}
                 onChange={event => updateField('unpublish_time', event.target.value)}
-                disabled={isReadOnly}
+                disabled={!isEditable}
               />
             </label>
             {mode === 'create' ? (
@@ -684,7 +730,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                       const nextCity = REGION_OPTIONS.find(item => item.value === nextProvince)?.cities[0]?.value || ''
                       updateRegionField(nextProvince, nextCity, '')
                     }}
-                    disabled={isReadOnly}
+                    disabled={!isEditable}
                   >
                     {REGION_OPTIONS.map(item => (
                       <option key={item.value} value={item.value}>
@@ -698,7 +744,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                   <select
                     value={city}
                     onChange={event => updateRegionField(province, event.target.value, '')}
-                    disabled={isReadOnly}
+                    disabled={!isEditable}
                   >
                     {cityOptions.map(item => (
                       <option key={item.value} value={item.value}>
@@ -712,7 +758,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                   <select
                     value={district}
                     onChange={event => updateRegionField(province, city, event.target.value)}
-                    disabled={isReadOnly}
+                    disabled={!isEditable}
                   >
                     <option value="">请选择区</option>
                     {districtOptions.map(item => (
@@ -729,7 +775,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 <input
                   value={form.location_district}
                   onChange={event => updateField('location_district', event.target.value)}
-                  disabled={isReadOnly}
+                  disabled={!isEditable}
                 />
               </label>
             )}
@@ -738,7 +784,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
               <input
                 value={form.location_community}
                 onChange={event => updateField('location_community', event.target.value)}
-                disabled={isReadOnly}
+                disabled={!isEditable}
               />
             </label>
             <label>
@@ -763,9 +809,9 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                     }
                   }}
                   placeholder="输入场馆名、小区名或详细地址后联想搜索"
-                  disabled={isReadOnly}
+                  disabled={!isEditable}
                 />
-                {showLocationSuggestions && !isReadOnly ? (
+                {showLocationSuggestions && isEditable ? (
                   <div className="location-suggestion-panel">
                     {searchingLocations ? <p className="location-suggestion-empty">地点搜索中...</p> : null}
                     {!searchingLocations && !locationSuggestions.length ? (
@@ -797,7 +843,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 type="number"
                 value={form.longitude ?? ''}
                 onChange={event => updateField('longitude', event.target.value ? Number(event.target.value) : null)}
-                disabled={isReadOnly}
+                disabled={!isEditable}
               />
             </label>
             <label>
@@ -806,12 +852,12 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 type="number"
                 value={form.latitude ?? ''}
                 onChange={event => updateField('latitude', event.target.value ? Number(event.target.value) : null)}
-                disabled={isReadOnly}
+                disabled={!isEditable}
               />
             </label>
           </div>
 
-          {!isReadOnly ? (
+          {isEditable ? (
             <div className="button-row">
               <button className="secondary-button" type="button" onClick={() => void resolveCoordinates()} disabled={resolvingGeo}>
                 {resolvingGeo ? '解析中...' : '解析经纬度'}
@@ -826,7 +872,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 <p className="section-kicker">Pricing</p>
                 <h4>团型售价配置</h4>
               </div>
-              {!isReadOnly ? (
+              {isEditable ? (
                 <button className="secondary-button" type="button" onClick={addGroupPriceRow}>
                   新增团型
                 </button>
@@ -843,7 +889,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                         min="1"
                         value={item.target_count}
                         onChange={event => handleGroupConfigChange(index, 'target_count', Number(event.target.value))}
-                        disabled={isReadOnly}
+                        disabled={!isEditable}
                       />
                     </label>
                     <label>
@@ -853,10 +899,10 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                         min="1"
                         value={item.price_fen}
                         onChange={event => handleGroupConfigChange(index, 'price_fen', Number(event.target.value))}
-                        disabled={isReadOnly}
+                        disabled={!isEditable}
                       />
                     </label>
-                    {!isReadOnly ? (
+                    {isEditable ? (
                       <button className="ghost-button compact-button" type="button" onClick={() => removeGroupPriceRow(index)}>
                         删除
                       </button>
@@ -877,9 +923,9 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
           <div className="stack">
             <label>
               <span>封面图 URL<RequiredMark /></span>
-              <input value={form.cover} onChange={event => updateField('cover', event.target.value)} disabled={isReadOnly} />
+              <input value={form.cover} onChange={event => updateField('cover', event.target.value)} disabled={!isEditable} />
             </label>
-            {!isReadOnly ? (
+            {isEditable ? (
               <div className="button-row">
                 <label className="file-button">
                   点击上传封面图
@@ -901,7 +947,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 <p className="section-kicker">Coach Intro</p>
                 <h4>教练简介</h4>
               </div>
-              {!isReadOnly ? (
+              {isEditable ? (
                 <label className="file-button">
                   上传图片并插入简介
                   <input
@@ -916,7 +962,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
               rows={8}
               value={form.coach_intro}
               onChange={event => updateField('coach_intro', event.target.value)}
-              disabled={isReadOnly}
+              disabled={!isEditable}
             />
             {form.coach_intro ? (
               <div
@@ -932,7 +978,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 <p className="section-kicker">Certificates</p>
                 <h4>教练证书</h4>
               </div>
-              {!isReadOnly ? (
+              {isEditable ? (
                 <label className="file-button">
                   上传教练证书
                   <input type="file" accept="image/*" multiple onChange={event => void handleUploadMultiple(event, 'coach_certificates', 'coach-cert')} />
@@ -943,13 +989,13 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
               rows={4}
               value={form.coach_certificates.join('\n')}
               onChange={event => updateField('coach_certificates', splitLines(event.target.value))}
-              disabled={isReadOnly}
+              disabled={!isEditable}
             />
             <div className="image-preview-grid">
               {form.coach_certificates.map((url, index) => (
                 <div key={`${url}-${index}`} className="image-tile">
                   <img className="image-preview" src={url} alt={`教练证书${index + 1}`} />
-                  {!isReadOnly ? (
+                  {isEditable ? (
                     <button
                       className="ghost-button compact-button"
                       type="button"
@@ -969,7 +1015,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 <p className="section-kicker">Package Intro</p>
                 <h4>课包介绍</h4>
               </div>
-              {!isReadOnly ? (
+              {isEditable ? (
                 <label className="file-button">
                   上传图片并插入介绍
                   <input
@@ -984,7 +1030,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
               rows={10}
               value={form.description}
               onChange={event => updateField('description', event.target.value)}
-              disabled={isReadOnly}
+              disabled={!isEditable}
             />
             {form.description ? (
               <div
@@ -1067,7 +1113,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                             <div>
                               <span>{item.schedule_text || '-'}</span>
                               {item.schedule_list.length ? (
-                                <p className="table-subtext">{item.schedule_list.join(' / ')}</p>
+                                <p className="table-subtext">{formatScheduleList(item.schedule_list as unknown[]).join(' / ')}</p>
                               ) : null}
                             </div>
                           </td>
@@ -1078,7 +1124,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                               <Link className="table-link" to={`/package-groups/${item.id}`}>
                                 查看详情
                               </Link>
-                              <Link className="table-link" to={`/package-orders?keyword=${encodeURIComponent(item.id)}`}>
+                              <Link className="table-link" to={`/package-orders?package_group_id=${item.id}`}>
                                 查看订单
                               </Link>
                             </div>
@@ -1096,7 +1142,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
 
           {error ? <p className="error-text">{error}</p> : null}
 
-          {!isReadOnly ? (
+          {isEditable ? (
             <div className="button-row">
               <button className="primary-button" type="submit" disabled={saving}>
                 {saving ? '保存中...' : mode === 'create' ? '创建课包' : '保存课包'}

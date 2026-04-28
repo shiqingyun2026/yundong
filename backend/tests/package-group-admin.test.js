@@ -561,7 +561,7 @@ const loadPackageServicesWithState = () => {
 
   return {
     packageAdminService: require(path.join(backendRoot, 'console-api/services/packageAdminService.js')),
-    packageGroupStore: require(path.join(path.resolve(__dirname, '..', 'lindong-api'), 'shared/services/packageGroupStore.js')),
+    packageGroupStore: require(path.join(backendRoot, 'shared/services/packageGroupStore.js')),
     state
   }
 }
@@ -1016,10 +1016,40 @@ test('admin package offline updates package to inactive', async () => {
   })
 
   const updated = state.packages.find(item => item.id === 'pkg-1')
+  const activeGroup = state.groups.find(item => item.id === 'pg-active')
+  const refundedOrder = state.orders.find(item => item.id === 'ord-refund')
+  const closedOrder = state.orders.find(item => item.id === 'ord-pending')
+  const refundedPayment = state.paymentRecords.find(item => item.order_id === 'ord-refund')
   assert.equal(updated.status, 0)
   assert.ok(updated.unpublish_time)
   assert.equal(result.status, 'inactive')
+  assert.equal(activeGroup.status, 'failed')
+  assert.equal(refundedOrder.status, 'refunded')
+  assert.equal(closedOrder.status, 'closed')
+  assert.equal(refundedPayment.status, 'refunded')
+  assert.equal(refundedPayment.callback_status, 'REFUNDED')
   assert.equal(state.adminLogWrites.at(-1).action, 'package_offline')
+})
+
+test('admin package update rejects active package edit', async () => {
+  const { packageAdminService } = loadPackageServicesWithState()
+
+  await assert.rejects(
+    () =>
+      packageAdminService.updateAdminPackage({
+        packageId: 'pkg-1',
+        payload: {
+          name: '不允许编辑的已上架课包'
+        },
+        admin: { id: 'admin-1' },
+        now: new Date('2026-04-21T08:00:00.000Z')
+      }),
+    error => {
+      assert.equal(error.statusCode, 400)
+      assert.equal(error.message, '已上架课包不可编辑')
+      return true
+    }
+  )
 })
 
 test('expired package group cleanup refunds success orders and payment records', async () => {

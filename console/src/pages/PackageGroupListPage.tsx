@@ -22,6 +22,49 @@ const formatRemainingTime = (seconds: number) => {
   return `${hours} 小时 ${minutes} 分钟`
 }
 
+const formatScheduleList = (scheduleList: unknown[]) =>
+  scheduleList
+    .map(item => {
+      if (typeof item === 'string') {
+        return item
+      }
+
+      if (!item || typeof item !== 'object') {
+        return ''
+      }
+
+      const scheduleItem = item as Record<string, unknown>
+      const textFields = ['schedule_text', 'text', 'label', 'display_text', 'lesson_text']
+      for (const field of textFields) {
+        const value = scheduleItem[field]
+        if (typeof value === 'string' && value.trim()) {
+          return value.trim()
+        }
+      }
+
+      const dateValue = ['date', 'class_date', 'lesson_date', 'start_date']
+        .map(field => scheduleItem[field])
+        .find(value => typeof value === 'string' && value.trim())
+      const timeValue = ['time', 'start_time', 'class_time', 'lesson_time']
+        .map(field => scheduleItem[field])
+        .find(value => typeof value === 'string' && value.trim())
+
+      if (typeof dateValue === 'string' && typeof timeValue === 'string') {
+        return `${dateValue.trim()} ${timeValue.trim()}`
+      }
+
+      if (typeof dateValue === 'string') {
+        return dateValue.trim()
+      }
+
+      if (typeof timeValue === 'string') {
+        return timeValue.trim()
+      }
+
+      return JSON.stringify(item)
+    })
+    .filter(Boolean)
+
 export function PackageGroupListPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const packageIdFromQuery = searchParams.get('package_id') || ''
@@ -147,7 +190,7 @@ export function PackageGroupListPage() {
                       <div>
                         <span>{item.schedule_text || '-'}</span>
                         {item.schedule_list.length ? (
-                          <p className="table-subtext">{item.schedule_list.join(' / ')}</p>
+                          <p className="table-subtext">{formatScheduleList(item.schedule_list as unknown[]).join(' / ')}</p>
                         ) : null}
                       </div>
                     </td>
@@ -165,7 +208,7 @@ export function PackageGroupListPage() {
                         <Link className="table-link" to={`/packages/${item.package_id}`}>
                           查看课包
                         </Link>
-                        <Link className="table-link" to={`/package-orders?package_id=${item.package_id}`}>
+                        <Link className="table-link" to={`/package-orders?package_group_id=${item.id}`}>
                           查看订单
                         </Link>
                       </div>

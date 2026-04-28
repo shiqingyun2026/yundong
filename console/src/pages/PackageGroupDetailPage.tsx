@@ -132,7 +132,7 @@ export function PackageGroupDetailPage() {
                 <p>订单号：{detail.leader.order_no || '-'}</p>
                 <p>订单 ID：{detail.leader.order_id || '-'}</p>
                 <div className="button-row">
-                  <Link className="secondary-button" to={`/package-orders?keyword=${encodeURIComponent(detail.leader.order_no)}`}>
+                  <Link className="secondary-button" to={`/package-orders?package_group_id=${detail.id}&keyword=${encodeURIComponent(detail.leader.order_no)}`}>
                     查看订单
                   </Link>
                 </div>
@@ -202,7 +202,7 @@ export function PackageGroupDetailPage() {
                   <td>{item.parent_mobile || '未补录'}</td>
                   <td>{item.joined_at || '-'}</td>
                   <td>
-                    <Link className="table-link" to={`/package-orders?keyword=${encodeURIComponent(item.order_no)}`}>
+                    <Link className="table-link" to={`/package-orders?package_group_id=${detail.id}&keyword=${encodeURIComponent(item.order_no)}`}>
                       {item.order_no || '-'}
                     </Link>
                   </td>
@@ -262,7 +262,7 @@ export function PackageGroupDetailPage() {
                     </div>
                   </td>
                   <td>
-                    <Link className="table-link" to={`/package-orders?keyword=${encodeURIComponent(item.order_no)}`}>
+                    <Link className="table-link" to={`/package-orders?package_group_id=${detail.id}&keyword=${encodeURIComponent(item.order_no)}`}>
                       查看订单
                     </Link>
                   </td>

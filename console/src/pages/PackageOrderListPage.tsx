@@ -36,6 +36,7 @@ export function PackageOrderListPage() {
   const [keyword, setKeyword] = useState('')
   const [status, setStatus] = useState('')
   const [packageId, setPackageId] = useState(searchParams.get('package_id') || '')
+  const [packageGroupId, setPackageGroupId] = useState(searchParams.get('package_group_id') || '')
   const [items, setItems] = useState<PackageOrderListItem[]>([])
   const [pagination, setPagination] = useState({ total: 0, total_pages: 1, page: 1, size: 10 })
   const [loading, setLoading] = useState(true)
@@ -45,16 +46,29 @@ export function PackageOrderListPage() {
   const [refundSubmitting, setRefundSubmitting] = useState(false)
   const [detailError, setDetailError] = useState('')
 
-  const applySearch = (nextKeyword = keyword, nextStatus = status, nextPackageId = packageId, nextPage = 1) => {
+  const applySearch = (
+    nextKeyword = keyword,
+    nextStatus = status,
+    nextPackageId = packageId,
+    nextPackageGroupId = packageGroupId,
+    nextPage = 1
+  ) => {
     const params = new URLSearchParams()
     if (nextKeyword) params.set('keyword', nextKeyword)
     if (nextStatus) params.set('status', nextStatus)
     if (nextPackageId) params.set('package_id', nextPackageId)
+    if (nextPackageGroupId) params.set('package_group_id', nextPackageGroupId)
     if (nextPage > 1) params.set('page', `${nextPage}`)
     setSearchParams(params)
   }
 
-  const fetchOrders = async (nextKeyword = keyword, nextStatus = status, nextPackageId = packageId, nextPage = 1) => {
+  const fetchOrders = async (
+    nextKeyword = keyword,
+    nextStatus = status,
+    nextPackageId = packageId,
+    nextPackageGroupId = packageGroupId,
+    nextPage = 1
+  ) => {
     setLoading(true)
     setError('')
 
@@ -63,6 +77,7 @@ export function PackageOrderListPage() {
       if (nextKeyword) params.set('keyword', nextKeyword)
       if (nextStatus) params.set('status', nextStatus)
       if (nextPackageId) params.set('package_id', nextPackageId)
+      if (nextPackageGroupId) params.set('package_group_id', nextPackageGroupId)
       params.set('page', `${nextPage}`)
       params.set('size', '10')
 
@@ -89,12 +104,14 @@ export function PackageOrderListPage() {
     const nextKeyword = searchParams.get('keyword') || ''
     const nextStatus = searchParams.get('status') || ''
     const nextPackageId = searchParams.get('package_id') || ''
+    const nextPackageGroupId = searchParams.get('package_group_id') || ''
     const nextPage = Number(searchParams.get('page') || '1') || 1
 
     setKeyword(nextKeyword)
     setStatus(nextStatus)
     setPackageId(nextPackageId)
-    void fetchOrders(nextKeyword, nextStatus, nextPackageId, nextPage)
+    setPackageGroupId(nextPackageGroupId)
+    void fetchOrders(nextKeyword, nextStatus, nextPackageId, nextPackageGroupId, nextPage)
   }, [searchParams])
 
   const handleRefund = async () => {
@@ -117,7 +134,7 @@ export function PackageOrderListPage() {
 
     try {
       await api.post(`/package-orders/${selectedOrder.id}/refund`, { reason })
-      await fetchOrders(keyword, status, packageId, pagination.page)
+      await fetchOrders(keyword, status, packageId, packageGroupId, pagination.page)
       setRefundReason('')
     } catch (refundError) {
       setDetailError(refundError instanceof Error ? refundError.message : '手动退款失败')
@@ -152,13 +169,21 @@ export function PackageOrderListPage() {
             <span>课包 ID</span>
             <input value={packageId} onChange={event => setPackageId(event.target.value)} placeholder="按课包 ID 过滤" />
           </label>
+          <label className="filter-field">
+            <span>拼团 ID</span>
+            <input
+              value={packageGroupId}
+              onChange={event => setPackageGroupId(event.target.value)}
+              placeholder="按拼团 ID 过滤"
+            />
+          </label>
         </div>
 
         <div className="filter-actions filter-actions-end">
           <button
             className="secondary-button compact-action-button query-button"
             type="button"
-            onClick={() => applySearch(keyword, status, packageId, 1)}
+            onClick={() => applySearch(keyword, status, packageId, packageGroupId, 1)}
           >
             查询
           </button>
@@ -265,8 +290,8 @@ export function PackageOrderListPage() {
               total={pagination.total}
               page={pagination.page}
               totalPages={pagination.total_pages}
-              onPrev={() => applySearch(keyword, status, packageId, pagination.page - 1)}
-              onNext={() => applySearch(keyword, status, packageId, pagination.page + 1)}
+              onPrev={() => applySearch(keyword, status, packageId, packageGroupId, pagination.page - 1)}
+              onNext={() => applySearch(keyword, status, packageId, packageGroupId, pagination.page + 1)}
             />
           </>
         ) : null}

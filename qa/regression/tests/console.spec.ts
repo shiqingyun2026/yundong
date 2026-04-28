@@ -198,7 +198,7 @@ test('console package create page can submit a new package and redirect back to 
   await packageForm.getByLabel(/适用年龄/).fill('4-8岁')
   await packageForm.getByLabel(/课程节数/).fill('10')
   await packageForm.getByLabel(/单节课时长（分钟）/).fill('90')
-  await packageForm.getByLabel(/开团截止时长/).fill('48')
+  await expect(packageForm.getByLabel(/开团截止时长/)).toHaveValue('48')
   await packageForm.getByLabel(/^区/).selectOption('南山区')
   await packageForm.getByLabel(/小区 \/ 场地名称/).fill('深圳湾社区')
   await packageForm.getByLabel(/详细地点/).fill('会所二楼活动室')
@@ -274,7 +274,7 @@ test('console package create page shows validation error when group pricing is m
   await expect(page.getByText('请至少配置一个团型售价')).toBeVisible()
 })
 
-test('console package edit page can update and view linked package group and order pages', async ({ page }) => {
+test('console package edit page can update a pending package and view linked package group and order pages', async ({ page }) => {
   await bootstrapSession(page)
   const requests: Array<{ method: string; path: string; body: Record<string, unknown> | null }> = []
 
@@ -301,7 +301,7 @@ test('console package edit page can update and view linked package group and ord
         location_community: '深圳湾社区',
         location_detail: '会所二楼活动室',
         coach_name: '回归教练',
-        status: 'active',
+        status: 'pending',
         deadline_hours: 48,
         publish_time: '2026-04-19 09:00:00',
         unpublish_time: '',
@@ -339,7 +339,7 @@ test('console package edit page can update and view linked package group and ord
           location_community: '深圳湾社区',
           location_detail: '会所二楼活动室',
           coach_name: '回归教练',
-          status: 'active',
+          status: 'pending',
           deadline_hours: 48,
           publish_time: '2026-04-19 09:00:00',
           unpublish_time: '',
@@ -439,6 +439,77 @@ test('console package edit page can update and view linked package group and ord
   await page.locator('.page-actions').getByRole('link', { name: '查看订单' }).click()
   await expect(page).toHaveURL(/\/package-orders\?package_id=pkg-edit-1$/)
   await expect(page.getByText('LDPKG-EDIT-01')).toBeVisible()
+})
+
+test('console active package pages hide edit entry and list location only shows district plus community', async ({ page }) => {
+  await bootstrapSession(page)
+
+  await page.route(adminApiPattern('\\/packages\\/pkg-active-1$'), async route => {
+    await fulfillJson(route, {
+      id: 'pkg-active-1',
+      name: '[回归] 已上架课包',
+      age_range: '4-8岁',
+      cover: 'https://example.com/package-active.jpg',
+      images: ['https://example.com/package-active.jpg'],
+      class_count: 5,
+      class_duration_minutes: 60,
+      group_price_config: [{ target_count: 4, price_fen: 47200 }],
+      supported_people: [4],
+      location_text: '南山区 / 深圳湾社区 / 会所二楼活动室',
+      location_district: '南山区',
+      location_community: '深圳湾社区',
+      location_detail: '会所二楼活动室',
+      coach_name: '回归教练',
+      status: 'active',
+      deadline_hours: 48,
+      publish_time: '2026-04-19 09:00:00',
+      unpublish_time: '',
+      create_time: '2026-04-19 10:00:00',
+      update_time: '2026-04-19 11:00:00',
+      longitude: 113.9304,
+      latitude: 22.5333,
+      coach_intro: '原始教练简介',
+      coach_certificates: [],
+      description: '原始课包介绍'
+    })
+  })
+
+  await page.route(adminApiPattern('\\/packages(\\?.*)?$'), async route => {
+    await fulfillJson(route, {
+      list: [
+        {
+          id: 'pkg-active-1',
+          name: '[回归] 已上架课包',
+          cover: 'https://example.com/package-active.jpg',
+          group_price_config: [{ target_count: 4, price_fen: 47200 }],
+          supported_people: [4],
+          location_text: '南山区 / 深圳湾社区 / 会所二楼活动室',
+          location_district: '南山区',
+          location_community: '深圳湾社区',
+          location_detail: '会所二楼活动室',
+          coach_name: '回归教练',
+          status: 'active',
+          deadline_hours: 48,
+          publish_time: '2026-04-19 09:00:00',
+          unpublish_time: '',
+          create_time: '2026-04-19 10:00:00',
+          update_time: '2026-04-20 10:00:00'
+        }
+      ],
+      total: 1,
+      total_pages: 1,
+      page: 1,
+      size: 10
+    })
+  })
+
+  await page.goto('/packages')
+  const targetRow = page.locator('tr', { hasText: '[回归] 已上架课包' })
+  await expect(targetRow.getByRole('cell', { name: '南山区 / 深圳湾社区' })).toBeVisible()
+  await expect(targetRow.getByRole('link', { name: '编辑' })).toHaveCount(0)
+
+  await page.goto('/packages/pkg-active-1')
+  await expect(page.getByRole('link', { name: '编辑' })).toHaveCount(0)
 })
 
 test('console account page can create update and delete an account', async ({ page }) => {
@@ -883,7 +954,10 @@ test('console package edit page can offline a package and return to the list', a
   })
 
   await page.goto('/packages/pkg-offline-1/edit')
-  page.once('dialog', dialog => dialog.accept())
+  page.once('dialog', dialog => {
+    expect(dialog.message()).toContain('如有进行中的拼团，将自动扭转拼团状态为失败，并退款')
+    dialog.accept()
+  })
   await page.getByRole('button', { name: '下架' }).click()
 
   await expect(page).toHaveURL(/\/packages$/)
