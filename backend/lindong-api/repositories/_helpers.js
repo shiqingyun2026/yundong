@@ -81,21 +81,8 @@ const buildInClause = values => {
 
 const createUuid = () => crypto.randomUUID()
 
-const buildOrderNo = ({ id, createdAt = new Date() }) => {
-  const timestamp = toDbDateTime(createdAt) || toDbDateTime(new Date())
-  const compact = `${timestamp}`.replace(/[- :]/g, '')
-  const suffix = crypto
-    .createHash('md5')
-    .update(`${id || crypto.randomUUID()}`)
-    .digest('hex')
-    .slice(0, 6)
-
-  return `LD${compact}${suffix}`.slice(0, 32)
-}
-
 module.exports = {
   buildInClause,
-  buildOrderNo,
   createUuid,
   createNotImplementedError,
   notImplemented,

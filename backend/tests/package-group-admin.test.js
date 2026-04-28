@@ -102,7 +102,7 @@ const loadConsoleAppWithMockedPackageService = () => {
   mockModule('console-api/services/packageAdminService.js', {
     listAdminPackages: async payload => {
       calls.push(['listAdminPackages', payload])
-      return { total: 1, page: 1, size: 10, list: [{ id: 'pkg-1' }] }
+      return { total: 1, page: 1, size: 10, list: [{ id: 'PKG-20260418-0001' }] }
     },
     getAdminPackageDetail: async payload => {
       calls.push(['getAdminPackageDetail', payload])
@@ -147,7 +147,7 @@ const loadConsoleAppWithMockedPackageService = () => {
 const createPackageRepositoryState = () => ({
   packages: clone([
     {
-      id: 'pkg-1',
+      id: 'PKG-20260418-0001',
       name: '周末体适能5次课包',
       cover: 'https://example.com/pkg.png',
       images: [],
@@ -181,7 +181,7 @@ const createPackageRepositoryState = () => ({
   groups: clone([
     {
       id: 'pg-active',
-      package_id: 'pkg-1',
+      package_id: 'PKG-20260418-0001',
       creator_id: 'user-1',
       target_count: 2,
       current_count: 1,
@@ -196,7 +196,7 @@ const createPackageRepositoryState = () => ({
     },
     {
       id: 'pg-success',
-      package_id: 'pkg-1',
+      package_id: 'PKG-20260418-0001',
       creator_id: 'user-1',
       target_count: 2,
       current_count: 2,
@@ -211,7 +211,7 @@ const createPackageRepositoryState = () => ({
     },
     {
       id: 'pg-expired',
-      package_id: 'pkg-1',
+      package_id: 'PKG-20260418-0001',
       creator_id: 'user-2',
       target_count: 4,
       current_count: 2,
@@ -228,10 +228,10 @@ const createPackageRepositoryState = () => ({
   orders: clone([
     {
       id: 'ord-refund',
-      order_no: 'LD-REFUND',
+      order_no: 'LDPKG-20260418-000001',
       user_id: 'user-1',
       order_type: 2,
-      package_id: 'pkg-1',
+      package_id: 'PKG-20260418-0001',
       package_group_id: 'pg-active',
       package_action: 'start',
       package_context: {
@@ -250,10 +250,10 @@ const createPackageRepositoryState = () => ({
     },
     {
       id: 'ord-pending',
-      order_no: 'LD-PENDING',
+      order_no: 'LDPKG-20260418-000002',
       user_id: 'user-3',
       order_type: 2,
-      package_id: 'pkg-1',
+      package_id: 'PKG-20260418-0001',
       package_group_id: 'pg-active',
       package_action: 'join',
       package_context: {
@@ -268,10 +268,10 @@ const createPackageRepositoryState = () => ({
     },
     {
       id: 'ord-success-group',
-      order_no: 'LD-SUCCESS',
+      order_no: 'LDPKG-20260418-000003',
       user_id: 'user-2',
       order_type: 2,
-      package_id: 'pkg-1',
+      package_id: 'PKG-20260418-0001',
       package_group_id: 'pg-success',
       package_action: 'join',
       package_context: {
@@ -287,10 +287,10 @@ const createPackageRepositoryState = () => ({
     },
     {
       id: 'ord-expired-1',
-      order_no: 'LD-EXPIRED-1',
+      order_no: 'LDPKG-20260416-000001',
       user_id: 'user-1',
       order_type: 2,
-      package_id: 'pkg-1',
+      package_id: 'PKG-20260418-0001',
       package_group_id: 'pg-expired',
       package_action: 'start',
       package_context: {
@@ -306,10 +306,10 @@ const createPackageRepositoryState = () => ({
     },
     {
       id: 'ord-expired-2',
-      order_no: 'LD-EXPIRED-2',
+      order_no: 'LDPKG-20260416-000002',
       user_id: 'user-2',
       order_type: 2,
-      package_id: 'pkg-1',
+      package_id: 'PKG-20260418-0001',
       package_group_id: 'pg-expired',
       package_action: 'join',
       package_context: {
@@ -329,7 +329,7 @@ const createPackageRepositoryState = () => ({
       id: 'pay-refund',
       order_id: 'ord-refund',
       user_id: 'user-1',
-      package_id: 'pkg-1',
+      package_id: 'PKG-20260418-0001',
       package_group_id: '',
       status: 'paid',
       callback_status: 'MOCK_SUCCESS',
@@ -339,7 +339,7 @@ const createPackageRepositoryState = () => ({
       id: 'pay-expired-1',
       order_id: 'ord-expired-1',
       user_id: 'user-1',
-      package_id: 'pkg-1',
+      package_id: 'PKG-20260418-0001',
       package_group_id: 'pg-expired',
       status: 'paid',
       callback_status: 'MOCK_SUCCESS',
@@ -349,7 +349,7 @@ const createPackageRepositoryState = () => ({
       id: 'pay-expired-2',
       order_id: 'ord-expired-2',
       user_id: 'user-2',
-      package_id: 'pkg-1',
+      package_id: 'PKG-20260418-0001',
       package_group_id: 'pg-expired',
       status: 'paid',
       callback_status: 'MOCK_SUCCESS',
@@ -630,7 +630,7 @@ test('admin package routes are mounted behind admin authentication', async () =>
   })
   const packageDetail = await requestJson({
     app,
-    pathname: '/api/admin/packages/pkg-1',
+    pathname: '/api/admin/packages/PKG-20260418-0001',
     headers
   })
   const createPackage = await requestJson({
@@ -643,7 +643,7 @@ test('admin package routes are mounted behind admin authentication', async () =>
   const updatePackage = await requestJson({
     app,
     method: 'PUT',
-    pathname: '/api/admin/packages/pkg-1',
+    pathname: '/api/admin/packages/PKG-20260418-0001',
     headers,
     body: { name: '编辑课包', package_category: '体适能' }
   })
@@ -691,7 +691,7 @@ test('admin package routes are mounted behind admin authentication', async () =>
   assert.equal(createBanner.body.data.title, '新 Banner')
   assert.equal(updateBanner.body.data.title, '编辑 Banner')
   assert.equal(offlineBanner.body.data.status, 'inactive')
-  assert.equal(packageDetail.body.data.id, 'pkg-1')
+  assert.equal(packageDetail.body.data.id, 'PKG-20260418-0001')
   assert.equal(createPackage.body.data.name, '新课包')
   assert.equal(createPackage.body.data.package_category, '跳绳')
   assert.equal(updatePackage.body.data.name, '编辑课包')
@@ -780,7 +780,7 @@ test('admin package order list exposes child profile and parent mobile from pack
 
   const result = await packageAdminService.listAdminPackageOrders({
     query: {
-      package_id: 'pkg-1'
+      package_id: 'PKG-20260418-0001'
     }
   })
 
@@ -809,10 +809,10 @@ test('admin package detail and order list tolerate legacy or missing package con
   state.orders.push(
     {
       id: 'ord-legacy-phone',
-      order_no: 'LD-LEGACY-PHONE',
+      order_no: 'LDPKG-LEGACY-PHONE',
       user_id: 'user-1',
       order_type: 2,
-      package_id: 'pkg-1',
+      package_id: 'PKG-20260418-0001',
       package_group_id: 'pg-active',
       package_action: 'join',
       package_context: {
@@ -829,10 +829,10 @@ test('admin package detail and order list tolerate legacy or missing package con
     },
     {
       id: 'ord-missing-context',
-      order_no: 'LD-MISSING-CONTEXT',
+      order_no: 'LDPKG-MISSING-CONTEXT',
       user_id: 'user-2',
       order_type: 2,
-      package_id: 'pkg-1',
+      package_id: 'PKG-20260418-0001',
       package_group_id: 'pg-active',
       package_action: 'join',
       package_context: null,
@@ -849,14 +849,14 @@ test('admin package detail and order list tolerate legacy or missing package con
   })
   const orders = await packageAdminService.listAdminPackageOrders({
     query: {
-      package_id: 'pkg-1'
+      package_id: 'PKG-20260418-0001'
     }
   })
 
-  const legacyDetailOrder = detail.orders.find(item => item.order_no === 'LD-LEGACY-PHONE')
-  const missingDetailOrder = detail.orders.find(item => item.order_no === 'LD-MISSING-CONTEXT')
-  const legacyListOrder = orders.list.find(item => item.order_no === 'LD-LEGACY-PHONE')
-  const missingListOrder = orders.list.find(item => item.order_no === 'LD-MISSING-CONTEXT')
+  const legacyDetailOrder = detail.orders.find(item => item.order_no === 'LDPKG-LEGACY-PHONE')
+  const missingDetailOrder = detail.orders.find(item => item.order_no === 'LDPKG-MISSING-CONTEXT')
+  const legacyListOrder = orders.list.find(item => item.order_no === 'LDPKG-LEGACY-PHONE')
+  const missingListOrder = orders.list.find(item => item.order_no === 'LDPKG-MISSING-CONTEXT')
 
   assert.equal(legacyDetailOrder.phone, '13900139000')
   assert.equal(legacyListOrder.phone, '13900139000')
@@ -1050,7 +1050,7 @@ test('admin package detail auto switches pending package to active after publish
   state.packages[0].unpublish_time = '2026-04-23T10:00:00.000Z'
 
   const result = await packageAdminService.getAdminPackageDetail({
-    packageId: 'pkg-1',
+    packageId: 'PKG-20260418-0001',
     now: new Date('2026-04-21T10:00:01.000Z')
   })
 
@@ -1065,7 +1065,7 @@ test('admin package detail auto switches active package to inactive after unpubl
   state.packages[0].unpublish_time = '2026-04-21T10:00:00.000Z'
 
   const result = await packageAdminService.getAdminPackageDetail({
-    packageId: 'pkg-1',
+    packageId: 'PKG-20260418-0001',
     now: new Date('2026-04-21T10:00:01.000Z')
   })
 
@@ -1077,12 +1077,12 @@ test('admin package offline updates package to inactive', async () => {
   const { packageAdminService, state } = loadPackageServicesWithState()
 
   const result = await packageAdminService.offlineAdminPackage({
-    packageId: 'pkg-1',
+    packageId: 'PKG-20260418-0001',
     admin: { id: 'admin-1' },
     now: new Date('2026-04-21T08:00:00.000Z')
   })
 
-  const updated = state.packages.find(item => item.id === 'pkg-1')
+  const updated = state.packages.find(item => item.id === 'PKG-20260418-0001')
   const activeGroup = state.groups.find(item => item.id === 'pg-active')
   const refundedOrder = state.orders.find(item => item.id === 'ord-refund')
   const closedOrder = state.orders.find(item => item.id === 'ord-pending')
@@ -1104,7 +1104,7 @@ test('admin package update rejects active package edit', async () => {
   await assert.rejects(
     () =>
       packageAdminService.updateAdminPackage({
-        packageId: 'pkg-1',
+        packageId: 'PKG-20260418-0001',
         payload: {
           name: '不允许编辑的已上架课包'
         },
@@ -1124,7 +1124,7 @@ test('expired package group cleanup refunds success orders and payment records',
   state.notificationEnqueueCalls = []
 
   const result = await packageGroupStore.cleanupExpiredPackageGroups({
-    packageId: 'pkg-1',
+    packageId: 'PKG-20260418-0001',
     now: new Date('2026-04-19T08:00:00.000Z')
   })
 

@@ -1,6 +1,7 @@
 module.exports = {
   adminLogRepository: require('./adminLogRepository'),
   adminUsersRepository: require('./adminUsersRepository'),
+  bizSerialCountersRepository: require('./bizSerialCountersRepository'),
   coursePackagesRepository: require('./coursePackagesRepository'),
   coursesRepository: require('./coursesRepository'),
   groupMembersRepository: require('./groupMembersRepository'),

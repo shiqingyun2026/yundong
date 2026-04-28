@@ -1,5 +1,6 @@
 const { execute, query } = require('../config/db')
 const { buildInClause, createUuid, toDbDateTime } = require('./_helpers')
+const { buildPackageGroupId } = require('./bizSerialCountersRepository')
 
 const parseJsonField = value => {
   if (value === null || value === undefined || value === '') {
@@ -56,7 +57,7 @@ const normalizePackageGroup = row => {
 }
 
 const createPackageGroup = async ({
-  id = createUuid(),
+  id,
   package_id,
   creator_id,
   target_count = 0,
@@ -70,6 +71,8 @@ const createPackageGroup = async ({
   success_time = null,
   coach_assignment = null
 }) => {
+  const resolvedId = id || (await buildPackageGroupId(created_at || deadline || new Date()))
+
   await execute(
     `
       insert into package_groups (
@@ -78,7 +81,7 @@ const createPackageGroup = async ({
       ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
-      id,
+      resolvedId,
       package_id,
       creator_id || null,
       Number(target_count) || 0,
@@ -94,7 +97,7 @@ const createPackageGroup = async ({
     ]
   )
 
-  return findPackageGroupById(id)
+  return findPackageGroupById(resolvedId)
 }
 
 const findPackageGroupById = async id => {

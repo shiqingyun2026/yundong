@@ -283,7 +283,7 @@ const loadAppForMySqlRoutes = ({ paymentProviderMode = 'mock' } = {}) => {
     createPackageStartOrder: async ({ supabase, packageId, targetCount, weekday, hour, childNickname, childAge, parentMobile, userId }) => ({
       order: {
         id: 'package-order-start-1',
-        order_no: 'PKG-ORDER-START-1',
+        order_no: 'LDPKG-20260428-000001',
         order_type: 2,
         package_action: 'start',
         package_id: packageId,
@@ -302,7 +302,7 @@ const loadAppForMySqlRoutes = ({ paymentProviderMode = 'mock' } = {}) => {
     createPackageJoinOrder: async ({ supabase, packageId, packageGroupId, childNickname, childAge, parentMobile, userId }) => ({
       order: {
         id: 'package-order-join-1',
-        order_no: 'PKG-ORDER-JOIN-1',
+        order_no: 'LDPKG-20260428-000002',
         order_type: 2,
         package_action: 'join',
         package_id: packageId,

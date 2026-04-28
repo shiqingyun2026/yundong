@@ -26,7 +26,7 @@ test('miniprogram payment confirm page: join flow validates parent fields before
 
   packageUtils.fetchPackageDetail = async () => buildPackageDetail()
   packageUtils.fetchPackageGroupDetail = async () => ({
-    id: 'pkg-group-1',
+    id: 'PG-20260428-00001',
     targetCount: 4,
     currentCount: 2,
     memberAmountFen: 49500,
@@ -42,7 +42,7 @@ test('miniprogram payment confirm page: join flow validates parent fields before
   await page.onLoad({
     action: 'join',
     packageId: 'package_seed_active_002',
-    packageGroupId: 'pkg-group-1'
+    packageGroupId: 'PG-20260428-00001'
   })
 
   await assert.rejects(
@@ -76,7 +76,7 @@ test('miniprogram payment confirm page: canceling payment closes order and redir
   packageUtils.fetchPackageDetail = async () => buildPackageDetail()
   packageUtils.createPackageStartOrder = async () => ({
     orderId: 'order-start-1',
-    packageGroupId: 'pkg-group-start-1'
+    packageGroupId: 'PG-20260428-00002'
   })
   packageUtils.preparePayment = async () => ({
     canUseRequestPayment: true,
@@ -128,7 +128,7 @@ test('miniprogram payment confirm page: mock payment success redirects to group 
 
   packageUtils.fetchPackageDetail = async () => buildPackageDetail()
   packageUtils.fetchPackageGroupDetail = async () => ({
-    id: 'pkg-group-1',
+    id: 'PG-20260428-00001',
     targetCount: 4,
     currentCount: 2,
     memberAmountFen: 49500,
@@ -137,14 +137,14 @@ test('miniprogram payment confirm page: mock payment success redirects to group 
   })
   packageUtils.createPackageJoinOrder = async () => ({
     orderId: 'order-join-1',
-    packageGroupId: 'pkg-group-1'
+    packageGroupId: 'PG-20260428-00001'
   })
   packageUtils.preparePayment = async () => ({
     canUseRequestPayment: false,
     paymentMode: 'mock'
   })
   packageUtils.mockPaymentSuccess = async () => ({
-    packageGroupId: 'pkg-group-success-1'
+    packageGroupId: 'PG-20260428-00003'
   })
   authUtils.loginAndStoreSession = async () => ({ token: 'seed-token' })
 
@@ -152,7 +152,7 @@ test('miniprogram payment confirm page: mock payment success redirects to group 
   await page.onLoad({
     action: 'join',
     packageId: 'package_seed_active_002',
-    packageGroupId: 'pkg-group-1'
+    packageGroupId: 'PG-20260428-00001'
   })
 
   page.setData({
@@ -163,7 +163,7 @@ test('miniprogram payment confirm page: mock payment success redirects to group 
 
   await page.handleConfirmPay()
 
-  assert.match(calls.redirectTo.at(-1).url, /\/pages\/group\/detail\/index\?packageGroupId=pkg-group-success-1/)
+  assert.match(calls.redirectTo.at(-1).url, /\/pages\/group\/detail\/index\?packageGroupId=PG-20260428-00003/)
   assert.match(calls.redirectTo.at(-1).url, /entry=paymentSuccess/)
   assert.match(calls.redirectTo.at(-1).url, /action=join/)
 

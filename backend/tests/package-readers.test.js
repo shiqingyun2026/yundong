@@ -284,7 +284,7 @@ test('package detail hides groups once their deadline has arrived', async () => 
   mockModule('repositories/index.js', {
     coursePackagesRepository: {
       findPackageById: async () => ({
-        id: 'pkg-1',
+        id: 'PKG-20260421-0001',
         name: '云test',
         total_price: 12000,
         group_price_config: [{ target_count: 4, price_fen: 3000 }],
@@ -304,7 +304,7 @@ test('package detail hides groups once their deadline has arrived', async () => 
         return [
           {
             id: 'group-active',
-            package_id: 'pkg-1',
+            package_id: 'PKG-20260421-0001',
             status: 'active',
             target_count: 4,
             current_count: 2,
@@ -314,7 +314,7 @@ test('package detail hides groups once their deadline has arrived', async () => 
           },
           {
             id: 'group-deadline-arrived',
-            package_id: 'pkg-1',
+            package_id: 'PKG-20260421-0001',
             status: 'active',
             target_count: 4,
             current_count: 4,
@@ -346,12 +346,12 @@ test('package detail hides groups once their deadline has arrived', async () => 
 
   const { fetchMiniProgramPackageDetail } = require(path.join(backendRoot, 'shared/services/packageReaders.js'))
   const result = await fetchMiniProgramPackageDetail({
-    packageId: 'pkg-1',
+    packageId: 'PKG-20260421-0001',
     now
   })
 
   assert.deepEqual(listedGroupArgs[0], {
-    packageId: 'pkg-1',
+    packageId: 'PKG-20260421-0001',
     statuses: ['active'],
     afterDeadline: now
   })
@@ -391,7 +391,7 @@ test('package group detail returns leader child profile, default member avatars 
   mockModule('repositories/index.js', {
     coursePackagesRepository: {
       findPackageById: async () => ({
-        id: 'pkg-1',
+        id: 'PKG-20260421-0001',
         name: '云test',
         total_price: 12000,
         group_price_config: [{ target_count: 4, price_fen: 3000 }],
@@ -407,8 +407,8 @@ test('package group detail returns leader child profile, default member avatars 
     },
     packageGroupsRepository: {
       findPackageGroupById: async () => ({
-        id: 'group-1',
-        package_id: 'pkg-1',
+        id: 'PG-20260421-00001',
+        package_id: 'PKG-20260421-0001',
         status: 'active',
         target_count: 4,
         current_count: 2,
@@ -463,7 +463,7 @@ test('package group detail returns leader child profile, default member avatars 
 
   const { fetchMiniProgramPackageGroupDetail } = require(path.join(backendRoot, 'shared/services/packageReaders.js'))
   const result = await fetchMiniProgramPackageGroupDetail({
-    packageGroupId: 'group-1',
+    packageGroupId: 'PG-20260421-00001',
     userId: 'user-2',
     now: new Date('2026-04-21T10:00:00.000Z')
   })
@@ -518,7 +518,7 @@ test('user package group list returns missing count for active groups', async ()
       listOrders: async () => [
         {
           id: 'order-1',
-          package_group_id: 'group-1',
+          package_group_id: 'PG-20260421-00001',
           package_context: {
             child_nickname: '小满',
             child_age: 6
@@ -530,8 +530,8 @@ test('user package group list returns missing count for active groups', async ()
     },
     packageGroupsRepository: {
       findPackageGroupById: async () => ({
-        id: 'group-1',
-        package_id: 'pkg-1',
+        id: 'PG-20260421-00001',
+        package_id: 'PKG-20260421-0001',
         status: 'active',
         target_count: 4,
         current_count: 2,
@@ -543,7 +543,7 @@ test('user package group list returns missing count for active groups', async ()
     coursePackagesRepository: {
       findPackagesByIds: async () => [
         {
-          id: 'pkg-1',
+          id: 'PKG-20260421-0001',
           name: '云test',
           total_price: 12000,
           group_price_config: [{ target_count: 4, price_fen: 3000 }],

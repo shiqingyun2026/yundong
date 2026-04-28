@@ -1,5 +1,6 @@
 const { execute, query } = require('../config/db')
 const { buildInClause, createUuid, parseJsonField, stringifyJsonField, toDbDateTime } = require('./_helpers')
+const { buildPackageId } = require('./bizSerialCountersRepository')
 
 const PACKAGE_CATEGORIES = ['体适能', '跳绳']
 
@@ -159,8 +160,8 @@ const listPackages = async ({ keyword = '', district = '', category = '', status
   const params = []
 
   if (keyword) {
-    conditions.push('name like ?')
-    params.push(`%${keyword}%`)
+    conditions.push('(id like ? or name like ?)')
+    params.push(`%${keyword}%`, `%${keyword}%`)
   }
 
   if (district) {
@@ -200,9 +201,10 @@ const listPackages = async ({ keyword = '', district = '', category = '', status
 
 const createPackage = async payload => {
   const now = toDbDateTime(new Date())
+  const createdAtSource = payload.created_at || payload.publish_time || new Date()
   const data = {
     ...payload,
-    id: payload.id || createUuid(),
+    id: payload.id || (await buildPackageId(createdAtSource)),
     images: JSON.stringify(Array.isArray(payload.images) ? payload.images : []),
     total_price: Number(payload.total_price || 0),
     package_category: normalizePackageCategory(payload.package_category),

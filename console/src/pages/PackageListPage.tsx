@@ -133,9 +133,9 @@ export function PackageListPage() {
       <section className="panel search-panel">
         <div className="filter-grid">
           <label className="filter-field">
-            <span>课包名称</span>
+            <span>课包编号 / 名称</span>
             <input
-              placeholder="按课包名称搜索"
+              placeholder="按课包编号或名称搜索"
               value={keyword}
               onChange={event => setKeyword(event.target.value)}
             />
@@ -196,7 +196,12 @@ export function PackageListPage() {
               <tbody>
                 {items.map(item => (
                   <tr key={item.id}>
-                    <td>{item.name || '-'}</td>
+                    <td>
+                      <div>
+                        <strong>{item.name || '-'}</strong>
+                        <p className="table-subtext">课包编号：{item.id || '-'}</p>
+                      </div>
+                    </td>
                     <td>{item.package_category || '-'}</td>
                     <td>{item.age_range || '-'}</td>
                     <td>{item.class_count > 0 && item.class_duration_minutes > 0 ? `${item.class_count}节 / ${item.class_duration_minutes}分钟` : '-'}</td>

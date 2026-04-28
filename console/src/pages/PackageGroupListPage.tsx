@@ -175,8 +175,8 @@ export function PackageGroupListPage() {
       <section className="panel search-panel">
         <div className="filter-grid">
           <label className="filter-field">
-            <span>课包 ID</span>
-            <input placeholder="按课包 ID 过滤" value={packageId} onChange={event => setPackageId(event.target.value)} />
+            <span>课包编号</span>
+            <input placeholder="按课包编号过滤" value={packageId} onChange={event => setPackageId(event.target.value)} />
           </label>
           <label className="filter-field">
             <span>拼团状态</span>
@@ -209,7 +209,7 @@ export function PackageGroupListPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>拼团 ID</th>
+                  <th>拼团编号</th>
                   <th>所属课包</th>
                   <th>状态</th>
                   <th>拼团进度</th>
@@ -227,7 +227,7 @@ export function PackageGroupListPage() {
                       <td>
                         <div>
                           <strong>{item.package_name || '-'}</strong>
-                          <p className="table-subtext">课包 ID: {item.package_id || '-'}</p>
+                          <p className="table-subtext">课包编号：{item.package_id || '-'}</p>
                         </div>
                       </td>
                       <td>{getStatusText(item.status)}</td>

@@ -1051,7 +1051,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>拼团 ID</th>
+                        <th>拼团编号</th>
                         <th>状态</th>
                         <th>进度</th>
                         <th>排课信息</th>

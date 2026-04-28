@@ -150,7 +150,7 @@ export function PackageOrderListPage() {
           <label className="filter-field">
             <span>关键词</span>
             <input
-              placeholder="订单号 / 用户昵称 / 孩子昵称 / 家长手机号 / 课包名 / 拼团ID"
+              placeholder="订单号 / 用户昵称 / 孩子昵称 / 家长手机号 / 课包名 / 拼团编号"
               value={keyword}
               onChange={event => setKeyword(event.target.value)}
             />
@@ -166,15 +166,15 @@ export function PackageOrderListPage() {
             </select>
           </label>
           <label className="filter-field">
-            <span>课包 ID</span>
-            <input value={packageId} onChange={event => setPackageId(event.target.value)} placeholder="按课包 ID 过滤" />
+            <span>课包编号</span>
+            <input value={packageId} onChange={event => setPackageId(event.target.value)} placeholder="按课包编号过滤" />
           </label>
           <label className="filter-field">
-            <span>拼团 ID</span>
+            <span>拼团编号</span>
             <input
               value={packageGroupId}
               onChange={event => setPackageGroupId(event.target.value)}
-              placeholder="按拼团 ID 过滤"
+              placeholder="按拼团编号过滤"
             />
           </label>
         </div>
@@ -231,7 +231,7 @@ export function PackageOrderListPage() {
                     <td>
                       <div>
                         <strong>{item.package_name || '-'}</strong>
-                        <p className="table-subtext">课包 ID: {item.package_id || '-'}</p>
+                        <p className="table-subtext">课包编号：{item.package_id || '-'}</p>
                         <p className="table-subtext">动作: {getActionText(item.action)}</p>
                       </div>
                     </td>
@@ -326,13 +326,13 @@ export function PackageOrderListPage() {
                 <p>孩子年龄：{selectedOrder.child_age ?? '-'}</p>
                 <p>家长手机号：{selectedOrder.phone || '未补录'}</p>
                 <p>课包名称：{selectedOrder.package_name || '-'}</p>
-                <p>课包 ID：{selectedOrder.package_id || '-'}</p>
+                <p>课包编号：{selectedOrder.package_id || '-'}</p>
                 <p>动作：{getActionText(selectedOrder.action)}</p>
                 <p>支付金额：{selectedOrder.amount_text || '-'}</p>
               </div>
               <div className="detail-card">
                 <strong>拼团信息</strong>
-                <p>拼团 ID：{selectedOrder.package_group_id || '-'}</p>
+                <p>拼团编号：{selectedOrder.package_group_id || '-'}</p>
                 <p>拼团状态：{getGroupStatusText(selectedOrder.package_group_status)}</p>
                 <p>退款原因：{selectedOrder.refund_reason || '-'}</p>
                 <p>更新时间：{selectedOrder.update_time || '-'}</p>

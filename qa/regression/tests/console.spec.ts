@@ -358,7 +358,7 @@ test('console package edit page can update a pending package and view linked pac
     await fulfillJson(route, {
       list: [
         {
-          id: 'pkg-group-1',
+          id: 'PG-20260420-00001',
           package_id: 'pkg-edit-1',
           package_name: '[回归] 课包编辑页',
           creator_id: 'user-1',
@@ -390,14 +390,14 @@ test('console package edit page can update a pending package and view linked pac
       list: [
         {
           id: 'pkg-order-1',
-          order_no: 'LDPKG-EDIT-01',
+          order_no: 'LDPKG-20260420-000001',
           user_id: 'user-1',
           nickname: '测试家长',
           phone: '13800000000',
           avatar_url: '',
           package_id: 'pkg-edit-1',
           package_name: '[回归] 课包编辑页',
-          package_group_id: 'pkg-group-1',
+          package_group_id: 'PG-20260420-00001',
           package_group_status: 'active',
           amount_fen: 47200,
           amount_text: '472.00',
@@ -433,12 +433,12 @@ test('console package edit page can update a pending package and view linked pac
   await page.goto('/packages/pkg-edit-1')
   await page.locator('.page-actions').getByRole('link', { name: '查看拼团' }).click()
   await expect(page).toHaveURL(/\/package-groups\?package_id=pkg-edit-1$/)
-  await expect(page.getByText('pkg-group-1')).toBeVisible()
+  await expect(page.getByText('PG-20260420-00001')).toBeVisible()
 
   await page.goto('/packages/pkg-edit-1')
   await page.locator('.page-actions').getByRole('link', { name: '查看订单' }).click()
   await expect(page).toHaveURL(/\/package-orders\?package_id=pkg-edit-1$/)
-  await expect(page.getByText('LDPKG-EDIT-01')).toBeVisible()
+  await expect(page.getByText('LDPKG-20260420-000001')).toBeVisible()
 })
 
 test('console active package pages hide edit entry and list location only shows district plus community', async ({ page }) => {

@@ -76,9 +76,9 @@ export function PackageGroupDetailPage() {
           <div className="detail-grid">
             <div className="detail-card">
               <strong>拼团基础信息</strong>
-              <p>拼团 ID：{detail.id}</p>
+              <p>拼团编号：{detail.id}</p>
               <p>所属课包：{detail.package_name || '-'}</p>
-              <p>课包 ID：{detail.package_id || '-'}</p>
+              <p>课包编号：{detail.package_id || '-'}</p>
               <p>拼团状态：{getGroupStatusText(detail.status)}</p>
               <p>课包状态：{detail.package_status_text || '-'}</p>
               <p>

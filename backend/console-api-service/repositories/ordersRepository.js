@@ -1,5 +1,6 @@
 const { execute, query } = require('../config/db')
-const { buildInClause, buildOrderNo, createUuid, parseJsonField, stringifyJsonField, toDbDateTime } = require('./_helpers')
+const { buildInClause, createUuid, parseJsonField, stringifyJsonField, toDbDateTime } = require('./_helpers')
+const { buildPackageOrderNo } = require('./bizSerialCountersRepository')
 
 const ORDER_SELECT_FIELDS = `
   id,
@@ -75,7 +76,7 @@ const createOrder = async ({
   const createdAt = toDbDateTime(created_at) || toDbDateTime(new Date())
   const updatedAt = toDbDateTime(updated_at) || createdAt
   const resolvedId = id || createUuid()
-  const resolvedOrderNo = order_no || buildOrderNo({ id: resolvedId, createdAt })
+  const resolvedOrderNo = order_no || (await buildPackageOrderNo(created_at || new Date()))
 
   await execute(
     `

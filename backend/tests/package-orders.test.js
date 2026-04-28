@@ -36,8 +36,8 @@ test('package orders allow the same user to join the same package group multiple
     closedOrderIds: [],
     orders: [],
     group: {
-      id: 'group-1',
-      package_id: 'pkg-1',
+      id: 'PG-20260422-00001',
+      package_id: 'PKG-20260422-0001',
       status: 'active',
       target_count: 4,
       current_count: 1,
@@ -58,7 +58,7 @@ test('package orders allow the same user to join the same package group multiple
   mockModule('repositories/index.js', {
     coursePackagesRepository: {
       findPackageById: async () => ({
-        id: 'pkg-1',
+        id: 'PKG-20260422-0001',
         status: 1,
         total_price: 12000,
         supported_people: [4],
@@ -124,8 +124,8 @@ test('package orders allow the same user to join the same package group multiple
 
   const firstJoin = await createPackageJoinOrder({
     userId: 'user-1',
-    packageId: 'pkg-1',
-    packageGroupId: 'group-1',
+    packageId: 'PKG-20260422-0001',
+    packageGroupId: 'PG-20260422-00001',
     childNickname: '小满',
     childAge: 6,
     parentMobile: '13800138000',
@@ -139,8 +139,8 @@ test('package orders allow the same user to join the same package group multiple
 
   const secondJoin = await createPackageJoinOrder({
     userId: 'user-1',
-    packageId: 'pkg-1',
-    packageGroupId: 'group-1',
+    packageId: 'PKG-20260422-0001',
+    packageGroupId: 'PG-20260422-00001',
     childNickname: '乐乐',
     childAge: 5,
     parentMobile: '13800138001',
@@ -163,7 +163,7 @@ test('package orders allow the same user to join the same package group multiple
   assert.equal(state.orders[1].status, 'success')
   assert.equal(state.group.current_count, 3)
   assert.equal(state.group.status, 'active')
-  assert.equal(secondPayment.packageGroupId, 'group-1')
+  assert.equal(secondPayment.packageGroupId, 'PG-20260422-00001')
 })
 
 test('package start payment creates group with configured deadline hours', async () => {
@@ -183,7 +183,7 @@ test('package start payment creates group with configured deadline hours', async
         id: 'order-start-1',
         user_id: 'user-1',
         order_type: 2,
-        package_id: 'pkg-1',
+        package_id: 'PKG-20260422-0001',
         package_group_id: null,
         package_action: 'start',
         package_context: {
@@ -205,7 +205,7 @@ test('package start payment creates group with configured deadline hours', async
   mockModule('repositories/index.js', {
     coursePackagesRepository: {
       findPackageById: async () => ({
-        id: 'pkg-1',
+        id: 'PKG-20260422-0001',
         status: 1,
         total_price: 12000,
         supported_people: [4],
@@ -225,7 +225,7 @@ test('package start payment creates group with configured deadline hours', async
     packageGroupsRepository: {
       createPackageGroup: async payload => {
         state.group = {
-          id: 'group-start-1',
+          id: 'PG-20260422-00002',
           ...payload
         }
         return { ...state.group }
@@ -257,7 +257,7 @@ test('package start payment creates group with configured deadline hours', async
 
   assert.equal(state.group.deadline.toISOString(), '2026-04-24T07:00:00.000Z')
   assert.equal(state.orders[0].status, 'success')
-  assert.equal(state.orders[0].package_group_id, 'group-start-1')
+  assert.equal(state.orders[0].package_group_id, 'PG-20260422-00002')
 })
 
 test('package orders enqueue group success notification when join payment completes the group', async () => {
@@ -276,15 +276,15 @@ test('package orders enqueue group success notification when join payment comple
         id: 'order-join-success',
         user_id: 'user-2',
         order_type: 2,
-        package_id: 'pkg-1',
-        package_group_id: 'group-1',
+        package_id: 'PKG-20260422-0001',
+        package_group_id: 'PG-20260422-00001',
         package_action: 'join',
         status: 'pending'
       }
     ],
     group: {
-      id: 'group-1',
-      package_id: 'pkg-1',
+      id: 'PG-20260422-00001',
+      package_id: 'PKG-20260422-0001',
       status: 'active',
       target_count: 4,
       current_count: 3,
@@ -306,7 +306,7 @@ test('package orders enqueue group success notification when join payment comple
   mockModule('repositories/index.js', {
     coursePackagesRepository: {
       findPackageById: async () => ({
-        id: 'pkg-1',
+        id: 'PKG-20260422-0001',
         status: 1,
         total_price: 12000,
         supported_people: [4],
@@ -362,7 +362,7 @@ test('package orders enqueue group success notification when join payment comple
   assert.equal(state.group.status, 'success')
   assert.equal(state.group.current_count, 4)
   assert.equal(state.enqueueCalls.length, 1)
-  assert.equal(state.enqueueCalls[0].groupId, 'group-1')
+  assert.equal(state.enqueueCalls[0].groupId, 'PG-20260422-00001')
   assert.equal(state.enqueueCalls[0].resultType, 'success')
 })
 
@@ -383,7 +383,7 @@ test('wechat payment callback marks package order paid through package flow', as
       id: 'payment-record-1',
       order_id: 'package-order-1',
       user_id: 'user-1',
-      out_trade_no: 'PKG-ORDER-1',
+      out_trade_no: 'LDPKG-20260422-000099',
       transaction_id: '',
       status: 'pending',
       callback_status: '',
@@ -395,8 +395,8 @@ test('wechat payment callback marks package order paid through package flow', as
       id: 'package-order-1',
       user_id: 'user-1',
       order_type: 2,
-      package_id: 'pkg-1',
-      package_group_id: 'group-1',
+      package_id: 'PKG-20260422-0001',
+      package_group_id: 'PG-20260422-00001',
       status: 'pending'
     }
   }
@@ -443,7 +443,7 @@ test('wechat payment callback marks package order paid through package flow', as
       return {
         order: { ...state.order },
         status: 'success',
-        packageGroupId: 'group-1'
+        packageGroupId: 'PG-20260422-00001'
       }
     }
   })
@@ -451,7 +451,7 @@ test('wechat payment callback marks package order paid through package flow', as
   const { handleWechatPaymentCallback } = require(path.join(backendRoot, 'shared/services/paymentShell.js'))
   const result = await handleWechatPaymentCallback({
     payload: {
-      out_trade_no: 'PKG-ORDER-1',
+      out_trade_no: 'LDPKG-20260422-000099',
       transaction_id: 'wx-transaction-1',
       trade_state: 'SUCCESS'
     },
