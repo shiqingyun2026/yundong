@@ -467,3 +467,39 @@ test('wechat payment callback marks package order paid through package flow', as
   assert.equal(state.packagePaymentSuccessCalls[0].orderId, 'package-order-1')
   assert.equal(state.groupPaymentSuccessCalls.length, 0)
 })
+
+test('payment shell resolves cloudpay provider mode', async () => {
+  clearModules([
+    'config/env.js',
+    'repositories/index.js',
+    'shared/services/wechatMiniProgram.js',
+    'shared/services/paymentShell.js'
+  ])
+
+  process.env.PAYMENT_PROVIDER_MODE = 'cloudpay'
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true,
+      paymentProviderMode: 'cloudpay',
+      internalPaymentSecret: 'test-secret'
+    }
+  })
+
+  mockModule('repositories/index.js', {
+    ordersRepository: {},
+    paymentRecordsRepository: {},
+    usersRepository: {}
+  })
+
+  mockModule('shared/services/wechatMiniProgram.js', {
+    createMiniProgramPayment: async () => ({}),
+    buildMiniProgramPaymentParams: () => ({}),
+    decryptWechatPayResource: value => value
+  })
+
+  const { isCloudPayPaymentMode, isWechatPaymentMode } = require(path.join(backendRoot, 'shared/services/paymentShell.js'))
+
+  assert.equal(isCloudPayPaymentMode(), true)
+  assert.equal(isWechatPaymentMode(), false)
+})

@@ -45,6 +45,8 @@ const env = {
   appOrigin: getOptionalEnv('APP_ORIGIN'),
   consoleOrigin: getOptionalEnv('CONSOLE_ORIGIN'),
   useMySqlRepositories: toBool(process.env.USE_MYSQL_REPOSITORIES),
+  paymentProviderMode: pickFirst(process.env.PAYMENT_PROVIDER_MODE, 'mock').toLowerCase(),
+  internalPaymentSecret: getOptionalEnv('INTERNAL_PAYMENT_SECRET'),
   trustCloudBaseMiniProgramIdentity: toBool(process.env.TRUST_CLOUDBASE_MINIPROGRAM_IDENTITY),
   enableMiniProgramIdentityLogs: toBool(process.env.ENABLE_MINIPROGRAM_IDENTITY_LOGS),
   mysql: {

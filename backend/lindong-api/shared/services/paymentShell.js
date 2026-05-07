@@ -9,6 +9,7 @@ const {
 
 const PAYMENT_MODE_MOCK = 'mock'
 const PAYMENT_MODE_WECHAT = 'wechat'
+const PAYMENT_MODE_CLOUDPAY = 'cloudpay'
 
 const createServiceError = (status, message) => {
   const error = new Error(message)
@@ -22,11 +23,19 @@ const markPackageOrderPaymentSuccess = async payload => {
 }
 
 const resolvePaymentMode = () => {
-  const mode = `${process.env.PAYMENT_PROVIDER_MODE || PAYMENT_MODE_MOCK}`.trim().toLowerCase()
-  return mode === PAYMENT_MODE_WECHAT ? PAYMENT_MODE_WECHAT : PAYMENT_MODE_MOCK
+  const mode = `${env.paymentProviderMode || process.env.PAYMENT_PROVIDER_MODE || PAYMENT_MODE_MOCK}`.trim().toLowerCase()
+  if (mode === PAYMENT_MODE_WECHAT) {
+    return PAYMENT_MODE_WECHAT
+  }
+  if (mode === PAYMENT_MODE_CLOUDPAY) {
+    return PAYMENT_MODE_CLOUDPAY
+  }
+  return PAYMENT_MODE_MOCK
 }
 
 const isWechatPaymentMode = () => resolvePaymentMode() === PAYMENT_MODE_WECHAT
+
+const isCloudPayPaymentMode = () => resolvePaymentMode() === PAYMENT_MODE_CLOUDPAY
 
 const buildOutTradeNo = order => {
   const base = (order && (order.order_no || order.id) ? `${order.order_no || order.id}` : '').replace(/[^a-zA-Z0-9_-]/g, '')
@@ -788,11 +797,13 @@ const markPaymentRecordRefunded = async ({ supabase, orderId, reason = '', now =
 module.exports = {
   PAYMENT_MODE_MOCK,
   PAYMENT_MODE_WECHAT,
+  PAYMENT_MODE_CLOUDPAY,
   closeOrderPayment,
   createServiceError,
   prepareOrderPayment,
   getOrderPaymentStatus,
   handleWechatPaymentCallback,
+  isCloudPayPaymentMode,
   isWechatPaymentMode,
   markPaymentRecordPaid,
   markPaymentRecordRefunded
