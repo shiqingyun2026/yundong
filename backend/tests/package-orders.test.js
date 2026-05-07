@@ -503,3 +503,85 @@ test('payment shell resolves cloudpay provider mode', async () => {
   assert.equal(isCloudPayPaymentMode(), true)
   assert.equal(isWechatPaymentMode(), false)
 })
+
+test('cloudpay preparation returns trusted unified order payload from stored order', async () => {
+  clearModules([
+    'config/env.js',
+    'repositories/index.js',
+    'shared/services/wechatMiniProgram.js',
+    'shared/services/paymentShell.js'
+  ])
+
+  const state = {
+    paymentRecord: null,
+    order: {
+      id: 'package-order-prepare-1',
+      order_no: 'LDPKG-20260507-000001',
+      user_id: 'user-1',
+      order_type: 2,
+      course_id: null,
+      group_id: null,
+      package_id: 'PKG-20260507-0001',
+      package_group_id: 'PG-20260507-0001',
+      package_action: 'join',
+      amount: 3000,
+      status: 'pending'
+    },
+    user: {
+      id: 'user-1',
+      openid: 'wx-openid-1',
+      nickname: '微信用户'
+    }
+  }
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true,
+      paymentProviderMode: 'cloudpay',
+      internalPaymentSecret: 'test-secret'
+    }
+  })
+
+  mockModule('repositories/index.js', {
+    ordersRepository: {
+      findOrderForUser: async ({ userId, orderId }) =>
+        userId === state.order.user_id && orderId === state.order.id ? { ...state.order } : null
+    },
+    usersRepository: {
+      findUserById: async id => (id === state.user.id ? { ...state.user } : null)
+    },
+    paymentRecordsRepository: {
+      findPaymentRecordByOrderId: async orderId =>
+        state.paymentRecord && state.paymentRecord.order_id === orderId ? { ...state.paymentRecord } : null,
+      createPaymentRecord: async payload => {
+        state.paymentRecord = {
+          id: 'payment-record-cloudpay-1',
+          ...payload
+        }
+        return { ...state.paymentRecord }
+      }
+    }
+  })
+
+  mockModule('shared/services/wechatMiniProgram.js', {
+    createMiniProgramPayment: async () => ({}),
+    buildMiniProgramPaymentParams: () => ({}),
+    decryptWechatPayResource: value => value
+  })
+
+  const { prepareCloudPayUnifiedOrder } = require(path.join(backendRoot, 'shared/services/paymentShell.js'))
+  const result = await prepareCloudPayUnifiedOrder({
+    userId: 'user-1',
+    openId: 'wx-openid-1',
+    orderId: 'package-order-prepare-1',
+    now: new Date('2026-05-07T10:00:00.000Z')
+  })
+
+  assert.equal(result.body.includes('邻动体适能课程报名'), true)
+  assert.equal(result.outTradeNo, 'LDPKG-20260507-000001')
+  assert.equal(result.totalFee, 3000)
+  assert.equal(result.openId, 'wx-openid-1')
+  assert.equal(JSON.parse(result.attach).orderId, 'package-order-prepare-1')
+  assert.equal(state.paymentRecord.payment_mode, 'cloudpay')
+  assert.equal(state.paymentRecord.amount, 3000)
+})

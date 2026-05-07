@@ -409,6 +409,62 @@ const prepareWechatPayment = async ({ supabase, order, now = new Date() }) => {
   }
 }
 
+const prepareCloudPayUnifiedOrder = async ({ supabase, userId, openId, orderId, now = new Date() }) => {
+  const order = await getOrderForUser({
+    supabase,
+    userId,
+    orderId
+  })
+
+  ensureOrderPayable(order)
+
+  const user = await getUserById({
+    supabase,
+    userId: order.user_id
+  })
+
+  const resolvedOpenId = `${openId || (user && user.openid) || ''}`.trim()
+  if (!resolvedOpenId) {
+    throw createServiceError(400, 'user openid is required for cloudpay')
+  }
+
+  if (user && user.openid && user.openid !== resolvedOpenId) {
+    throw createServiceError(403, 'openid does not match order user')
+  }
+
+  const paymentRecord = await upsertPaymentRecord({
+    supabase,
+    order,
+    paymentMode: PAYMENT_MODE_CLOUDPAY,
+    payload: {
+      orderId: order.id,
+      courseId: order.course_id,
+      groupId: order.group_id,
+      packageId: order.package_id,
+      packageGroupId: order.package_group_id
+    },
+    now
+  })
+
+  const attach = JSON.stringify({
+    orderId: order.id,
+    groupId: order.group_id || '',
+    courseId: order.course_id || '',
+    packageId: order.package_id || '',
+    packageGroupId: order.package_group_id || ''
+  })
+
+  return {
+    orderId: order.id,
+    openId: resolvedOpenId,
+    body: buildPaymentDescription({ order, user }),
+    outTradeNo: paymentRecord.out_trade_no,
+    totalFee: Number(order.amount) || 0,
+    attach,
+    paymentRecordId: paymentRecord.id
+  }
+}
+
 const prepareOrderPayment = async ({ supabase, userId, orderId, now = new Date() }) => {
   const order = await getOrderForUser({
     supabase,
@@ -806,5 +862,6 @@ module.exports = {
   isCloudPayPaymentMode,
   isWechatPaymentMode,
   markPaymentRecordPaid,
-  markPaymentRecordRefunded
+  markPaymentRecordRefunded,
+  prepareCloudPayUnifiedOrder
 }
