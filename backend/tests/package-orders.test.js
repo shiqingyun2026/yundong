@@ -673,3 +673,68 @@ test('cloudpay callback rejects amount mismatch before marking paid', async () =
   assert.equal(state.packagePaymentSuccessCalls.length, 0)
   assert.equal(state.paymentRecord.status, 'pending')
 })
+
+test('cloudpay refund preparation returns stable refund number for paid order', async () => {
+  clearModules([
+    'config/env.js',
+    'repositories/index.js',
+    'shared/services/wechatMiniProgram.js',
+    'shared/services/paymentShell.js'
+  ])
+
+  const state = {
+    order: {
+      id: 'package-order-refund-1',
+      order_no: 'LDPKG-20260507-000003',
+      user_id: 'user-1',
+      order_type: 2,
+      amount: 3000,
+      status: 'success'
+    },
+    paymentRecord: {
+      id: 'payment-record-refund-1',
+      order_id: 'package-order-refund-1',
+      out_trade_no: 'LDPKG-20260507-000003',
+      transaction_id: 'wx-transaction-refund-1',
+      amount: 3000,
+      status: 'paid'
+    }
+  }
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true,
+      paymentProviderMode: 'cloudpay',
+      internalPaymentSecret: 'test-secret'
+    }
+  })
+
+  mockModule('repositories/index.js', {
+    ordersRepository: {
+      findOrderById: async orderId => (orderId === state.order.id ? { ...state.order } : null)
+    },
+    paymentRecordsRepository: {
+      findPaymentRecordByOrderId: async orderId =>
+        orderId === state.paymentRecord.order_id ? { ...state.paymentRecord } : null
+    },
+    usersRepository: {}
+  })
+
+  mockModule('shared/services/wechatMiniProgram.js', {
+    createMiniProgramPayment: async () => ({}),
+    buildMiniProgramPaymentParams: () => ({}),
+    decryptWechatPayResource: value => value
+  })
+
+  const { prepareCloudPayRefund } = require(path.join(backendRoot, 'shared/services/paymentShell.js'))
+  const result = await prepareCloudPayRefund({
+    orderId: 'package-order-refund-1',
+    reason: '用户协商退款'
+  })
+
+  assert.equal(result.orderId, 'package-order-refund-1')
+  assert.equal(result.outTradeNo, 'LDPKG-20260507-000003')
+  assert.equal(result.outRefundNo, 'RF-LDPKG-20260507-000003')
+  assert.equal(result.totalFee, 3000)
+  assert.equal(result.refundFee, 3000)
+})

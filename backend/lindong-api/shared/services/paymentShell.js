@@ -42,6 +42,8 @@ const buildOutTradeNo = order => {
   return base || `order_${Date.now()}`
 }
 
+const buildOutRefundNo = order => `RF-${buildOutTradeNo(order)}`.slice(0, 64)
+
 const getOrderForUser = async ({ supabase, userId, orderId }) => {
   if (env.useMySqlRepositories) {
     return ordersRepository.findOrderForUser({
@@ -966,6 +968,50 @@ const markPaymentRecordRefunded = async ({ supabase, orderId, reason = '', now =
   return data
 }
 
+const prepareCloudPayRefund = async ({ supabase, orderId, reason = '' }) => {
+  const order = await getOrderById({
+    supabase,
+    orderId
+  })
+  if (!order) {
+    throw createServiceError(404, 'order not found')
+  }
+  if (order.status !== 'success') {
+    throw createServiceError(400, 'only paid order can be refunded')
+  }
+
+  const paymentRecord = await getPaymentRecordByOrderId({
+    supabase,
+    orderId: order.id
+  })
+  if (!paymentRecord || paymentRecord.status !== 'paid') {
+    throw createServiceError(400, 'paid payment record is required')
+  }
+
+  return {
+    orderId: order.id,
+    outTradeNo: paymentRecord.out_trade_no || buildOutTradeNo(order),
+    outRefundNo: buildOutRefundNo(order),
+    totalFee: Number(order.amount) || Number(paymentRecord.amount) || 0,
+    refundFee: Number(order.amount) || Number(paymentRecord.amount) || 0,
+    refundDesc: `${reason || '课程退款'}`.slice(0, 80)
+  }
+}
+
+const markCloudPayRefundResult = async ({ supabase, payload, now = new Date() }) => {
+  const orderId = payload && payload.orderId
+  if (!orderId) {
+    throw createServiceError(400, 'orderId is required')
+  }
+
+  return markPaymentRecordRefunded({
+    supabase,
+    orderId,
+    reason: (payload && payload.reason) || 'cloudpay refund confirmed',
+    now
+  })
+}
+
 module.exports = {
   PAYMENT_MODE_MOCK,
   PAYMENT_MODE_WECHAT,
@@ -980,5 +1026,7 @@ module.exports = {
   isWechatPaymentMode,
   markPaymentRecordPaid,
   markPaymentRecordRefunded,
+  markCloudPayRefundResult,
+  prepareCloudPayRefund,
   prepareCloudPayUnifiedOrder
 }

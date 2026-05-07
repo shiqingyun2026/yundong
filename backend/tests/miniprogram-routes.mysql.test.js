@@ -369,6 +369,19 @@ const loadAppForMySqlRoutes = ({ paymentProviderMode = 'mock' } = {}) => {
       orderStatus: 'success',
       paymentRecordStatus: 'paid'
     }),
+    prepareCloudPayRefund: async ({ orderId, reason }) => ({
+      orderId,
+      outTradeNo: 'LDPKG-20260428-000001',
+      outRefundNo: 'RF-LDPKG-20260428-000001',
+      totalFee: 33333,
+      refundFee: 33333,
+      refundDesc: reason || '课程退款'
+    }),
+    markCloudPayRefundResult: async ({ payload }) => ({
+      order_id: payload.orderId,
+      status: 'refunded',
+      callback_status: 'REFUNDED'
+    }),
     markPaymentRecordPaid: async ({ supabase, orderId }) => ({
       orderId,
       supabaseWasPassed: supabase
@@ -982,4 +995,50 @@ test('internal cloudpay callback route requires secret and confirms payment', as
   assert.equal(confirmed.status, 200)
   assert.equal(confirmed.body.orderId, 'package-order-start-1')
   assert.equal(confirmed.body.paymentRecordStatus, 'paid')
+})
+
+test('internal cloudpay refund routes require secret and return refund payload', async () => {
+  const app = loadAppForMySqlRoutes({ paymentProviderMode: 'cloudpay' })
+
+  const forbidden = await requestJson({
+    app,
+    method: 'POST',
+    pathname: '/api/payments/internal/cloudpay/refund/prepare',
+    body: {
+      orderId: 'package-order-start-1',
+      reason: '用户协商退款'
+    }
+  })
+
+  const prepared = await requestJson({
+    app,
+    method: 'POST',
+    pathname: '/api/payments/internal/cloudpay/refund/prepare',
+    headers: {
+      'x-internal-payment-secret': 'test-secret'
+    },
+    body: {
+      orderId: 'package-order-start-1',
+      reason: '用户协商退款'
+    }
+  })
+
+  const confirmed = await requestJson({
+    app,
+    method: 'POST',
+    pathname: '/api/payments/internal/cloudpay/refund/confirm',
+    headers: {
+      'x-internal-payment-secret': 'test-secret'
+    },
+    body: {
+      orderId: 'package-order-start-1',
+      outRefundNo: 'RF-LDPKG-20260428-000001'
+    }
+  })
+
+  assert.equal(forbidden.status, 403)
+  assert.equal(prepared.status, 200)
+  assert.equal(prepared.body.outRefundNo, 'RF-LDPKG-20260428-000001')
+  assert.equal(confirmed.status, 200)
+  assert.equal(confirmed.body.status, 'refunded')
 })

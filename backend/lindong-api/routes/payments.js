@@ -14,7 +14,9 @@ const {
   handleCloudPayPaymentCallback,
   handleWechatPaymentCallback,
   isWechatPaymentMode,
+  markCloudPayRefundResult,
   markPaymentRecordPaid,
+  prepareCloudPayRefund,
   prepareCloudPayUnifiedOrder,
   prepareOrderPayment
 } = require('../shared/services/paymentShell')
@@ -88,6 +90,60 @@ router.post('/internal/cloudpay/callback', async (req, res) => {
     })
     return res.status(isServiceError(error) ? error.status : 500).json({
       message: error.message || 'failed to process cloudpay callback'
+    })
+  }
+})
+
+router.post('/internal/cloudpay/refund/prepare', async (req, res) => {
+  if (!requireInternalPaymentSecret(req, res)) {
+    return
+  }
+
+  const { orderId, reason } = req.body || {}
+  if (!orderId) {
+    return res.status(400).json({
+      message: 'orderId is required'
+    })
+  }
+
+  try {
+    return res.json(
+      await prepareCloudPayRefund({
+        supabase: resolveSupabase(),
+        orderId,
+        reason
+      })
+    )
+  } catch (error) {
+    console.error('[payments/internal/cloudpay/refund/prepare] failed', {
+      orderId,
+      error
+    })
+    return res.status(isServiceError(error) ? error.status : 500).json({
+      message: error.message || 'failed to prepare cloudpay refund'
+    })
+  }
+})
+
+router.post('/internal/cloudpay/refund/confirm', async (req, res) => {
+  if (!requireInternalPaymentSecret(req, res)) {
+    return
+  }
+
+  try {
+    return res.json(
+      await markCloudPayRefundResult({
+        supabase: resolveSupabase(),
+        payload: req.body || {}
+      })
+    )
+  } catch (error) {
+    console.error('[payments/internal/cloudpay/refund/confirm] failed', {
+      payload: req.body || {},
+      error
+    })
+    return res.status(isServiceError(error) ? error.status : 500).json({
+      message: error.message || 'failed to confirm cloudpay refund'
     })
   }
 })
