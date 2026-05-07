@@ -953,3 +953,33 @@ test('internal cloudpay prepare route requires secret and returns trusted payloa
   assert.equal(prepared.body.orderId, 'package-order-start-1')
   assert.equal(prepared.body.outTradeNo.length > 0, true)
 })
+
+test('internal cloudpay callback route requires secret and confirms payment', async () => {
+  const app = loadAppForMySqlRoutes({ paymentProviderMode: 'cloudpay' })
+
+  const forbidden = await requestJson({
+    app,
+    method: 'POST',
+    pathname: '/api/payments/internal/cloudpay/callback',
+    body: {
+      orderId: 'package-order-start-1'
+    }
+  })
+
+  const confirmed = await requestJson({
+    app,
+    method: 'POST',
+    pathname: '/api/payments/internal/cloudpay/callback',
+    headers: {
+      'x-internal-payment-secret': 'test-secret'
+    },
+    body: {
+      orderId: 'package-order-start-1'
+    }
+  })
+
+  assert.equal(forbidden.status, 403)
+  assert.equal(confirmed.status, 200)
+  assert.equal(confirmed.body.orderId, 'package-order-start-1')
+  assert.equal(confirmed.body.paymentRecordStatus, 'paid')
+})

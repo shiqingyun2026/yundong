@@ -11,6 +11,7 @@ const { normalizeGroupStatus } = require('../shared/domain/groupRules')
 const {
   closeOrderPayment,
   getOrderPaymentStatus,
+  handleCloudPayPaymentCallback,
   handleWechatPaymentCallback,
   isWechatPaymentMode,
   markPaymentRecordPaid,
@@ -64,6 +65,29 @@ router.post('/internal/cloudpay/prepare', async (req, res) => {
     })
     return res.status(isServiceError(error) ? error.status : 500).json({
       message: error.message || 'failed to prepare cloudpay payment'
+    })
+  }
+})
+
+router.post('/internal/cloudpay/callback', async (req, res) => {
+  if (!requireInternalPaymentSecret(req, res)) {
+    return
+  }
+
+  try {
+    return res.json(
+      await handleCloudPayPaymentCallback({
+        supabase: resolveSupabase(),
+        payload: req.body || {}
+      })
+    )
+  } catch (error) {
+    console.error('[payments/internal/cloudpay/callback] failed', {
+      payload: req.body || {},
+      error
+    })
+    return res.status(isServiceError(error) ? error.status : 500).json({
+      message: error.message || 'failed to process cloudpay callback'
     })
   }
 })

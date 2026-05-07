@@ -585,3 +585,91 @@ test('cloudpay preparation returns trusted unified order payload from stored ord
   assert.equal(state.paymentRecord.payment_mode, 'cloudpay')
   assert.equal(state.paymentRecord.amount, 3000)
 })
+
+test('cloudpay callback rejects amount mismatch before marking paid', async () => {
+  clearModules([
+    'config/env.js',
+    'repositories/index.js',
+    'shared/services/wechatMiniProgram.js',
+    'shared/services/groupOrders.js',
+    'shared/services/packageOrders.js',
+    'shared/services/paymentShell.js'
+  ])
+
+  const state = {
+    paymentRecord: {
+      id: 'payment-record-amount',
+      order_id: 'package-order-amount',
+      user_id: 'user-1',
+      out_trade_no: 'LDPKG-20260507-000002',
+      status: 'pending',
+      amount: 3000
+    },
+    order: {
+      id: 'package-order-amount',
+      user_id: 'user-1',
+      order_type: 2,
+      amount: 3000,
+      status: 'pending'
+    },
+    packagePaymentSuccessCalls: []
+  }
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true,
+      paymentProviderMode: 'cloudpay',
+      internalPaymentSecret: 'test-secret'
+    }
+  })
+
+  mockModule('repositories/index.js', {
+    paymentRecordsRepository: {
+      findPaymentRecordByOutTradeNo: async outTradeNo =>
+        outTradeNo === state.paymentRecord.out_trade_no ? { ...state.paymentRecord } : null,
+      updatePaymentRecord: async (id, patch) => {
+        Object.assign(state.paymentRecord, patch)
+        return { ...state.paymentRecord }
+      }
+    },
+    ordersRepository: {
+      findOrderById: async orderId => (orderId === state.order.id ? { ...state.order } : null)
+    },
+    usersRepository: {}
+  })
+
+  mockModule('shared/services/wechatMiniProgram.js', {
+    createMiniProgramPayment: async () => ({}),
+    buildMiniProgramPaymentParams: () => ({}),
+    decryptWechatPayResource: value => value
+  })
+
+  mockModule('shared/services/groupOrders.js', {
+    markOrderPaymentSuccess: async () => ({})
+  })
+
+  mockModule('shared/services/packageOrders.js', {
+    markPackageOrderPaymentSuccess: async payload => {
+      state.packagePaymentSuccessCalls.push(payload)
+      return {}
+    }
+  })
+
+  const { handleCloudPayPaymentCallback } = require(path.join(backendRoot, 'shared/services/paymentShell.js'))
+  await assert.rejects(
+    () =>
+      handleCloudPayPaymentCallback({
+        payload: {
+          out_trade_no: 'LDPKG-20260507-000002',
+          transaction_id: 'wx-transaction-amount',
+          total_fee: 1,
+          return_code: 'SUCCESS',
+          result_code: 'SUCCESS'
+        }
+      }),
+    /amount mismatch/
+  )
+
+  assert.equal(state.packagePaymentSuccessCalls.length, 0)
+  assert.equal(state.paymentRecord.status, 'pending')
+})

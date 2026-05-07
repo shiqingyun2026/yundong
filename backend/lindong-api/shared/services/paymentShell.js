@@ -727,6 +727,122 @@ const handleWechatPaymentCallback = async ({ supabase, payload, now = new Date()
   }
 }
 
+const normalizeCloudPayCallbackPayload = payload => {
+  const source = payload || {}
+  return {
+    outTradeNo: `${source.out_trade_no || source.outTradeNo || ''}`.trim(),
+    transactionId: `${source.transaction_id || source.transactionId || ''}`.trim(),
+    totalFee: Number(source.total_fee ?? source.totalFee ?? 0),
+    returnCode: `${source.return_code || source.returnCode || ''}`.trim().toUpperCase(),
+    resultCode: `${source.result_code || source.resultCode || ''}`.trim().toUpperCase(),
+    openId: `${source.openid || source.openId || ''}`.trim(),
+    attach: source.attach || ''
+  }
+}
+
+const updatePaymentRecordForCloudPayCallback = async ({ supabase, paymentRecord, payload, transactionId, now }) => {
+  const timestamp = now.toISOString()
+  const patch = {
+    status: 'paid',
+    transaction_id: transactionId || paymentRecord.transaction_id || '',
+    callback_status: 'SUCCESS',
+    callback_payload: payload || null,
+    paid_at: timestamp,
+    updated_at: timestamp
+  }
+
+  if (env.useMySqlRepositories) {
+    return paymentRecordsRepository.updatePaymentRecord(paymentRecord.id, patch)
+  }
+
+  const { data, error } = await supabase
+    .from('payment_records')
+    .update(patch)
+    .eq('id', paymentRecord.id)
+    .select('*')
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+const handleCloudPayPaymentCallback = async ({ supabase, payload, now = new Date() }) => {
+  const normalized = normalizeCloudPayCallbackPayload(payload)
+  if (!normalized.outTradeNo) {
+    throw createServiceError(400, 'out_trade_no is required')
+  }
+
+  const paymentRecord = await getPaymentRecordByOutTradeNo({
+    supabase,
+    outTradeNo: normalized.outTradeNo
+  })
+  if (!paymentRecord) {
+    throw createServiceError(404, 'payment record not found')
+  }
+
+  const order = await getOrderById({
+    supabase,
+    orderId: paymentRecord.order_id
+  })
+  if (!order) {
+    throw createServiceError(404, 'order not found')
+  }
+
+  if (Number(order.amount) !== Number(normalized.totalFee)) {
+    throw createServiceError(400, 'amount mismatch')
+  }
+
+  const tradeSuccess = normalized.returnCode === 'SUCCESS' && normalized.resultCode === 'SUCCESS'
+  if (!tradeSuccess) {
+    return {
+      orderId: order.id,
+      orderStatus: order.status,
+      paymentRecordStatus: paymentRecord.status || 'pending'
+    }
+  }
+
+  if (paymentRecord.status === 'paid' || order.status === 'success') {
+    return {
+      orderId: order.id,
+      orderStatus: 'success',
+      paymentRecordStatus: 'paid'
+    }
+  }
+
+  await updatePaymentRecordForCloudPayCallback({
+    supabase,
+    paymentRecord,
+    payload,
+    transactionId: normalized.transactionId,
+    now
+  })
+
+  if (Number(order.order_type) === 2) {
+    await markPackageOrderPaymentSuccess({
+      userId: order.user_id,
+      orderId: order.id,
+      now
+    })
+  } else {
+    await markOrderPaymentSuccess({
+      supabase,
+      userId: order.user_id,
+      orderId: order.id,
+      groupId: order.group_id,
+      now
+    })
+  }
+
+  return {
+    orderId: order.id,
+    orderStatus: 'success',
+    paymentRecordStatus: 'paid'
+  }
+}
+
 const markPaymentRecordPaid = async ({ supabase, orderId, transactionId = '', now = new Date() }) => {
   const paymentRecord = await getPaymentRecordByOrderId({
     supabase,
@@ -858,6 +974,7 @@ module.exports = {
   createServiceError,
   prepareOrderPayment,
   getOrderPaymentStatus,
+  handleCloudPayPaymentCallback,
   handleWechatPaymentCallback,
   isCloudPayPaymentMode,
   isWechatPaymentMode,
