@@ -10,6 +10,12 @@ const ENV_API_TRANSPORTS = {
   release: 'container'
 }
 
+const ENV_PAYMENT_PROVIDERS = {
+  develop: 'cloudpay',
+  trial: 'cloudpay',
+  release: 'cloudpay'
+}
+
 const CLOUD_ENV_PLACEHOLDER = 'TODO_WECHAT_CLOUD_ENV'
 const CLOUD_CONTAINER_SERVICE_PLACEHOLDER = 'TODO_CLOUD_RUN_SERVICE'
 const CLOUD_LOCATION_FUNCTION_PLACEHOLDER = 'TODO_CLOUD_LOCATION_FUNCTION'
@@ -61,6 +67,8 @@ const getMiniProgramEnvVersion = () => {
 
 const resolveBaseURLByEnv = envVersion => ENV_API_BASE_URLS[envVersion] || ENV_API_BASE_URLS.develop
 const resolveApiTransportByEnv = envVersion => ENV_API_TRANSPORTS[envVersion] || ENV_API_TRANSPORTS.develop
+const resolvePaymentProviderByEnv = envVersion =>
+  `${ENV_PAYMENT_PROVIDERS[envVersion] || ENV_PAYMENT_PROVIDERS.develop || 'mock'}`.trim().toLowerCase()
 const resolveCloudEnvByEnv = envVersion => {
   const value = ENV_CLOUD_ENVS[envVersion] || ENV_CLOUD_ENVS.develop
   return value === CLOUD_ENV_PLACEHOLDER ? '' : value
@@ -102,6 +110,7 @@ const resolveSubscribeTemplateIdsByEnv = envVersion => {
 module.exports = {
   ENV_API_BASE_URLS,
   ENV_API_TRANSPORTS,
+  ENV_PAYMENT_PROVIDERS,
   CLOUD_ENV_PLACEHOLDER,
   CLOUD_CONTAINER_SERVICE_PLACEHOLDER,
   CLOUD_LOCATION_FUNCTION_PLACEHOLDER,
@@ -115,6 +124,7 @@ module.exports = {
   getMiniProgramEnvVersion,
   resolveBaseURLByEnv,
   resolveApiTransportByEnv,
+  resolvePaymentProviderByEnv,
   resolveCloudEnvByEnv,
   resolveCloudContainerServiceNameByEnv,
   resolveCloudLocationFunctionNameByEnv,

@@ -605,6 +605,34 @@ const preparePayment = async ({ orderId }) =>
     }
   )
 
+const prepareCloudPayment = ({ orderId, userId = '' }) =>
+  new Promise((resolve, reject) => {
+    if (!wx.cloud || typeof wx.cloud.callFunction !== 'function') {
+      reject(new Error('当前微信版本不支持云支付'))
+      return
+    }
+
+    wx.cloud.callFunction({
+      name: 'wechat-pay',
+      data: {
+        type: 'prepare',
+        orderId,
+        userId
+      },
+      success(result) {
+        const data = result && result.result && (result.result.data || result.result)
+        if (!data || !data.payment) {
+          reject(new Error('支付参数生成失败'))
+          return
+        }
+        resolve(data)
+      },
+      fail(error) {
+        reject(error)
+      }
+    })
+  })
+
 const fetchPaymentStatus = async ({ orderId }) =>
   get(
     '/api/payments/status',
@@ -682,5 +710,6 @@ module.exports = {
   mockPaymentSuccess,
   normalizePackageDetail,
   normalizePackageGroupDetail,
+  prepareCloudPayment,
   preparePayment
 }

@@ -5,6 +5,7 @@ const {
   resolveCloudEnvByEnv,
   resolveCloudContainerServiceNameByEnv,
   resolveCloudLocationFunctionNameByEnv,
+  resolvePaymentProviderByEnv,
   resolveSubscribeTemplateIdsByEnv
 } = require('./config/env')
 const { resolveRuntimeInfo } = require('./utils/util')
@@ -38,6 +39,7 @@ App({
     this.globalData.envVersion = envVersion
     this.globalData.apiTransport = resolveApiTransportByEnv(envVersion)
     this.globalData.baseURL = resolveBaseURLByEnv(envVersion)
+    this.globalData.paymentProvider = resolvePaymentProviderByEnv(envVersion)
     this.globalData.cloudEnv = resolveCloudEnvByEnv(envVersion)
     this.globalData.cloudContainerServiceName = resolveCloudContainerServiceNameByEnv(envVersion)
     this.globalData.cloudLocationFunctionName = resolveCloudLocationFunctionNameByEnv(envVersion)
@@ -242,6 +244,7 @@ App({
     envVersion: 'develop',
     apiTransport: resolveApiTransportByEnv('develop'),
     baseURL: resolveBaseURLByEnv('develop'),
+    paymentProvider: resolvePaymentProviderByEnv('develop'),
     cloudEnv: resolveCloudEnvByEnv('develop'),
     cloudContainerServiceName: resolveCloudContainerServiceNameByEnv('develop'),
     cloudLocationFunctionName: resolveCloudLocationFunctionNameByEnv('develop'),
