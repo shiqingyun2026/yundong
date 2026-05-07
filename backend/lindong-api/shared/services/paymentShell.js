@@ -102,6 +102,29 @@ const getUserById = async ({ supabase, userId }) => {
   return data
 }
 
+const getUserByOpenId = async ({ supabase, openId }) => {
+  const normalizedOpenId = `${openId || ''}`.trim()
+  if (!normalizedOpenId) {
+    return null
+  }
+
+  if (env.useMySqlRepositories) {
+    return usersRepository.findUserByOpenId(normalizedOpenId)
+  }
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, openid, nickname')
+    .eq('openid', normalizedOpenId)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
 const getPaymentRecordByOrderId = async ({ supabase, orderId }) => {
   if (env.useMySqlRepositories) {
     return paymentRecordsRepository.findPaymentRecordByOrderId(orderId)
@@ -412,25 +435,39 @@ const prepareWechatPayment = async ({ supabase, order, now = new Date() }) => {
 }
 
 const prepareCloudPayUnifiedOrder = async ({ supabase, userId, openId, orderId, now = new Date() }) => {
+  const resolvedOpenId = `${openId || ''}`.trim()
+  let user = userId
+    ? await getUserById({
+        supabase,
+        userId
+      })
+    : null
+
+  if (!user && resolvedOpenId) {
+    user = await getUserByOpenId({
+      supabase,
+      openId: resolvedOpenId
+    })
+  }
+
+  if (!user || !user.id) {
+    throw createServiceError(400, 'user is required for cloudpay')
+  }
+
   const order = await getOrderForUser({
     supabase,
-    userId,
+    userId: user.id,
     orderId
   })
 
   ensureOrderPayable(order)
 
-  const user = await getUserById({
-    supabase,
-    userId: order.user_id
-  })
-
-  const resolvedOpenId = `${openId || (user && user.openid) || ''}`.trim()
-  if (!resolvedOpenId) {
+  const paymentOpenId = `${resolvedOpenId || user.openid || ''}`.trim()
+  if (!paymentOpenId) {
     throw createServiceError(400, 'user openid is required for cloudpay')
   }
 
-  if (user && user.openid && user.openid !== resolvedOpenId) {
+  if (user.openid && user.openid !== paymentOpenId) {
     throw createServiceError(403, 'openid does not match order user')
   }
 
@@ -458,7 +495,7 @@ const prepareCloudPayUnifiedOrder = async ({ supabase, userId, openId, orderId, 
 
   return {
     orderId: order.id,
-    openId: resolvedOpenId,
+    openId: paymentOpenId,
     body: buildPaymentDescription({ order, user }),
     outTradeNo: paymentRecord.out_trade_no,
     totalFee: Number(order.amount) || 0,

@@ -956,8 +956,7 @@ test('internal cloudpay prepare route requires secret and returns trusted payloa
     },
     body: {
       orderId: 'package-order-start-1',
-      openId: 'wx-openid-1',
-      userId: 'user-from-cloudbase'
+      openId: 'wx-openid-1'
     }
   })
 

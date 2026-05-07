@@ -44,9 +44,9 @@ router.post('/internal/cloudpay/prepare', async (req, res) => {
   }
 
   const { orderId, openId, userId } = req.body || {}
-  if (!orderId || !openId || !userId) {
+  if (!orderId || !openId) {
     return res.status(400).json({
-      message: 'orderId, openId and userId are required'
+      message: 'orderId and openId are required'
     })
   }
 

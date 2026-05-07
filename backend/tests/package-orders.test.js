@@ -586,6 +586,80 @@ test('cloudpay preparation returns trusted unified order payload from stored ord
   assert.equal(state.paymentRecord.amount, 3000)
 })
 
+test('cloudpay preparation resolves user from openid when cloud function omits user id', async () => {
+  clearModules([
+    'config/env.js',
+    'repositories/index.js',
+    'shared/services/wechatMiniProgram.js',
+    'shared/services/paymentShell.js'
+  ])
+
+  const state = {
+    paymentRecord: null,
+    order: {
+      id: 'package-order-openid-1',
+      order_no: 'LDPKG-20260508-000001',
+      user_id: 'user-openid-1',
+      order_type: 2,
+      package_id: 'PKG-20260508-0001',
+      package_group_id: 'PG-20260508-0001',
+      amount: 3000,
+      status: 'pending'
+    },
+    user: {
+      id: 'user-openid-1',
+      openid: 'wx-openid-cloudpay',
+      nickname: '云支付用户'
+    }
+  }
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true,
+      paymentProviderMode: 'cloudpay',
+      internalPaymentSecret: 'test-secret'
+    }
+  })
+
+  mockModule('repositories/index.js', {
+    ordersRepository: {
+      findOrderForUser: async ({ userId, orderId }) =>
+        userId === state.order.user_id && orderId === state.order.id ? { ...state.order } : null
+    },
+    usersRepository: {
+      findUserById: async id => (id === state.user.id ? { ...state.user } : null),
+      findUserByOpenId: async openId => (openId === state.user.openid ? { ...state.user } : null)
+    },
+    paymentRecordsRepository: {
+      findPaymentRecordByOrderId: async orderId =>
+        state.paymentRecord && state.paymentRecord.order_id === orderId ? { ...state.paymentRecord } : null,
+      createPaymentRecord: async payload => {
+        state.paymentRecord = {
+          id: 'payment-record-openid-1',
+          ...payload
+        }
+        return { ...state.paymentRecord }
+      }
+    }
+  })
+
+  mockModule('shared/services/wechatMiniProgram.js', {
+    createMiniProgramPayment: async () => ({}),
+    buildMiniProgramPaymentParams: () => ({}),
+    decryptWechatPayResource: value => value
+  })
+
+  const { prepareCloudPayUnifiedOrder } = require(path.join(backendRoot, 'shared/services/paymentShell.js'))
+  const result = await prepareCloudPayUnifiedOrder({
+    openId: 'wx-openid-cloudpay',
+    orderId: 'package-order-openid-1'
+  })
+
+  assert.equal(result.orderId, 'package-order-openid-1')
+  assert.equal(result.openId, 'wx-openid-cloudpay')
+  assert.equal(state.paymentRecord.user_id, 'user-openid-1')
+})
+
 test('cloudpay callback rejects amount mismatch before marking paid', async () => {
   clearModules([
     'config/env.js',
