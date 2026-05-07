@@ -1,3 +1,5 @@
+const http = require('node:http')
+const https = require('node:https')
 const cloud = require('wx-server-sdk')
 
 cloud.init({
@@ -13,6 +15,49 @@ const resolveSubMchId = () => readEnv('WX_PAY_SUB_MCH_ID') || DEFAULT_SUB_MCH_ID
 
 const resolveCloudEnvId = wxContext => readEnv('WX_CLOUD_ENV_ID') || (wxContext && wxContext.ENV) || DEFAULT_CLOUD_ENV_ID
 
+const postJson = ({ url, headers, body }) =>
+  new Promise((resolve, reject) => {
+    const parsedUrl = new URL(url)
+    const client = parsedUrl.protocol === 'http:' ? http : https
+    const serializedBody = JSON.stringify(body || {})
+    const request = client.request(
+      {
+        method: 'POST',
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || undefined,
+        path: `${parsedUrl.pathname}${parsedUrl.search}`,
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(serializedBody),
+          ...(headers || {})
+        }
+      },
+      response => {
+        const chunks = []
+        response.on('data', chunk => chunks.push(chunk))
+        response.on('end', () => {
+          const text = Buffer.concat(chunks).toString('utf8')
+          let payload = {}
+          try {
+            payload = text ? JSON.parse(text) : {}
+          } catch (error) {
+            payload = {}
+          }
+
+          resolve({
+            ok: response.statusCode >= 200 && response.statusCode < 300,
+            status: response.statusCode,
+            payload
+          })
+        })
+      }
+    )
+
+    request.on('error', reject)
+    request.write(serializedBody)
+    request.end()
+  })
+
 const requestBackend = async ({ pathname, body }) => {
   const baseUrl = readEnv('LINDONG_API_BASE_URL').replace(/\/+$/, '')
   const secret = readEnv('INTERNAL_PAYMENT_SECRET')
@@ -23,19 +68,17 @@ const requestBackend = async ({ pathname, body }) => {
     throw new Error('INTERNAL_PAYMENT_SECRET is required')
   }
 
-  const response = await fetch(`${baseUrl}${pathname}`, {
-    method: 'POST',
+  const response = await postJson({
+    url: `${baseUrl}${pathname}`,
     headers: {
-      'Content-Type': 'application/json',
       'X-Internal-Payment-Secret': secret
     },
-    body: JSON.stringify(body || {})
+    body
   })
-  const payload = await response.json().catch(() => ({}))
   if (!response.ok) {
-    throw new Error(payload.message || `backend request failed: ${response.status}`)
+    throw new Error(response.payload.message || `backend request failed: ${response.status}`)
   }
-  return payload
+  return response.payload
 }
 
 const preparePayment = async event => {
