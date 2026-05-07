@@ -14,6 +14,7 @@ const {
   handleWechatPaymentCallback,
   isWechatPaymentMode,
   markPaymentRecordPaid,
+  prepareCloudPayUnifiedOrder,
   prepareOrderPayment
 } = require('../shared/services/paymentShell')
 const { verifyWechatPayCallbackSignature } = require('../shared/services/wechatMiniProgram')
@@ -21,6 +22,51 @@ const { logMiniProgramIdentity } = require('../shared/utils/miniProgramIdentityL
 
 const router = express.Router()
 const resolveSupabase = () => (env.useMySqlRepositories ? null : getSupabaseClient())
+
+const requireInternalPaymentSecret = (req, res) => {
+  const expected = `${env.internalPaymentSecret || ''}`.trim()
+  const actual = `${req.headers['x-internal-payment-secret'] || ''}`.trim()
+  if (!expected || actual !== expected) {
+    res.status(403).json({
+      message: 'invalid internal payment secret'
+    })
+    return false
+  }
+  return true
+}
+
+router.post('/internal/cloudpay/prepare', async (req, res) => {
+  if (!requireInternalPaymentSecret(req, res)) {
+    return
+  }
+
+  const { orderId, openId, userId } = req.body || {}
+  if (!orderId || !openId || !userId) {
+    return res.status(400).json({
+      message: 'orderId, openId and userId are required'
+    })
+  }
+
+  try {
+    return res.json(
+      await prepareCloudPayUnifiedOrder({
+        supabase: resolveSupabase(),
+        orderId,
+        openId,
+        userId
+      })
+    )
+  } catch (error) {
+    console.error('[payments/internal/cloudpay/prepare] failed', {
+      orderId,
+      userId,
+      error
+    })
+    return res.status(isServiceError(error) ? error.status : 500).json({
+      message: error.message || 'failed to prepare cloudpay payment'
+    })
+  }
+})
 
 router.post('/prepare', authenticate, async (req, res) => {
   const { orderId } = req.body || {}

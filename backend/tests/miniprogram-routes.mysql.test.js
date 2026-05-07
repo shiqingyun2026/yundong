@@ -65,6 +65,8 @@ const loadAppForMySqlRoutes = ({ paymentProviderMode = 'mock' } = {}) => {
   mockModule('config/env.js', {
     env: {
       useMySqlRepositories: true,
+      paymentProviderMode,
+      internalPaymentSecret: 'test-secret',
       trustCloudBaseMiniProgramIdentity: true,
       enableMiniProgramIdentityLogs: false
     }
@@ -349,14 +351,29 @@ const loadAppForMySqlRoutes = ({ paymentProviderMode = 'mock' } = {}) => {
       userId,
       supabaseWasPassed: supabase
     }),
+    prepareCloudPayUnifiedOrder: async ({ orderId, openId, userId }) => ({
+      orderId,
+      openId,
+      userId,
+      body: '邻动体适能课程报名-LDPKG-20260428-000001',
+      outTradeNo: 'LDPKG-20260428-000001',
+      totalFee: 33333,
+      attach: JSON.stringify({ orderId })
+    }),
     handleWechatPaymentCallback: async ({ supabase, payload }) => ({
       payload,
       supabaseWasPassed: supabase
+    }),
+    handleCloudPayPaymentCallback: async ({ payload }) => ({
+      orderId: payload.orderId || 'package-order-start-1',
+      orderStatus: 'success',
+      paymentRecordStatus: 'paid'
     }),
     markPaymentRecordPaid: async ({ supabase, orderId }) => ({
       orderId,
       supabaseWasPassed: supabase
     }),
+    isCloudPayPaymentMode: () => `${process.env.PAYMENT_PROVIDER_MODE || ''}`.trim().toLowerCase() === 'cloudpay',
     isWechatPaymentMode: () => `${process.env.PAYMENT_PROVIDER_MODE || ''}`.trim().toLowerCase() === 'wechat'
   })
 
@@ -902,4 +919,37 @@ test('mock payment success is disabled in wechat payment mode', async () => {
       process.env.PAYMENT_PROVIDER_MODE = originalPaymentProviderMode
     }
   }
+})
+
+test('internal cloudpay prepare route requires secret and returns trusted payload', async () => {
+  const app = loadAppForMySqlRoutes({ paymentProviderMode: 'cloudpay' })
+
+  const forbidden = await requestJson({
+    app,
+    method: 'POST',
+    pathname: '/api/payments/internal/cloudpay/prepare',
+    body: {
+      orderId: 'package-order-start-1',
+      openId: 'wx-openid-1'
+    }
+  })
+
+  const prepared = await requestJson({
+    app,
+    method: 'POST',
+    pathname: '/api/payments/internal/cloudpay/prepare',
+    headers: {
+      'x-internal-payment-secret': 'test-secret'
+    },
+    body: {
+      orderId: 'package-order-start-1',
+      openId: 'wx-openid-1',
+      userId: 'user-from-cloudbase'
+    }
+  })
+
+  assert.equal(forbidden.status, 403)
+  assert.equal(prepared.status, 200)
+  assert.equal(prepared.body.orderId, 'package-order-start-1')
+  assert.equal(prepared.body.outTradeNo.length > 0, true)
 })
