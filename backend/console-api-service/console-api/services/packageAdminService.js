@@ -3,6 +3,7 @@ const {
   coursePackagesRepository,
   ordersRepository,
   packageGroupsRepository,
+  paymentRecordsRepository,
   usersRepository
 } = require('../../repositories')
 const {
@@ -1382,16 +1383,43 @@ const syncAdminPackageOrderRefundStatus = async ({ orderId, admin = {}, ip = nul
     statusCode: 400,
     message: '订单不是课包拼团订单'
   })
-  ensureCondition(['refund_pending', 'refund_failed'].includes(order.status), {
+  ensureCondition(['success', 'refund_pending', 'refund_failed', 'refunded'].includes(order.status), {
     responseCode: 2006,
     statusCode: 400,
-    message: '只有退款中的订单才允许同步退款状态'
+    message: '只有已支付或退款相关状态的订单才允许同步退款状态'
   })
 
   const syncResult = await queryAndSyncCloudPayRefund({
     orderId: order.id,
     outRefundNo: buildPackageRefundOutRefundNo(order)
   })
+
+  if (order.status !== 'refund_pending' && syncResult.finalStatus === 'refund_pending') {
+    await ordersRepository.updateOrder(order.id, {
+      status: 'refund_pending',
+      updated_at: now
+    })
+
+    const paymentRecord = await paymentRecordsRepository.findPaymentRecordByOrderId(order.id)
+    if (paymentRecord) {
+      const existingCallbackPayload =
+        paymentRecord.callback_payload && typeof paymentRecord.callback_payload === 'object'
+          ? paymentRecord.callback_payload
+          : {}
+      await paymentRecordsRepository.updatePaymentRecord(paymentRecord.id, {
+        callback_status: 'REFUND_PENDING',
+        callback_payload: {
+          ...existingCallbackPayload,
+          refund_pending: {
+            out_refund_no: buildPackageRefundOutRefundNo(order),
+            synced_at: now.toISOString()
+          }
+        },
+        updated_at: now.toISOString()
+      })
+    }
+  }
+
   const latestOrder = await ordersRepository.findOrderById(order.id)
 
   await safeWriteAdminLog({

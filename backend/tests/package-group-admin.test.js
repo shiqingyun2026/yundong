@@ -405,7 +405,7 @@ const createPackageRepositoryState = () => ({
   adminLogWrites: []
 })
 
-const loadPackageServicesWithState = () => {
+const loadPackageServicesWithState = (options = {}) => {
   clearModules([
     'config/env.js',
     'repositories/index.js',
@@ -423,6 +423,7 @@ const loadPackageServicesWithState = () => {
   ])
 
   const state = createPackageRepositoryState()
+  const customRefundQueryResult = options.customRefundQueryResult || null
   const filterByIds = (list, ids, key = 'id') => list.filter(item => ids.includes(item[key]))
   const normalizeSupportedPeople = value => {
     const items = Array.isArray(value) ? value : `${value || ''}`.split(',')
@@ -470,6 +471,10 @@ const loadPackageServicesWithState = () => {
         state.cloudPayRefundQueryCalls = []
       }
       state.cloudPayRefundQueryCalls.push(payload)
+
+      if (typeof customRefundQueryResult === 'function') {
+        return customRefundQueryResult({ payload, state })
+      }
 
       const orderIndex = state.orders.findIndex(item => item.id === payload.orderId)
       if (orderIndex >= 0) {
@@ -1012,6 +1017,59 @@ test('admin package order refund sync confirms a settled cloud refund', async ()
   assert.equal(state.cloudPayRefundQueryCalls.length, 1)
   assert.equal(state.cloudPayRefundQueryCalls[0].orderId, 'ord-refund')
   assert.equal(state.adminLogWrites.at(-1).action, 'package_order_refund_sync')
+})
+
+test('admin package order refund sync accepts success orders and moves them to refund_pending when cloud refund is still processing', async () => {
+  const { packageAdminService, state } = loadPackageServicesWithState({
+    customRefundQueryResult: () => ({
+      queryStatus: 'PROCESSING',
+      settled: false,
+      finalStatus: 'refund_pending'
+    })
+  })
+
+  const result = await packageAdminService.syncAdminPackageOrderRefundStatus({
+    orderId: 'ord-refund',
+    admin: { id: 'admin-1' },
+    now: new Date('2026-04-19T08:11:00.000Z')
+  })
+
+  assert.equal(result.status, 'refund_pending')
+  assert.equal(result.refund_query_status, 'PROCESSING')
+  assert.equal(result.refund_query_settled, false)
+  assert.equal(result.refund_query_final_status, 'refund_pending')
+  assert.equal(state.orders.find(item => item.id === 'ord-refund').status, 'refund_pending')
+  assert.equal(state.paymentRecords.find(item => item.order_id === 'ord-refund').callback_status, 'REFUND_PENDING')
+})
+
+test('admin package order refund sync accepts refunded orders and can correct them back to refund_pending', async () => {
+  const { packageAdminService, state } = loadPackageServicesWithState({
+    customRefundQueryResult: () => ({
+      queryStatus: 'PROCESSING',
+      settled: false,
+      finalStatus: 'refund_pending'
+    })
+  })
+
+  state.orders = state.orders.map(item =>
+    item.id === 'ord-refund'
+      ? {
+          ...item,
+          status: 'refunded'
+        }
+      : item
+  )
+
+  const result = await packageAdminService.syncAdminPackageOrderRefundStatus({
+    orderId: 'ord-refund',
+    admin: { id: 'admin-1' },
+    now: new Date('2026-04-19T08:12:00.000Z')
+  })
+
+  assert.equal(result.status, 'refund_pending')
+  assert.equal(result.refund_query_status, 'PROCESSING')
+  assert.equal(result.refund_query_final_status, 'refund_pending')
+  assert.equal(state.orders.find(item => item.id === 'ord-refund').status, 'refund_pending')
 })
 
 test('admin package create requires valid package category', async () => {

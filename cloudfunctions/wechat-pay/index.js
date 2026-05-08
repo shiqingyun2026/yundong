@@ -154,7 +154,6 @@ const extractRefundQueryStatus = payload => {
   const directCandidates = [
     source.refundStatus,
     source.refund_status,
-    source.status,
     source.refund_status_0,
     source.refundStatus0
   ]
@@ -330,25 +329,18 @@ const refundPayment = async event => {
     refundDesc: prepared.refundDesc || '课程退款'
   })
 
-  const refundQuery = await queryRefund({
-    orderId: prepared.orderId,
-    outRefundNo: prepared.outRefundNo,
-    confirmIfSettled: true
-  })
-  const refundQueryData = (refundQuery && refundQuery.data) || {}
-
   return {
     code: 0,
     data: {
       orderId: prepared.orderId,
       outTradeNo: prepared.outTradeNo,
       outRefundNo: prepared.outRefundNo,
-      status: refundQueryData.finalStatus || 'refund_pending',
+      status: 'refund_pending',
       accepted: true,
-      settled: !!refundQueryData.settled,
-      queryStatus: refundQueryData.queryStatus || '',
+      settled: false,
+      queryStatus: '',
       refundResult,
-      refundQueryResult: refundQueryData.refundQueryResult || null
+      refundQueryResult: null
     }
   }
 }
