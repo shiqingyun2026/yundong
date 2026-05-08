@@ -1,166 +1,232 @@
-const cloudbase = require('@cloudbase/node-sdk')
 const { env } = require('../../config/env')
+const { createConsoleApiError } = require('./_errors')
+const { createWechatPayRefund, queryWechatPayRefund } = require('../../shared/services/wechatMiniProgram')
 
-let cloudbaseApp = null
+const normalizeStatusValue = value => `${value || ''}`.trim().toUpperCase()
 
-const resolveCloudbaseCredentialConfig = () => {
-  const secretId = `${process.env.TENCENTCLOUD_SECRETID || ''}`.trim()
-  const secretKey = `${process.env.TENCENTCLOUD_SECRETKEY || ''}`.trim()
-  const accessKey = `${process.env.CLOUDBASE_APIKEY || ''}`.trim()
+const buildRequestError = (message, extra = {}, statusCode = 500) =>
+  createConsoleApiError({
+    responseCode: 5000,
+    statusCode,
+    message,
+    extra
+  })
 
-  return {
-    secretId,
-    secretKey,
-    accessKey,
-    hasSecretPair: !!secretId && !!secretKey,
-    hasAccessKey: !!accessKey
+const safeJsonParse = text => {
+  if (!text) {
+    return null
+  }
+
+  try {
+    return JSON.parse(text)
+  } catch (error) {
+    return null
   }
 }
 
-const withTimeout = (promise, timeoutMs, message) =>
-  new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error(message))
-    }, timeoutMs)
-
-    promise
-      .then(result => {
-        clearTimeout(timer)
-        resolve(result)
-      })
-      .catch(error => {
-        clearTimeout(timer)
-        reject(error)
-      })
-  })
-
-const getCloudbaseApp = () => {
-  const credentials = resolveCloudbaseCredentialConfig()
-  if (!env.cloudbase.envId) {
-    throw new Error('WX_CLOUD_ENV_ID is required for cloudpay refund invocation')
+const requestBackend = async ({ pathname, method = 'POST', body }) => {
+  const baseUrl = `${env.lindongApiBaseUrl || ''}`.replace(/\/+$/, '')
+  const secret = `${env.internalPaymentSecret || ''}`.trim()
+  if (!baseUrl) {
+    throw buildRequestError('LINDONG_API_BASE_URL is required for direct refund gateway')
+  }
+  if (!secret) {
+    throw buildRequestError('INTERNAL_PAYMENT_SECRET is required for direct refund gateway')
   }
 
-  if (!credentials.hasSecretPair && !credentials.hasAccessKey) {
-    throw new Error(
-      'CloudBase credentials are missing for console-api-service; set TENCENTCLOUD_SECRETID and TENCENTCLOUD_SECRETKEY, or set CLOUDBASE_APIKEY'
+  const serializedBody = body === undefined ? undefined : JSON.stringify(body || {})
+  const response = await fetch(`${baseUrl}${pathname}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Internal-Payment-Secret': secret
+    },
+    body: serializedBody
+  })
+  const rawText = await response.text()
+  const payload = safeJsonParse(rawText)
+
+  if (!response.ok) {
+    throw buildRequestError(
+      (payload && payload.message) || `backend request failed: ${response.status} ${method} ${pathname}`,
+      {
+        status: response.status,
+        pathname,
+        payload: payload || null,
+        rawText
+      },
+      response.status >= 400 && response.status < 600 ? response.status : 500
     )
   }
 
-  if (!cloudbaseApp) {
-    cloudbaseApp = cloudbase.init({
-      env: env.cloudbase.envId,
-      timeout: Math.max(1000, Number(env.cloudbase.functionTimeoutMs) || 15000),
-      ...(credentials.hasAccessKey ? { accessKey: credentials.accessKey } : {}),
-      ...(credentials.hasSecretPair
-        ? {
-            secretId: credentials.secretId,
-            secretKey: credentials.secretKey
-          }
-        : {})
+  return payload || {}
+}
+
+const mapRefundQueryToBusinessStatus = refundQueryResult => {
+  const queryStatus = normalizeStatusValue(refundQueryResult && refundQueryResult.status)
+
+  if (queryStatus === 'SUCCESS') {
+    return {
+      queryStatus,
+      settled: true,
+      finalStatus: 'refunded'
+    }
+  }
+
+  if (['ABNORMAL', 'CLOSED'].includes(queryStatus)) {
+    return {
+      queryStatus,
+      settled: true,
+      finalStatus: 'refund_failed'
+    }
+  }
+
+  return {
+    queryStatus,
+    settled: false,
+    finalStatus: 'refund_pending'
+  }
+}
+
+const syncRefundQueryResult = async ({ orderId, outRefundNo, refundQueryResult }) => {
+  const summary = mapRefundQueryToBusinessStatus(refundQueryResult)
+
+  if (summary.finalStatus === 'refunded' && orderId) {
+    await requestBackend({
+      pathname: '/api/payments/internal/cloudpay/refund/confirm',
+      body: {
+        orderId,
+        outRefundNo,
+        refundQueryResult
+      }
     })
   }
 
-  return cloudbaseApp
+  if (summary.finalStatus === 'refund_failed' && orderId) {
+    await requestBackend({
+      pathname: '/api/payments/internal/cloudpay/refund/fail',
+      body: {
+        orderId,
+        outRefundNo,
+        refundQueryResult
+      }
+    })
+  }
+
+  return summary
 }
 
-const normalizeCloudbaseError = (error, fallbackMessage) => {
-  if (!error) {
-    return new Error(fallbackMessage)
+const normalizeWechatPayError = (error, fallbackMessage) => {
+  if (error && error.responseCode && error.statusCode) {
+    throw error
   }
 
-  const detailParts = [error.message || fallbackMessage]
-  if (error.code) {
-    detailParts.push(`code=${error.code}`)
-  }
-  if (error.requestId) {
-    detailParts.push(`requestId=${error.requestId}`)
-  }
-  if (error.original && error.original.message) {
-    detailParts.push(`original=${error.original.message}`)
-  }
+  const message =
+    (error && error.message) ||
+    (error && error.payload && (error.payload.message || error.payload.code)) ||
+    fallbackMessage
 
-  return new Error(detailParts.join(' | '))
-}
-
-const callWechatPayFunction = async ({ data, timeoutMessage }) => {
-  const app = getCloudbaseApp()
-  const timeoutMs = Math.max(1000, Number(env.cloudbase.functionTimeoutMs) || 15000)
-
-  try {
-    return await withTimeout(
-      app.callFunction({
-        name: env.cloudbase.wechatPayFunctionName,
-        data
-      }),
-      timeoutMs,
-      timeoutMessage || `cloud function call timed out after ${timeoutMs}ms`
-    )
-  } catch (error) {
-    throw normalizeCloudbaseError(error, timeoutMessage || 'cloud function call failed')
-  }
+  throw buildRequestError(message, {
+    status: error && error.statusCode ? error.statusCode : 500,
+    payload: (error && error.payload) || null,
+    rawText: (error && error.rawText) || ''
+  })
 }
 
 const invokeCloudPayRefund = async ({ orderId, reason, operatorId }) => {
-  const result = await callWechatPayFunction({
-    data: {
-      type: 'refund',
-      orderId,
-      reason,
-      operatorId
-    },
-    timeoutMessage: 'cloudpay refund invocation timed out'
-  })
-
-  const payload = result && (result.result || result)
-  if (!payload || payload.code !== 0) {
-    throw new Error((payload && payload.message) || 'cloudpay refund failed')
+  let prepared = null
+  try {
+    prepared = await requestBackend({
+      pathname: '/api/payments/internal/cloudpay/refund/prepare',
+      body: {
+        orderId,
+        reason,
+        operatorId
+      }
+    })
+  } catch (error) {
+    normalizeWechatPayError(error, 'failed to prepare direct wechat refund')
   }
 
-  return payload.data || {}
+  let refundResult = null
+  try {
+    refundResult = await createWechatPayRefund({
+      outTradeNo: prepared.outTradeNo,
+      outRefundNo: prepared.outRefundNo,
+      reason: prepared.refundDesc || reason,
+      totalFee: prepared.totalFee,
+      refundFee: prepared.refundFee
+    })
+  } catch (error) {
+    normalizeWechatPayError(error, 'failed to invoke direct wechat refund')
+  }
+
+  const syncSummary = await syncRefundQueryResult({
+    orderId: prepared.orderId,
+    outRefundNo: prepared.outRefundNo,
+    refundQueryResult: refundResult
+  })
+
+  return {
+    orderId: prepared.orderId,
+    outTradeNo: prepared.outTradeNo,
+    outRefundNo: prepared.outRefundNo,
+    status: syncSummary.finalStatus,
+    accepted: true,
+    settled: syncSummary.settled,
+    queryStatus: syncSummary.queryStatus,
+    refundResult,
+    refundQueryResult: refundResult
+  }
 }
 
 const queryAndSyncCloudPayRefund = async ({ orderId, outRefundNo }) => {
-  const result = await callWechatPayFunction({
-    data: {
-      type: 'queryRefund',
-      orderId,
-      outRefundNo,
-      confirmIfSettled: true
-    },
-    timeoutMessage: 'cloudpay refund query timed out'
-  })
+  let refundQueryResult = null
 
-  const payload = result && (result.result || result)
-  if (!payload || payload.code !== 0) {
-    throw new Error((payload && payload.message) || 'cloudpay refund query failed')
+  try {
+    refundQueryResult = await queryWechatPayRefund({
+      outRefundNo
+    })
+  } catch (error) {
+    normalizeWechatPayError(error, 'failed to query direct wechat refund')
   }
 
-  return payload.data || {}
+  const syncSummary = await syncRefundQueryResult({
+    orderId,
+    outRefundNo,
+    refundQueryResult
+  })
+
+  return {
+    orderId: orderId || '',
+    outRefundNo: outRefundNo || '',
+    queryStatus: syncSummary.queryStatus,
+    settled: syncSummary.settled,
+    finalStatus: syncSummary.finalStatus,
+    refundQueryResult
+  }
 }
 
 const diagnoseCloudPayFunctionInvocation = async () => {
-  const result = await callWechatPayFunction({
-    data: {
-      type: 'diagnose'
-    },
-    timeoutMessage: 'cloudpay diagnose invocation timed out'
-  })
-
-  const payload = result && (result.result || result)
-  if (!payload || payload.code !== 0) {
-    throw new Error((payload && payload.message) || 'cloudpay diagnose failed')
+  const directWechatConfig = {
+    lindong_api_base_url_configured: !!`${env.lindongApiBaseUrl || ''}`.trim(),
+    internal_payment_secret_configured: !!`${env.internalPaymentSecret || ''}`.trim(),
+    wx_pay_mch_id_configured: !!`${process.env.WX_PAY_MCH_ID || ''}`.trim(),
+    wx_pay_mch_serial_no_configured: !!`${process.env.WX_PAY_MCH_SERIAL_NO || ''}`.trim(),
+    wx_pay_private_key_configured: !!`${process.env.WX_PAY_PRIVATE_KEY || ''}`.trim(),
+    wx_pay_api_v3_key_configured: !!`${process.env.WX_PAY_API_V3_KEY || ''}`.trim()
   }
 
+  const healthProbe = await requestBackend({
+    pathname: '/health',
+    method: 'GET'
+  })
+
   return {
-    env_id: env.cloudbase.envId || '',
-    function_name: env.cloudbase.wechatPayFunctionName || 'wechat-pay',
-    function_timeout_ms: Math.max(1000, Number(env.cloudbase.functionTimeoutMs) || 15000),
-    credential_mode: resolveCloudbaseCredentialConfig().hasAccessKey
-      ? 'access_key'
-      : resolveCloudbaseCredentialConfig().hasSecretPair
-        ? 'secret_pair'
-        : 'missing',
-    cloud_function_result: payload
+    refund_transport: 'wechatpay_v3_direct',
+    lindong_api_base_url: env.lindongApiBaseUrl || '',
+    direct_wechat_config: directWechatConfig,
+    backend_health: healthProbe
   }
 }
 

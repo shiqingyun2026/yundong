@@ -218,6 +218,60 @@ const createMiniProgramPayment = async ({ openId, description, outTradeNo, amoun
   })
 }
 
+const createWechatPayRefund = async ({
+  outTradeNo = '',
+  transactionId = '',
+  outRefundNo,
+  reason = '',
+  totalFee,
+  refundFee
+}) => {
+  const normalizedOutTradeNo = `${outTradeNo || ''}`.trim()
+  const normalizedTransactionId = `${transactionId || ''}`.trim()
+  const normalizedOutRefundNo = `${outRefundNo || ''}`.trim()
+
+  if (!normalizedOutTradeNo && !normalizedTransactionId) {
+    throw new Error('outTradeNo or transactionId is required')
+  }
+  if (!normalizedOutRefundNo) {
+    throw new Error('outRefundNo is required')
+  }
+
+  const payload = {
+    out_refund_no: normalizedOutRefundNo,
+    reason: `${reason || '课程退款'}`.slice(0, 80),
+    amount: {
+      refund: Math.max(1, Number(refundFee) || 0),
+      total: Math.max(1, Number(totalFee) || 0),
+      currency: 'CNY'
+    }
+  }
+
+  if (normalizedTransactionId) {
+    payload.transaction_id = normalizedTransactionId
+  } else {
+    payload.out_trade_no = normalizedOutTradeNo
+  }
+
+  return requestWechatPayV3({
+    method: 'POST',
+    pathname: '/v3/refund/domestic/refunds',
+    body: payload
+  })
+}
+
+const queryWechatPayRefund = async ({ outRefundNo }) => {
+  const normalizedOutRefundNo = `${outRefundNo || ''}`.trim()
+  if (!normalizedOutRefundNo) {
+    throw new Error('outRefundNo is required')
+  }
+
+  return requestWechatPayV3({
+    method: 'GET',
+    pathname: `/v3/refund/domestic/refunds/${encodeURIComponent(normalizedOutRefundNo)}`
+  })
+}
+
 const buildMiniProgramPaymentParams = prepayId => {
   const appId = getMiniProgramAppId()
   const nonceStr = randomNonce(32)
@@ -293,6 +347,8 @@ module.exports = {
   getWechatAccessToken,
   exchangeCodeForSession,
   createMiniProgramPayment,
+  createWechatPayRefund,
+  queryWechatPayRefund,
   buildMiniProgramPaymentParams,
   decryptWechatPayResource,
   verifyWechatPayCallbackSignature,

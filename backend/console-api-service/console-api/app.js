@@ -6,7 +6,7 @@ const consoleApiRoutes = require('./routes')
 
 const app = express()
 
-const PACKAGE_REFUND_FLOW_VERSION = 'package-refund-flow-2026-05-08-v3'
+const PACKAGE_REFUND_FLOW_VERSION = 'package-refund-flow-2026-05-08-v4-direct-refund'
 
 app.use(express.cors())
 app.use(express.json())
@@ -27,8 +27,13 @@ app.get('/health/package-refund-flow', (req, res) => {
       expected_initial_order_status: 'refund_pending',
       expected_initial_payment_record_status: 'refund_pending',
       sync_supported_local_statuses: ['success', 'refund_pending', 'refund_failed', 'refunded'],
-      cloudbase_env_configured: !!env.cloudbase.envId,
-      wechat_pay_function_name: env.cloudbase.wechatPayFunctionName || 'wechat-pay',
+      refund_transport: 'wechatpay_v3_direct',
+      lindong_api_base_url_configured: !!`${env.lindongApiBaseUrl || ''}`.trim(),
+      internal_payment_secret_configured: !!`${env.internalPaymentSecret || ''}`.trim(),
+      wx_pay_mch_id_configured: !!`${process.env.WX_PAY_MCH_ID || ''}`.trim(),
+      wx_pay_mch_serial_no_configured: !!`${process.env.WX_PAY_MCH_SERIAL_NO || ''}`.trim(),
+      wx_pay_private_key_configured: !!`${process.env.WX_PAY_PRIVATE_KEY || ''}`.trim(),
+      wx_pay_api_v3_key_configured: !!`${process.env.WX_PAY_API_V3_KEY || ''}`.trim(),
       use_mysql_repositories: !!env.useMySqlRepositories
     }
   })
