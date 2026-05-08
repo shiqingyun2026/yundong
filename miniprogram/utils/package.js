@@ -620,9 +620,26 @@ const prepareCloudPayment = ({ orderId, userId = '' }) =>
         userId
       },
       success(result) {
-        const data = result && result.result && (result.result.data || result.result)
+        const payload = (result && result.result) || {}
+        if (payload && Number(payload.code) !== 0) {
+          reject(new Error(payload.message || '支付参数生成失败'))
+          return
+        }
+
+        const data = payload && (payload.data || payload)
         if (!data || !data.payment) {
-          reject(new Error('支付参数生成失败'))
+          const cloudPayResult = data && data.cloudPayResult
+          reject(
+            new Error(
+              (cloudPayResult &&
+                (cloudPayResult.returnMsg ||
+                  cloudPayResult.errCodeDes ||
+                  cloudPayResult.errMsg ||
+                  cloudPayResult.resultCode ||
+                  cloudPayResult.returnCode)) ||
+                '支付参数生成失败'
+            )
+          )
           return
         }
         resolve(data)

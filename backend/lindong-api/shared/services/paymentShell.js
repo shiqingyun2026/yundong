@@ -486,11 +486,8 @@ const prepareCloudPayUnifiedOrder = async ({ supabase, userId, openId, orderId, 
   })
 
   const attach = JSON.stringify({
-    orderId: order.id,
-    groupId: order.group_id || '',
-    courseId: order.course_id || '',
-    packageId: order.package_id || '',
-    packageGroupId: order.package_group_id || ''
+    v: 1,
+    orderNo: paymentRecord.out_trade_no
   })
 
   return {

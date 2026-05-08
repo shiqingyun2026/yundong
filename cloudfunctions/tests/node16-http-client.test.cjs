@@ -28,3 +28,12 @@ test('wechat pay exposes backend diagnostics for cloudpay prepare failures', () 
   assert.equal(source.includes('backend request failed'), true, 'backend failures should include status/path context')
   assert.equal(source.includes('${pathname}'), true, 'backend failures should include the failing path')
 })
+
+test('wechat pay rejects unified order responses without payment params', () => {
+  const source = fs.readFileSync(path.join(root, 'wechat-pay/index.js'), 'utf8')
+
+  assert.equal(source.includes('summarizeCloudPayResult'), true, 'wechat-pay should summarize cloudPay failures')
+  assert.equal(source.includes('!paymentResult.payment'), true, 'wechat-pay should detect missing payment params')
+  assert.equal(source.includes('cloudPay.unifiedOrder failed'), true, 'wechat-pay should return a clear unifiedOrder failure')
+  assert.equal(source.includes('cloudPayResult'), true, 'wechat-pay should include sanitized cloudPay diagnostics')
+})

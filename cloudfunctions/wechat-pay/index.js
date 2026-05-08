@@ -8,7 +8,7 @@ cloud.init({
 
 const DEFAULT_SUB_MCH_ID = '1111327161'
 const DEFAULT_CLOUD_ENV_ID = 'tttiyubao-4g141829bdf6a28d'
-const BUILD_ID = 'cloudpay-node16-http-diagnose-20260508-1118'
+const BUILD_ID = 'cloudpay-node16-http-diagnose-20260508-1224'
 
 const readEnv = key => `${process.env[key] || ''}`.trim()
 
@@ -134,6 +134,19 @@ const probeBackend = async ({ method = 'POST', pathname, headers, body }) => {
   }
 }
 
+const summarizeCloudPayResult = result => {
+  const payload = result && typeof result === 'object' ? result : {}
+  return {
+    returnCode: payload.returnCode || payload.return_code || '',
+    returnMsg: payload.returnMsg || payload.return_msg || '',
+    resultCode: payload.resultCode || payload.result_code || '',
+    errCode: payload.errCode || payload.err_code || '',
+    errCodeDes: payload.errCodeDes || payload.err_code_des || '',
+    errMsg: payload.errMsg || '',
+    hasPayment: !!payload.payment
+  }
+}
+
 const preparePayment = async event => {
   const wxContext = cloud.getWXContext()
   const prepared = await requestBackend({
@@ -155,6 +168,26 @@ const preparePayment = async event => {
     functionName: readEnv('WX_PAY_CALLBACK_FUNCTION') || 'wechat-pay-callback',
     attach: prepared.attach || ''
   })
+  if (!paymentResult || !paymentResult.payment) {
+    const cloudPayResult = summarizeCloudPayResult(paymentResult)
+    const detail =
+      cloudPayResult.returnMsg ||
+      cloudPayResult.errCodeDes ||
+      cloudPayResult.errMsg ||
+      cloudPayResult.resultCode ||
+      cloudPayResult.returnCode ||
+      'missing payment params'
+
+    return {
+      code: 1,
+      message: `cloudPay.unifiedOrder failed: ${detail}`,
+      data: {
+        orderId: prepared.orderId,
+        outTradeNo: prepared.outTradeNo,
+        cloudPayResult
+      }
+    }
+  }
 
   return {
     code: 0,
