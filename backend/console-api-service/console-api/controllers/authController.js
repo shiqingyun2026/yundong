@@ -17,6 +17,7 @@ const COOKIE_OPTIONS = {
   path: '/',
   maxAge: COOKIE_MAX_AGE
 }
+const PACKAGE_REFUND_FLOW_VERSION = 'package-refund-flow-2026-05-08-v3'
 
 const login = async (req, res) => {
   const username = req.body && req.body.username
@@ -92,8 +93,22 @@ const getSession = async (req, res) => {
   })
 }
 
+const getPackageRefundFlowProbe = async (req, res) =>
+  sendOk(res, {
+    version: PACKAGE_REFUND_FLOW_VERSION,
+    packageRefundFlow: {
+      expected_initial_order_status: 'refund_pending',
+      expected_initial_payment_record_status: 'refund_pending',
+      sync_supported_local_statuses: ['success', 'refund_pending', 'refund_failed', 'refunded'],
+      cloudbase_env_configured: !!env.cloudbase.envId,
+      wechat_pay_function_name: env.cloudbase.wechatPayFunctionName || 'wechat-pay',
+      use_mysql_repositories: !!env.useMySqlRepositories
+    }
+  })
+
 module.exports = {
   getSession,
+  getPackageRefundFlowProbe,
   login,
   logout
 }
