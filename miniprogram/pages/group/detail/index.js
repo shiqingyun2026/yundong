@@ -21,6 +21,8 @@ const STATUS_MAP = {
   }
 }
 
+const HOME_PAGE_PATH = '/pages/home/index'
+
 Page({
   data: {
     packageGroupId: '',
@@ -192,6 +194,21 @@ Page({
       const groupDetail = await fetchPackageGroupDetail(packageGroupId)
       this.updateGroupPresentation(groupDetail)
     } catch (error) {
+      if (error && (error.code === 2002 || error.code === 2006)) {
+        const packageId = this.data.packageId || (this.data.groupDetail && this.data.groupDetail.packageInfo && this.data.groupDetail.packageInfo.id) || ''
+        if (packageId) {
+          wx.redirectTo({
+            url: `/pages/course/detail/index?id=${encodeURIComponent(packageId)}`
+          })
+          return
+        }
+
+        wx.switchTab({
+          url: HOME_PAGE_PATH
+        })
+        return
+      }
+
       wx.showToast({
         title: (error && error.message) || '拼团详情加载失败',
         icon: 'none'

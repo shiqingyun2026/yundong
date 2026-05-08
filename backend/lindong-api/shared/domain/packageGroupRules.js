@@ -3,7 +3,8 @@ const { createPackageServiceError } = require('../services/packageServiceError')
 const PACKAGE_GROUP_STATUS = {
   ACTIVE: 'active',
   SUCCESS: 'success',
-  FAILED: 'failed'
+  FAILED: 'failed',
+  CANCELED: 'canceled'
 }
 
 const normalizeGroupPriceConfig = value => {
@@ -102,6 +103,25 @@ const computePackageGroupNextStatus = ({ currentCount, targetCount, deadline, no
   return PACKAGE_GROUP_STATUS.ACTIVE
 }
 
+const computePackageGroupStatusAfterRefund = ({
+  group,
+  currentCount,
+  emptyGroupStatus = PACKAGE_GROUP_STATUS.CANCELED,
+  now = new Date()
+}) => {
+  const normalizedCurrentCount = Math.max(0, Number(currentCount) || 0)
+  if (normalizedCurrentCount <= 0) {
+    return emptyGroupStatus
+  }
+
+  return computePackageGroupNextStatus({
+    currentCount: normalizedCurrentCount,
+    targetCount: group && group.target_count,
+    deadline: group && group.deadline,
+    now
+  })
+}
+
 const buildPackageGroupCreationPayload = ({
   packageId,
   creatorId,
@@ -141,6 +161,7 @@ module.exports = {
   buildPackageGroupCreationPayload,
   calculatePackageMemberAmountFen,
   calculatePackagePlatformSubsidyFen,
+  computePackageGroupStatusAfterRefund,
   computePackageGroupNextStatus,
   findGroupPriceFen,
   isPackageGroupJoinable

@@ -23,8 +23,10 @@
       wx:for="{{groupList}}"
       wx:key="orderId"
       data-group-id="{{item.packageGroupId}}"
+      data-package-id="{{item.packageId}}"
       data-child-nickname="{{item.childNickname}}"
       data-child-age="{{item.childAge}}"
+      data-can-open-detail="{{item.canOpenDetail}}"
       bind:tap="handleOpenDetail"
     >
       <view class="group-content">
@@ -37,8 +39,8 @@
               content="还缺{{item.missingCount}}人"
             />
             <mp-badge
-              extClass="weui-ext-tag status-tag {{item.status === 'active' ? 'status-ongoing' : item.status === 'success' ? 'status-success' : 'status-failed'}}"
-              content="{{item.status === 'active' ? '进行中' : item.status === 'success' ? '已成团' : '已失败'}}"
+              extClass="weui-ext-tag status-tag {{item.status === 'active' ? 'status-ongoing' : item.status === 'success' ? 'status-success' : item.status === 'failed' ? 'status-failed' : 'status-failed'}}"
+              content="{{item.displayStatusText}}"
             />
           </view>
         </view>

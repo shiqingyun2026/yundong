@@ -328,6 +328,26 @@ test('package detail hides groups once their deadline has arrived', async () => 
             deadline: '2026-04-21T13:00:00.000Z'
           },
           {
+            id: 'group-empty',
+            package_id: 'PKG-20260421-0001',
+            status: 'active',
+            target_count: 4,
+            current_count: 0,
+            weekday: 6,
+            hour: 11,
+            deadline: '2026-04-21T14:00:00.000Z'
+          },
+          {
+            id: 'group-canceled',
+            package_id: 'PKG-20260421-0001',
+            status: 'canceled',
+            target_count: 4,
+            current_count: 1,
+            weekday: 6,
+            hour: 12,
+            deadline: '2026-04-21T15:00:00.000Z'
+          },
+          {
             id: 'group-deadline-arrived',
             package_id: 'PKG-20260421-0001',
             status: 'active',
@@ -530,6 +550,7 @@ test('package group detail returns leader child profile, default member avatars 
       })
     },
     ordersRepository: {
+      listOrders: async () => [],
       listOrdersByPackageGroupId: async () => [
         {
           user_id: 'user-1',
@@ -700,4 +721,281 @@ test('user package group list returns missing count for active groups', async ()
   assert.equal(result.list[0].location_text, '深圳市 / 南山区 / 科技园社区')
   assert.equal(result.list[0].child_nickname, '小满')
   assert.equal(result.list[0].child_age, 6)
+})
+
+test('mini program user package group list exposes refund display states and preserves order-created sorting', async () => {
+  clearModules([
+    'config/env.js',
+    'config/storage.js',
+    'repositories/index.js',
+    'shared/domain/packageGroupRules.js',
+    'shared/services/packageGroupStore.js',
+    'shared/services/cosSignedUrl.js',
+    'shared/services/packageReaders.js',
+    'shared/services/packageSchedule.js'
+  ])
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true
+    }
+  })
+
+  mockModule('config/storage.js', {
+    getStorageProviderName: () => 'supabase',
+    getCosStorageConfig: () => ({
+      bucket: '',
+      region: '',
+      secretId: '',
+      secretKey: '',
+      expiresSeconds: 900
+    })
+  })
+
+  mockModule('repositories/index.js', {
+    ordersRepository: {
+      listOrders: async () => [
+        {
+          id: 'order-success',
+          package_group_id: 'PG-success',
+          status: 'success',
+          package_context: {
+            child_nickname: '小满',
+            child_age: 6
+          },
+          created_at: '2026-04-21T08:00:00.000Z',
+          updated_at: '2026-04-21T11:00:00.000Z'
+        },
+        {
+          id: 'order-refund-pending',
+          package_group_id: 'PG-refund-pending',
+          status: 'refund_pending',
+          package_context: {
+            child_nickname: '乐乐',
+            child_age: 5
+          },
+          created_at: '2026-04-21T10:00:00.000Z',
+          updated_at: '2026-04-21T10:01:00.000Z'
+        },
+        {
+          id: 'order-refunded',
+          package_group_id: 'PG-refunded',
+          status: 'refunded',
+          package_context: {
+            child_nickname: '可可',
+            child_age: 4
+          },
+          created_at: '2026-04-21T09:00:00.000Z',
+          updated_at: '2026-04-21T12:00:00.000Z'
+        }
+      ]
+    },
+    packageGroupsRepository: {
+      findPackageGroupById: async id => ({
+        'PG-success': {
+          id: 'PG-success',
+          package_id: 'PKG-1',
+          status: 'active',
+          target_count: 4,
+          current_count: 2,
+          weekday: 6,
+          hour: 10,
+          first_class_time: null
+        },
+        'PG-refund-pending': {
+          id: 'PG-refund-pending',
+          package_id: 'PKG-1',
+          status: 'active',
+          target_count: 4,
+          current_count: 1,
+          weekday: 6,
+          hour: 10,
+          first_class_time: null
+        },
+        'PG-refunded': {
+          id: 'PG-refunded',
+          package_id: 'PKG-1',
+          status: 'failed',
+          target_count: 4,
+          current_count: 0,
+          weekday: 6,
+          hour: 10,
+          first_class_time: null
+        }
+      }[id] || null)
+    },
+    coursePackagesRepository: {
+      findPackagesByIds: async () => [
+        {
+          id: 'PKG-1',
+          name: '云test',
+          total_price: 12000,
+          age_range: '4-8岁',
+          group_price_config: [{ target_count: 4, price_fen: 3000 }],
+          location_city: '深圳市',
+          location_district: '南山区',
+          location_community: '科技园社区',
+          location_detail: 'A场地'
+        }
+      ]
+    },
+    usersRepository: {}
+  })
+
+  mockModule('shared/domain/packageGroupRules.js', {
+    calculatePackageMemberAmountFen: ({ groupPriceConfig = [] }) => Number(groupPriceConfig[0] && groupPriceConfig[0].price_fen) || 0
+  })
+
+  mockModule('shared/services/packageGroupStore.js', {
+    cleanupExpiredPackageGroups: async () => {}
+  })
+
+  mockModule('shared/services/packageSchedule.js', {
+    buildPackageLessonSchedule: () => [],
+    formatPackageDateTime: value => value,
+    formatPendingPackageScheduleText: () => '每周六 10:00，共5次',
+    formatScheduleTextWithLockNote: () => '每周六 10:00，共5次，成团后锁定首课日期'
+  })
+
+  const { fetchMiniProgramUserPackageGroupList } = require(path.join(backendRoot, 'shared/services/packageReaders.js'))
+  const result = await fetchMiniProgramUserPackageGroupList({
+    userId: 'user-1',
+    status: 'all',
+    page: 1,
+    pageSize: 10,
+    now: new Date('2026-04-21T12:00:00.000Z')
+  })
+
+  assert.deepEqual(
+    result.list.map(item => item.order_id),
+    ['order-refund-pending', 'order-refunded', 'order-success']
+  )
+  assert.deepEqual(
+    result.list.map(item => item.status),
+    ['refund_pending', 'refunded', 'active']
+  )
+  assert.equal(result.list[0].order_status, 'refund_pending')
+  assert.equal(result.list[0].group_status, 'active')
+  assert.equal(result.list[0].can_open_detail, false)
+  assert.equal(result.list[1].can_open_detail, false)
+  assert.equal(result.list[2].can_open_detail, true)
+})
+
+test('package group detail rejects refunded viewers and hidden groups', async () => {
+  clearModules([
+    'config/env.js',
+    'config/storage.js',
+    'repositories/index.js',
+    'shared/domain/packageGroupRules.js',
+    'shared/services/packageGroupStore.js',
+    'shared/services/cosSignedUrl.js',
+    'shared/services/packageReaders.js',
+    'shared/services/packageSchedule.js'
+  ])
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true
+    }
+  })
+
+  mockModule('config/storage.js', {
+    getStorageProviderName: () => 'supabase',
+    getCosStorageConfig: () => ({
+      bucket: '',
+      region: '',
+      secretId: '',
+      secretKey: '',
+      expiresSeconds: 900
+    })
+  })
+
+  let currentGroup = {
+    id: 'PG-hidden',
+    package_id: 'PKG-20260421-0001',
+    status: 'canceled',
+    target_count: 4,
+    current_count: 0,
+    weekday: 6,
+    hour: 10,
+    deadline: '2026-04-23T10:00:00.000Z',
+    first_class_time: null
+  }
+
+  mockModule('repositories/index.js', {
+    coursePackagesRepository: {
+      findPackageById: async () => ({
+        id: 'PKG-20260421-0001',
+        name: '云test',
+        total_price: 12000,
+        group_price_config: [{ target_count: 4, price_fen: 3000 }]
+      })
+    },
+    packageGroupsRepository: {
+      findPackageGroupById: async () => ({ ...currentGroup })
+    },
+    ordersRepository: {
+      listOrdersByPackageGroupId: async () => [],
+      listOrders: async () => [
+        {
+          id: 'order-refunded',
+          status: 'refunded',
+          package_group_id: 'PG-hidden'
+        }
+      ]
+    },
+    usersRepository: {
+      listUsersByIds: async () => []
+    }
+  })
+
+  mockModule('shared/domain/packageGroupRules.js', {
+    calculatePackageMemberAmountFen: ({ groupPriceConfig = [] }) => Number(groupPriceConfig[0] && groupPriceConfig[0].price_fen) || 0
+  })
+
+  mockModule('shared/services/packageGroupStore.js', {
+    cleanupExpiredPackageGroups: async () => {}
+  })
+
+  mockModule('shared/services/packageSchedule.js', {
+    buildPackageLessonSchedule: () => [],
+    formatPackageDateTime: value => value,
+    formatPendingPackageScheduleText: () => '每周六 10:00，共5次',
+    formatScheduleTextWithLockNote: () => '每周六 10:00，共5次，成团后锁定首课日期'
+  })
+
+  const { fetchMiniProgramPackageGroupDetail } = require(path.join(backendRoot, 'shared/services/packageReaders.js'))
+
+  await assert.rejects(
+    () =>
+      fetchMiniProgramPackageGroupDetail({
+        packageGroupId: 'PG-hidden',
+        userId: 'user-1',
+        now: new Date('2026-04-21T10:00:00.000Z')
+      }),
+    error => {
+      assert.equal(error.code, 2002)
+      return true
+    }
+  )
+
+  currentGroup = {
+    ...currentGroup,
+    id: 'PG-visible',
+    status: 'active',
+    current_count: 2
+  }
+
+  await assert.rejects(
+    () =>
+      fetchMiniProgramPackageGroupDetail({
+        packageGroupId: 'PG-visible',
+        userId: 'user-1',
+        now: new Date('2026-04-21T10:00:00.000Z')
+      }),
+    error => {
+      assert.equal(error.code, 2006)
+      return true
+    }
+  )
 })

@@ -23,6 +23,7 @@ const { writeAdminLog } = require('../../utils/adminStore')
 const { formatDateTime, getPagination, parseShanghaiDateTimeInput } = require('../routes/_helpers')
 const { geocodeAddressWithTencentMap, searchPlacesWithTencentMap } = require('./tencentMapService')
 const { ensureCondition, ensureFound } = require('./_guards')
+const { invokeCloudPayRefund } = require('./cloudPayRefundGateway')
 
 const PACKAGE_STATUS = {
   INACTIVE: 0,
@@ -1218,55 +1219,25 @@ const refundAdminPackageOrder = async ({ orderId, reason, admin = {}, ip = null,
     message: '已成团拼团不支持个人线上退款'
   })
 
-  const refundTime = now
-  const updatedOrder = await ordersRepository.updateOrder(order.id, {
-    status: 'refunded',
-    refund_time: refundTime,
+  let updatedOrder = await ordersRepository.updateOrder(order.id, {
+    status: 'refund_pending',
     refund_reason: normalizedReason,
     refund_operator_id: admin.id || null,
-    updated_at: refundTime
-  })
-  const paymentRecord = await markPaymentRecordRefunded({
-    supabase: null,
-    orderId: order.id,
-    reason: normalizedReason,
-    now: refundTime
+    updated_at: now
   })
 
-  let groupDetail = null
-  let closedPendingOrderIds = []
-
-  if (group) {
-    const remainingSuccessOrders = await ordersRepository.listOrdersByPackageGroupId({
-      packageGroupId: group.id,
-      status: 'success'
+  try {
+    await invokeCloudPayRefund({
+      orderId: order.id,
+      reason: normalizedReason,
+      operatorId: admin.id || ''
     })
-    const nextCount = remainingSuccessOrders.length
-    const nextStatus = group.status === 'active' && nextCount <= 0 ? 'failed' : group.status
-    const updatedGroup = await packageGroupsRepository.updatePackageGroup(group.id, {
-      current_count: nextCount,
-      status: nextStatus
+  } catch (error) {
+    updatedOrder = await ordersRepository.updateOrder(order.id, {
+      status: 'refund_failed',
+      updated_at: now
     })
-
-    if (nextStatus === 'failed') {
-      const pendingOrders = await ordersRepository.listOrdersByPackageGroupId({
-        packageGroupId: group.id,
-        status: 'pending'
-      })
-      const closedOrders = await closePendingPackageOrdersByIds({
-        orderIds: pendingOrders.map(item => item.id).filter(Boolean),
-        now: refundTime
-      })
-      closedPendingOrderIds = (closedOrders || []).map(item => item.id).filter(Boolean)
-    }
-
-    groupDetail = {
-      id: updatedGroup.id,
-      previous_status: group.status,
-      next_status: updatedGroup.status,
-      previous_count: Number(group.current_count) || 0,
-      next_count: Number(updatedGroup.current_count) || 0
-    }
+    throw error
   }
 
   await safeWriteAdminLog({
@@ -1282,9 +1253,15 @@ const refundAdminPackageOrder = async ({ orderId, reason, admin = {}, ip = null,
       previous_status: order.status,
       next_status: updatedOrder.status,
       refund_reason: normalizedReason,
-      payment_record_status: paymentRecord ? paymentRecord.status : '',
-      group_detail: groupDetail,
-      closed_pending_order_ids: closedPendingOrderIds
+      group_detail: group
+        ? {
+            id: group.id,
+            previous_status: group.status,
+            next_status: group.status,
+            previous_count: Number(group.current_count) || 0,
+            next_count: Number(group.current_count) || 0
+          }
+        : null
     },
     ip
   })
@@ -1294,9 +1271,95 @@ const refundAdminPackageOrder = async ({ orderId, reason, admin = {}, ip = null,
     status: updatedOrder.status,
     refund_time: formatDateTime(updatedOrder.refund_time),
     refund_reason: updatedOrder.refund_reason || '',
-    payment_record_status: paymentRecord ? paymentRecord.status : '',
-    group: groupDetail,
-    closed_pending_order_ids: closedPendingOrderIds
+    payment_record_status: 'refund_pending',
+    group: group
+      ? {
+          id: group.id,
+          previous_status: group.status,
+          next_status: group.status,
+          previous_count: Number(group.current_count) || 0,
+          next_count: Number(group.current_count) || 0
+        }
+      : null,
+    closed_pending_order_ids: []
+  }
+}
+
+const refundAdminPackageGroup = async ({ packageGroupId, reason, admin = {}, ip = null, now = new Date() }) => {
+  ensureMySqlMode()
+
+  const normalizedReason = normalizeText(reason)
+  ensureCondition(!!normalizedReason, {
+    responseCode: 1001,
+    statusCode: 400,
+    message: '退款原因不能为空'
+  })
+
+  const group = await packageGroupsRepository.findPackageGroupById(packageGroupId)
+  ensureFound(group, {
+    responseCode: 2002,
+    message: '拼团不存在'
+  })
+  ensureCondition(group.status === 'success', {
+    responseCode: 2006,
+    statusCode: 400,
+    message: '只有已成团拼团才允许整团退款'
+  })
+
+  const successOrders = await ordersRepository.listOrdersByPackageGroupId({
+    packageGroupId,
+    status: 'success'
+  })
+  ensureCondition(successOrders.length > 0, {
+    responseCode: 2003,
+    statusCode: 400,
+    message: '拼团下无可退款订单'
+  })
+
+  const orderIds = []
+  for (const order of successOrders) {
+    await ordersRepository.updateOrder(order.id, {
+      status: 'refund_pending',
+      refund_reason: normalizedReason,
+      refund_operator_id: admin.id || null,
+      updated_at: now
+    })
+
+    try {
+      await invokeCloudPayRefund({
+        orderId: order.id,
+        reason: normalizedReason,
+        operatorId: admin.id || ''
+      })
+      orderIds.push(order.id)
+    } catch (error) {
+      await ordersRepository.updateOrder(order.id, {
+        status: 'refund_failed',
+        updated_at: now
+      })
+      throw error
+    }
+  }
+
+  await safeWriteAdminLog({
+    adminId: admin.id,
+    action: 'package_group_refund',
+    targetType: 'package_group',
+    targetId: group.id,
+    detail: {
+      package_group_id: group.id,
+      order_ids: orderIds,
+      refund_reason: normalizedReason,
+      previous_status: group.status,
+      next_status: 'refund_pending'
+    },
+    ip
+  })
+
+  return {
+    package_group_id: group.id,
+    status: 'refund_pending',
+    order_ids: orderIds
   }
 }
 
@@ -1309,6 +1372,7 @@ module.exports = {
   listAdminPackageOrders,
   listAdminPackages,
   offlineAdminPackage,
+  refundAdminPackageGroup,
   refundAdminPackageOrder,
   searchPackageLocations,
   updateAdminPackage,

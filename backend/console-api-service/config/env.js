@@ -63,6 +63,11 @@ const env = {
     publicBaseUrl: getOptionalEnv('COS_PUBLIC_BASE_URL'),
     uploadExpiresSeconds: toInt(process.env.COS_UPLOAD_EXPIRES_SECONDS, 900),
     maxUploadBytes: toInt(process.env.ADMIN_UPLOAD_MAX_BYTES, 5 * 1024 * 1024)
+  },
+  cloudbase: {
+    envId: getOptionalEnv('WX_CLOUD_ENV_ID'),
+    wechatPayFunctionName: pickFirst(process.env.WX_PAY_FUNCTION_NAME, 'wechat-pay'),
+    functionTimeoutMs: toInt(process.env.CLOUDBASE_FUNCTION_TIMEOUT_MS, 15000)
   }
 }
 

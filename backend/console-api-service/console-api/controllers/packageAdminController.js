@@ -8,6 +8,7 @@ const {
   listAdminPackageOrders,
   listAdminPackages,
   offlineAdminPackage,
+  refundAdminPackageGroup,
   refundAdminPackageOrder,
   searchPackageLocations,
   updateAdminPackage,
@@ -100,6 +101,15 @@ const refundAdminPackageOrderHandler = createOkHandler('课包订单退款失败
   })
 )
 
+const refundAdminPackageGroupHandler = createOkHandler('课包拼团整团退款失败', req =>
+  refundAdminPackageGroup({
+    packageGroupId: req.params.id,
+    reason: req.body && req.body.reason,
+    admin: req.admin || {},
+    ip: req.ip || null
+  })
+)
+
 module.exports = {
   createAdminPackageHandler,
   geocodePackageHandler,
@@ -109,6 +119,7 @@ module.exports = {
   listAdminPackageOrdersHandler,
   listAdminPackagesHandler,
   offlineAdminPackageHandler,
+  refundAdminPackageGroupHandler,
   refundAdminPackageOrderHandler,
   searchPackageLocationsHandler,
   updateAdminPackageHandler,

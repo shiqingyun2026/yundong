@@ -13,6 +13,14 @@ const WEEKDAY_LABELS = {
 
 const START_HOUR_OPTIONS = [9, 10, 11, 14, 15, 16, 17, 18, 19]
 const DEFAULT_MEMBER_AVATAR = '/assets/member-default-avatar.jpg'
+const STATUS_TEXT_MAP = {
+  active: '进行中',
+  success: '已成团',
+  failed: '已失败',
+  refund_pending: '退款中',
+  refunded: '已退款',
+  refund_failed: '退款失败'
+}
 
 const pickFirstNonEmptyString = values => {
   for (let index = 0; index < values.length; index += 1) {
@@ -499,6 +507,10 @@ const normalizeUserPackageGroupListItem = item => ({
       ? null
       : Number(item.child_age) || 0,
   status: item.status || 'active',
+  groupStatus: item.group_status || item.status || 'active',
+  orderStatus: item.order_status || '',
+  displayStatusText: STATUS_TEXT_MAP[item.status] || '进行中',
+  canOpenDetail: item.can_open_detail !== false,
   locationText: formatPackageLocationText(item),
   currentCount: Number(item.current_count) || 0,
   targetCount: Number(item.target_count) || 0,

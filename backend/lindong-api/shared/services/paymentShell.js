@@ -1,6 +1,8 @@
 const { env } = require('../../config/env')
 const { ordersRepository, paymentRecordsRepository, usersRepository } = require('../../repositories')
 const { markOrderPaymentSuccess } = require('./groupOrders')
+const { markPaymentRecordRefunded: markMySqlPaymentRecordRefunded } = require('./paymentRecordStatus')
+const { finalizePackageOrderRefund } = require('./packageRefundService')
 const {
   createMiniProgramPayment,
   buildMiniProgramPaymentParams,
@@ -940,6 +942,14 @@ const markPaymentRecordPaid = async ({ supabase, orderId, transactionId = '', no
 }
 
 const markPaymentRecordRefunded = async ({ supabase, orderId, reason = '', now = new Date() }) => {
+  if (env.useMySqlRepositories) {
+    return markMySqlPaymentRecordRefunded({
+      orderId,
+      reason,
+      now
+    })
+  }
+
   const paymentRecord = await getPaymentRecordByOrderId({
     supabase,
     orderId
@@ -1010,7 +1020,7 @@ const prepareCloudPayRefund = async ({ supabase, orderId, reason = '' }) => {
   if (!order) {
     throw createServiceError(404, 'order not found')
   }
-  if (order.status !== 'success') {
+  if (order.status !== 'success' && order.status !== 'refund_pending') {
     throw createServiceError(400, 'only paid order can be refunded')
   }
 
@@ -1036,6 +1046,14 @@ const markCloudPayRefundResult = async ({ supabase, payload, now = new Date() })
   const orderId = payload && payload.orderId
   if (!orderId) {
     throw createServiceError(400, 'orderId is required')
+  }
+
+  if (env.useMySqlRepositories) {
+    return finalizePackageOrderRefund({
+      orderId,
+      reason: (payload && payload.reason) || 'cloudpay refund confirmed',
+      now
+    })
   }
 
   return markPaymentRecordRefunded({

@@ -2,7 +2,6 @@ const { env } = require('../../config/env')
 const { ordersRepository, packageGroupsRepository } = require('../../repositories')
 const { AUTO_REFUND_REASON } = require('../constants/refunds')
 const { enqueueNotificationsForGroups } = require('./groupResultNotifications')
-const { markPaymentRecordRefunded } = require('./paymentShell')
 
 const listPendingOrderIdsForPackage = async ({ userId, packageId }) => {
   if (!env.useMySqlRepositories) {
@@ -83,21 +82,16 @@ const cleanupExpiredPackageGroups = async ({ packageId, packageIds = [], now = n
     now
   })
 
+  const { finalizePackageOrderRefund, REFUND_EMPTY_GROUP_STATUS } = require('./packageRefundService')
   await Promise.all(
-    successOrders.map(async order => {
-      await ordersRepository.updateOrder(order.id, {
-        status: 'refunded',
-        refund_time: now,
-        refund_reason: AUTO_REFUND_REASON,
-        updated_at: now
-      })
-      await markPaymentRecordRefunded({
-        supabase: null,
+    successOrders.map(order =>
+      finalizePackageOrderRefund({
         orderId: order.id,
         reason: AUTO_REFUND_REASON,
-        now
+        now,
+        emptyGroupStatus: REFUND_EMPTY_GROUP_STATUS.AUTO_TIMEOUT
       })
-    })
+    )
   )
 
   await enqueueNotificationsForGroups({

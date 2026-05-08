@@ -149,7 +149,11 @@ const loadConsoleAppWithMockedPackageService = () => {
     },
     refundAdminPackageOrder: async payload => {
       calls.push(['refundAdminPackageOrder', payload])
-      return { id: payload.orderId, status: 'refunded' }
+      return { id: payload.orderId, status: 'refund_pending' }
+    },
+    refundAdminPackageGroup: async payload => {
+      calls.push(['refundAdminPackageGroup', payload])
+      return { id: payload.packageGroupId, status: 'refund_pending' }
     }
   })
 
@@ -301,6 +305,25 @@ const createPackageRepositoryState = () => ({
       pay_time: '2026-04-18T11:00:00.000Z'
     },
     {
+      id: 'ord-success-group-2',
+      order_no: 'LDPKG-20260418-000004',
+      user_id: 'user-1',
+      order_type: 2,
+      package_id: 'PKG-20260418-0001',
+      package_group_id: 'pg-success',
+      package_action: 'start',
+      package_context: {
+        child_nickname: '可可',
+        child_age: 6,
+        parent_mobile: '13800138005'
+      },
+      amount: 500,
+      status: 'success',
+      created_at: '2026-04-18T10:55:00.000Z',
+      updated_at: '2026-04-18T10:55:00.000Z',
+      pay_time: '2026-04-18T10:56:00.000Z'
+    },
+    {
       id: 'ord-expired-1',
       order_no: 'LDPKG-20260416-000001',
       user_id: 'user-1',
@@ -383,6 +406,7 @@ const loadPackageServicesWithState = () => {
     'config/env.js',
     'repositories/index.js',
     'utils/adminStore.js',
+    'console-api/services/cloudPayRefundGateway.js',
     'shared/services/paymentShell.js',
     'shared/services/groupResultNotifications.js',
     'shared/services/packageGroupStore.js',
@@ -423,6 +447,19 @@ const loadPackageServicesWithState = () => {
     writeAdminLog: async payload => {
       state.adminLogWrites.push(payload)
       return payload
+    }
+  })
+
+  mockModule('console-api/services/cloudPayRefundGateway.js', {
+    invokeCloudPayRefund: async payload => {
+      if (!state.cloudPayRefundCalls) {
+        state.cloudPayRefundCalls = []
+      }
+      state.cloudPayRefundCalls.push(payload)
+      return {
+        orderId: payload.orderId,
+        status: 'accepted'
+      }
     }
   })
 
@@ -715,7 +752,7 @@ test('admin package routes are mounted behind admin authentication', async () =>
   assert.equal(updateCoachAssignment.body.data.id, 'pg-1')
   assert.equal(updateCoachAssignment.body.data.coach_assignment.default_coach_name, '王教练')
   assert.equal(listOrders.body.data.list[0].id, 'ord-1')
-  assert.equal(refund.body.data.status, 'refunded')
+  assert.equal(refund.body.data.status, 'refund_pending')
   assert.deepEqual(
     calls.map(item => item[0]),
     [
@@ -883,7 +920,7 @@ test('admin package detail and order list tolerate legacy or missing package con
   assert.equal(missingListOrder.phone, '')
 })
 
-test('admin package order refund updates order, group, pending orders, and payment record', async () => {
+test('admin package order refund marks the order refund_pending before the cloud refund confirmation returns', async () => {
   const { packageAdminService, state } = loadPackageServicesWithState()
 
   const result = await packageAdminService.refundAdminPackageOrder({
@@ -893,41 +930,36 @@ test('admin package order refund updates order, group, pending orders, and payme
     now: new Date('2026-04-19T08:00:00.000Z')
   })
 
-  const refundedOrder = state.orders.find(item => item.id === 'ord-refund')
-  const pendingOrder = state.orders.find(item => item.id === 'ord-pending')
-  const group = state.groups.find(item => item.id === 'pg-active')
-  const paymentRecord = state.paymentRecords.find(item => item.id === 'pay-refund')
+  const pendingOrder = state.orders.find(item => item.id === 'ord-refund')
 
-  assert.equal(result.status, 'refunded')
-  assert.equal(refundedOrder.status, 'refunded')
-  assert.equal(refundedOrder.refund_reason, '用户线下申请退款')
-  assert.equal(group.status, 'failed')
-  assert.equal(group.current_count, 0)
-  assert.equal(pendingOrder.status, 'closed')
-  assert.equal(paymentRecord.status, 'refunded')
-  assert.equal(paymentRecord.callback_status, 'REFUNDED')
-  assert.equal(paymentRecord.package_group_id, 'pg-active')
+  assert.equal(result.status, 'refund_pending')
+  assert.equal(pendingOrder.status, 'refund_pending')
+  assert.equal(pendingOrder.refund_reason, '用户线下申请退款')
+  assert.equal(state.cloudPayRefundCalls.length, 1)
+  assert.equal(state.cloudPayRefundCalls[0].orderId, 'ord-refund')
   assert.equal(state.adminLogWrites.length, 1)
   assert.equal(state.adminLogWrites[0].action, 'package_order_refund')
 })
 
-test('admin package order refund rejects successful package groups', async () => {
-  const { packageAdminService } = loadPackageServicesWithState()
+test('admin package group refund allows a successful package group to enter full-group refund flow', async () => {
+  const { packageAdminService, state } = loadPackageServicesWithState()
 
-  await assert.rejects(
-    () =>
-      packageAdminService.refundAdminPackageOrder({
-        orderId: 'ord-success-group',
-        reason: '用户线下申请退款',
-        admin: { id: 'admin-1' }
-      }),
-    error => {
-      assert.equal(error.responseCode, 2006)
-      assert.equal(error.statusCode, 400)
-      assert.match(error.message, /已成团/)
-      return true
-    }
+  const result = await packageAdminService.refundAdminPackageGroup({
+    packageGroupId: 'pg-success',
+    reason: '场地取消整团退款',
+    admin: { id: 'admin-1' },
+    now: new Date('2026-04-19T08:00:00.000Z')
+  })
+
+  assert.equal(result.status, 'refund_pending')
+  assert.deepEqual(
+    state.orders
+      .filter(item => item.package_group_id === 'pg-success' && item.status === 'refund_pending')
+      .map(item => item.id)
+      .sort(),
+    ['ord-success-group', 'ord-success-group-2']
   )
+  assert.equal(state.cloudPayRefundCalls.length, 2)
 })
 
 test('admin package create requires valid package category', async () => {

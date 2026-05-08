@@ -10,6 +10,7 @@
     "console:dev": "node console-api/server.js"
   },
   "dependencies": {
+    "@cloudbase/node-sdk": "^3.18.1",
     "@supabase/supabase-js": "^2.49.4",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

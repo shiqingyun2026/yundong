@@ -433,7 +433,13 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
     active_groups: (activeGroups || [])
       .filter(group => {
         const deadline = parseShanghaiDate(group && group.deadline)
-        return !!deadline && deadline.getTime() > now.getTime()
+        return (
+          group &&
+          group.status === 'active' &&
+          Number(group.current_count) > 0 &&
+          !!deadline &&
+          deadline.getTime() > now.getTime()
+        )
       })
       .sort((left, right) => {
         const leftDeadline = parseShanghaiDate(left.deadline)
@@ -482,10 +488,25 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
   if (!latestGroup) {
     throw createPackageServiceError(404, 2002, '拼团不存在')
   }
+  if (latestGroup.status === 'canceled' || Number(latestGroup.current_count) <= 0) {
+    throw createPackageServiceError(404, 2002, '拼团不存在')
+  }
 
   const pkg = await coursePackagesRepository.findPackageById(latestGroup.package_id)
   if (!pkg) {
     throw createPackageServiceError(404, 2001, '课包不存在')
+  }
+
+  if (userId) {
+    const viewerOrders = await ordersRepository.listOrders({
+      userId,
+      orderType: 2,
+      packageGroupId
+    })
+
+    if ((viewerOrders || []).some(item => ['refund_pending', 'refunded', 'refund_failed'].includes(item.status))) {
+      throw createPackageServiceError(403, 2006, '退款订单不可查看拼团详情')
+    }
   }
 
   const successOrders = await ordersRepository.listOrdersByPackageGroupId({
@@ -578,7 +599,7 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
   const orders = await ordersRepository.listOrders({
     userId,
     orderType: 2,
-    statuses: ['success', 'refunded']
+    statuses: ['success', 'refund_pending', 'refunded', 'refund_failed']
   })
   const packageGroupIds = [...new Set((orders || []).map(item => item.package_group_id).filter(Boolean))]
   const packageGroups = await Promise.all(packageGroupIds.map(id => packageGroupsRepository.findPackageGroupById(id)))
@@ -605,14 +626,29 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
     return result
   }, {})
 
-  const normalizedStatus = ['active', 'success', 'failed'].includes(status) ? status : 'all'
+  const normalizedStatus = ['active', 'success', 'failed', 'refund_pending', 'refunded', 'refund_failed'].includes(status) ? status : 'all'
   const listSource = (orders || [])
     .filter(order => refreshedGroupById[order.package_group_id])
-    .filter(order => normalizedStatus === 'all' || refreshedGroupById[order.package_group_id].status === normalizedStatus)
+    .filter(order => {
+      if (normalizedStatus === 'all') {
+        return true
+      }
+
+      const group = refreshedGroupById[order.package_group_id]
+      const displayStatus = ['refund_pending', 'refunded', 'refund_failed'].includes(order.status)
+        ? order.status
+        : group.status
+
+      if (normalizedStatus === 'failed') {
+        return ['failed', 'refund_pending', 'refunded', 'refund_failed'].includes(displayStatus)
+      }
+
+      return displayStatus === normalizedStatus
+    })
     .sort(
       (left, right) =>
-        (parseShanghaiDate(right.updated_at || right.created_at)?.getTime() || 0) -
-        (parseShanghaiDate(left.updated_at || left.created_at)?.getTime() || 0)
+        (parseShanghaiDate(right.created_at)?.getTime() || 0) -
+        (parseShanghaiDate(left.created_at)?.getTime() || 0)
     )
 
   const from = (safePage - 1) * safePageSize
@@ -624,6 +660,10 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
       targetCount: group.target_count,
       groupPriceConfig: pkg ? pkg.group_price_config : []
     })
+    const displayStatus = ['refund_pending', 'refunded', 'refund_failed'].includes(order.status)
+      ? order.status
+      : group.status
+    const canOpenDetail = !['refund_pending', 'refunded', 'refund_failed'].includes(order.status)
 
     return {
       order_id: order.id,
@@ -637,7 +677,10 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
           ? Number(order.package_context.child_age) || 0
           : null,
       age_range: pkg ? pkg.age_range || '' : '',
-      status: group.status,
+      status: displayStatus,
+      order_status: order.status || '',
+      group_status: group.status,
+      can_open_detail: canOpenDetail,
       location_city: pkg ? pkg.location_city || '' : '',
       location_district: pkg ? pkg.location_district || '' : '',
       location_community: pkg ? pkg.location_community || '' : '',
@@ -653,6 +696,7 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
             weekday: group.weekday,
             hour: group.hour
           }),
+      created_at: order.created_at || null,
       member_amount_text: formatFenText(memberAmountFen)
     }
   })
