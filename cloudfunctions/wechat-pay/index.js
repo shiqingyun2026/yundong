@@ -8,6 +8,7 @@ cloud.init({
 
 const DEFAULT_SUB_MCH_ID = '1111327161'
 const DEFAULT_CLOUD_ENV_ID = 'tttiyubao-4g141829bdf6a28d'
+const BUILD_ID = 'cloudpay-node16-http-20260508-1018'
 
 const readEnv = key => `${process.env[key] || ''}`.trim()
 
@@ -149,6 +150,17 @@ const refundPayment = async event => {
 
 exports.main = async event => {
   const type = `${(event && event.type) || ''}`.trim()
+  if (type === 'diagnose') {
+    const wxContext = cloud.getWXContext()
+    return {
+      code: 0,
+      buildId: BUILD_ID,
+      envId: resolveCloudEnvId(wxContext),
+      openId: wxContext.OPENID || '',
+      hasFetch: typeof fetch !== 'undefined',
+      hasNodeHttpClient: true
+    }
+  }
   if (type === 'prepare') {
     return preparePayment(event || {})
   }

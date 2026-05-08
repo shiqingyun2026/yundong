@@ -15,5 +15,6 @@ test('wechat pay cloud functions use node16-compatible http client', () => {
     const source = fs.readFileSync(file, 'utf8')
     assert.equal(source.includes('fetch('), false, `${file} must not use global fetch in Node 16`)
     assert.equal(source.includes("require('node:https')"), true, `${file} should import node:https`)
+    assert.equal(source.includes('diagnose'), true, `${file} should expose a diagnose entrypoint`)
   })
 })

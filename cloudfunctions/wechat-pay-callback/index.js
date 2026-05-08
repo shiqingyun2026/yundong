@@ -7,6 +7,7 @@ cloud.init({
 })
 
 const readEnv = key => `${process.env[key] || ''}`.trim()
+const BUILD_ID = 'cloudpay-callback-node16-http-20260508-1018'
 
 const postJson = ({ url, headers, body }) =>
   new Promise((resolve, reject) => {
@@ -75,6 +76,16 @@ const postBackendCallback = async payload => {
 }
 
 exports.main = async event => {
+  if (event && event.type === 'diagnose') {
+    return {
+      errcode: 0,
+      errmsg: 'SUCCESS',
+      buildId: BUILD_ID,
+      hasFetch: typeof fetch !== 'undefined',
+      hasNodeHttpClient: true
+    }
+  }
+
   try {
     await postBackendCallback(event || {})
     return {
