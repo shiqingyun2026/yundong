@@ -33,6 +33,27 @@ const invokeCloudPayRefund = async ({ orderId, reason, operatorId }) => {
   return payload.data || {}
 }
 
+const queryAndSyncCloudPayRefund = async ({ orderId, outRefundNo }) => {
+  const app = getCloudbaseApp()
+  const result = await app.callFunction({
+    name: env.cloudbase.wechatPayFunctionName,
+    data: {
+      type: 'queryRefund',
+      orderId,
+      outRefundNo,
+      confirmIfSettled: true
+    }
+  })
+
+  const payload = result && (result.result || result)
+  if (!payload || payload.code !== 0) {
+    throw new Error((payload && payload.message) || 'cloudpay refund query failed')
+  }
+
+  return payload.data || {}
+}
+
 module.exports = {
-  invokeCloudPayRefund
+  invokeCloudPayRefund,
+  queryAndSyncCloudPayRefund
 }

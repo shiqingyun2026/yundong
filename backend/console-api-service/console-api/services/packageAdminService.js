@@ -23,7 +23,7 @@ const { writeAdminLog } = require('../../utils/adminStore')
 const { formatDateTime, getPagination, parseShanghaiDateTimeInput } = require('../routes/_helpers')
 const { geocodeAddressWithTencentMap, searchPlacesWithTencentMap } = require('./tencentMapService')
 const { ensureCondition, ensureFound } = require('./_guards')
-const { invokeCloudPayRefund } = require('./cloudPayRefundGateway')
+const { invokeCloudPayRefund, queryAndSyncCloudPayRefund } = require('./cloudPayRefundGateway')
 
 const PACKAGE_STATUS = {
   INACTIVE: 0,
@@ -126,6 +126,12 @@ const toMap = (list = [], key = 'id') =>
   }, {})
 
 const normalizeText = value => `${value || ''}`.trim()
+
+const buildPackageRefundOutRefundNo = order => {
+  const base = (order && (order.order_no || order.id) ? `${order.order_no || order.id}` : '').replace(/[^a-zA-Z0-9_-]/g, '')
+  const outTradeNo = base || `order_${Date.now()}`
+  return `RF-${outTradeNo}`.slice(0, 64)
+}
 
 const normalizeCoachAssignment = value => {
   if (!value || typeof value !== 'object') {
@@ -1363,6 +1369,58 @@ const refundAdminPackageGroup = async ({ packageGroupId, reason, admin = {}, ip 
   }
 }
 
+const syncAdminPackageOrderRefundStatus = async ({ orderId, admin = {}, ip = null, now = new Date() }) => {
+  ensureMySqlMode()
+
+  const order = await ordersRepository.findOrderById(orderId)
+  ensureFound(order, {
+    responseCode: 2003,
+    message: '订单不存在'
+  })
+  ensureCondition(Number(order.order_type) === 2, {
+    responseCode: 2003,
+    statusCode: 400,
+    message: '订单不是课包拼团订单'
+  })
+  ensureCondition(['refund_pending', 'refund_failed'].includes(order.status), {
+    responseCode: 2006,
+    statusCode: 400,
+    message: '只有退款中的订单才允许同步退款状态'
+  })
+
+  const syncResult = await queryAndSyncCloudPayRefund({
+    orderId: order.id,
+    outRefundNo: buildPackageRefundOutRefundNo(order)
+  })
+  const latestOrder = await ordersRepository.findOrderById(order.id)
+
+  await safeWriteAdminLog({
+    adminId: admin.id,
+    action: 'package_order_refund_sync',
+    targetType: 'order',
+    targetId: order.id,
+    detail: {
+      order_no: order.order_no || order.id,
+      previous_status: order.status,
+      next_status: latestOrder ? latestOrder.status : order.status,
+      refund_query_status: syncResult.queryStatus || '',
+      refund_query_settled: !!syncResult.settled,
+      refund_query_final_status: syncResult.finalStatus || ''
+    },
+    ip
+  })
+
+  return {
+    id: order.id,
+    status: latestOrder ? latestOrder.status : order.status,
+    out_refund_no: buildPackageRefundOutRefundNo(order),
+    refund_query_status: syncResult.queryStatus || '',
+    refund_query_settled: !!syncResult.settled,
+    refund_query_final_status: syncResult.finalStatus || '',
+    updated_at: latestOrder && latestOrder.updated_at ? formatDateTime(latestOrder.updated_at) : formatDateTime(now)
+  }
+}
+
 module.exports = {
   createAdminPackage,
   geocodePackageAddress,
@@ -1374,6 +1432,7 @@ module.exports = {
   offlineAdminPackage,
   refundAdminPackageGroup,
   refundAdminPackageOrder,
+  syncAdminPackageOrderRefundStatus,
   searchPackageLocations,
   updateAdminPackage,
   updateAdminPackageGroupCoachAssignment

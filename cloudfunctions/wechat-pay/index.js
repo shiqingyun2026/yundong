@@ -147,6 +147,118 @@ const summarizeCloudPayResult = result => {
   }
 }
 
+const normalizeStatusValue = value => `${value || ''}`.trim().toUpperCase()
+
+const extractRefundQueryStatus = payload => {
+  const source = payload && typeof payload === 'object' ? payload : {}
+  const directCandidates = [
+    source.refundStatus,
+    source.refund_status,
+    source.status,
+    source.refund_status_0,
+    source.refundStatus0
+  ]
+
+  for (const candidate of directCandidates) {
+    const normalized = normalizeStatusValue(candidate)
+    if (normalized) {
+      return normalized
+    }
+  }
+
+  const refunds = Array.isArray(source.refunds) ? source.refunds : []
+  for (const item of refunds) {
+    const normalized = normalizeStatusValue(
+      item && (item.status || item.refund_status || item.refundStatus)
+    )
+    if (normalized) {
+      return normalized
+    }
+  }
+
+  return ''
+}
+
+const mapRefundQueryToBusinessStatus = refundQueryResult => {
+  const queryStatus = extractRefundQueryStatus(refundQueryResult)
+
+  if (['SUCCESS', 'CHANGE'].includes(queryStatus)) {
+    return {
+      queryStatus,
+      settled: true,
+      finalStatus: 'refunded'
+    }
+  }
+
+  if (['ABNORMAL', 'CLOSED', 'FAIL'].includes(queryStatus)) {
+    return {
+      queryStatus,
+      settled: true,
+      finalStatus: 'refund_failed'
+    }
+  }
+
+  return {
+    queryStatus,
+    settled: false,
+    finalStatus: 'refund_pending'
+  }
+}
+
+const syncRefundQueryResult = async ({ orderId, outRefundNo, refundQueryResult }) => {
+  const summary = mapRefundQueryToBusinessStatus(refundQueryResult)
+
+  if (summary.finalStatus === 'refunded' && orderId) {
+    await requestBackend({
+      pathname: '/api/payments/internal/cloudpay/refund/confirm',
+      body: {
+        orderId,
+        outRefundNo,
+        refundQueryResult
+      }
+    })
+  }
+
+  if (summary.finalStatus === 'refund_failed' && orderId) {
+    await requestBackend({
+      pathname: '/api/payments/internal/cloudpay/refund/fail',
+      body: {
+        orderId,
+        outRefundNo,
+        refundQueryResult
+      }
+    })
+  }
+
+  return summary
+}
+
+const queryRefund = async event => {
+  const refundQueryResult = await cloud.cloudPay.refundQuery({
+    subMchId: resolveSubMchId(),
+    outRefundNo: event.outRefundNo
+  })
+  const syncSummary = event.confirmIfSettled
+    ? await syncRefundQueryResult({
+        orderId: event.orderId,
+        outRefundNo: event.outRefundNo,
+        refundQueryResult
+      })
+    : mapRefundQueryToBusinessStatus(refundQueryResult)
+
+  return {
+    code: 0,
+    data: {
+      orderId: event.orderId || '',
+      outRefundNo: event.outRefundNo || '',
+      queryStatus: syncSummary.queryStatus,
+      settled: syncSummary.settled,
+      finalStatus: syncSummary.finalStatus,
+      refundQueryResult
+    }
+  }
+}
+
 const preparePayment = async event => {
   const wxContext = cloud.getWXContext()
   const prepared = await requestBackend({
@@ -218,18 +330,26 @@ const refundPayment = async event => {
     refundDesc: prepared.refundDesc || '课程退款'
   })
 
-  await requestBackend({
-    pathname: '/api/payments/internal/cloudpay/refund/confirm',
-    body: {
-      orderId: prepared.orderId,
-      outRefundNo: prepared.outRefundNo,
-      refundResult
-    }
+  const refundQuery = await queryRefund({
+    orderId: prepared.orderId,
+    outRefundNo: prepared.outRefundNo,
+    confirmIfSettled: true
   })
+  const refundQueryData = (refundQuery && refundQuery.data) || {}
 
   return {
     code: 0,
-    data: refundResult
+    data: {
+      orderId: prepared.orderId,
+      outTradeNo: prepared.outTradeNo,
+      outRefundNo: prepared.outRefundNo,
+      status: refundQueryData.finalStatus || 'refund_pending',
+      accepted: true,
+      settled: !!refundQueryData.settled,
+      queryStatus: refundQueryData.queryStatus || '',
+      refundResult,
+      refundQueryResult: refundQueryData.refundQueryResult || null
+    }
   }
 }
 
@@ -290,10 +410,7 @@ exports.main = async event => {
     })
   }
   if (type === 'queryRefund') {
-    return cloud.cloudPay.refundQuery({
-      subMchId: resolveSubMchId(),
-      outRefundNo: event.outRefundNo
-    })
+    return queryRefund(event || {})
   }
   throw new Error('unsupported wechat-pay type')
 }

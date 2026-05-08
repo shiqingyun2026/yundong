@@ -11,6 +11,7 @@ const {
   refundAdminPackageGroup,
   refundAdminPackageOrder,
   searchPackageLocations,
+  syncAdminPackageOrderRefundStatus,
   updateAdminPackage,
   updateAdminPackageGroupCoachAssignment
 } = require('../services/packageAdminService')
@@ -101,6 +102,14 @@ const refundAdminPackageOrderHandler = createOkHandler('课包订单退款失败
   })
 )
 
+const syncAdminPackageOrderRefundStatusHandler = createOkHandler('同步课包订单退款状态失败', req =>
+  syncAdminPackageOrderRefundStatus({
+    orderId: req.params.id,
+    admin: req.admin || {},
+    ip: req.ip || null
+  })
+)
+
 const refundAdminPackageGroupHandler = createOkHandler('课包拼团整团退款失败', req =>
   refundAdminPackageGroup({
     packageGroupId: req.params.id,
@@ -122,6 +131,7 @@ module.exports = {
   refundAdminPackageGroupHandler,
   refundAdminPackageOrderHandler,
   searchPackageLocationsHandler,
+  syncAdminPackageOrderRefundStatusHandler,
   updateAdminPackageHandler,
   updateAdminPackageGroupCoachAssignmentHandler
 }

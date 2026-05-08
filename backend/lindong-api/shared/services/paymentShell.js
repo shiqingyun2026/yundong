@@ -1064,6 +1064,117 @@ const markCloudPayRefundResult = async ({ supabase, payload, now = new Date() })
   })
 }
 
+const markCloudPayRefundFailureResult = async ({ supabase, payload, now = new Date() }) => {
+  const orderId = payload && payload.orderId
+  if (!orderId) {
+    throw createServiceError(400, 'orderId is required')
+  }
+
+  const order = await getOrderById({
+    supabase,
+    orderId
+  })
+  if (!order) {
+    throw createServiceError(404, 'order not found')
+  }
+
+  const failurePayload = payload && payload.refundQueryResult && typeof payload.refundQueryResult === 'object'
+    ? payload.refundQueryResult
+    : payload || {}
+
+  const failureReason =
+    failurePayload.errmsg ||
+    failurePayload.errMsg ||
+    failurePayload.err_code_des ||
+    failurePayload.errCodeDes ||
+    failurePayload.refund_status ||
+    failurePayload.status ||
+    'cloudpay refund failed'
+
+  let updatedOrder = null
+  let paymentRecord = await getPaymentRecordByOrderId({
+    supabase,
+    orderId
+  })
+
+  if (env.useMySqlRepositories) {
+    updatedOrder = await ordersRepository.updateOrder(order.id, {
+      status: 'refund_failed',
+      updated_at: now
+    })
+
+    if (paymentRecord) {
+      const existingCallbackPayload =
+        paymentRecord.callback_payload && typeof paymentRecord.callback_payload === 'object'
+          ? paymentRecord.callback_payload
+          : {}
+      paymentRecord = await paymentRecordsRepository.updatePaymentRecord(paymentRecord.id, {
+        callback_status: 'REFUND_FAILED',
+        callback_payload: {
+          ...existingCallbackPayload,
+          refund_failure: {
+            reason: `${failureReason || ''}`.trim(),
+            failed_at: now.toISOString(),
+            payload: failurePayload
+          }
+        },
+        updated_at: now.toISOString()
+      })
+    }
+  } else {
+    const { data, error } = await supabase
+      .from('orders')
+      .update({
+        status: 'refund_failed',
+        updated_at: now.toISOString()
+      })
+      .eq('id', order.id)
+      .select('*')
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    updatedOrder = data
+
+    if (paymentRecord) {
+      const existingCallbackPayload =
+        paymentRecord.callback_payload && typeof paymentRecord.callback_payload === 'object'
+          ? paymentRecord.callback_payload
+          : {}
+      const { data: nextPaymentRecord, error: paymentError } = await supabase
+        .from('payment_records')
+        .update({
+          callback_status: 'REFUND_FAILED',
+          callback_payload: {
+            ...existingCallbackPayload,
+            refund_failure: {
+              reason: `${failureReason || ''}`.trim(),
+              failed_at: now.toISOString(),
+              payload: failurePayload
+            }
+          },
+          updated_at: now.toISOString()
+        })
+        .eq('id', paymentRecord.id)
+        .select('*')
+        .single()
+
+      if (paymentError) {
+        throw paymentError
+      }
+
+      paymentRecord = nextPaymentRecord
+    }
+  }
+
+  return {
+    order: updatedOrder,
+    paymentRecord
+  }
+}
+
 module.exports = {
   PAYMENT_MODE_MOCK,
   PAYMENT_MODE_WECHAT,
@@ -1079,6 +1190,7 @@ module.exports = {
   markPaymentRecordPaid,
   markPaymentRecordRefunded,
   markCloudPayRefundResult,
+  markCloudPayRefundFailureResult,
   prepareCloudPayRefund,
   prepareCloudPayUnifiedOrder
 }

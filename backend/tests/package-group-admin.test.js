@@ -151,6 +151,10 @@ const loadConsoleAppWithMockedPackageService = () => {
       calls.push(['refundAdminPackageOrder', payload])
       return { id: payload.orderId, status: 'refund_pending' }
     },
+    syncAdminPackageOrderRefundStatus: async payload => {
+      calls.push(['syncAdminPackageOrderRefundStatus', payload])
+      return { id: payload.orderId, status: 'refunded' }
+    },
     refundAdminPackageGroup: async payload => {
       calls.push(['refundAdminPackageGroup', payload])
       return { id: payload.packageGroupId, status: 'refund_pending' }
@@ -459,6 +463,26 @@ const loadPackageServicesWithState = () => {
       return {
         orderId: payload.orderId,
         status: 'accepted'
+      }
+    },
+    queryAndSyncCloudPayRefund: async payload => {
+      if (!state.cloudPayRefundQueryCalls) {
+        state.cloudPayRefundQueryCalls = []
+      }
+      state.cloudPayRefundQueryCalls.push(payload)
+
+      const orderIndex = state.orders.findIndex(item => item.id === payload.orderId)
+      if (orderIndex >= 0) {
+        state.orders[orderIndex] = {
+          ...state.orders[orderIndex],
+          status: 'refunded'
+        }
+      }
+
+      return {
+        queryStatus: 'SUCCESS',
+        settled: true,
+        finalStatus: 'refunded'
       }
     }
   })
@@ -960,6 +984,34 @@ test('admin package group refund allows a successful package group to enter full
     ['ord-success-group', 'ord-success-group-2']
   )
   assert.equal(state.cloudPayRefundCalls.length, 2)
+})
+
+test('admin package order refund sync confirms a settled cloud refund', async () => {
+  const { packageAdminService, state } = loadPackageServicesWithState()
+
+  state.orders = state.orders.map(item =>
+    item.id === 'ord-refund'
+      ? {
+          ...item,
+          status: 'refund_pending'
+        }
+      : item
+  )
+
+  const result = await packageAdminService.syncAdminPackageOrderRefundStatus({
+    orderId: 'ord-refund',
+    admin: { id: 'admin-1' },
+    now: new Date('2026-04-19T08:10:00.000Z')
+  })
+
+  assert.equal(result.status, 'refunded')
+  assert.equal(result.refund_query_status, 'SUCCESS')
+  assert.equal(result.refund_query_settled, true)
+  assert.equal(result.refund_query_final_status, 'refunded')
+  assert.equal(state.orders.find(item => item.id === 'ord-refund').status, 'refunded')
+  assert.equal(state.cloudPayRefundQueryCalls.length, 1)
+  assert.equal(state.cloudPayRefundQueryCalls[0].orderId, 'ord-refund')
+  assert.equal(state.adminLogWrites.at(-1).action, 'package_order_refund_sync')
 })
 
 test('admin package create requires valid package category', async () => {

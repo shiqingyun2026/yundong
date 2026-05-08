@@ -14,6 +14,7 @@ const {
   handleCloudPayPaymentCallback,
   handleWechatPaymentCallback,
   isWechatPaymentMode,
+  markCloudPayRefundFailureResult,
   markCloudPayRefundResult,
   markPaymentRecordPaid,
   prepareCloudPayRefund,
@@ -144,6 +145,29 @@ router.post('/internal/cloudpay/refund/confirm', async (req, res) => {
     })
     return res.status(isServiceError(error) ? error.status : 500).json({
       message: error.message || 'failed to confirm cloudpay refund'
+    })
+  }
+})
+
+router.post('/internal/cloudpay/refund/fail', async (req, res) => {
+  if (!requireInternalPaymentSecret(req, res)) {
+    return
+  }
+
+  try {
+    return res.json(
+      await markCloudPayRefundFailureResult({
+        supabase: resolveSupabase(),
+        payload: req.body || {}
+      })
+    )
+  } catch (error) {
+    console.error('[payments/internal/cloudpay/refund/fail] failed', {
+      payload: req.body || {},
+      error
+    })
+    return res.status(isServiceError(error) ? error.status : 500).json({
+      message: error.message || 'failed to mark cloudpay refund failure'
     })
   }
 })
