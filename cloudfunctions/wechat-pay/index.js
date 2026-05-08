@@ -8,7 +8,7 @@ cloud.init({
 
 const DEFAULT_SUB_MCH_ID = '1111327161'
 const DEFAULT_CLOUD_ENV_ID = 'tttiyubao-4g141829bdf6a28d'
-const BUILD_ID = 'cloudpay-node16-http-20260508-1018'
+const BUILD_ID = 'cloudpay-node16-http-diagnose-20260508-1118'
 
 const readEnv = key => `${process.env[key] || ''}`.trim()
 
@@ -16,20 +16,25 @@ const resolveSubMchId = () => readEnv('WX_PAY_SUB_MCH_ID') || DEFAULT_SUB_MCH_ID
 
 const resolveCloudEnvId = wxContext => readEnv('WX_CLOUD_ENV_ID') || (wxContext && wxContext.ENV) || DEFAULT_CLOUD_ENV_ID
 
-const postJson = ({ url, headers, body }) =>
+const requestJson = ({ method = 'POST', url, headers, body }) =>
   new Promise((resolve, reject) => {
     const parsedUrl = new URL(url)
     const client = parsedUrl.protocol === 'http:' ? http : https
-    const serializedBody = JSON.stringify(body || {})
+    const hasBody = body !== undefined
+    const serializedBody = hasBody ? JSON.stringify(body || {}) : ''
     const request = client.request(
       {
-        method: 'POST',
+        method,
         hostname: parsedUrl.hostname,
         port: parsedUrl.port || undefined,
         path: `${parsedUrl.pathname}${parsedUrl.search}`,
         headers: {
           'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(serializedBody),
+          ...(hasBody
+            ? {
+                'Content-Length': Buffer.byteLength(serializedBody)
+              }
+            : {}),
           ...(headers || {})
         }
       },
@@ -55,9 +60,13 @@ const postJson = ({ url, headers, body }) =>
     )
 
     request.on('error', reject)
-    request.write(serializedBody)
+    if (hasBody) {
+      request.write(serializedBody)
+    }
     request.end()
   })
+
+const postJson = options => requestJson({ ...(options || {}), method: 'POST' })
 
 const requestBackend = async ({ pathname, body }) => {
   const baseUrl = readEnv('LINDONG_API_BASE_URL').replace(/\/+$/, '')
@@ -77,9 +86,52 @@ const requestBackend = async ({ pathname, body }) => {
     body
   })
   if (!response.ok) {
-    throw new Error(response.payload.message || `backend request failed: ${response.status}`)
+    const backendMessage = response.payload.message || 'empty response'
+    throw new Error(`backend request failed: ${response.status} POST ${pathname}: ${backendMessage}`)
   }
   return response.payload
+}
+
+const buildBackendUrl = pathname => `${readEnv('LINDONG_API_BASE_URL').replace(/\/+$/, '')}${pathname}`
+
+const probeBackend = async ({ method = 'POST', pathname, headers, body }) => {
+  const baseUrl = readEnv('LINDONG_API_BASE_URL').replace(/\/+$/, '')
+  if (!baseUrl) {
+    return {
+      ok: false,
+      configured: false,
+      pathname,
+      message: 'LINDONG_API_BASE_URL is required'
+    }
+  }
+
+  try {
+    const response = await requestJson({
+      method,
+      url: buildBackendUrl(pathname),
+      headers,
+      body
+    })
+    return {
+      ok: response.ok,
+      configured: true,
+      method,
+      url: buildBackendUrl(pathname),
+      pathname,
+      status: response.status,
+      message: response.payload.message || '',
+      payloadCode: response.payload.code
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      configured: true,
+      method,
+      url: buildBackendUrl(pathname),
+      pathname,
+      message: (error && error.message) || 'backend probe failed'
+    }
+  }
 }
 
 const preparePayment = async event => {
@@ -159,6 +211,37 @@ exports.main = async event => {
       openId: wxContext.OPENID || '',
       hasFetch: typeof fetch !== 'undefined',
       hasNodeHttpClient: true
+    }
+  }
+  if (type === 'diagnoseBackend') {
+    const wxContext = cloud.getWXContext()
+    const secret = readEnv('INTERNAL_PAYMENT_SECRET')
+    const preparePathname = '/api/payments/internal/cloudpay/prepare'
+    const prepareProbe = await probeBackend({
+      pathname: preparePathname,
+      headers: secret
+        ? {
+            'X-Internal-Payment-Secret': secret
+          }
+        : {},
+      body: {
+        orderId: event.orderId || '__diagnose__',
+        openId: wxContext.OPENID || '__diagnose__'
+      }
+    })
+
+    return {
+      code: 0,
+      buildId: BUILD_ID,
+      envId: resolveCloudEnvId(wxContext),
+      openId: wxContext.OPENID || '',
+      backendBaseUrl: readEnv('LINDONG_API_BASE_URL').replace(/\/+$/, ''),
+      hasInternalPaymentSecret: !!secret,
+      healthProbe: await probeBackend({
+        method: 'GET',
+        pathname: '/health'
+      }),
+      prepareProbe
     }
   }
   if (type === 'prepare') {

@@ -18,3 +18,13 @@ test('wechat pay cloud functions use node16-compatible http client', () => {
     assert.equal(source.includes('diagnose'), true, `${file} should expose a diagnose entrypoint`)
   })
 })
+
+test('wechat pay exposes backend diagnostics for cloudpay prepare failures', () => {
+  const source = fs.readFileSync(path.join(root, 'wechat-pay/index.js'), 'utf8')
+
+  assert.equal(source.includes("type === 'diagnoseBackend'"), true, 'wechat-pay should expose diagnoseBackend')
+  assert.equal(source.includes("pathname: '/api/payments/internal/cloudpay/prepare'"), true, 'diagnoseBackend should probe prepare route')
+  assert.equal(source.includes('prepareProbe'), true, 'diagnoseBackend should return prepare probe status')
+  assert.equal(source.includes('backend request failed'), true, 'backend failures should include status/path context')
+  assert.equal(source.includes('${pathname}'), true, 'backend failures should include the failing path')
+})

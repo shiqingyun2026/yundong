@@ -1,0 +1,15 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - paragraph [ref=e6]: Operations Console
+    - heading "邻动体适能运营后台" [level=1] [ref=e7]
+    - paragraph [ref=e8]: 当前版本先打通登录、课程、订单、账号管理骨架，方便我们尽快进入真实联调。
+  - generic [ref=e9]:
+    - generic [ref=e10]:
+      - text: 用户名
+      - textbox "用户名" [ref=e11]:
+        - /placeholder: 请输入管理员用户名
+    - generic [ref=e12]:
+      - text: 密码
+      - textbox "密码" [ref=e13]:
+        - /placeholder: 请输入登录密码
+    - button "进入后台" [ref=e14] [cursor=pointer]

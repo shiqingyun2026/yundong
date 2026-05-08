@@ -30,7 +30,11 @@ Current coverage:
   - package edit flow
   - package-group link from package detail
   - package-order link from package detail
+  - package offline flow from detail and list pages
+  - package cover upload and rich-text image insertion
+  - banner query, create, edit, offline, copy, upload, and save-error handling
   - account create, edit, delete
+  - non-super-admin account-page access guard
   - package-order manual refund flow
 
 Characteristics:
@@ -215,9 +219,6 @@ Not fully covered yet:
 
 - WeChat miniprogram real device / simulator end-to-end flows
 - real payment, group join, and post-payment user-side state transitions
-- banner management regression
-- package offline flow regression
-- image upload and rich-text image insertion regression
 - geocode and location suggestion success-path regression
 - broader failure-state regression such as timeout, partial API failure, and empty-state handling
 - systematic production regression beyond read-only smoke

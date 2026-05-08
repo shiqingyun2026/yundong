@@ -25,7 +25,7 @@ test('miniprogram mine page: agreements menu opens agreement list', () => {
   })
 })
 
-test('miniprogram mine page: fallback customer service entry opens qr modal', () => {
+test('miniprogram mine page: customer service contact event keeps page state stable', () => {
   const { wx } = createWxMock()
   global.wx = wx
   global.getApp = () => ({
@@ -33,7 +33,13 @@ test('miniprogram mine page: fallback customer service entry opens qr modal', ()
   })
 
   const page = createPageHarness(loadPageDefinition('pages/mine/index.js'))
-  page.handleServiceFallbackTap()
+  page.handleContact({
+    detail: {
+      path: '/pages/mine/index',
+      query: {}
+    }
+  })
 
-  assert.equal(page.data.showServiceModal, true)
+  assert.equal(page.data.showLoginSheet, false)
+  assert.equal(page.data.pendingLoginAction, '')
 })

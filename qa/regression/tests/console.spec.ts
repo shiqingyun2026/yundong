@@ -894,6 +894,117 @@ test('console banner create page shows backend save error', async ({ page }) => 
   await expect(page.getByText('Banner 保存失败，请稍后重试')).toBeVisible()
 })
 
+test('console banner list page can offline an active banner and copy it as a new draft', async ({ page }) => {
+  await bootstrapSession(page)
+  const banners = [
+    {
+      id: 'banner-active-1',
+      image_url: 'https://example.com/banner-active.png',
+      title: '首页限时活动',
+      jump_type: 'packageDetail',
+      jump_target: 'package_seed_active_002',
+      sort: 5,
+      online_time: '2026-04-22 09:00:00',
+      offline_time: '2026-05-01 23:00:00',
+      status: 'active',
+      create_time: '2026-04-20 09:00:00',
+      update_time: '2026-04-20 09:00:00'
+    }
+  ]
+  let copiedPayload: Record<string, unknown> | null = null
+
+  await page.route(adminApiPattern('\\/banners(\\?.*)?$'), async route => {
+    const method = route.request().method()
+
+    if (method === 'OPTIONS') {
+      await fulfillJson(route, {})
+      return
+    }
+
+    if (method === 'POST') {
+      const payload = route.request().postDataJSON() as Record<string, unknown>
+      copiedPayload = payload
+      banners.push({
+        id: 'banner-copy-1',
+        image_url: String(payload.image_url || ''),
+        title: String(payload.title || ''),
+        jump_type: String(payload.jump_type || 'none'),
+        jump_target: String(payload.jump_target || ''),
+        sort: Number(payload.sort || 0),
+        online_time: String(payload.online_time || ''),
+        offline_time: String(payload.offline_time || ''),
+        status: 'pending',
+        create_time: '2026-04-22 10:00:00',
+        update_time: '2026-04-22 10:00:00'
+      })
+      await fulfillJson(route, { id: 'banner-copy-1' })
+      return
+    }
+
+    await fulfillJson(route, {
+      list: banners,
+      total: banners.length,
+      total_pages: 1,
+      page: 1,
+      size: 10
+    })
+  })
+
+  await page.route(adminApiPattern('\\/banners\\/.+'), async route => {
+    const method = route.request().method()
+    const parts = new URL(route.request().url()).pathname.split('/').filter(Boolean)
+    const bannerId = parts[parts.length - 2] === 'banners' ? parts[parts.length - 1] : parts[parts.length - 2]
+    const target = banners.find(item => item.id === bannerId)
+
+    if (method === 'OPTIONS') {
+      await fulfillJson(route, {})
+      return
+    }
+
+    if (method === 'POST' && parts[parts.length - 1] === 'offline' && target) {
+      target.status = 'inactive'
+      target.offline_time = '2026-04-22 11:00:00'
+      target.update_time = '2026-04-22 11:00:00'
+      await fulfillJson(route, { id: target.id })
+      return
+    }
+
+    if (method === 'GET') {
+      await fulfillJson(route, target || banners[0])
+      return
+    }
+
+    await route.fallback()
+  })
+
+  await page.goto('/banners')
+  const targetRow = page.locator('tr', { hasText: '首页限时活动' })
+  await expect(targetRow.getByRole('cell', { name: '已上线' })).toBeVisible()
+  page.once('dialog', dialog => {
+    expect(dialog.message()).toContain('确认下线 Banner')
+    dialog.accept()
+  })
+  await targetRow.getByRole('button', { name: '下线' }).click()
+
+  await expect(targetRow.getByRole('cell', { name: '已下线' })).toBeVisible()
+  await expect(targetRow.getByRole('link', { name: '编辑' })).toBeVisible()
+  await expect(targetRow.getByRole('button', { name: '下线' })).toHaveCount(0)
+
+  await targetRow.getByRole('link', { name: '复制' }).click()
+  await expect(page).toHaveURL(/\/banners\/new\?copyFrom=banner-active-1$/)
+  await expect(page.getByLabel('Banner 标题')).toHaveValue('首页限时活动 - 副本')
+  await expect(page.getByLabel('上线时间')).toHaveValue('')
+  await expect(page.getByLabel('下线时间')).toHaveValue('')
+  await page.getByLabel('上线时间').fill('2026-05-03T09:00')
+  await page.getByLabel('下线时间').fill('2026-05-10T23:00')
+  await page.locator('form').getByRole('button', { name: '保存' }).click()
+
+  await expect(page).toHaveURL(/\/banners\/banner-copy-1$/)
+  expect(copiedPayload?.title).toBe('首页限时活动 - 副本')
+  expect(copiedPayload?.image_url).toBe('https://example.com/banner-active.png')
+  expect(copiedPayload?.online_time).toBe('2026-05-03T09:00')
+})
+
 test('console package edit page can offline a package and return to the list', async ({ page }) => {
   await bootstrapSession(page)
   const packageState = {
@@ -1059,6 +1170,88 @@ test('console package create page can upload cover image through proxy upload AP
 
   await expect(page.getByLabel(/封面图 URL/)).toHaveValue('https://example.com/uploads/course-cover/package-cover.png')
   await expect(page.getByRole('img', { name: '课包封面' })).toBeVisible()
+})
+
+test('console package create page can insert uploaded images into rich text fields and submit them', async ({ page }) => {
+  await bootstrapSession(page)
+  let createPayload: Record<string, unknown> | null = null
+
+  await page.route(adminApiPattern('\\/packages(\\?.*)?$'), async route => {
+    const method = route.request().method()
+
+    if (method === 'OPTIONS') {
+      await fulfillJson(route, {})
+      return
+    }
+
+    if (method === 'POST') {
+      createPayload = route.request().postDataJSON() as Record<string, unknown>
+      await fulfillJson(route, { id: 'pkg-rich-text-1' })
+      return
+    }
+
+    await fulfillJson(route, {
+      list: [],
+      total: 0,
+      total_pages: 1,
+      page: 1,
+      size: 10
+    })
+  })
+
+  await page.route(adminApiPattern('\\/upload\\/image$'), async route => {
+    if (route.request().method() === 'OPTIONS') {
+      await fulfillJson(route, {})
+      return
+    }
+
+    const payload = route.request().postDataJSON() as { folder: string; filename: string }
+    await fulfillJson(route, {
+      public_url: `https://example.com/uploads/${payload.folder}/${payload.filename}`
+    })
+  })
+
+  await page.goto('/packages/new')
+  const packageForm = page.locator('form').first()
+
+  await packageForm.getByLabel(/课包名称/).fill('[回归] 富文本插图课包')
+  await packageForm.getByLabel(/适用年龄/).fill('5-9岁')
+  await packageForm.getByLabel(/课程节数/).fill('6')
+  await packageForm.getByLabel(/单节课时长（分钟）/).fill('60')
+  await packageForm.getByLabel(/^区/).selectOption('南山区')
+  await packageForm.getByLabel(/小区 \/ 场地名称/).fill('深圳湾社区')
+  await packageForm.getByLabel(/详细地点/).fill('会所二楼活动室')
+  await packageForm.getByLabel(/上架时间/).fill('2026-05-05T10:00')
+  await packageForm.getByLabel(/经度/).fill('113.9304')
+  await packageForm.getByLabel(/纬度/).fill('22.5333')
+  await packageForm.getByLabel(/封面图 URL/).fill('https://example.com/package-rich-cover.jpg')
+  await packageForm.getByRole('button', { name: '新增团型' }).click()
+  await packageForm.getByLabel(/团型人数/).fill('4')
+  await packageForm.getByLabel(/人均售价（分）/).fill('38800')
+  await packageForm.locator('textarea').nth(0).fill('教练基础简介')
+  await packageForm.locator('textarea').nth(2).fill('课包基础介绍')
+
+  await page.locator('label.file-button', { hasText: '上传图片并插入简介' }).locator('input[type="file"]').setInputFiles({
+    name: 'coach-intro.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('fake-coach-intro-image')
+  })
+  await expect(packageForm.locator('textarea').nth(0)).toContainText('<img src="https://example.com/uploads/course-detail/coach-intro.png" alt="教练简介图" />')
+  await expect(page.getByRole('img', { name: '教练简介图' })).toBeVisible()
+
+  await page.locator('label.file-button', { hasText: '上传图片并插入介绍' }).locator('input[type="file"]').setInputFiles({
+    name: 'package-intro.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('fake-package-intro-image')
+  })
+  await expect(packageForm.locator('textarea').nth(2)).toContainText('<img src="https://example.com/uploads/course-detail/package-intro.png" alt="课包介绍图" />')
+  await expect(page.getByRole('img', { name: '课包介绍图' })).toBeVisible()
+
+  await packageForm.getByRole('button', { name: '创建课包' }).click()
+
+  await expect(page).toHaveURL(/\/packages$/)
+  expect(createPayload?.coach_intro).toContain('coach-intro.png')
+  expect(createPayload?.description).toContain('package-intro.png')
 })
 
 test('console non-super-admin user cannot access accounts page and does not see accounts nav', async ({ page }) => {

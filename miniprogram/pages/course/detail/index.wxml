@@ -90,22 +90,24 @@
             data-can-join="{{item.canJoin}}"
             bindtap="handleJoinGroup"
           >
-            <view class="group-item-header">
-              <view class="group-item-title">
-                <text>{{item.targetCount}}人成团</text>
-                <text>，每人¥{{item.memberAmountDisplayText || item.memberAmountText}}</text>
+            <view class="group-item-main">
+              <view class="group-item-content">
+                <view class="group-item-title">
+                  <text>{{item.targetCount}}人成团</text>
+                  <text>，每人¥{{item.memberAmountDisplayText || item.memberAmountText}}</text>
+                </view>
+                <view class="group-progress-caption group-schedule">{{item.scheduleText}}</view>
               </view>
-              <mp-badge extClass="weui-ext-tag group-item-status group-item-status-ongoing" content="剩余{{item.remainingPlainText}}" />
-            </view>
 
-            <view class="group-item-footer">
-              <view class="group-progress-caption group-schedule">{{item.scheduleText}}</view>
-              <button
-                class="weui-btn weui-ext-button weui-ext-button--medium weui-ext-button--secondary join-button"
-                disabled="{{!item.canJoin}}"
-              >
-                <view class="weui-ext-button__inner">{{item.joinButtonText}}</view>
-              </button>
+              <view class="group-item-side">
+                <mp-badge extClass="weui-ext-tag group-item-status group-item-status-ongoing" content="剩余{{item.remainingPlainText}}" />
+                <button
+                  class="weui-btn weui-ext-button weui-ext-button--medium weui-ext-button--secondary join-button"
+                  disabled="{{!item.canJoin}}"
+                >
+                  <view class="weui-ext-button__inner">{{item.joinButtonText}}</view>
+                </button>
+              </view>
             </view>
           </view>
         </view>
