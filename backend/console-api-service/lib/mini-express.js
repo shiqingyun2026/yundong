@@ -1,25 +1,6 @@
 const http = require('node:http')
-const { env } = require('../config/env')
 
 const METHODS = new Set(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
-const CORS_ALLOW_HEADERS =
-  'Content-Type, Authorization, X-WX-OPENID, X-WX-APPID, X-WX-UNIONID, X-WX-SERVICE'
-
-const getAllowedOrigin = requestOrigin => {
-  const configuredOrigins = [env.consoleOrigin, env.appOrigin]
-    .map(value => `${value || ''}`.trim())
-    .filter(Boolean)
-
-  if (configuredOrigins.length === 0) {
-    return requestOrigin || '*'
-  }
-
-  if (!requestOrigin) {
-    return configuredOrigins[0] || '*'
-  }
-
-  return configuredOrigins.includes(requestOrigin) ? requestOrigin : ''
-}
 
 const normalizePath = value => {
   if (!value) {
@@ -289,19 +270,11 @@ const createRouter = () => {
   router.fetch = async request => {
     const url = new URL(request.url)
     const path = normalizePath(url.pathname)
-    const requestOrigin = request.headers.get('origin') || ''
-    const allowedOrigin = getAllowedOrigin(requestOrigin)
 
     if (request.method.toUpperCase() === 'OPTIONS') {
       return new Response(null, {
         status: 204,
-        headers: {
-          ...(allowedOrigin ? { 'access-control-allow-origin': allowedOrigin } : {}),
-          'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
-          'access-control-allow-headers': CORS_ALLOW_HEADERS,
-          'access-control-allow-credentials': 'true',
-          vary: 'Origin'
-        }
+        headers: {}
       })
     }
 
@@ -381,14 +354,6 @@ const createRouter = () => {
     }
 
     await dispatch(0)
-
-    if (!res.headers.has('access-control-allow-origin') && allowedOrigin) {
-      res.headers.set('access-control-allow-origin', allowedOrigin)
-      res.headers.set('access-control-allow-headers', CORS_ALLOW_HEADERS)
-      res.headers.set('access-control-allow-methods', 'GET,POST,PUT,DELETE,OPTIONS')
-      res.headers.set('access-control-allow-credentials', 'true')
-      res.headers.set('vary', 'Origin')
-    }
 
     return res.toResponse()
   }

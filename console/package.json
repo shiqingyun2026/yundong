@@ -7,7 +7,7 @@
     "dev": "vite --port=3100 --host=0.0.0.0",
     "build": "npm run build:cloudbase",
     "build:root": "vite build",
-    "build:cloudbase": "VITE_APP_BASE=/lindong_console/ vite build",
+    "build:cloudbase": "VITE_APP_BASE=/console/ vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit"
   },

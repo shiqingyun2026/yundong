@@ -12,7 +12,7 @@ const loadConsoleApp = () => {
   return require('../console-api/app')
 }
 
-test('preflight reflects request origin when credentials are allowed and no origin whitelist is configured', async () => {
+test('preflight does not inject app-level CORS headers', async () => {
   const app = loadConsoleApp()
   const response = await app.fetch(
     new Request('http://127.0.0.1/api/admin/login', {
@@ -25,9 +25,6 @@ test('preflight reflects request origin when credentials are allowed and no orig
   )
 
   assert.equal(response.status, 204)
-  assert.equal(
-    response.headers.get('access-control-allow-origin'),
-    'https://tttiyubao-4g141829bdf6a28d-1304042243.tcloudbaseapp.com'
-  )
-  assert.equal(response.headers.get('access-control-allow-credentials'), 'true')
+  assert.equal(response.headers.get('access-control-allow-origin'), null)
+  assert.equal(response.headers.get('access-control-allow-credentials'), null)
 })
