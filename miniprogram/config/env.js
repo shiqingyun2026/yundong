@@ -11,9 +11,9 @@ const ENV_API_TRANSPORTS = {
 }
 
 const ENV_PAYMENT_PROVIDERS = {
-  develop: 'cloudpay',
-  trial: 'cloudpay',
-  release: 'cloudpay'
+  develop: 'wechat',
+  trial: 'wechat',
+  release: 'wechat'
 }
 
 const CLOUD_ENV_PLACEHOLDER = 'TODO_WECHAT_CLOUD_ENV'

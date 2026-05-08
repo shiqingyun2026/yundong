@@ -360,6 +360,7 @@ router.post('/notify/wechat', async (req, res) => {
       timestamp: req.headers['wechatpay-timestamp'],
       nonce: req.headers['wechatpay-nonce'],
       signature: req.headers['wechatpay-signature'],
+      serial: req.headers['wechatpay-serial'],
       rawBody: req.rawBody || ''
     })
 

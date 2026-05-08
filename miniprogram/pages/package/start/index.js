@@ -7,7 +7,6 @@ const {
   fetchPackageDetail,
   formatDisplayAmount,
   mockPaymentSuccess,
-  prepareCloudPayment,
   preparePayment
 } = require('../../../utils/package')
 const { loginAndStoreSession } = require('../../../utils/auth')
@@ -329,14 +328,12 @@ Page({
       this._lastOrderId = orderId
 
       let nextPackageGroupId = order.packageGroupId || ''
-      const app = getApp()
-      const paymentProvider = `${app.globalData.paymentProvider || ''}`.trim().toLowerCase()
+      const paymentPreparation = await preparePayment({
+        orderId
+      })
 
-      if (paymentProvider === 'cloudpay') {
-        const cloudPayment = await prepareCloudPayment({
-          orderId
-        })
-        await invokeWechatPayment(cloudPayment.payment || {})
+      if (paymentPreparation && paymentPreparation.canUseRequestPayment) {
+        await invokeWechatPayment(paymentPreparation.paymentParams || {})
         wx.showLoading({
           title: '确认支付中',
           mask: true
@@ -365,49 +362,14 @@ Page({
           return
         }
       } else {
-        const paymentPreparation = await preparePayment({
+        if (paymentPreparation && paymentPreparation.paymentMode === 'wechat') {
+          throw new Error('支付暂不可用，请稍后重试')
+        }
+
+        const paymentResult = await mockPaymentSuccess({
           orderId
         })
-
-        if (paymentPreparation && paymentPreparation.canUseRequestPayment) {
-          await invokeWechatPayment(paymentPreparation.paymentParams || {})
-          wx.showLoading({
-            title: '确认支付中',
-            mask: true
-          })
-          const confirmation = await waitForPaymentConfirmation({
-            orderId,
-            fallbackPackageGroupId: nextPackageGroupId
-          })
-          wx.hideLoading()
-          nextPackageGroupId = confirmation.packageGroupId || nextPackageGroupId
-
-          if (!confirmation.confirmed) {
-            wx.redirectTo({
-              url:
-                `/pages/payment/result/index?status=processing` +
-                `&packageId=${this.data.packageId}` +
-                `&packageGroupId=${encodeURIComponent(nextPackageGroupId)}` +
-                `&action=start` +
-                `&targetCount=${this.data.selectedTargetCount}` +
-                `&weekday=${this.data.selectedWeekday}` +
-                `&hour=${this.data.selectedHour}` +
-                `&childNickname=${encodeURIComponent(this.data.childNickname.trim())}` +
-                `&childAge=${encodeURIComponent(this.data.childAge)}` +
-                `&parentMobile=${encodeURIComponent(this.data.parentMobile)}`
-            })
-            return
-          }
-        } else {
-          if (paymentPreparation && paymentPreparation.paymentMode === 'wechat') {
-            throw new Error('支付暂不可用，请稍后重试')
-          }
-
-          const paymentResult = await mockPaymentSuccess({
-            orderId
-          })
-          nextPackageGroupId = (paymentResult && paymentResult.packageGroupId) || nextPackageGroupId
-        }
+        nextPackageGroupId = (paymentResult && paymentResult.packageGroupId) || nextPackageGroupId
       }
 
       wx.redirectTo({

@@ -68,11 +68,29 @@ const getWechatPayPlatformCertificate = () => {
   const direct = readOptionalEnv('WX_PAY_PLATFORM_CERT')
   const normalized = direct.replace(/\\n/g, '\n').trim()
 
-  if (!normalized) {
-    throw new Error('WX_PAY_PLATFORM_CERT is required')
+  return normalized
+}
+
+const getWechatPayPublicKey = () => readOptionalEnv('WX_PAY_PUBLIC_KEY').replace(/\\n/g, '\n').trim()
+
+const getWechatPayPublicKeyId = () => readOptionalEnv('WX_PAY_PUBLIC_KEY_ID')
+
+const getWechatPayVerifierKey = serial => {
+  const publicKey = getWechatPayPublicKey()
+  const publicKeyId = getWechatPayPublicKeyId()
+  if (publicKey) {
+    if (publicKeyId && `${serial || ''}`.trim() !== publicKeyId) {
+      return ''
+    }
+    return publicKey
   }
 
-  return normalized
+  const certificate = getWechatPayPlatformCertificate()
+  if (certificate) {
+    return certificate
+  }
+
+  throw new Error('WX_PAY_PUBLIC_KEY or WX_PAY_PLATFORM_CERT is required')
 }
 
 const getWechatPayPrivateKey = () => {
@@ -329,16 +347,21 @@ const verifyWechatPayCallbackSignature = ({
   timestamp,
   nonce,
   signature,
-  rawBody
+  rawBody,
+  serial = ''
 }) => {
-  const certificate = getWechatPayPlatformCertificate()
+  const verifierKey = getWechatPayVerifierKey(serial)
+  if (!verifierKey) {
+    return false
+  }
+
   const message = `${timestamp || ''}\n${nonce || ''}\n${rawBody || ''}\n`
 
   return crypto
     .createVerify('RSA-SHA256')
     .update(message)
     .end()
-    .verify(certificate, signature || '', 'base64')
+    .verify(verifierKey, signature || '', 'base64')
 }
 
 module.exports = {

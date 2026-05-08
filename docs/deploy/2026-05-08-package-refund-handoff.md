@@ -4,10 +4,11 @@
 
 ## 1. 问题摘要
 
-本次排查确认了两个退款相关问题：
+本次排查确认了两个退款相关问题，以及一个后续暴露出的架构限制：
 
 1. 后台对课包订单执行退款后，MySQL 里的 `orders.status`、`payment_records` 可能很快被写成 `refunded`，但用户实际并未收到退款。
 2. 在微信开发者工具里直接调用 `wechat-pay` 云函数 `type=refund` 时，用户可以真实收到退款，但 MySQL 里的订单状态可能仍停留在 `success`。
+3. CloudPay 历史订单无法通过后台服务端稳定完成真实退款，不论是“后台服务端调云函数退款”，还是“后台服务端直连微信支付普通商户退款”，都已被验证存在架构级阻塞。
 
 这两个问题都和“退款申请受理”和“退款最终到账”被混用有关。
 
@@ -140,7 +141,75 @@ POST /api/admin/package-orders/:id/refund/sync
 - “钱退了但本地还是 `success`”可以补同步
 - “本地误写成 `refunded` 但用户没收到钱”也可以被纠正回 `refund_pending` 或 `refund_failed`
 
-## 4. 关键代码位置
+### 3.4 已确认后台服务端调用云函数退款不可行
+
+在 `console-api-service -> @cloudbase/node-sdk -> callFunction('wechat-pay') -> cloud.cloudPay.refund()` 这条链路上，已实际打到云函数错误：
+
+```text
+refund:fail invalid wx openapi access_token
+```
+
+这说明：
+
+- 后台服务端虽然可以调用 `wechat-pay` 云函数本身
+- 但进入 `cloud.cloudPay.refund()` 时，没有合法的小程序云调用上下文
+- 该链路不适合作为后台正式退款通道
+
+这不是配置遗漏，而是当前 CloudBase 云调用能力的使用边界。
+
+### 3.5 已确认后台普通商户直连退款也不适用于 CloudPay 历史订单
+
+后续已尝试将后台退款切成：
+
+- `console-api-service` 直连微信支付 V3 退款接口
+
+并补齐了：
+
+- 商户号
+- 商户证书序列号
+- 商户私钥
+- APIv3 密钥
+
+验证结果表明：
+
+- 直连退款链路本身能走到微信支付
+- 但退款接口返回：
+
+```json
+{
+  "code": "RESOURCE_NOT_EXISTS",
+  "message": "订单不存在"
+}
+```
+
+这里的“订单不存在”不是 MySQL 的 `orders` 表不存在，而是：
+
+- 微信支付当前商户身份下找不到原支付订单
+
+结合支付成功返回中出现的：
+
+- `mchId: 1800008281`
+- `subMchId: 1111327161`
+
+可以确认 CloudPay 历史订单是沿 CloudBase/Tencent 服务商链路完成支付的，而不是当前后台直连的普通商户链路。因此：
+
+- CloudPay 历史订单不能用后台普通商户直连退款方案处理
+
+## 4. 当前阶段结论
+
+截至 2026-05-08 晚间，本次排查已得到以下结论：
+
+1. “后台点退款立刻写成 `refunded`”这个历史状态错误已经修掉。
+2. “退款真实完成前，订单应先停在 `refund_pending`”这条本地状态流已经成立。
+3. “历史误标订单可通过 `/refund/sync` 复核纠偏”这项能力已经补上。
+4. “后台服务端调 `wechat-pay` 云函数执行 CloudPay 退款”不可作为正式方案。
+5. “后台普通商户直连微信支付退款”也不能用于 CloudPay 历史订单。
+
+因此当前准确结论是：
+
+> CloudPay 历史订单的后台真实退款方案，当前仍未闭环。
+
+## 5. 关键代码位置
 
 后台：
 
@@ -175,8 +244,9 @@ POST /api/admin/package-orders/:id/refund/sync
 - `backend/tests/package-group-admin.test.js`
 - `backend/tests/package-readers.test.js`
 - `miniprogram/tests/my-group-refund-status.test.cjs`
+- `backend/console-api-service/tests/direct-refund-gateway.test.cjs`
 
-## 5. 已完成提交
+## 6. 已完成提交
 
 当前退款改动主要在分支：
 
@@ -186,8 +256,14 @@ POST /api/admin/package-orders/:id/refund/sync
 
 - `5a31f15`：`feat: implement package refund flow`
 - `609a471`：`fix: confirm cloudpay refunds only after settlement`
+- `0116e71`：`fix: expose cloudpay refund diagnostics`
+- `69f44af`：`feat: use direct wechat pay refunds for package orders`
 
-## 6. 部署要求
+说明：
+
+- 其中 `69f44af` 是“后台普通商户直连退款”尝试版本，已验证不适用于 CloudPay 历史订单。
+
+## 7. 部署要求
 
 这次退款修复依赖以下服务版本一致：
 
@@ -201,7 +277,7 @@ POST /api/admin/package-orders/:id/refund/sync
 - 后台已写 `refund_pending`，但云函数逻辑还是旧版
 - 同步接口存在，但云函数 `queryRefund` 判定逻辑不是最新版本
 
-## 7. 验证方式
+## 8. 验证方式
 
 ### 7.1 新退款链路验证
 
@@ -214,11 +290,8 @@ POST /api/admin/package-orders/:id/refund/sync
 预期：
 
 1. 退款接口返回的业务状态应为 `refund_pending`
-2. `wechat-pay` 云函数返回应包含：
-   - `status = refund_pending`
-   - `accepted = true`
-   - `settled = false`
-3. 此时不应直接把 MySQL 写成 `refunded`
+2. 此时不应直接把 MySQL 写成 `refunded`
+3. 若真实退款仍失败，本地状态应推进到 `refund_failed`
 
 ### 7.2 云侧退款完成后的同步验证
 
@@ -256,8 +329,40 @@ wx.cloud.callFunction({
 1. 这能验证“微信支付侧是否真的退款成功”
 2. 这不能单独验证“后台订单状态是否同步更新”
 3. 若本地订单仍是 `success`，需要再调用 `/refund/sync` 做补同步
+4. 这条路径只适合作为临时人工处理 CloudPay 老订单的技术手段，不代表后台正式能力已闭环
 
-## 8. 历史误标订单处理方式
+### 7.4 后台退款失败的已确认两类原因
+
+#### A. 后台服务端调云函数退款
+
+已确认报错：
+
+```text
+refund:fail invalid wx openapi access_token
+```
+
+结论：
+
+- 后台服务端不能稳定借道 `wechat-pay` 云函数执行 CloudPay 退款
+
+#### B. 后台普通商户直连微信支付退款
+
+已确认报错：
+
+```json
+{
+  "code": "RESOURCE_NOT_EXISTS",
+  "message": "订单不存在"
+}
+```
+
+结论：
+
+- CloudPay 历史订单不属于当前后台直连普通商户退款身份
+- 微信支付侧找不到原支付订单
+- 该方案不适用于 CloudPay 老单
+
+## 9. 历史误标订单处理方式
 
 适用场景：
 
@@ -286,33 +391,36 @@ POST /api/admin/package-orders/:订单ID/refund/sync
 
 - 历史误标单不会因为部署新代码而自动恢复
 - 必须执行一次同步复核
+- 但 `/refund/sync` 只能复核“已经有退款单号/已有退款结果”的订单；它不能替代后台真实发起 CloudPay 退款
 
-## 9. 当前剩余缺口
+## 10. 当前剩余缺口
 
-当前已经修掉“把退款申请误当最终成功”的问题，但还有一个现实缺口：
+当前已经修掉“把退款申请误当最终成功”的问题，但当前最大的现实缺口已经明确：
 
-### 9.1 还没有自动到账回调闭环
+### 10.1 CloudPay 历史订单后台真实退款方案未闭环
 
 现状是：
 
-1. 发起退款后可以正确停在 `refund_pending`
-2. 需要显式调用 `/refund/sync` 才能把终态推进到 `refunded` 或 `refund_failed`
+1. 后台本地状态流已修正
+2. CloudPay 历史订单无法通过后台服务端稳定完成真实退款
+3. 直接小程序触发云函数退款仍然可用
+4. `/refund/sync` 只能用于结果复核，不能解决后台真实退款发起失败
 
-也就是说，目前更像是：
+### 10.2 自动到账回调闭环仍未建设
 
-- 手动补偿式对账
+即使不考虑后台真实退款发起问题，目前也仍缺少：
 
-还不是：
-
-- 自动退款完成回调闭环
+- 稳定的自动退款终态回写闭环
 
 后续建议优先级：
 
-1. 给后台订单页增加“同步退款状态”按钮
-2. 增加批量复核脚本，扫描历史误标 `refunded` 订单
-3. 评估是否可接入更稳定的退款终态回调或定时对账任务
+1. 不要再继续投入“后台借道云函数退款”方案
+2. 对 CloudPay 历史订单，短期接受“人工/小程序触发退款 + 后台同步状态”
+3. 如果需要正式后台退款能力，应评估把支付与退款整体迁到普通商户直连微信支付 V3
+4. 增加批量复核脚本，扫描历史误标 `refunded` 订单
+5. 后续再评估自动退款终态回调或定时对账任务
 
-## 10. 已验证测试
+## 11. 已验证测试
 
 本地已跑过的核心验证：
 
@@ -324,6 +432,7 @@ node --test tests/package-readers.test.js
 
 node --test /Users/yun/lindong/miniprogram/tests/my-group-refund-status.test.cjs
 node --check /Users/yun/lindong/cloudfunctions/wechat-pay/index.js
+node --test /Users/yun/lindong/backend/console-api-service/tests/direct-refund-gateway.test.cjs
 ```
 
 其中额外补过的重点用例包括：
@@ -333,3 +442,4 @@ node --check /Users/yun/lindong/cloudfunctions/wechat-pay/index.js
 3. `refund/sync` 可处理本地 `success` 订单
 4. `refund/sync` 可处理历史本地 `refunded` 误标订单
 5. “我的拼团”里退款相关状态统一归在“已失败”页签，卡片右上角显示具体退款状态
+6. 直连微信支付退款网关的 prepare / query / confirm 基础流程
