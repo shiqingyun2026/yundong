@@ -2,6 +2,7 @@ const { sendFailure, sendOk } = require('./_helpers')
 const { isConsoleApiError } = require('../services/_errors')
 const { loginAdmin } = require('../services/authService')
 const { env } = require('../../config/env')
+const { diagnoseCloudPayFunctionInvocation } = require('../services/cloudPayRefundGateway')
 const {
   assertLoginAllowed,
   clearLoginFailures,
@@ -101,12 +102,36 @@ const getPackageRefundFlowProbe = async (req, res) =>
       expected_initial_payment_record_status: 'refund_pending',
       sync_supported_local_statuses: ['success', 'refund_pending', 'refund_failed', 'refunded'],
       cloudbase_env_configured: !!env.cloudbase.envId,
+      cloudbase_secret_pair_configured:
+        !!`${process.env.TENCENTCLOUD_SECRETID || ''}`.trim() && !!`${process.env.TENCENTCLOUD_SECRETKEY || ''}`.trim(),
+      cloudbase_access_key_configured: !!`${process.env.CLOUDBASE_APIKEY || ''}`.trim(),
       wechat_pay_function_name: env.cloudbase.wechatPayFunctionName || 'wechat-pay',
       use_mysql_repositories: !!env.useMySqlRepositories
     }
   })
 
+const diagnosePackageRefundFlowProbe = async (req, res) => {
+  try {
+    const result = await diagnoseCloudPayFunctionInvocation()
+    return sendOk(res, {
+      version: PACKAGE_REFUND_FLOW_VERSION,
+      diagnose: result
+    })
+  } catch (error) {
+    return sendOk(res, {
+      version: PACKAGE_REFUND_FLOW_VERSION,
+      diagnose_error: {
+        message: (error && error.message) || 'cloudpay diagnose failed',
+        env_id: env.cloudbase.envId || '',
+        function_name: env.cloudbase.wechatPayFunctionName || 'wechat-pay',
+        function_timeout_ms: Math.max(1000, Number(env.cloudbase.functionTimeoutMs) || 15000)
+      }
+    })
+  }
+}
+
 module.exports = {
+  diagnosePackageRefundFlowProbe,
   getSession,
   getPackageRefundFlowProbe,
   login,
