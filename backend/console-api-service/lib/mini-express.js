@@ -10,12 +10,12 @@ const getAllowedOrigin = requestOrigin => {
     .map(value => `${value || ''}`.trim())
     .filter(Boolean)
 
-  if (!requestOrigin) {
-    return configuredOrigins[0] || '*'
+  if (configuredOrigins.length === 0) {
+    return requestOrigin || '*'
   }
 
-  if (configuredOrigins.length === 0) {
-    return '*'
+  if (!requestOrigin) {
+    return configuredOrigins[0] || '*'
   }
 
   return configuredOrigins.includes(requestOrigin) ? requestOrigin : ''

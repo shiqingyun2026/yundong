@@ -174,8 +174,5 @@
     <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary payment-button" loading="{{paying}}" disabled="{{paying}}" bindtap="handleConfirmPay">
       <view class="weui-ext-button__inner">确认支付{{paymentAmountButtonText}}</view>
     </button>
-    <button class="weui-btn weui-ext-button weui-ext-button--medium weui-ext-button--text mock-fail-button" bindtap="handleMockFail">
-      <view class="weui-ext-button__inner">模拟支付失败</view>
-    </button>
   </view>
 </view>

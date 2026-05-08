@@ -427,21 +427,5 @@ Page({
         paying: false
       })
     }
-  },
-
-  handleMockFail() {
-    wx.redirectTo({
-      url:
-        `/pages/payment/result/index?status=fail` +
-        `&packageId=${this.data.packageId}` +
-        `&packageGroupId=${encodeURIComponent(this.data.packageGroupId || '')}` +
-        `&action=${this.data.action}` +
-        `&targetCount=${this.data.targetCount}` +
-        `&weekday=${this.data.weekday}` +
-        `&hour=${this.data.hour}` +
-        `&childNickname=${encodeURIComponent(this.data.childNickname.trim())}` +
-        `&childAge=${encodeURIComponent(this.data.childAge)}` +
-        `&parentMobile=${encodeURIComponent(this.data.parentMobile)}`
-    })
   }
 })

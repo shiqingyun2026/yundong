@@ -232,18 +232,3 @@
   border-radius: 16rpx !important;
   box-shadow: 0 8rpx 24rpx var(--brand-primary-shadow-strong);
 }
-
-.mock-fail-button {
-  height: 72rpx;
-  margin-top: 12rpx;
-  width: calc(100% - 64rpx);
-  border: none;
-  background: transparent;
-  color: #8f96a3;
-  font-size: 24rpx;
-  line-height: 72rpx;
-}
-
-.mock-fail-button::after {
-  border: none;
-}
