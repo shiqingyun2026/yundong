@@ -1,5 +1,5 @@
 const { env } = require('../../config/env')
-const { coursePackagesRepository, ordersRepository, packageGroupsRepository } = require('../../repositories')
+const { coursePackagesRepository, ordersRepository, packageGroupsRepository, paymentRecordsRepository } = require('../../repositories')
 const {
   PACKAGE_GROUP_STATUS,
   assertSupportedTargetCount,
@@ -251,6 +251,26 @@ const resolveOrderGroupSummary = async order => {
   }
 }
 
+const syncOrderPaymentRecordGroupId = async ({ order, packageGroupId, now = new Date() }) => {
+  if (!order || !packageGroupId) {
+    return null
+  }
+
+  if (!paymentRecordsRepository || typeof paymentRecordsRepository.findPaymentRecordByOrderId !== 'function') {
+    return null
+  }
+
+  const paymentRecord = await paymentRecordsRepository.findPaymentRecordByOrderId(order.id)
+  if (!paymentRecord || paymentRecord.package_group_id === packageGroupId) {
+    return paymentRecord
+  }
+
+  return paymentRecordsRepository.updatePaymentRecord(paymentRecord.id, {
+    package_group_id: packageGroupId,
+    updated_at: now.toISOString()
+  })
+}
+
 const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date() }) => {
   ensureMySqlMode()
 
@@ -345,6 +365,11 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
       package_group_id: group.id,
       pay_time: now,
       updated_at: now
+    })
+    await syncOrderPaymentRecordGroupId({
+      order: updatedOrder,
+      packageGroupId: group.id,
+      now
     })
 
     if (group.status === PACKAGE_GROUP_STATUS.SUCCESS) {

@@ -319,7 +319,7 @@ export interface PackageGroupListItem {
   package_id: string
   package_name: string
   creator_id: string
-  status: 'active' | 'success' | 'failed'
+  status: 'active' | 'success' | 'failed' | 'refund_pending' | 'refund_failed' | 'canceled'
   target_count: number
   current_count: number
   member_amount_fen: number
@@ -383,7 +383,7 @@ export interface PackageGroupDetail {
   package_name: string
   package_status: 'pending' | 'active' | 'inactive'
   package_status_text: string
-  status: 'active' | 'success' | 'failed'
+  status: 'active' | 'success' | 'failed' | 'refund_pending' | 'refund_failed' | 'canceled'
   creator_id: string
   target_count: number
   current_count: number

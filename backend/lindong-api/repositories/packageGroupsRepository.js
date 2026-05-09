@@ -17,6 +17,14 @@ const PACKAGE_GROUP_SELECT_FIELDS = `
   success_time
 `
 
+const normalizePackageGroupStatus = value => {
+  const status = `${value || ''}`.trim()
+  if (status === 'cancled') {
+    return 'canceled'
+  }
+  return status || 'active'
+}
+
 const normalizePackageGroup = row => {
   if (!row) {
     return null
@@ -28,7 +36,7 @@ const normalizePackageGroup = row => {
     creator_id: row.creator_id || '',
     target_count: Number(row.target_count) || 0,
     current_count: Number(row.current_count) || 0,
-    status: row.status || 'active',
+    status: normalizePackageGroupStatus(row.status),
     weekday: Number(row.weekday) || 0,
     hour: Number(row.hour) || 0,
     first_class_time: row.first_class_time || null,

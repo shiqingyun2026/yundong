@@ -801,6 +801,26 @@ select {
   align-items: end;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.32);
+}
+
+.modal-panel {
+  width: min(560px, 100%);
+  padding: 20px;
+  border-radius: 18px;
+  background: #fffdf8;
+  border: 1px solid rgba(20, 58, 82, 0.12);
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18);
+}
+
 @media (max-width: 960px) {
   .stats-grid,
   .anomaly-grid,
@@ -829,6 +849,11 @@ select {
 
   .pagination-actions {
     justify-content: space-between;
+  }
+
+  .modal-backdrop {
+    padding: 16px;
+    align-items: flex-end;
   }
 
   .data-table {

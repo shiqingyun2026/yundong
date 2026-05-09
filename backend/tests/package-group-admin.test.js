@@ -396,6 +396,26 @@ const createPackageRepositoryState = () => ({
       status: 'paid',
       callback_status: 'MOCK_SUCCESS',
       callback_payload: null
+    },
+    {
+      id: 'pay-success-group-1',
+      order_id: 'ord-success-group',
+      user_id: 'user-2',
+      package_id: 'PKG-20260418-0001',
+      package_group_id: 'pg-success',
+      status: 'paid',
+      callback_status: 'MOCK_SUCCESS',
+      callback_payload: null
+    },
+    {
+      id: 'pay-success-group-2',
+      order_id: 'ord-success-group-2',
+      user_id: 'user-1',
+      package_id: 'PKG-20260418-0001',
+      package_group_id: 'pg-success',
+      status: 'paid',
+      callback_status: 'MOCK_SUCCESS',
+      callback_payload: null
     }
   ]),
   users: clone([
@@ -751,6 +771,13 @@ test('admin package routes are mounted behind admin authentication', async () =>
       ]
     }
   })
+  const refundGroup = await requestJson({
+    app,
+    method: 'POST',
+    pathname: '/api/admin/package-groups/pg-1/refund',
+    headers,
+    body: { reason: '场地取消整团退款' }
+  })
   const listOrders = await requestJson({
     app,
     pathname: '/api/admin/package-orders?status=success',
@@ -780,6 +807,7 @@ test('admin package routes are mounted behind admin authentication', async () =>
   assert.equal(groupDetail.body.data.id, 'pg-1')
   assert.equal(updateCoachAssignment.body.data.id, 'pg-1')
   assert.equal(updateCoachAssignment.body.data.coach_assignment.default_coach_name, '王教练')
+  assert.equal(refundGroup.body.data.status, 'refund_pending')
   assert.equal(listOrders.body.data.list[0].id, 'ord-1')
   assert.equal(refund.body.data.status, 'refund_pending')
   assert.deepEqual(
@@ -797,6 +825,7 @@ test('admin package routes are mounted behind admin authentication', async () =>
       'listAdminPackageGroups',
       'getAdminPackageGroupDetail',
       'updateAdminPackageGroupCoachAssignment',
+      'refundAdminPackageGroup',
       'listAdminPackageOrders',
       'refundAdminPackageOrder'
     ]
@@ -960,10 +989,13 @@ test('admin package order refund marks the order refund_pending before the cloud
   })
 
   const pendingOrder = state.orders.find(item => item.id === 'ord-refund')
+  const pendingPayment = state.paymentRecords.find(item => item.order_id === 'ord-refund')
 
   assert.equal(result.status, 'refund_pending')
   assert.equal(pendingOrder.status, 'refund_pending')
   assert.equal(pendingOrder.refund_reason, '用户线下申请退款')
+  assert.equal(pendingPayment.status, 'refund_pending')
+  assert.equal(pendingPayment.callback_status, 'REFUND_PENDING')
   assert.equal(state.cloudPayRefundCalls.length, 1)
   assert.equal(state.cloudPayRefundCalls[0].orderId, 'ord-refund')
   assert.equal(state.adminLogWrites.length, 1)
@@ -988,6 +1020,12 @@ test('admin package group refund allows a successful package group to enter full
       .sort(),
     ['ord-success-group', 'ord-success-group-2']
   )
+  assert.ok(
+    state.paymentRecords
+      .filter(item => item.package_group_id === 'pg-success')
+      .every(item => item.status === 'refund_pending' && item.callback_status === 'REFUND_PENDING')
+  )
+  assert.equal(state.groups.find(item => item.id === 'pg-success').status, 'refund_pending')
   assert.equal(state.cloudPayRefundCalls.length, 2)
 })
 

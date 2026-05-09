@@ -9,6 +9,9 @@ import type { PackageGroupLessonItem, PackageGroupListItem, PackageGroupListResp
 const getStatusText = (status: PackageGroupListItem['status']) => {
   if (status === 'success') return '已成团'
   if (status === 'failed') return '已失败'
+  if (status === 'refund_pending') return '退款中'
+  if (status === 'refund_failed') return '退款失败'
+  if (status === 'canceled') return '已取消'
   return '进行中'
 }
 
@@ -36,8 +39,12 @@ export function PackageGroupListPage() {
   const [pagination, setPagination] = useState({ total: 0, total_pages: 1, page: 1, size: 10 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [editingGroupId, setEditingGroupId] = useState('')
   const [savingGroupId, setSavingGroupId] = useState('')
+  const [refundingGroupId, setRefundingGroupId] = useState('')
+  const [refundTarget, setRefundTarget] = useState<PackageGroupListItem | null>(null)
+  const [refundReason, setRefundReason] = useState('')
   const [coachForm, setCoachForm] = useState<{
     defaultCoachName: string
     lessons: Array<{ index: number; class_time: string; coach_name: string }>
@@ -57,6 +64,7 @@ export function PackageGroupListPage() {
   const fetchList = async (nextPackageId = packageId, nextStatus = status, nextPage = 1) => {
     setLoading(true)
     setError('')
+    setNotice('')
 
     try {
       const params = new URLSearchParams()
@@ -111,6 +119,12 @@ export function PackageGroupListPage() {
       defaultCoachName: '',
       lessons: []
     })
+  }
+
+  const closeRefundDialog = () => {
+    setRefundTarget(null)
+    setRefundReason('')
+    setRefundingGroupId('')
   }
 
   const updateLessonCoach = (index: number, coachName: string) => {
@@ -168,6 +182,37 @@ export function PackageGroupListPage() {
     }
   }
 
+  const handleRefundGroup = async () => {
+    if (!refundTarget) {
+      return
+    }
+
+    const reason = refundReason.trim()
+    if (!reason) {
+      setError('退款原因不能为空')
+      setNotice('')
+      return
+    }
+
+    if (!window.confirm(`确认对拼团「${refundTarget.id}」执行整团退款吗？`)) {
+      return
+    }
+
+    setRefundingGroupId(refundTarget.id)
+    setError('')
+    setNotice('')
+
+    try {
+      await api.post(`/package-groups/${refundTarget.id}/refund`, { reason })
+      await fetchList(packageId, status, pagination.page)
+      setNotice(`拼团 ${refundTarget.id} 已发起整团退款，团内订单已进入退款流程。`)
+      closeRefundDialog()
+    } catch (refundError) {
+      setError(refundError instanceof Error ? refundError.message : '整团退款失败')
+      setRefundingGroupId('')
+    }
+  }
+
   return (
     <section className="stack">
       {packageIdFromQuery ? <PageBackButton fallback="/packages" /> : null}
@@ -185,6 +230,9 @@ export function PackageGroupListPage() {
               <option value="active">进行中</option>
               <option value="success">已成团</option>
               <option value="failed">已失败</option>
+              <option value="refund_pending">退款中</option>
+              <option value="refund_failed">退款失败</option>
+              <option value="canceled">已取消</option>
             </select>
           </label>
         </div>
@@ -203,6 +251,7 @@ export function PackageGroupListPage() {
       <section className="panel">
         {loading ? <p className="muted-text">加载中...</p> : null}
         {error ? <p className="error-text">{error}</p> : null}
+        {notice ? <p className="muted-text">{notice}</p> : null}
 
         {!loading && !error ? (
           <>
@@ -266,6 +315,20 @@ export function PackageGroupListPage() {
                               {item.coach_assignment?.lessons?.some(lesson => lesson.coach_name.trim()) ? '编辑教练' : '安排教练'}
                             </button>
                           ) : null}
+                          {item.status === 'success' ? (
+                            <button
+                              className="table-link button-as-link"
+                              type="button"
+                              onClick={() => {
+                                setRefundTarget(item)
+                                setRefundReason('')
+                                setError('')
+                                setNotice('')
+                              }}
+                            >
+                              整团退款
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -327,6 +390,37 @@ export function PackageGroupListPage() {
           </>
         ) : null}
       </section>
+
+      {refundTarget ? (
+        <div className="modal-backdrop" role="presentation" onClick={event => (event.target === event.currentTarget ? closeRefundDialog() : undefined)}>
+          <section className="modal-panel stack" role="dialog" aria-modal="true" aria-labelledby="package-group-refund-title">
+            <div>
+              <p className="section-kicker">Refund Confirmation</p>
+              <h3 id="package-group-refund-title">确认整团退款</h3>
+            </div>
+            <p className="muted-text">
+              拼团编号：{refundTarget.id}，课包：{refundTarget.package_name || refundTarget.package_id || '-'}
+            </p>
+            <label className="filter-field">
+              <span>退款原因</span>
+              <textarea rows={4} value={refundReason} onChange={event => setRefundReason(event.target.value)} />
+            </label>
+            <div className="button-row">
+              <button
+                className="primary-button compact-button"
+                type="button"
+                disabled={refundingGroupId === refundTarget.id}
+                onClick={() => void handleRefundGroup()}
+              >
+                {refundingGroupId === refundTarget.id ? '退款中...' : '确认退款'}
+              </button>
+              <button className="ghost-button compact-button" type="button" onClick={closeRefundDialog} disabled={refundingGroupId === refundTarget.id}>
+                取消
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </section>
   )
 }

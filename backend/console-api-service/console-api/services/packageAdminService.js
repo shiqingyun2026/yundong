@@ -134,6 +134,99 @@ const buildPackageRefundOutRefundNo = order => {
   return `RF-${outTradeNo}`.slice(0, 64)
 }
 
+const markPackageOrderPaymentRecordRefundPending = async ({ orderId, outRefundNo = '', now = new Date() }) => {
+  const paymentRecord = await paymentRecordsRepository.findPaymentRecordByOrderId(orderId)
+  if (!paymentRecord) {
+    return null
+  }
+
+  const existingCallbackPayload =
+    paymentRecord.callback_payload && typeof paymentRecord.callback_payload === 'object' ? paymentRecord.callback_payload : {}
+
+  return paymentRecordsRepository.updatePaymentRecord(paymentRecord.id, {
+    status: 'refund_pending',
+    callback_status: 'REFUND_PENDING',
+    callback_payload: {
+      ...existingCallbackPayload,
+      refund_pending: {
+        out_refund_no: outRefundNo,
+        started_at: now.toISOString()
+      }
+    },
+    updated_at: now.toISOString()
+  })
+}
+
+const markPackageOrderPaymentRecordRefundFailed = async ({ orderId, reason = '', payload = {}, now = new Date() }) => {
+  const paymentRecord = await paymentRecordsRepository.findPaymentRecordByOrderId(orderId)
+  if (!paymentRecord) {
+    return null
+  }
+
+  const existingCallbackPayload =
+    paymentRecord.callback_payload && typeof paymentRecord.callback_payload === 'object' ? paymentRecord.callback_payload : {}
+
+  return paymentRecordsRepository.updatePaymentRecord(paymentRecord.id, {
+    status: 'refund_failed',
+    callback_status: 'REFUND_FAILED',
+    callback_payload: {
+      ...existingCallbackPayload,
+      refund_failure: {
+        reason: `${reason || ''}`.trim(),
+        failed_at: now.toISOString(),
+        payload
+      }
+    },
+    updated_at: now.toISOString()
+  })
+}
+
+const syncPackageGroupRefundState = async ({ packageGroupId, now = new Date() }) => {
+  if (!packageGroupId) {
+    return null
+  }
+
+  const group = await packageGroupsRepository.findPackageGroupById(packageGroupId)
+  if (!group) {
+    return null
+  }
+
+  const orders = await ordersRepository.listOrdersByPackageGroupId({ packageGroupId })
+  const hasRefundPending = orders.some(item => item.status === 'refund_pending')
+  const hasRefundFailed = orders.some(item => item.status === 'refund_failed')
+  const hasSuccess = orders.some(item => item.status === 'success')
+  const hasRefunded = orders.some(item => item.status === 'refunded')
+
+  const shouldManageGroupRefundState =
+    ['refund_pending', 'refund_failed', 'canceled'].includes(group.status) || !!group.success_time
+
+  if (!shouldManageGroupRefundState) {
+    return group
+  }
+
+  let nextStatus = ''
+  if (hasRefundPending) {
+    nextStatus = 'refund_pending'
+  } else if (!hasSuccess && hasRefundFailed) {
+    nextStatus = 'refund_failed'
+  } else if (!hasSuccess && hasRefunded) {
+    nextStatus = 'canceled'
+  }
+
+  if (!nextStatus || nextStatus === group.status) {
+    return group
+  }
+
+  const patch = {
+    status: nextStatus
+  }
+  if (nextStatus === 'canceled') {
+    patch.current_count = 0
+  }
+
+  return packageGroupsRepository.updatePackageGroup(group.id, patch)
+}
+
 const normalizeCoachAssignment = value => {
   if (!value || typeof value !== 'object') {
     return null
@@ -1234,15 +1327,26 @@ const refundAdminPackageOrder = async ({ orderId, reason, admin = {}, ip = null,
   })
 
   try {
-    await invokeCloudPayRefund({
+    const refundResult = await invokeCloudPayRefund({
       orderId: order.id,
       reason: normalizedReason,
       operatorId: admin.id || ''
+    })
+    await markPackageOrderPaymentRecordRefundPending({
+      orderId: order.id,
+      outRefundNo: refundResult && refundResult.outRefundNo ? refundResult.outRefundNo : buildPackageRefundOutRefundNo(order),
+      now
     })
   } catch (error) {
     updatedOrder = await ordersRepository.updateOrder(order.id, {
       status: 'refund_failed',
       updated_at: now
+    })
+    await markPackageOrderPaymentRecordRefundFailed({
+      orderId: order.id,
+      reason: error && error.message ? error.message : 'package order refund failed',
+      payload: error && error.extra ? error.extra : {},
+      now
     })
     throw error
   }
@@ -1333,10 +1437,15 @@ const refundAdminPackageGroup = async ({ packageGroupId, reason, admin = {}, ip 
     })
 
     try {
-      await invokeCloudPayRefund({
+      const refundResult = await invokeCloudPayRefund({
         orderId: order.id,
         reason: normalizedReason,
         operatorId: admin.id || ''
+      })
+      await markPackageOrderPaymentRecordRefundPending({
+        orderId: order.id,
+        outRefundNo: refundResult && refundResult.outRefundNo ? refundResult.outRefundNo : buildPackageRefundOutRefundNo(order),
+        now
       })
       orderIds.push(order.id)
     } catch (error) {
@@ -1344,9 +1453,22 @@ const refundAdminPackageGroup = async ({ packageGroupId, reason, admin = {}, ip 
         status: 'refund_failed',
         updated_at: now
       })
+      await markPackageOrderPaymentRecordRefundFailed({
+        orderId: order.id,
+        reason: error && error.message ? error.message : 'package group refund failed',
+        payload: error && error.extra ? error.extra : {},
+        now
+      })
+      await packageGroupsRepository.updatePackageGroup(group.id, {
+        status: 'refund_failed'
+      })
       throw error
     }
   }
+
+  await packageGroupsRepository.updatePackageGroup(group.id, {
+    status: 'refund_pending'
+  })
 
   await safeWriteAdminLog({
     adminId: admin.id,
@@ -1422,6 +1544,12 @@ const syncAdminPackageOrderRefundStatus = async ({ orderId, admin = {}, ip = nul
   }
 
   const latestOrder = await ordersRepository.findOrderById(order.id)
+  if (latestOrder && latestOrder.package_group_id) {
+    await syncPackageGroupRefundState({
+      packageGroupId: latestOrder.package_group_id,
+      now
+    })
+  }
 
   await safeWriteAdminLog({
     adminId: admin.id,

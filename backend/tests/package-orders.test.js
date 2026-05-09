@@ -178,6 +178,12 @@ test('package start payment creates group with temporary five-minute deadline', 
 
   const state = {
     group: null,
+    paymentRecord: {
+      id: 'payment-start-1',
+      order_id: 'order-start-1',
+      package_group_id: null,
+      status: 'pending'
+    },
     orders: [
       {
         id: 'order-start-1',
@@ -222,6 +228,15 @@ test('package start payment creates group with temporary five-minute deadline', 
         return { ...order }
       }
     },
+    paymentRecordsRepository: {
+      findPaymentRecordByOrderId: async orderId => (orderId === state.paymentRecord.order_id ? { ...state.paymentRecord } : null),
+      updatePaymentRecord: async (id, patch) => {
+        if (id === state.paymentRecord.id) {
+          Object.assign(state.paymentRecord, patch)
+        }
+        return { ...state.paymentRecord }
+      }
+    },
     packageGroupsRepository: {
       createPackageGroup: async payload => {
         state.group = {
@@ -258,6 +273,7 @@ test('package start payment creates group with temporary five-minute deadline', 
   assert.equal(state.group.deadline.toISOString(), '2026-04-22T10:05:00.000Z')
   assert.equal(state.orders[0].status, 'success')
   assert.equal(state.orders[0].package_group_id, 'PG-20260422-00002')
+  assert.equal(state.paymentRecord.package_group_id, 'PG-20260422-00002')
 })
 
 test('package orders enqueue group success notification when join payment completes the group', async () => {
@@ -1041,5 +1057,120 @@ test('cloudpay refund confirmation marks the order refunded and cancels an empti
   assert.equal(result.order.status, 'refunded')
   assert.equal(result.group.status, 'canceled')
   assert.equal(result.group.current_count, 0)
+  assert.equal(result.paymentRecord.status, 'refunded')
+})
+
+test('cloudpay refund confirmation keeps a full-refund success group in refund_pending until all members settle', async () => {
+  clearModules([
+    'config/env.js',
+    'repositories/index.js',
+    'shared/services/paymentRecordStatus.js',
+    'shared/services/packageRefundService.js',
+    'shared/services/paymentShell.js'
+  ])
+
+  const state = {
+    orders: [
+      {
+        id: 'order-refund-group-1',
+        order_no: 'LDPKG-20260508-000201',
+        user_id: 'user-1',
+        order_type: 2,
+        package_id: 'PKG-20260508-0002',
+        package_group_id: 'PG-20260508-00002',
+        package_action: 'start',
+        amount: 3000,
+        status: 'refund_pending',
+        refund_reason: '整团退款'
+      },
+      {
+        id: 'order-refund-group-2',
+        order_no: 'LDPKG-20260508-000202',
+        user_id: 'user-2',
+        order_type: 2,
+        package_id: 'PKG-20260508-0002',
+        package_group_id: 'PG-20260508-00002',
+        package_action: 'join',
+        amount: 3000,
+        status: 'refund_pending',
+        refund_reason: '整团退款'
+      }
+    ],
+    group: {
+      id: 'PG-20260508-00002',
+      package_id: 'PKG-20260508-0002',
+      status: 'refund_pending',
+      target_count: 2,
+      current_count: 2,
+      weekday: 6,
+      hour: 10,
+      deadline: '2026-05-10T10:00:00.000Z',
+      success_time: '2026-05-08T09:00:00.000Z',
+      first_class_time: '2026-05-11T10:00:00.000Z'
+    },
+    paymentRecord: {
+      id: 'payment-record-group-1',
+      order_id: 'order-refund-group-1',
+      amount: 3000,
+      status: 'paid',
+      callback_status: 'SUCCESS',
+      out_trade_no: 'LDPKG-20260508-000201'
+    }
+  }
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true,
+      paymentProviderMode: 'cloudpay',
+      internalPaymentSecret: 'test-secret'
+    }
+  })
+
+  mockModule('repositories/index.js', {
+    ordersRepository: {
+      findOrderById: async id => state.orders.find(item => item.id === id) || null,
+      listOrdersByPackageGroupId: async ({ packageGroupId, status }) =>
+        state.orders.filter(item => item.package_group_id === packageGroupId && (!status || item.status === status)),
+      updateOrder: async (id, patch) => {
+        const order = state.orders.find(item => item.id === id)
+        Object.assign(order, patch)
+        return { ...order }
+      },
+      closeOrdersByIds: async () => []
+    },
+    packageGroupsRepository: {
+      findPackageGroupById: async id => (id === state.group.id ? { ...state.group } : null),
+      updatePackageGroup: async (id, patch) => {
+        if (id === state.group.id) {
+          Object.assign(state.group, patch)
+        }
+        return { ...state.group }
+      }
+    },
+    paymentRecordsRepository: {
+      findPaymentRecordByOrderId: async orderId =>
+        orderId === state.paymentRecord.order_id ? { ...state.paymentRecord } : null,
+      updatePaymentRecord: async (id, patch) => {
+        if (id === state.paymentRecord.id) {
+          Object.assign(state.paymentRecord, patch)
+        }
+        return { ...state.paymentRecord }
+      }
+    },
+    usersRepository: {}
+  })
+
+  const { markCloudPayRefundResult } = require(path.join(backendRoot, 'shared/services/paymentShell.js'))
+  const result = await markCloudPayRefundResult({
+    payload: {
+      orderId: 'order-refund-group-1',
+      reason: '整团退款'
+    },
+    now: new Date('2026-05-08T12:10:00.000Z')
+  })
+
+  assert.equal(result.order.status, 'refunded')
+  assert.equal(result.group.status, 'refund_pending')
+  assert.equal(result.group.current_count, 1)
   assert.equal(result.paymentRecord.status, 'refunded')
 })

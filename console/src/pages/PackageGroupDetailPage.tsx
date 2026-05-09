@@ -8,6 +8,9 @@ import type { PackageGroupDetail } from '../types'
 const getGroupStatusText = (status: PackageGroupDetail['status']) => {
   if (status === 'success') return '已成团'
   if (status === 'failed') return '已失败'
+  if (status === 'refund_pending') return '退款中'
+  if (status === 'refund_failed') return '退款失败'
+  if (status === 'canceled') return '已取消'
   return '进行中'
 }
 

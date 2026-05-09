@@ -8,6 +8,45 @@ const REFUND_EMPTY_GROUP_STATUS = {
   AUTO_TIMEOUT: PACKAGE_GROUP_STATUS.FAILED
 }
 
+const resolveGroupStatusDuringRefundSettlement = ({ group, orders = [], emptyGroupStatus, now = new Date() }) => {
+  const successOrders = orders.filter(item => item.status === 'success')
+  const refundPendingOrders = orders.filter(item => item.status === 'refund_pending')
+  const refundFailedOrders = orders.filter(item => item.status === 'refund_failed')
+  const refundedOrders = orders.filter(item => item.status === 'refunded')
+
+  if (refundPendingOrders.length > 0) {
+    return {
+      currentCount: successOrders.length + refundPendingOrders.length + refundFailedOrders.length,
+      status: 'refund_pending'
+    }
+  }
+
+  if (refundFailedOrders.length > 0 && successOrders.length <= 0) {
+    return {
+      currentCount: refundFailedOrders.length,
+      status: 'refund_failed'
+    }
+  }
+
+  if ((group.status === 'refund_pending' || group.status === 'refund_failed') && successOrders.length <= 0 && refundedOrders.length > 0) {
+    return {
+      currentCount: 0,
+      status: emptyGroupStatus
+    }
+  }
+
+  const nextCount = successOrders.length
+  return {
+    currentCount: nextCount,
+    status: computePackageGroupStatusAfterRefund({
+      group,
+      currentCount: nextCount,
+      emptyGroupStatus,
+      now
+    })
+  }
+}
+
 const finalizePackageOrderRefund = async ({
   orderId,
   reason,
@@ -53,14 +92,12 @@ const finalizePackageOrderRefund = async ({
     }
   }
 
-  const remainingSuccessOrders = await ordersRepository.listOrdersByPackageGroupId({
-    packageGroupId: group.id,
-    status: 'success'
+  const groupOrders = await ordersRepository.listOrdersByPackageGroupId({
+    packageGroupId: group.id
   })
-  const nextCount = remainingSuccessOrders.length
-  const nextStatus = computePackageGroupStatusAfterRefund({
+  const { currentCount: nextCount, status: nextStatus } = resolveGroupStatusDuringRefundSettlement({
     group,
-    currentCount: nextCount,
+    orders: groupOrders,
     emptyGroupStatus,
     now
   })
