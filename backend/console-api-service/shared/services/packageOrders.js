@@ -10,7 +10,6 @@ const {
   isPackageGroupJoinable
 } = require('../domain/packageGroupRules')
 
-const TEMP_PACKAGE_GROUP_DEADLINE_MINUTES = 5
 const {
   buildPackageLessonSchedule,
   computeFirstPackageClassTime,
@@ -331,7 +330,7 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
 
     const deadline = buildPackageDeadline({
       createdAt: now,
-      deadlineMinutes: TEMP_PACKAGE_GROUP_DEADLINE_MINUTES
+      deadlineHours: pkg.deadline_hours
     })
     const nextStatus =
       Number(targetCount) <= 1 ? PACKAGE_GROUP_STATUS.SUCCESS : PACKAGE_GROUP_STATUS.ACTIVE

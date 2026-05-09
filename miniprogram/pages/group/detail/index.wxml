@@ -62,7 +62,12 @@
           </view>
           <view class="info-row">
             <image class="info-icon-image" src="/assets/icons/location-primary.svg" mode="aspectFit"></image>
-            <view class="info-value">{{groupDetail.packageInfo.locationText}}</view>
+            <view class="info-content">
+              <view class="info-value">{{groupDetail.packageInfo.locationText}}</view>
+              <view wx:if="{{groupDetail.status === 'active' && groupDetail.remainingSeconds > 0}}" class="info-subvalue">
+                拼团剩余时间：{{groupDetail.remainingPlainText}}
+              </view>
+            </view>
           </view>
         </view>
       </view>

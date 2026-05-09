@@ -1,4 +1,5 @@
 const { env } = require('../../config/env')
+const { withTransaction } = require('../../config/db')
 const { coursePackagesRepository, ordersRepository, packageGroupsRepository, paymentRecordsRepository } = require('../../repositories')
 const {
   PACKAGE_GROUP_STATUS,
@@ -10,7 +11,6 @@ const {
   isPackageGroupJoinable
 } = require('../domain/packageGroupRules')
 
-const TEMP_PACKAGE_GROUP_DEADLINE_MINUTES = 5
 const {
   buildPackageLessonSchedule,
   computeFirstPackageClassTime,
@@ -18,9 +18,252 @@ const {
   normalizeHour,
   normalizeWeekday
 } = require('./packageSchedule')
+const { toDbDateTime } = require('../../repositories/_helpers')
+const { AUTO_REFUND_REASON } = require('../constants/refunds')
 const { enqueueGroupResultNotifications } = require('./groupResultNotifications')
 const { cleanupExpiredPackageGroups, closePendingPackageOrdersByIds, listPendingOrderIdsForPackage } = require('./packageGroupStore')
 const { createPackageServiceError, isPackageServiceError } = require('./packageServiceError')
+const { createWechatPayRefund } = require('./wechatMiniProgram')
+
+const TEMP_PACKAGE_GROUP_DEADLINE_MINUTES = 5
+const PACKAGE_CAPACITY_REFUND_REASON = '拼团名额不足，系统自动退款'
+
+const parseJsonObject = value => {
+  if (!value) {
+    return {}
+  }
+
+  if (typeof value === 'object') {
+    return value
+  }
+
+  try {
+    const parsed = JSON.parse(value)
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch (error) {
+    return {}
+  }
+}
+
+const loadOrderForUserForUpdate = async ({ transaction, userId, orderId }) => {
+  const rows = await transaction.query(
+    `
+      select
+        id, order_no, user_id, order_type, package_id, package_group_id, package_action, package_context,
+        amount, status, created_at, updated_at, pay_time, refund_time, refund_reason, refund_operator_id, transaction_id
+      from orders
+      where id = ?
+        and user_id = ?
+      limit 1
+      for update
+    `,
+    [orderId, userId]
+  )
+
+  const row = rows[0]
+  if (!row) {
+    return null
+  }
+
+  return {
+    ...row,
+    order_type: Number(row.order_type) || 0,
+    amount: Number(row.amount) || 0,
+    package_context: parseJsonObject(row.package_context)
+  }
+}
+
+const loadPackageGroupForUpdate = async ({ transaction, packageGroupId }) => {
+  const rows = await transaction.query(
+    `
+      select
+        id, package_id, creator_id, target_count, current_count, status, weekday, hour,
+        first_class_time, deadline, created_at, success_time
+      from package_groups
+      where id = ?
+      limit 1
+      for update
+    `,
+    [packageGroupId]
+  )
+
+  const row = rows[0]
+  if (!row) {
+    return null
+  }
+
+  return {
+    ...row,
+    target_count: Number(row.target_count) || 0,
+    current_count: Number(row.current_count) || 0,
+    weekday: Number(row.weekday) || 0,
+    hour: Number(row.hour) || 0
+  }
+}
+
+const loadPaymentRecordForUpdate = async ({ transaction, orderId }) => {
+  const rows = await transaction.query(
+    `
+      select
+        id, order_id, out_trade_no, transaction_id, amount, status, callback_status, callback_payload, closed_at
+      from payment_records
+      where order_id = ?
+      limit 1
+      for update
+    `,
+    [orderId]
+  )
+
+  const row = rows[0]
+  if (!row) {
+    return null
+  }
+
+  return {
+    ...row,
+    amount: Number(row.amount) || 0,
+    callback_payload: parseJsonObject(row.callback_payload)
+  }
+}
+
+const markPackageOrderRaceRefundPending = async ({ transaction, order, paymentRecord, reason, now = new Date() }) => {
+  const timestamp = now.toISOString()
+  const dbTimestamp = toDbDateTime(now)
+
+  await transaction.execute(
+    `
+      update orders
+      set status = ?, refund_reason = ?, updated_at = ?
+      where id = ?
+    `,
+    ['refund_pending', reason, dbTimestamp, order.id]
+  )
+
+  if (!paymentRecord) {
+    return
+  }
+
+  const nextCallbackPayload = {
+    ...paymentRecord.callback_payload,
+    refund_pending: {
+      ...(paymentRecord.callback_payload.refund_pending || {}),
+      started_at: timestamp,
+      reason
+    }
+  }
+
+  await transaction.execute(
+    `
+      update payment_records
+      set status = ?, callback_status = ?, callback_payload = ?, updated_at = ?
+      where id = ?
+    `,
+    ['refund_pending', 'REFUND_PENDING', JSON.stringify(nextCallbackPayload), dbTimestamp, paymentRecord.id]
+  )
+}
+
+const markPackageOrderRaceRefundFailed = async ({ orderId, reason, payload = {}, now = new Date() }) => {
+  const timestamp = now.toISOString()
+
+  const order = await ordersRepository.findOrderById(orderId)
+  if (order) {
+    await ordersRepository.updateOrder(order.id, {
+      status: 'refund_failed',
+      refund_reason: reason,
+      updated_at: now
+    })
+  }
+
+  const paymentRecord = await paymentRecordsRepository.findPaymentRecordByOrderId(orderId)
+  if (!paymentRecord) {
+    return
+  }
+
+  const existingCallbackPayload =
+    paymentRecord.callback_payload && typeof paymentRecord.callback_payload === 'object'
+      ? paymentRecord.callback_payload
+      : {}
+
+  await paymentRecordsRepository.updatePaymentRecord(paymentRecord.id, {
+    status: 'refund_failed',
+    callback_status: 'REFUND_FAILED',
+    callback_payload: {
+      ...existingCallbackPayload,
+      refund_failure: {
+        reason: `${reason || ''}`.trim(),
+        failed_at: timestamp,
+        payload
+      }
+    },
+    updated_at: timestamp
+  })
+}
+
+const requestPackageOrderAutoRefund = async ({ orderId, reason, now = new Date() }) => {
+  const { prepareCloudPayRefund } = require('./paymentShell')
+
+  try {
+    const prepared = await prepareCloudPayRefund({
+      supabase: null,
+      orderId,
+      reason
+    })
+
+    const refundResult = await createWechatPayRefund({
+      outTradeNo: prepared.outTradeNo,
+      outRefundNo: prepared.outRefundNo,
+      reason: prepared.refundDesc || reason,
+      totalFee: prepared.totalFee,
+      refundFee: prepared.refundFee
+    })
+
+    try {
+      const paymentRecord = await paymentRecordsRepository.findPaymentRecordByOrderId(orderId)
+      if (paymentRecord) {
+        const existingCallbackPayload =
+          paymentRecord.callback_payload && typeof paymentRecord.callback_payload === 'object'
+            ? paymentRecord.callback_payload
+            : {}
+        await paymentRecordsRepository.updatePaymentRecord(paymentRecord.id, {
+          callback_payload: {
+            ...existingCallbackPayload,
+            refund_pending: {
+              ...(existingCallbackPayload.refund_pending || {}),
+              out_refund_no: prepared.outRefundNo,
+              started_at:
+                (existingCallbackPayload.refund_pending && existingCallbackPayload.refund_pending.started_at) ||
+                now.toISOString(),
+              reason
+            }
+          },
+          updated_at: now.toISOString()
+        })
+      }
+    } catch (metadataError) {
+      console.error('[packageOrders] failed to attach refund pending metadata after refund accepted', {
+        orderId,
+        error: metadataError
+      })
+    }
+
+    return {
+      status: 'refund_pending',
+      refundResult
+    }
+  } catch (error) {
+    await markPackageOrderRaceRefundFailed({
+      orderId,
+      reason: error && error.message ? error.message : reason || AUTO_REFUND_REASON,
+      payload: error && error.payload ? error.payload : {},
+      now
+    })
+
+    return {
+      status: 'refund_failed',
+      error: error && error.message ? error.message : String(error)
+    }
+  }
+}
 
 const ensureMySqlMode = () => {
   if (!env.useMySqlRepositories) {
@@ -299,7 +542,7 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
     throw createPackageServiceError(404, 2003, '订单不存在')
   }
 
-  if (order.status === 'refunded' || order.status === 'closed') {
+  if (order.status === 'closed') {
     throw createPackageServiceError(400, 2006, '订单状态异常')
   }
 
@@ -308,6 +551,18 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
     return {
       order,
       status: 'success',
+      packageGroupId: groupSummary.packageGroupId,
+      groupStatus: groupSummary.groupStatus,
+      firstClassTime: groupSummary.firstClassTime,
+      scheduleList: groupSummary.scheduleList
+    }
+  }
+
+  if (order.status === 'refund_pending' || order.status === 'refund_failed' || order.status === 'refunded') {
+    const groupSummary = await resolveOrderGroupSummary(order)
+    return {
+      order,
+      status: order.status,
       packageGroupId: groupSummary.packageGroupId,
       groupStatus: groupSummary.groupStatus,
       firstClassTime: groupSummary.firstClassTime,
@@ -397,44 +652,138 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
   }
 
   if (order.package_action === 'join') {
-    const group = await packageGroupsRepository.findPackageGroupById(order.package_group_id)
-    if (!group) {
-      throw createPackageServiceError(404, 2002, '拼团不存在')
+    const transition = await withTransaction(async transaction => {
+      const lockedOrder = await loadOrderForUserForUpdate({
+        transaction,
+        userId,
+        orderId
+      })
+      if (!lockedOrder) {
+        throw createPackageServiceError(404, 2003, '订单不存在')
+      }
+
+      if (lockedOrder.status === 'success') {
+        return {
+          status: 'success',
+          orderId: lockedOrder.id,
+          packageGroupId: lockedOrder.package_group_id,
+          promotedToSuccess: false
+        }
+      }
+
+      if (lockedOrder.status === 'refund_pending' || lockedOrder.status === 'refund_failed' || lockedOrder.status === 'refunded') {
+        return {
+          status: lockedOrder.status,
+          orderId: lockedOrder.id,
+          packageGroupId: lockedOrder.package_group_id,
+          promotedToSuccess: false
+        }
+      }
+
+      if (lockedOrder.status === 'closed') {
+        throw createPackageServiceError(400, 2006, '订单状态异常')
+      }
+
+      const lockedGroup = await loadPackageGroupForUpdate({
+        transaction,
+        packageGroupId: lockedOrder.package_group_id
+      })
+      if (!lockedGroup) {
+        throw createPackageServiceError(404, 2002, '拼团不存在')
+      }
+
+      if (!isPackageGroupJoinable(lockedGroup, now)) {
+        const lockedPaymentRecord = await loadPaymentRecordForUpdate({
+          transaction,
+          orderId: lockedOrder.id
+        })
+
+        await markPackageOrderRaceRefundPending({
+          transaction,
+          order: lockedOrder,
+          paymentRecord: lockedPaymentRecord,
+          reason: PACKAGE_CAPACITY_REFUND_REASON,
+          now
+        })
+
+        return {
+          status: 'refund_pending',
+          orderId: lockedOrder.id,
+          packageGroupId: lockedGroup.id,
+          refundReason: PACKAGE_CAPACITY_REFUND_REASON,
+          requiresRefund: true,
+          promotedToSuccess: false
+        }
+      }
+
+      const nextCount = Number(lockedGroup.current_count) + 1
+      const nextStatus = computePackageGroupNextStatus({
+        currentCount: nextCount,
+        targetCount: lockedGroup.target_count,
+        deadline: lockedGroup.deadline,
+        now
+      })
+      const firstClassTime =
+        nextStatus === PACKAGE_GROUP_STATUS.SUCCESS
+          ? computeFirstPackageClassTime({
+              successTime: now,
+              weekday: lockedGroup.weekday,
+              hour: lockedGroup.hour
+            })
+          : null
+
+      await transaction.execute(
+        `
+          update orders
+          set status = ?, pay_time = ?, updated_at = ?
+          where id = ?
+        `,
+        ['success', toDbDateTime(now), toDbDateTime(now), lockedOrder.id]
+      )
+      await transaction.execute(
+        `
+          update package_groups
+          set current_count = ?, status = ?, success_time = ?, first_class_time = ?
+          where id = ?
+        `,
+        [
+          nextCount,
+          nextStatus,
+          nextStatus === PACKAGE_GROUP_STATUS.SUCCESS ? toDbDateTime(now) : lockedGroup.success_time || null,
+          nextStatus === PACKAGE_GROUP_STATUS.SUCCESS ? toDbDateTime(firstClassTime) : lockedGroup.first_class_time || null,
+          lockedGroup.id
+        ]
+      )
+
+      return {
+        status: 'success',
+        orderId: lockedOrder.id,
+        packageGroupId: lockedGroup.id,
+        promotedToSuccess: true,
+        groupWasSuccess: lockedGroup.status === PACKAGE_GROUP_STATUS.SUCCESS,
+        groupNowSuccess: nextStatus === PACKAGE_GROUP_STATUS.SUCCESS
+      }
+    })
+
+    if (transition.requiresRefund) {
+      await requestPackageOrderAutoRefund({
+        orderId: transition.orderId,
+        reason: transition.refundReason || PACKAGE_CAPACITY_REFUND_REASON,
+        now
+      })
     }
 
-    if (!isPackageGroupJoinable(group, now)) {
-      throw createPackageServiceError(400, 2005, '拼团已满员或已截止')
-    }
+    const updatedOrder = await ordersRepository.findOrderById(transition.orderId)
+    const updatedGroup = transition.packageGroupId
+      ? await packageGroupsRepository.findPackageGroupById(transition.packageGroupId)
+      : null
 
-    const nextCount = Number(group.current_count) + 1
-    const nextStatus = computePackageGroupNextStatus({
-      currentCount: nextCount,
-      targetCount: group.target_count,
-      deadline: group.deadline,
-      now
-    })
-    const firstClassTime =
-      nextStatus === PACKAGE_GROUP_STATUS.SUCCESS
-        ? computeFirstPackageClassTime({
-            successTime: now,
-            weekday: group.weekday,
-            hour: group.hour
-          })
-        : null
-
-    const updatedOrder = await ordersRepository.updateOrder(order.id, {
-      status: 'success',
-      pay_time: now,
-      updated_at: now
-    })
-    const updatedGroup = await packageGroupsRepository.updatePackageGroup(group.id, {
-      current_count: nextCount,
-      status: nextStatus,
-      success_time: nextStatus === PACKAGE_GROUP_STATUS.SUCCESS ? now : group.success_time || null,
-      first_class_time: nextStatus === PACKAGE_GROUP_STATUS.SUCCESS ? firstClassTime : group.first_class_time || null
-    })
-
-    if (group.status !== PACKAGE_GROUP_STATUS.SUCCESS && updatedGroup.status === PACKAGE_GROUP_STATUS.SUCCESS) {
+    if (
+      transition.promotedToSuccess &&
+      !transition.groupWasSuccess &&
+      transition.groupNowSuccess &&
+      updatedGroup
+    ) {
       await enqueueGroupResultNotifications({
         supabase: null,
         groupId: updatedGroup.id,
@@ -445,11 +794,11 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
 
     return {
       order: updatedOrder,
-      status: 'success',
-      packageGroupId: updatedGroup.id,
-      groupStatus: updatedGroup.status,
-      firstClassTime: updatedGroup.first_class_time ? formatPackageDateTime(updatedGroup.first_class_time) : null,
-      scheduleList: updatedGroup.first_class_time
+      status: updatedOrder ? updatedOrder.status : transition.status,
+      packageGroupId: updatedGroup ? updatedGroup.id : transition.packageGroupId || '',
+      groupStatus: updatedGroup ? updatedGroup.status : PACKAGE_GROUP_STATUS.FAILED,
+      firstClassTime: updatedGroup && updatedGroup.first_class_time ? formatPackageDateTime(updatedGroup.first_class_time) : null,
+      scheduleList: updatedGroup && updatedGroup.first_class_time
         ? buildPackageLessonSchedule({
             firstClassTime: updatedGroup.first_class_time,
             weeks: 5

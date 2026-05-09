@@ -121,6 +121,18 @@
   color: var(--brand-primary) !important;
 }
 
+.info-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.info-subvalue {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: #8a94a6;
+}
+
 .group-detail-page .group-rules-card {
   padding: 28rpx 0;
 }

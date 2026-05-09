@@ -318,15 +318,15 @@ const formatCountdownText = remainingSeconds => {
   const minutes = Math.floor((seconds % 3600) / 60)
 
   if (days > 0) {
-    return `剩余 ${days} 天 ${hours} 小时`
+    return `剩余 ${days}天${hours}小时`
   }
 
   if (hours > 0) {
-    return `剩余 ${hours} 小时 ${minutes} 分`
+    return `剩余 ${hours}小时`
   }
 
   if (minutes > 0) {
-    return `剩余 ${minutes} 分钟`
+    return `剩余 ${minutes}分钟`
   }
 
   return '即将截止'

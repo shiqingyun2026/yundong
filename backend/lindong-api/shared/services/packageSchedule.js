@@ -68,7 +68,7 @@ const computeFirstPackageClassTime = ({ successTime, weekday, hour }) => {
   let diffDays = (targetJsDay - candidate.getDay() + 7) % 7
   candidate.setDate(candidate.getDate() + diffDays)
 
-  if (candidate.getTime() < baseTime.getTime()) {
+  if (diffDays === 0 || candidate.getTime() < baseTime.getTime()) {
     diffDays = diffDays === 0 ? 7 : 0
     candidate.setDate(candidate.getDate() + diffDays)
   }

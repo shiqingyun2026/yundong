@@ -663,6 +663,21 @@ const handleWechatPaymentCallback = async ({ supabase, payload, now = new Date()
         ? 'closed'
         : 'processing'
 
+  if (nextStatus === 'paid' && ['refund_pending', 'refund_failed', 'refunded'].includes(paymentRecord.status)) {
+    const order = await getOrderById({
+      supabase,
+      orderId: paymentRecord.order_id
+    })
+
+    return {
+      orderId: paymentRecord.order_id,
+      outTradeNo: paymentRecord.out_trade_no,
+      paymentRecordStatus: paymentRecord.status,
+      callbackStatus: paymentRecord.callback_status || '',
+      orderStatus: order ? order.status : 'pending'
+    }
+  }
+
   const updatedRecord = env.useMySqlRepositories
     ? await paymentRecordsRepository.updatePaymentRecord(paymentRecord.id, {
         status: nextStatus,
@@ -710,11 +725,12 @@ const handleWechatPaymentCallback = async ({ supabase, payload, now = new Date()
 
     if (order.status !== 'success') {
       if (Number(order.order_type) === 2) {
-        await markPackageOrderPaymentSuccess({
+        const packagePaymentResult = await markPackageOrderPaymentSuccess({
           userId: order.user_id,
           orderId: order.id,
           now
         })
+        orderStatus = packagePaymentResult && packagePaymentResult.status ? packagePaymentResult.status : 'success'
       } else {
         await markOrderPaymentSuccess({
           supabase,
@@ -723,10 +739,11 @@ const handleWechatPaymentCallback = async ({ supabase, payload, now = new Date()
           groupId: order.group_id,
           now
         })
+        orderStatus = 'success'
       }
+    } else {
+      orderStatus = 'success'
     }
-
-    orderStatus = 'success'
   } else if (nextStatus === 'closed') {
     if (env.useMySqlRepositories) {
       const order = await ordersRepository.findOrderById(updatedRecord.order_id)
@@ -842,10 +859,18 @@ const handleCloudPayPaymentCallback = async ({ supabase, payload, now = new Date
     }
   }
 
+  if (['refund_pending', 'refund_failed', 'refunded'].includes(paymentRecord.status)) {
+    return {
+      orderId: order.id,
+      orderStatus: order.status,
+      paymentRecordStatus: paymentRecord.status
+    }
+  }
+
   if (paymentRecord.status === 'paid' || order.status === 'success') {
     return {
       orderId: order.id,
-      orderStatus: 'success',
+      orderStatus: order.status === 'success' ? 'success' : order.status,
       paymentRecordStatus: 'paid'
     }
   }
@@ -859,11 +884,16 @@ const handleCloudPayPaymentCallback = async ({ supabase, payload, now = new Date
   })
 
   if (Number(order.order_type) === 2) {
-    await markPackageOrderPaymentSuccess({
+    const packagePaymentResult = await markPackageOrderPaymentSuccess({
       userId: order.user_id,
       orderId: order.id,
       now
     })
+    return {
+      orderId: order.id,
+      orderStatus: packagePaymentResult && packagePaymentResult.status ? packagePaymentResult.status : 'success',
+      paymentRecordStatus: 'paid'
+    }
   } else {
     await markOrderPaymentSuccess({
       supabase,
@@ -1028,7 +1058,7 @@ const prepareCloudPayRefund = async ({ supabase, orderId, reason = '' }) => {
     supabase,
     orderId: order.id
   })
-  if (!paymentRecord || paymentRecord.status !== 'paid') {
+  if (!paymentRecord || (paymentRecord.status !== 'paid' && paymentRecord.status !== 'refund_pending')) {
     throw createServiceError(400, 'paid payment record is required')
   }
 
