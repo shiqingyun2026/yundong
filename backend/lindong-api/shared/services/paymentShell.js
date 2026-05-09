@@ -1109,6 +1109,7 @@ const markCloudPayRefundFailureResult = async ({ supabase, payload, now = new Da
           ? paymentRecord.callback_payload
           : {}
       paymentRecord = await paymentRecordsRepository.updatePaymentRecord(paymentRecord.id, {
+        status: 'refund_failed',
         callback_status: 'REFUND_FAILED',
         callback_payload: {
           ...existingCallbackPayload,
@@ -1146,6 +1147,7 @@ const markCloudPayRefundFailureResult = async ({ supabase, payload, now = new Da
       const { data: nextPaymentRecord, error: paymentError } = await supabase
         .from('payment_records')
         .update({
+          status: 'refund_failed',
           callback_status: 'REFUND_FAILED',
           callback_payload: {
             ...existingCallbackPayload,

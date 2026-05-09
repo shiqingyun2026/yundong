@@ -1039,6 +1039,7 @@ test('admin package order refund sync accepts success orders and moves them to r
   assert.equal(result.refund_query_settled, false)
   assert.equal(result.refund_query_final_status, 'refund_pending')
   assert.equal(state.orders.find(item => item.id === 'ord-refund').status, 'refund_pending')
+  assert.equal(state.paymentRecords.find(item => item.order_id === 'ord-refund').status, 'refund_pending')
   assert.equal(state.paymentRecords.find(item => item.order_id === 'ord-refund').callback_status, 'REFUND_PENDING')
 })
 
@@ -1070,6 +1071,7 @@ test('admin package order refund sync accepts refunded orders and can correct th
   assert.equal(result.refund_query_status, 'PROCESSING')
   assert.equal(result.refund_query_final_status, 'refund_pending')
   assert.equal(state.orders.find(item => item.id === 'ord-refund').status, 'refund_pending')
+  assert.equal(state.paymentRecords.find(item => item.order_id === 'ord-refund').status, 'refund_pending')
 })
 
 test('admin package create requires valid package category', async () => {
@@ -1258,17 +1260,17 @@ test('admin package offline updates package to inactive', async () => {
 
   const updated = state.packages.find(item => item.id === 'PKG-20260418-0001')
   const activeGroup = state.groups.find(item => item.id === 'pg-active')
-  const refundedOrder = state.orders.find(item => item.id === 'ord-refund')
+  const refundPendingOrder = state.orders.find(item => item.id === 'ord-refund')
   const closedOrder = state.orders.find(item => item.id === 'ord-pending')
-  const refundedPayment = state.paymentRecords.find(item => item.order_id === 'ord-refund')
+  const refundPendingPayment = state.paymentRecords.find(item => item.order_id === 'ord-refund')
   assert.equal(updated.status, 0)
   assert.ok(updated.unpublish_time)
   assert.equal(result.status, 'inactive')
   assert.equal(activeGroup.status, 'failed')
-  assert.equal(refundedOrder.status, 'refunded')
+  assert.equal(refundPendingOrder.status, 'refund_pending')
   assert.equal(closedOrder.status, 'closed')
-  assert.equal(refundedPayment.status, 'refunded')
-  assert.equal(refundedPayment.callback_status, 'REFUNDED')
+  assert.equal(refundPendingPayment.status, 'refund_pending')
+  assert.equal(refundPendingPayment.callback_status, 'REFUND_PENDING')
   assert.equal(state.adminLogWrites.at(-1).action, 'package_offline')
 })
 
@@ -1293,7 +1295,7 @@ test('admin package update rejects active package edit', async () => {
   )
 })
 
-test('expired package group cleanup refunds success orders and payment records', async () => {
+test('expired package group cleanup starts real refunds for success orders and payment records', async () => {
   const { packageGroupStore, state } = loadPackageServicesWithState()
   state.notificationEnqueueCalls = []
 
@@ -1307,11 +1309,11 @@ test('expired package group cleanup refunds success orders and payment records',
   const refundedPayments = state.paymentRecords.filter(item => item.package_group_id === 'pg-expired')
 
   assert.deepEqual(result.groupIds, ['pg-expired'])
-  assert.deepEqual(result.refundedOrderIds.sort(), ['ord-expired-1', 'ord-expired-2'])
+  assert.deepEqual(result.refundPendingOrderIds.sort(), ['ord-expired-1', 'ord-expired-2'])
   assert.equal(expiredGroup.status, 'failed')
-  assert.ok(refundedOrders.every(item => item.status === 'refunded'))
-  assert.ok(refundedPayments.every(item => item.status === 'refunded'))
-  assert.ok(refundedPayments.every(item => item.callback_status === 'REFUNDED'))
+  assert.ok(refundedOrders.every(item => item.status === 'refund_pending'))
+  assert.ok(refundedPayments.every(item => item.status === 'refund_pending'))
+  assert.ok(refundedPayments.every(item => item.callback_status === 'REFUND_PENDING'))
   assert.deepEqual(state.notificationEnqueueCalls, [
     {
       supabase: null,

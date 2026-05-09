@@ -234,6 +234,47 @@ refund:fail invalid wx openapi access_token
 
 后端列表接口会返回 `can_open_detail = false`，小程序转换为 `canOpenDetail = false` 后直接拦截点击；拦截后不弹 toast，也不跳转课包详情页。
 
+### 3.8 拼团超时自动退款已接入真实退款链路
+
+历史上课包拼团超时清理存在一个严重问题：
+
+1. `cleanupExpiredPackageGroups()` 会把过期 `active` 团改成 `failed`
+2. 关闭团内 `pending` 订单
+3. 对团内 `success` 订单直接执行本地收尾，把订单和支付记录写成 `refunded`
+
+这一步没有真实调用微信退款接口，因此会出现：
+
+> MySQL 显示“已退款”，但用户并未收到钱
+
+当前已修正为真实自动退款链路：
+
+1. 拼团到期后，团状态改为 `failed`
+2. 团 `current_count` 归零，因此不会再出现在课程详情页可拼团列表
+3. 团内 `pending` 订单继续关闭
+4. 团内 `success` 订单先改为 `orders.status = refund_pending`
+5. 对应 `payment_records.status = refund_pending`，`callback_status = REFUND_PENDING`
+6. 后端发起微信支付 V3 真实退款
+7. 发起失败时，订单和支付记录改为 `refund_failed`
+8. 发起成功但微信仍处理中时，保持 `refund_pending`
+9. 后续由 `console-api-service` 自动退款终态轮询确认：
+   - 微信退款 `SUCCESS`：订单和支付记录改为 `refunded`
+   - 微信退款 `ABNORMAL/CLOSED`：订单和支付记录改为 `refund_failed`
+
+这意味着：
+
+- 超时未成团不会再直接把本地状态写成 `refunded`
+- 只有微信侧退款终态成功后，本地才进入 `refunded`
+- 退款中的订单会保留在小程序“我的拼团”列表
+- 退款中、已退款、退款失败卡片都不可进入拼团详情
+- 课程详情页可拼团列表只取 `active` 且未过期的团，超时团不会出现
+
+相关实现：
+
+- `backend/lindong-api/shared/services/packageGroupStore.js`
+- `backend/lindong-api/shared/services/wechatMiniProgram.js`
+- `backend/lindong-api/shared/services/packageReaders.js`
+- `backend/console-api-service/shared/services/packageGroupStore.js`
+
 ## 4. 当前阶段结论
 
 截至 2026-05-09，本次排查已得到以下结论：
@@ -246,10 +287,12 @@ refund:fail invalid wx openapi access_token
 6. 新课包支付链路已切到普通商户微信支付 V3，新订单可通过后台普通商户 V3 退款闭环。
 7. 新订单退款终态已通过 `console-api-service` 自动轮询补齐；人工同步按钮作为兜底。
 8. 小程序“我的拼团”退款中、已退款订单不可进入拼团详情。
+9. 拼团超时未成团自动退款已从“本地假写 `refunded`”修正为“真实发起微信退款，先进入 `refund_pending`，再由轮询确认终态”。
+10. 超时团会变为 `failed` 且 `current_count = 0`，不会出现在小程序课程详情页可拼团列表，但用户仍可在“我的拼团”看到退款状态。
 
 因此当前准确结论是：
 
-> CloudPay 历史订单的后台真实退款方案，当前仍未闭环；新支付链路订单已按普通商户微信支付 V3 形成支付、退款、终态同步闭环。
+> CloudPay 历史订单的后台真实退款方案，当前仍未闭环；新支付链路订单已按普通商户微信支付 V3 形成支付、后台退款、超时自动退款、终态同步闭环。
 
 ## 5. 关键代码位置
 
@@ -269,7 +312,9 @@ refund:fail invalid wx openapi access_token
 - `backend/lindong-api/shared/services/paymentShell.js`
 - `backend/lindong-api/shared/services/packageRefundService.js`
 - `backend/lindong-api/shared/services/paymentRecordStatus.js`
+- `backend/lindong-api/shared/services/packageGroupStore.js`
 - `backend/lindong-api/shared/services/packageReaders.js`
+- `backend/lindong-api/shared/services/wechatMiniProgram.js`
 
 云函数：
 
@@ -328,10 +373,12 @@ refund:fail invalid wx openapi access_token
 - 云函数仍旧提前 confirm
 - 后台已写 `refund_pending`，但云函数逻辑还是旧版
 - 同步接口存在，但云函数 `queryRefund` 判定逻辑不是最新版本
+- `lindong-api` 未部署最新版本时，拼团超时清理仍可能把订单本地假写成 `refunded`，不会真实发起微信退款
+- `console-api-service` 未部署最新版本时，`refund_pending` 订单无法通过自动轮询推进到 `refunded/refund_failed`
 
 ## 8. 验证方式
 
-### 7.1 新退款链路验证
+### 8.1 新退款链路验证
 
 操作：
 
@@ -345,7 +392,7 @@ refund:fail invalid wx openapi access_token
 2. 此时不应直接把 MySQL 写成 `refunded`
 3. 若真实退款仍失败，本地状态应推进到 `refund_failed`
 
-### 7.2 云侧退款完成后的同步验证
+### 8.2 云侧退款完成后的同步验证
 
 调用：
 
@@ -359,7 +406,33 @@ POST /api/admin/package-orders/:id/refund/sync
 2. 云侧仍处理中：本地变 `refund_pending`
 3. 云侧明确失败：本地变 `refund_failed`
 
-### 7.3 直接调用云函数的验证
+### 8.3 拼团超时自动退款验证
+
+操作：
+
+1. 准备一个未成团 `active` 课包团
+2. 团内至少有一笔 `orders.status = success` 的新支付链路订单
+3. 将团 `deadline` 调整到当前时间之前
+4. 触发任一会调用 `cleanupExpiredPackageGroups()` 的入口，例如：
+   - 小程序课程详情页
+   - 小程序“我的拼团”列表
+   - 内部接口 `/api/internal/package-groups/cleanup-expired`
+
+预期：
+
+1. `package_groups.status -> failed`
+2. `package_groups.current_count -> 0`
+3. 团内 `pending` 订单变为 `closed`
+4. 团内 `success` 订单先变为 `refund_pending`
+5. 对应 `payment_records.status -> refund_pending`
+6. 对应 `payment_records.callback_status -> REFUND_PENDING`
+7. 微信支付 V3 收到真实退款请求
+8. 小程序课程详情页可拼团列表不再展示该团
+9. 用户“我的拼团”列表仍展示该订单，状态为“退款中”
+10. “退款中”卡片点击无响应，不进入拼团详情
+11. 后续自动轮询查到微信退款 `SUCCESS` 后，订单和支付记录才进入 `refunded`
+
+### 8.4 直接调用云函数的验证
 
 如果在微信开发者工具中直接调用：
 
@@ -383,7 +456,7 @@ wx.cloud.callFunction({
 3. 若本地订单仍是 `success`，需要再调用 `/refund/sync` 做补同步
 4. 这条路径只适合作为临时人工处理 CloudPay 老订单的技术手段，不代表后台正式能力已闭环
 
-### 7.4 后台退款失败的已确认两类原因
+### 8.5 后台退款失败的已确认两类原因
 
 #### A. 后台服务端调云函数退款
 
@@ -458,10 +531,13 @@ POST /api/admin/package-orders/:订单ID/refund/sync
 3. 直接小程序触发云函数退款仍然可用
 4. `/refund/sync` 只能用于结果复核，不能解决后台真实退款发起失败
 
-### 10.2 自动退款终态轮询已补齐，退款回调仍可后续评估
+### 10.2 超时自动退款与自动退款终态轮询已补齐，退款回调仍可后续评估
 
 当前已补上：
 
+- `lindong-api` 拼团超时清理会真实发起微信支付 V3 退款
+- 超时退款发起后，本地订单和支付记录先进入 `refund_pending`
+- 超时团会变为 `failed` 且 `current_count = 0`，不再作为可拼团展示
 - `console-api-service` 定时扫描 `refund_pending` 课包订单
 - 查询到微信退款 `SUCCESS` 后自动回写 `orders/payment_records`
 - 查询到 `ABNORMAL/CLOSED` 后自动标记 `refund_failed`
@@ -473,6 +549,7 @@ POST /api/admin/package-orders/:订单ID/refund/sync
 3. 新订单继续使用普通商户直连微信支付 V3，保持支付、退款商户身份一致
 4. 增加批量复核脚本，扫描历史误标 `refunded` 订单
 5. 后续可再评估微信退款结果通知；即使接入回调，也建议保留轮询作为补偿任务
+6. 若后续后台下架课包也需要对所有活跃团走真实退款，需继续检查 `failActivePackageGroups()` 是否仍存在本地直接写 `refunded` 的旧逻辑
 
 ## 11. 已验证测试
 
@@ -487,9 +564,16 @@ node --test tests/package-refund-status-sync.test.cjs
 
 node --test /Users/yun/lindong/miniprogram/tests/my-group-refund-status.test.cjs
 node --test /Users/yun/lindong/miniprogram/tests/package-start-cloudpay.test.cjs
-node --check /Users/yun/lindong/cloudfunctions/wechat-pay/index.js
 node --test /Users/yun/lindong/backend/console-api-service/tests/direct-refund-gateway.test.cjs
 node --test /Users/yun/lindong/backend/tests/wechat-pay-public-key.test.cjs
+
+node --check /Users/yun/lindong/backend/lindong-api/shared/services/packageGroupStore.js
+node --check /Users/yun/lindong/backend/lindong-api/shared/services/wechatMiniProgram.js
+node --check /Users/yun/lindong/backend/lindong-api/shared/services/packageReaders.js
+node --check /Users/yun/lindong/backend/lindong-api/shared/services/paymentShell.js
+node --check /Users/yun/lindong/backend/console-api-service/shared/services/packageGroupStore.js
+node --check /Users/yun/lindong/backend/console-api-service/console-api/services/packageAdminService.js
+node --check /Users/yun/lindong/cloudfunctions/wechat-pay/index.js
 ```
 
 其中额外补过的重点用例包括：
@@ -502,3 +586,6 @@ node --test /Users/yun/lindong/backend/tests/wechat-pay-public-key.test.cjs
 6. 直连微信支付退款网关的 prepare / query / confirm 基础流程
 7. `refund_pending` 课包订单自动轮询终态
 8. “我的拼团”退款中、已退款卡片点击无响应，不进入拼团详情、不弹 toast
+9. 拼团超时清理会真实发起微信退款，并将订单/支付记录先置为 `refund_pending`
+10. 拼团超时后团状态为 `failed`、`current_count = 0`，课程详情页不再作为可拼团展示
+11. “我的拼团”在触发超时清理后会重读订单，确保同一次响应展示最新退款状态

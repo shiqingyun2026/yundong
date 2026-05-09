@@ -596,12 +596,12 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
 
   const safePage = Math.max(1, Number(page) || 1)
   const safePageSize = Math.max(1, Number(pageSize) || 10)
-  const orders = await ordersRepository.listOrders({
+  const initialOrders = await ordersRepository.listOrders({
     userId,
     orderType: 2,
     statuses: ['success', 'refund_pending', 'refunded', 'refund_failed']
   })
-  const packageGroupIds = [...new Set((orders || []).map(item => item.package_group_id).filter(Boolean))]
+  const packageGroupIds = [...new Set((initialOrders || []).map(item => item.package_group_id).filter(Boolean))]
   const packageGroups = await Promise.all(packageGroupIds.map(id => packageGroupsRepository.findPackageGroupById(id)))
   const groupById = packageGroups.filter(Boolean).reduce((result, item) => {
     result[item.id] = item
@@ -614,6 +614,11 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
     now
   })
 
+  const orders = await ordersRepository.listOrders({
+    userId,
+    orderType: 2,
+    statuses: ['success', 'refund_pending', 'refunded', 'refund_failed']
+  })
   const refreshedGroups = await Promise.all(packageGroupIds.map(id => packageGroupsRepository.findPackageGroupById(id)))
   const refreshedGroupById = refreshedGroups.filter(Boolean).reduce((result, item) => {
     result[item.id] = item

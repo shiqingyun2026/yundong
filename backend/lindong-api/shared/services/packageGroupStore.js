@@ -1,7 +1,115 @@
 const { env } = require('../../config/env')
-const { ordersRepository, packageGroupsRepository } = require('../../repositories')
+const { ordersRepository, packageGroupsRepository, paymentRecordsRepository } = require('../../repositories')
 const { AUTO_REFUND_REASON } = require('../constants/refunds')
 const { enqueueNotificationsForGroups } = require('./groupResultNotifications')
+const { prepareCloudPayRefund } = require('./paymentShell')
+const { createWechatPayRefund } = require('./wechatMiniProgram')
+
+const markPaymentRecordRefundPending = async ({ orderId, outRefundNo = '', now = new Date() }) => {
+  const paymentRecord = await paymentRecordsRepository.findPaymentRecordByOrderId(orderId)
+  if (!paymentRecord) {
+    return null
+  }
+
+  const existingCallbackPayload =
+    paymentRecord.callback_payload && typeof paymentRecord.callback_payload === 'object'
+      ? paymentRecord.callback_payload
+      : {}
+  const timestamp = now.toISOString()
+
+  return paymentRecordsRepository.updatePaymentRecord(paymentRecord.id, {
+    status: 'refund_pending',
+    callback_status: 'REFUND_PENDING',
+    callback_payload: {
+      ...existingCallbackPayload,
+      refund_pending: {
+        out_refund_no: outRefundNo,
+        started_at: timestamp
+      }
+    },
+    updated_at: timestamp
+  })
+}
+
+const markPaymentRecordRefundFailed = async ({ orderId, reason = '', payload = {}, now = new Date() }) => {
+  const paymentRecord = await paymentRecordsRepository.findPaymentRecordByOrderId(orderId)
+  if (!paymentRecord) {
+    return null
+  }
+
+  const existingCallbackPayload =
+    paymentRecord.callback_payload && typeof paymentRecord.callback_payload === 'object'
+      ? paymentRecord.callback_payload
+      : {}
+  const timestamp = now.toISOString()
+
+  return paymentRecordsRepository.updatePaymentRecord(paymentRecord.id, {
+    status: 'refund_failed',
+    callback_status: 'REFUND_FAILED',
+    callback_payload: {
+      ...existingCallbackPayload,
+      refund_failure: {
+        reason: `${reason || ''}`.trim(),
+        failed_at: timestamp,
+        payload
+      }
+    },
+    updated_at: timestamp
+  })
+}
+
+const startAutoRefundForPackageOrder = async ({ order, now = new Date() }) => {
+  await ordersRepository.updateOrder(order.id, {
+    status: 'refund_pending',
+    refund_reason: AUTO_REFUND_REASON,
+    updated_at: now
+  })
+
+  try {
+    const prepared = await prepareCloudPayRefund({
+      supabase: null,
+      orderId: order.id,
+      reason: AUTO_REFUND_REASON
+    })
+
+    const refundResult = await createWechatPayRefund({
+      outTradeNo: prepared.outTradeNo,
+      outRefundNo: prepared.outRefundNo,
+      reason: prepared.refundDesc || AUTO_REFUND_REASON,
+      totalFee: prepared.totalFee,
+      refundFee: prepared.refundFee
+    })
+
+    await markPaymentRecordRefundPending({
+      orderId: order.id,
+      outRefundNo: prepared.outRefundNo,
+      now
+    })
+
+    return {
+      orderId: order.id,
+      status: 'refund_pending',
+      refundResult
+    }
+  } catch (error) {
+    await ordersRepository.updateOrder(order.id, {
+      status: 'refund_failed',
+      updated_at: now
+    })
+    await markPaymentRecordRefundFailed({
+      orderId: order.id,
+      reason: error && error.message ? error.message : 'auto refund failed',
+      payload: error && error.payload ? error.payload : {},
+      now
+    })
+
+    return {
+      orderId: order.id,
+      status: 'refund_failed',
+      error: error && error.message ? error.message : String(error)
+    }
+  }
+}
 
 const listPendingOrderIdsForPackage = async ({ userId, packageId }) => {
   if (!env.useMySqlRepositories) {
@@ -30,6 +138,8 @@ const cleanupExpiredPackageGroups = async ({ packageId, packageIds = [], now = n
     return {
       groupIds: [],
       refundedOrderIds: [],
+      refundPendingOrderIds: [],
+      refundFailedOrderIds: [],
       closedOrderIds: []
     }
   }
@@ -46,6 +156,8 @@ const cleanupExpiredPackageGroups = async ({ packageId, packageIds = [], now = n
     return {
       groupIds: [],
       refundedOrderIds: [],
+      refundPendingOrderIds: [],
+      refundFailedOrderIds: [],
       closedOrderIds: []
     }
   }
@@ -54,6 +166,14 @@ const cleanupExpiredPackageGroups = async ({ packageId, packageIds = [], now = n
     packageGroupIds: groupIds,
     status: 'failed'
   })
+  await Promise.all(
+    groupIds.map(groupId =>
+      packageGroupsRepository.updatePackageGroup(groupId, {
+        current_count: 0,
+        status: 'failed'
+      })
+    )
+  )
 
   const pendingOrders = (
     await Promise.all(
@@ -82,17 +202,20 @@ const cleanupExpiredPackageGroups = async ({ packageId, packageIds = [], now = n
     now
   })
 
-  const { finalizePackageOrderRefund, REFUND_EMPTY_GROUP_STATUS } = require('./packageRefundService')
-  await Promise.all(
+  const refundResults = await Promise.all(
     successOrders.map(order =>
-      finalizePackageOrderRefund({
-        orderId: order.id,
-        reason: AUTO_REFUND_REASON,
-        now,
-        emptyGroupStatus: REFUND_EMPTY_GROUP_STATUS.AUTO_TIMEOUT
+      startAutoRefundForPackageOrder({
+        order,
+        now
       })
     )
   )
+  const refundPendingOrderIds = refundResults
+    .filter(item => item.status === 'refund_pending')
+    .map(item => item.orderId)
+  const refundFailedOrderIds = refundResults
+    .filter(item => item.status === 'refund_failed')
+    .map(item => item.orderId)
 
   await enqueueNotificationsForGroups({
     supabase: null,
@@ -103,7 +226,9 @@ const cleanupExpiredPackageGroups = async ({ packageId, packageIds = [], now = n
 
   return {
     groupIds,
-    refundedOrderIds: successOrders.map(item => item.id).filter(Boolean),
+    refundedOrderIds: [],
+    refundPendingOrderIds,
+    refundFailedOrderIds,
     closedOrderIds: (closedOrders || []).map(item => item.id).filter(Boolean)
   }
 }

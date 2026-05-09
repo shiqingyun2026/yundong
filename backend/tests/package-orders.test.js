@@ -814,6 +814,133 @@ test('cloudpay refund preparation returns stable refund number for paid order', 
   assert.equal(result.refundFee, 3000)
 })
 
+test('expired package group cleanup starts wechat refunds and marks orders pending', async () => {
+  clearModules([
+    'config/env.js',
+    'repositories/index.js',
+    'shared/services/wechatMiniProgram.js',
+    'shared/services/paymentShell.js',
+    'shared/services/packageGroupStore.js'
+  ])
+
+  const state = {
+    refundCalls: [],
+    group: {
+      id: 'PG-EXPIRED-REFUND',
+      package_id: 'PKG-EXPIRED-REFUND',
+      status: 'active',
+      target_count: 2,
+      current_count: 2,
+      deadline: '2026-05-08T10:00:00.000Z'
+    },
+    orders: [
+      {
+        id: 'order-expired-refund-1',
+        order_no: 'LDPKG-EXPIRED-001',
+        user_id: 'user-1',
+        order_type: 2,
+        package_id: 'PKG-EXPIRED-REFUND',
+        package_group_id: 'PG-EXPIRED-REFUND',
+        amount: 3000,
+        status: 'success'
+      }
+    ],
+    paymentRecord: {
+      id: 'payment-expired-refund-1',
+      order_id: 'order-expired-refund-1',
+      out_trade_no: 'LDPKG-EXPIRED-001',
+      amount: 3000,
+      status: 'paid',
+      callback_status: 'SUCCESS',
+      callback_payload: null
+    }
+  }
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true,
+      paymentProviderMode: 'wechat'
+    }
+  })
+
+  mockModule('repositories/index.js', {
+    ordersRepository: {
+      listPendingOrderIdsByUserAndPackage: async () => [],
+      listOrdersByPackageGroupId: async ({ packageGroupId, status }) =>
+        state.orders.filter(item => item.package_group_id === packageGroupId && item.status === status),
+      closeOrdersByIds: async () => [],
+      findOrderById: async id => state.orders.find(item => item.id === id) || null,
+      updateOrder: async (id, patch) => {
+        const order = state.orders.find(item => item.id === id)
+        Object.assign(order, patch)
+        return { ...order }
+      }
+    },
+    packageGroupsRepository: {
+      listPackageGroups: async ({ statuses = [], beforeDeadline } = {}) =>
+        [state.group]
+          .filter(item => !statuses.length || statuses.includes(item.status))
+          .filter(item => !beforeDeadline || new Date(item.deadline).getTime() <= new Date(beforeDeadline).getTime()),
+      bulkUpdatePackageGroupStatus: async ({ packageGroupIds, status }) => {
+        if (packageGroupIds.includes(state.group.id)) {
+          state.group.status = status
+        }
+        return [{ ...state.group }]
+      },
+      updatePackageGroup: async (id, patch) => {
+        if (id === state.group.id) {
+          Object.assign(state.group, patch)
+        }
+        return { ...state.group }
+      }
+    },
+    paymentRecordsRepository: {
+      findPaymentRecordByOrderId: async orderId =>
+        orderId === state.paymentRecord.order_id ? { ...state.paymentRecord } : null,
+      updatePaymentRecord: async (id, patch) => {
+        if (id === state.paymentRecord.id) {
+          Object.assign(state.paymentRecord, patch)
+        }
+        return { ...state.paymentRecord }
+      }
+    },
+    usersRepository: {}
+  })
+
+  mockModule('shared/services/wechatMiniProgram.js', {
+    createMiniProgramPayment: async () => ({}),
+    buildMiniProgramPaymentParams: () => ({}),
+    decryptWechatPayResource: value => value,
+    createWechatPayRefund: async payload => {
+      state.refundCalls.push(payload)
+      return {
+        status: 'PROCESSING',
+        out_refund_no: payload.outRefundNo
+      }
+    }
+  })
+
+  mockModule('shared/services/groupResultNotifications.js', {
+    enqueueNotificationsForGroups: async () => []
+  })
+
+  const { cleanupExpiredPackageGroups } = require(path.join(backendRoot, 'shared/services/packageGroupStore.js'))
+  const result = await cleanupExpiredPackageGroups({
+    packageId: 'PKG-EXPIRED-REFUND',
+    now: new Date('2026-05-09T10:00:00.000Z')
+  })
+
+  assert.deepEqual(result.refundPendingOrderIds, ['order-expired-refund-1'])
+  assert.deepEqual(result.refundedOrderIds, [])
+  assert.equal(state.group.status, 'failed')
+  assert.equal(state.group.current_count, 0)
+  assert.equal(state.orders[0].status, 'refund_pending')
+  assert.equal(state.paymentRecord.status, 'refund_pending')
+  assert.equal(state.paymentRecord.callback_status, 'REFUND_PENDING')
+  assert.equal(state.refundCalls[0].outTradeNo, 'LDPKG-EXPIRED-001')
+  assert.equal(state.refundCalls[0].outRefundNo, 'RF-LDPKG-EXPIRED-001')
+})
+
 test('cloudpay refund confirmation marks the order refunded and cancels an emptied active package group', async () => {
   clearModules([
     'config/env.js',

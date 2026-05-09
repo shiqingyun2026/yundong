@@ -1407,6 +1407,7 @@ const syncAdminPackageOrderRefundStatus = async ({ orderId, admin = {}, ip = nul
           ? paymentRecord.callback_payload
           : {}
       await paymentRecordsRepository.updatePaymentRecord(paymentRecord.id, {
+        status: 'refund_pending',
         callback_status: 'REFUND_PENDING',
         callback_payload: {
           ...existingCallbackPayload,
