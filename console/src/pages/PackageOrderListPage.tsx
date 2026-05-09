@@ -7,10 +7,14 @@ import type { PackageOrderListItem, PackageOrderListResponse } from '../types'
 
 const getStatusText = (status: string) => {
   if (status === 'success') return '已支付'
+  if (status === 'refund_pending') return '退款中'
   if (status === 'refunded') return '已退款'
+  if (status === 'refund_failed') return '退款失败'
   if (status === 'closed') return '已关闭'
   return '待支付'
 }
+
+const canSyncRefundStatus = (status: string) => ['refund_pending', 'refund_failed', 'refunded'].includes(status)
 
 const getRefundTypeText = (refundType: PackageOrderListItem['refund_type']) => {
   if (refundType === 'system') return '系统自动退款'
@@ -44,7 +48,9 @@ export function PackageOrderListPage() {
   const [selectedOrder, setSelectedOrder] = useState<PackageOrderListItem | null>(null)
   const [refundReason, setRefundReason] = useState('')
   const [refundSubmitting, setRefundSubmitting] = useState(false)
+  const [refundSyncingOrderId, setRefundSyncingOrderId] = useState('')
   const [detailError, setDetailError] = useState('')
+  const [detailNotice, setDetailNotice] = useState('')
 
   const applySearch = (
     nextKeyword = keyword,
@@ -100,6 +106,8 @@ export function PackageOrderListPage() {
     }
   }
 
+  const refreshCurrentPage = () => fetchOrders(keyword, status, packageId, packageGroupId, pagination.page)
+
   useEffect(() => {
     const nextKeyword = searchParams.get('keyword') || ''
     const nextStatus = searchParams.get('status') || ''
@@ -122,6 +130,7 @@ export function PackageOrderListPage() {
     const reason = refundReason.trim()
     if (!reason) {
       setDetailError('退款原因不能为空')
+      setDetailNotice('')
       return
     }
 
@@ -131,15 +140,38 @@ export function PackageOrderListPage() {
 
     setRefundSubmitting(true)
     setDetailError('')
+    setDetailNotice('')
 
     try {
       await api.post(`/package-orders/${selectedOrder.id}/refund`, { reason })
-      await fetchOrders(keyword, status, packageId, packageGroupId, pagination.page)
+      await refreshCurrentPage()
       setRefundReason('')
     } catch (refundError) {
       setDetailError(refundError instanceof Error ? refundError.message : '手动退款失败')
     } finally {
       setRefundSubmitting(false)
+    }
+  }
+
+  const handleSyncRefund = async (order: PackageOrderListItem) => {
+    setRefundSyncingOrderId(order.id)
+    setDetailError('')
+    setDetailNotice('')
+
+    try {
+      const result = await api.post<{
+        status: string
+        refund_query_status: string
+        refund_query_final_status: string
+      }>(`/package-orders/${order.id}/refund/sync`)
+      setDetailNotice(
+        `退款同步完成：${getStatusText(result.status)}（微信状态：${result.refund_query_status || result.refund_query_final_status || '-'}）`
+      )
+      await refreshCurrentPage()
+    } catch (syncError) {
+      setDetailError(syncError instanceof Error ? syncError.message : '同步退款状态失败')
+    } finally {
+      setRefundSyncingOrderId('')
     }
   }
 
@@ -161,7 +193,9 @@ export function PackageOrderListPage() {
               <option value="">全部状态</option>
               <option value="pending">待支付</option>
               <option value="success">已支付</option>
+              <option value="refund_pending">退款中</option>
               <option value="refunded">已退款</option>
+              <option value="refund_failed">退款失败</option>
               <option value="closed">已关闭</option>
             </select>
           </label>
@@ -280,6 +314,20 @@ export function PackageOrderListPage() {
                             退款
                           </button>
                         ) : null}
+                        {canSyncRefundStatus(item.status) ? (
+                          <button
+                            className="secondary-button compact-button"
+                            type="button"
+                            disabled={refundSyncingOrderId === item.id}
+                            onClick={() => {
+                              setSelectedOrder(item)
+                              setRefundReason(item.refund_reason || '')
+                              void handleSyncRefund(item)
+                            }}
+                          >
+                            {refundSyncingOrderId === item.id ? '同步中...' : '同步退款'}
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -304,6 +352,7 @@ export function PackageOrderListPage() {
         </div>
 
         {detailError ? <p className="error-text">{detailError}</p> : null}
+        {detailNotice ? <p className="muted-text">{detailNotice}</p> : null}
         {!selectedOrder ? <p className="muted-text">点击订单列表中的“详情”查看订单与退款信息。</p> : null}
 
         {selectedOrder ? (
@@ -350,6 +399,16 @@ export function PackageOrderListPage() {
                 <Link className="secondary-button" to={`/package-groups/${selectedOrder.package_group_id}`}>
                   查看拼团详情
                 </Link>
+              ) : null}
+              {canSyncRefundStatus(selectedOrder.status) ? (
+                <button
+                  className="secondary-button"
+                  type="button"
+                  disabled={refundSyncingOrderId === selectedOrder.id}
+                  onClick={() => void handleSyncRefund(selectedOrder)}
+                >
+                  {refundSyncingOrderId === selectedOrder.id ? '同步中...' : '同步退款状态'}
+                </button>
               ) : null}
             </div>
 
