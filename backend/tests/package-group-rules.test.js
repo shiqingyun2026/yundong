@@ -5,6 +5,7 @@ const {
   PACKAGE_GROUP_STATUS,
   assertSupportedTargetCount,
   buildPackageDeadline,
+  buildPackageDeadlineFromPackage,
   buildPackageGroupCreationPayload,
   calculatePackageMemberAmountFen,
   calculatePackagePlatformSubsidyFen,
@@ -51,8 +52,22 @@ test('package group rules build deadline and next status', () => {
     createdAt: '2026-04-19T10:00:00.000Z',
     deadlineHours: 45
   })
+  const packageDeadline = buildPackageDeadlineFromPackage({
+    createdAt: '2026-04-19T10:00:00.000Z',
+    pkg: {
+      deadline_hours: 45
+    }
+  })
+  const fallbackDeadline = buildPackageDeadlineFromPackage({
+    createdAt: '2026-04-19T10:00:00.000Z',
+    pkg: {
+      deadline_hours: 0
+    }
+  })
 
   assert.equal(deadline.toISOString(), '2026-04-21T07:00:00.000Z')
+  assert.equal(packageDeadline.toISOString(), '2026-04-21T07:00:00.000Z')
+  assert.equal(fallbackDeadline.toISOString(), '2026-04-21T10:00:00.000Z')
   assert.equal(
     computePackageGroupNextStatus({
       currentCount: 4,

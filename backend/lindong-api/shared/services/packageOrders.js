@@ -4,7 +4,7 @@ const { coursePackagesRepository, ordersRepository, packageGroupsRepository, pay
 const {
   PACKAGE_GROUP_STATUS,
   assertSupportedTargetCount,
-  buildPackageDeadline,
+  buildPackageDeadlineFromPackage,
   buildPackageGroupCreationPayload,
   calculatePackageMemberAmountFen,
   computePackageGroupNextStatus,
@@ -25,7 +25,6 @@ const { cleanupExpiredPackageGroups, closePendingPackageOrdersByIds, listPending
 const { createPackageServiceError, isPackageServiceError } = require('./packageServiceError')
 const { createWechatPayRefund } = require('./wechatMiniProgram')
 
-const TEMP_PACKAGE_GROUP_DEADLINE_MINUTES = 5
 const PACKAGE_CAPACITY_REFUND_REASON = '拼团名额不足，系统自动退款'
 
 const parseJsonObject = value => {
@@ -584,9 +583,9 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
       targetCount
     })
 
-    const deadline = buildPackageDeadline({
+    const deadline = buildPackageDeadlineFromPackage({
       createdAt: now,
-      deadlineMinutes: TEMP_PACKAGE_GROUP_DEADLINE_MINUTES
+      pkg
     })
     const nextStatus =
       Number(targetCount) <= 1 ? PACKAGE_GROUP_STATUS.SUCCESS : PACKAGE_GROUP_STATUS.ACTIVE

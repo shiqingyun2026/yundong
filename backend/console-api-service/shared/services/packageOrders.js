@@ -3,7 +3,7 @@ const { coursePackagesRepository, ordersRepository, packageGroupsRepository, pay
 const {
   PACKAGE_GROUP_STATUS,
   assertSupportedTargetCount,
-  buildPackageDeadline,
+  buildPackageDeadlineFromPackage,
   buildPackageGroupCreationPayload,
   calculatePackageMemberAmountFen,
   computePackageGroupNextStatus,
@@ -328,9 +328,9 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
       targetCount
     })
 
-    const deadline = buildPackageDeadline({
+    const deadline = buildPackageDeadlineFromPackage({
       createdAt: now,
-      deadlineHours: pkg.deadline_hours
+      pkg
     })
     const nextStatus =
       Number(targetCount) <= 1 ? PACKAGE_GROUP_STATUS.SUCCESS : PACKAGE_GROUP_STATUS.ACTIVE

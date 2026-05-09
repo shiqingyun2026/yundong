@@ -60,20 +60,26 @@ const calculatePackagePlatformSubsidyFen = ({ totalPrice, targetCount }) => {
   return Math.max(0, normalizedTotalPrice - memberAmountFen * normalizedTargetCount)
 }
 
-const buildPackageDeadline = ({ createdAt, deadlineHours = 48, deadlineMinutes = null }) => {
+const resolvePackageDeadlineHours = pkg => {
+  const normalizedHours = Number(pkg && pkg.deadline_hours)
+  return normalizedHours > 0 ? normalizedHours : 48
+}
+
+const buildPackageDeadline = ({ createdAt, deadlineHours = 48 }) => {
   const date = createdAt instanceof Date ? new Date(createdAt.getTime()) : new Date(createdAt)
   if (Number.isNaN(date.getTime())) {
     return null
   }
 
-  if (deadlineMinutes !== null && deadlineMinutes !== undefined) {
-    date.setMinutes(date.getMinutes() + (Number(deadlineMinutes) || 0))
-    return date
-  }
-
   date.setHours(date.getHours() + (Number(deadlineHours) || 48))
   return date
 }
+
+const buildPackageDeadlineFromPackage = ({ createdAt, pkg }) =>
+  buildPackageDeadline({
+    createdAt,
+    deadlineHours: resolvePackageDeadlineHours(pkg)
+  })
 
 const isPackageGroupJoinable = (group, now = new Date()) => {
   if (!group) {
@@ -163,11 +169,13 @@ module.exports = {
   PACKAGE_GROUP_STATUS,
   assertSupportedTargetCount,
   buildPackageDeadline,
+  buildPackageDeadlineFromPackage,
   buildPackageGroupCreationPayload,
   calculatePackageMemberAmountFen,
   calculatePackagePlatformSubsidyFen,
   computePackageGroupStatusAfterRefund,
   computePackageGroupNextStatus,
   findGroupPriceFen,
-  isPackageGroupJoinable
+  isPackageGroupJoinable,
+  resolvePackageDeadlineHours
 }
