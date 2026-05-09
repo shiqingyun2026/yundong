@@ -166,7 +166,7 @@ test('package orders allow the same user to join the same package group multiple
   assert.equal(secondPayment.packageGroupId, 'PG-20260422-00001')
 })
 
-test('package start payment creates group with configured deadline hours', async () => {
+test('package start payment creates group with temporary five-minute deadline', async () => {
   clearModules([
     'config/env.js',
     'repositories/index.js',
@@ -255,7 +255,7 @@ test('package start payment creates group with configured deadline hours', async
     now: new Date('2026-04-22T10:00:00.000Z')
   })
 
-  assert.equal(state.group.deadline.toISOString(), '2026-04-24T07:00:00.000Z')
+  assert.equal(state.group.deadline.toISOString(), '2026-04-22T10:05:00.000Z')
   assert.equal(state.orders[0].status, 'success')
   assert.equal(state.orders[0].package_group_id, 'PG-20260422-00002')
 })

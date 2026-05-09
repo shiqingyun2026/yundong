@@ -60,10 +60,15 @@ const calculatePackagePlatformSubsidyFen = ({ totalPrice, targetCount }) => {
   return Math.max(0, normalizedTotalPrice - memberAmountFen * normalizedTargetCount)
 }
 
-const buildPackageDeadline = ({ createdAt, deadlineHours = 48 }) => {
+const buildPackageDeadline = ({ createdAt, deadlineHours = 48, deadlineMinutes = null }) => {
   const date = createdAt instanceof Date ? new Date(createdAt.getTime()) : new Date(createdAt)
   if (Number.isNaN(date.getTime())) {
     return null
+  }
+
+  if (deadlineMinutes !== null && deadlineMinutes !== undefined) {
+    date.setMinutes(date.getMinutes() + (Number(deadlineMinutes) || 0))
+    return date
   }
 
   date.setHours(date.getHours() + (Number(deadlineHours) || 48))
