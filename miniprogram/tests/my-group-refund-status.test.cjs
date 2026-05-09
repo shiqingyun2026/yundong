@@ -12,5 +12,8 @@ test('my group list page includes refund tabs and blocks detail navigation for r
   assert.equal(pageSource.includes("key: 'refund_failed'"), false)
   assert.equal(pageSource.includes("key: 'failed'"), true)
   assert.equal(pageSource.includes('item.canOpenDetail'), true)
+  assert.equal(pageSource.includes("canOpenDetail === 'false'"), true)
+  assert.equal(pageSource.includes('退款订单不可查看拼团详情'), false)
+  assert.equal(pageSource.includes('/pages/course/detail/index'), false)
   assert.equal(wxmlSource.includes('item.displayStatusText'), true)
 })

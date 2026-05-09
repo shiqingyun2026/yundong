@@ -195,19 +195,61 @@ refund:fail invalid wx openapi access_token
 
 - CloudPay 历史订单不能用后台普通商户直连退款方案处理
 
+### 3.6 新支付链路与自动退款终态同步
+
+新课包支付链路已切到普通商户微信支付 V3：
+
+1. 小程序 `develop/trial/release` 的 `paymentProvider` 已改为 `wechat`
+2. 课包开团、参团支付页统一调用 `/api/payments/prepare`
+3. 后台退款继续走 `console-api-service` 直连微信支付 V3 退款接口
+
+新订单支付和退款使用同一个普通商户身份，避免 CloudPay 服务商链路与普通商户直连链路不一致导致的退款失败。
+
+同时，`console-api-service` 已增加自动退款终态轮询：
+
+1. 默认每 60 秒扫描 `order_type = 2` 且 `orders.status = refund_pending` 的课包订单
+2. 查询微信支付 V3 退款状态
+3. 查询到 `SUCCESS`：本地改为 `orders.status = refunded`，并把 `payment_records.status` 改为 `refunded`
+4. 查询到 `ABNORMAL/CLOSED`：本地改为 `orders.status = refund_failed`
+5. 查询到处理中：保持 `refund_pending`，下一轮继续查询
+
+停止规则：
+
+- 单笔订单只要仍是 `refund_pending`，就继续参与后续轮询
+- 一旦变为 `refunded` 或 `refund_failed`，就自然退出轮询队列
+- 当前不按超时自动判失败，避免微信处理慢但最终成功时被误标
+
+相关环境变量：
+
+- `PACKAGE_REFUND_STATUS_SYNC_INTERVAL_MS`：轮询间隔，默认 60000，最小 60000
+- `CONSOLE_API_ENABLE_PACKAGE_REFUND_STATUS_SYNC=false`：可临时关闭自动轮询
+
+### 3.7 小程序“我的拼团”退款状态不可进入详情
+
+小程序“我的拼团”列表已按退款状态阻止进入拼团详情：
+
+- `refund_pending`：展示“退款中”，点击卡片无响应
+- `refunded`：展示“已退款”，点击卡片无响应
+- `refund_failed`：沿用退款异常态，同样不可进入拼团详情
+
+后端列表接口会返回 `can_open_detail = false`，小程序转换为 `canOpenDetail = false` 后直接拦截点击；拦截后不弹 toast，也不跳转课包详情页。
+
 ## 4. 当前阶段结论
 
-截至 2026-05-08 晚间，本次排查已得到以下结论：
+截至 2026-05-09，本次排查已得到以下结论：
 
 1. “后台点退款立刻写成 `refunded`”这个历史状态错误已经修掉。
 2. “退款真实完成前，订单应先停在 `refund_pending`”这条本地状态流已经成立。
-3. “历史误标订单可通过 `/refund/sync` 复核纠偏”这项能力已经补上。
+3. “历史误标订单可通过 `/refund/sync` 复核纠偏”这项能力已经补上，并已在后台增加手动同步按钮。
 4. “后台服务端调 `wechat-pay` 云函数执行 CloudPay 退款”不可作为正式方案。
 5. “后台普通商户直连微信支付退款”也不能用于 CloudPay 历史订单。
+6. 新课包支付链路已切到普通商户微信支付 V3，新订单可通过后台普通商户 V3 退款闭环。
+7. 新订单退款终态已通过 `console-api-service` 自动轮询补齐；人工同步按钮作为兜底。
+8. 小程序“我的拼团”退款中、已退款订单不可进入拼团详情。
 
 因此当前准确结论是：
 
-> CloudPay 历史订单的后台真实退款方案，当前仍未闭环。
+> CloudPay 历史订单的后台真实退款方案，当前仍未闭环；新支付链路订单已按普通商户微信支付 V3 形成支付、退款、终态同步闭环。
 
 ## 5. 关键代码位置
 
@@ -215,6 +257,8 @@ refund:fail invalid wx openapi access_token
 
 - `backend/console-api-service/console-api/services/packageAdminService.js`
 - `backend/console-api-service/console-api/services/cloudPayRefundGateway.js`
+- `backend/console-api-service/utils/packageRefundStatusSync.js`
+- `backend/console-api-service/console-api/server.js`
 - `backend/console-api-service/console-api/controllers/packageAdminController.js`
 - `backend/console-api-service/console-api/routes/package-orders.js`
 - `backend/console-api-service/console-api/routes/package-groups.js`
@@ -233,7 +277,10 @@ refund:fail invalid wx openapi access_token
 
 小程序：
 
+- `miniprogram/config/env.js`
 - `miniprogram/utils/package.js`
+- `miniprogram/pages/package/start/index.js`
+- `miniprogram/pages/payment/confirm/index.js`
 - `miniprogram/pages/my/group-buy-list/index.js`
 - `miniprogram/pages/my/group-buy-list/index.wxml`
 - `miniprogram/pages/group/detail/index.js`
@@ -243,6 +290,9 @@ refund:fail invalid wx openapi access_token
 - `backend/tests/package-orders.test.js`
 - `backend/tests/package-group-admin.test.js`
 - `backend/tests/package-readers.test.js`
+- `backend/tests/package-refund-status-sync.test.cjs`
+- `backend/tests/wechat-pay-public-key.test.cjs`
+- `miniprogram/tests/package-start-cloudpay.test.cjs`
 - `miniprogram/tests/my-group-refund-status.test.cjs`
 - `backend/console-api-service/tests/direct-refund-gateway.test.cjs`
 
@@ -258,6 +308,8 @@ refund:fail invalid wx openapi access_token
 - `609a471`：`fix: confirm cloudpay refunds only after settlement`
 - `0116e71`：`fix: expose cloudpay refund diagnostics`
 - `69f44af`：`feat: use direct wechat pay refunds for package orders`
+- `36ac68a`：`zhilian wechatpay`
+- `7e49428`：`console order add button`
 
 说明：
 
@@ -406,19 +458,21 @@ POST /api/admin/package-orders/:订单ID/refund/sync
 3. 直接小程序触发云函数退款仍然可用
 4. `/refund/sync` 只能用于结果复核，不能解决后台真实退款发起失败
 
-### 10.2 自动到账回调闭环仍未建设
+### 10.2 自动退款终态轮询已补齐，退款回调仍可后续评估
 
-即使不考虑后台真实退款发起问题，目前也仍缺少：
+当前已补上：
 
-- 稳定的自动退款终态回写闭环
+- `console-api-service` 定时扫描 `refund_pending` 课包订单
+- 查询到微信退款 `SUCCESS` 后自动回写 `orders/payment_records`
+- 查询到 `ABNORMAL/CLOSED` 后自动标记 `refund_failed`
 
 后续建议优先级：
 
 1. 不要再继续投入“后台借道云函数退款”方案
 2. 对 CloudPay 历史订单，短期接受“人工/小程序触发退款 + 后台同步状态”
-3. 如果需要正式后台退款能力，应评估把支付与退款整体迁到普通商户直连微信支付 V3
+3. 新订单继续使用普通商户直连微信支付 V3，保持支付、退款商户身份一致
 4. 增加批量复核脚本，扫描历史误标 `refunded` 订单
-5. 后续再评估自动退款终态回调或定时对账任务
+5. 后续可再评估微信退款结果通知；即使接入回调，也建议保留轮询作为补偿任务
 
 ## 11. 已验证测试
 
@@ -429,10 +483,13 @@ cd /Users/yun/lindong/backend
 node --test tests/package-orders.test.js
 node --test tests/package-group-admin.test.js
 node --test tests/package-readers.test.js
+node --test tests/package-refund-status-sync.test.cjs
 
 node --test /Users/yun/lindong/miniprogram/tests/my-group-refund-status.test.cjs
+node --test /Users/yun/lindong/miniprogram/tests/package-start-cloudpay.test.cjs
 node --check /Users/yun/lindong/cloudfunctions/wechat-pay/index.js
 node --test /Users/yun/lindong/backend/console-api-service/tests/direct-refund-gateway.test.cjs
+node --test /Users/yun/lindong/backend/tests/wechat-pay-public-key.test.cjs
 ```
 
 其中额外补过的重点用例包括：
@@ -443,3 +500,5 @@ node --test /Users/yun/lindong/backend/console-api-service/tests/direct-refund-g
 4. `refund/sync` 可处理历史本地 `refunded` 误标订单
 5. “我的拼团”里退款相关状态统一归在“已失败”页签，卡片右上角显示具体退款状态
 6. 直连微信支付退款网关的 prepare / query / confirm 基础流程
+7. `refund_pending` 课包订单自动轮询终态
+8. “我的拼团”退款中、已退款卡片点击无响应，不进入拼团详情、不弹 toast

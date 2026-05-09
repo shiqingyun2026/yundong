@@ -86,18 +86,9 @@ Page({
   },
 
   handleOpenDetail(event) {
-    const { groupId, packageId = '', childNickname = '', childAge = '', canOpenDetail } = event.currentTarget.dataset
+    const { groupId, childNickname = '', childAge = '', canOpenDetail } = event.currentTarget.dataset
     const item = this.data.groupList.find(item => item.packageGroupId === groupId)
-    if ((item && item.canOpenDetail === false) || canOpenDetail === false) {
-      wx.showToast({
-        title: '退款订单不可查看拼团详情',
-        icon: 'none'
-      })
-      if (packageId) {
-        wx.navigateTo({
-          url: `/pages/course/detail/index?id=${encodeURIComponent(packageId)}`
-        })
-      }
+    if ((item && item.canOpenDetail === false) || canOpenDetail === false || canOpenDetail === 'false') {
       return
     }
     if (!groupId) {
