@@ -150,6 +150,12 @@
       </view>
       <view class="service-text">客服</view>
     </button>
+    <button class="service-entry service-share-button" open-type="share">
+      <view class="service-icon">
+        <image class="service-icon-image service-icon-image--share" src="/assets/icons/wechat-share.svg" mode="aspectFit"></image>
+      </view>
+      <view class="service-text">分享</view>
+    </button>
     <button
       class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary bottom-action"
       bindtap="handleStartGroup"

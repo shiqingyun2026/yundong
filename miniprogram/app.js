@@ -11,6 +11,27 @@ const {
 const { resolveRuntimeInfo } = require('./utils/util')
 const { ensureSilentLogin } = require('./utils/auth')
 
+const HOME_PAGE_PATH = '/pages/home/index'
+const HOME_PAGE_ROUTE = 'pages/home/index'
+const RECENT_USAGE_SCENE = 1001
+
+const getCurrentRoute = () => {
+  try {
+    const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+    const currentPage = pages[pages.length - 1]
+    return currentPage && currentPage.route ? `${currentPage.route}` : ''
+  } catch (error) {
+    return ''
+  }
+}
+
+const shouldResetToHomeOnShow = options => {
+  const scene = Number(options && options.scene)
+  const currentRoute = getCurrentRoute()
+
+  return scene === RECENT_USAGE_SCENE && currentRoute && currentRoute !== HOME_PAGE_ROUTE
+}
+
 App({
   async onLaunch() {
     this.initRuntimeEnv()
@@ -24,7 +45,15 @@ App({
     this.bootstrapSilentLogin()
   },
 
-  onShow() {},
+  onShow(options) {
+    if (!shouldResetToHomeOnShow(options)) {
+      return
+    }
+
+    wx.reLaunch({
+      url: HOME_PAGE_PATH
+    })
+  },
 
   async bootstrapSilentLogin() {
     try {

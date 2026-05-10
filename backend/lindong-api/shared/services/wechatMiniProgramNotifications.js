@@ -1,4 +1,5 @@
 const { getWechatAccessToken, fetchJson } = require('./wechatMiniProgram')
+const DEFAULT_HOME_PAGE_PATH = 'pages/home/index'
 
 const readRequiredEnv = key => {
   const value = `${process.env[key] || ''}`.trim()
@@ -59,7 +60,7 @@ const getTemplateFieldMapByTemplateKey = templateKey => {
 
 const buildPagePath = pagePath => {
   const value = `${pagePath || ''}`.trim()
-  return value.replace(/^\//, '')
+  return (value.replace(/^\//, '') || DEFAULT_HOME_PAGE_PATH)
 }
 
 const truncateValue = (value, maxLength = 20) => {

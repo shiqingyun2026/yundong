@@ -27,7 +27,7 @@ const normalizeResultType = status => {
 }
 
 const buildPackageLocationText = pkg => {
-  const parts = [pkg && pkg.location_district, pkg && pkg.location_community, pkg && pkg.location_detail]
+  const parts = [pkg && pkg.location_community, pkg && pkg.location_detail]
     .map(item => `${item || ''}`.trim())
     .filter(Boolean)
 
@@ -118,7 +118,7 @@ const buildMessageSnapshot = ({ group, resultType }) => {
       group_course: groupCourseText,
       course_start_time: courseStartTime,
       course_address: courseAddress,
-      warm_tips: '拼团已成功，客服稍后将拉您进去课程微信群，请留意后续通知'
+      warm_tips: '客服稍后将联系您，请保持通话畅通'
     }
   }
 

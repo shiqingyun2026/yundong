@@ -120,6 +120,35 @@ test('miniprogram course detail page: unavailable course shows toast and switche
   packageUtils.fetchPackageDetail = originalFetchPackageDetail
 })
 
+test('miniprogram course detail page: group ended entry shows restart-group toast after package detail loads', async () => {
+  const originalFetchPackageDetail = packageUtils.fetchPackageDetail
+  const { wx, calls } = createWxMock()
+  global.wx = wx
+  global.getApp = () => ({})
+
+  packageUtils.fetchPackageDetail = async () => ({
+    id: 'package_seed_active_005',
+    name: '[测试] 深圳龙华体适能课',
+    images: ['https://example.com/a.png'],
+    coachCertificates: [],
+    cover: 'https://example.com/a.png'
+  })
+
+  const page = createPageHarness(loadPageDefinition('pages/course/detail/index.js'))
+  await page.onLoad({
+    id: 'package_seed_active_005',
+    groupEndedToast: '1'
+  })
+
+  assert.deepEqual(calls.showToast[0], {
+    title: '当前拼团已结束，您可另外开团',
+    icon: 'none'
+  })
+  assert.equal(page.data.shouldShowGroupEndedToast, false)
+
+  packageUtils.fetchPackageDetail = originalFetchPackageDetail
+})
+
 test('miniprogram course detail page: fallback customer service entry opens qr modal', async () => {
   const originalFetchPackageDetail = packageUtils.fetchPackageDetail
   const { wx } = createWxMock()

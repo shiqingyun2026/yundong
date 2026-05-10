@@ -171,8 +171,19 @@
   </scroll-view>
 
   <view wx:if="{{!loading && packageDetail}}" class="payment-bar">
-    <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary payment-button" loading="{{paying}}" disabled="{{paying}}" bindtap="handleConfirmPay">
-      <view class="weui-ext-button__inner">确认支付{{paymentAmountButtonText}}</view>
+    <button wx:if="{{action === 'join' && packageGroupDetail}}" class="service-entry service-share-button" open-type="share">
+      <view class="service-icon">
+        <image class="service-icon-image service-icon-image--share" src="/assets/icons/wechat-share.svg" mode="aspectFit"></image>
+      </view>
+      <view class="service-text">分享</view>
+    </button>
+    <button
+      class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary payment-button {{action === 'join' && packageGroupDetail ? 'payment-action' : 'payment-button--full'}}"
+      loading="{{paying}}"
+      disabled="{{paying}}"
+      bindtap="handleConfirmPay"
+    >
+      <view class="weui-ext-button__inner">{{action === 'join' ? '支付' + paymentAmountButtonText + '拼团' : '确认支付' + paymentAmountButtonText}}</view>
     </button>
   </view>
 </view>

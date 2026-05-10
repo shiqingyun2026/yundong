@@ -133,6 +133,8 @@ test('enqueue group result notifications immediately processes newly created job
   assert.equal(createdPayloads.length, 1)
   assert.equal(createdPayloads[0].status, 'pending')
   assert.equal(createdPayloads[0].message_snapshot.template_key, 'groupSuccess')
+  assert.equal(createdPayloads[0].message_snapshot.course_address, '科技园 邻动运动馆')
+  assert.equal(createdPayloads[0].message_snapshot.warm_tips, '客服稍后将联系您，请保持通话畅通')
   assert.equal(deliveryCalls.length, 1)
   assert.equal(deliveryCalls[0].supabase, null)
   assert.equal(deliveryCalls[0].limit, 20)

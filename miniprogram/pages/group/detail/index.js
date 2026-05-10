@@ -1,4 +1,4 @@
-const { fetchPackageGroupDetail } = require('../../../utils/package')
+const { fetchPackageDetail, fetchPackageGroupDetail } = require('../../../utils/package')
 const { loginAndStoreSession } = require('../../../utils/auth')
 const {
   requestGroupResultSubscription,
@@ -22,6 +22,8 @@ const STATUS_MAP = {
 }
 
 const HOME_PAGE_PATH = '/pages/home/index'
+const GROUP_ENDED_TOAST_QUERY = 'groupEndedToast=1'
+const GROUP_ENDED_TOAST_TEXT = '当前拼团已结束，您可另外开团'
 
 Page({
   data: {
@@ -192,10 +194,22 @@ Page({
 
     try {
       const groupDetail = await fetchPackageGroupDetail(packageGroupId)
+      if (this.data.entry === 'share' && groupDetail && groupDetail.status !== 'active') {
+        this.redirectToPackageDetailAfterGroupEnded(groupDetail.packageInfo && groupDetail.packageInfo.id)
+        return
+      }
+
       this.updateGroupPresentation(groupDetail)
     } catch (error) {
       if (error && (error.code === 2002 || error.code === 2006)) {
-        const packageId = this.data.packageId || (this.data.groupDetail && this.data.groupDetail.packageInfo && this.data.groupDetail.packageInfo.id) || ''
+        const packageId =
+          this.data.packageId || (this.data.groupDetail && this.data.groupDetail.packageInfo && this.data.groupDetail.packageInfo.id) || ''
+
+        if (this.data.entry === 'share') {
+          await this.redirectToPackageDetailAfterGroupEnded(packageId)
+          return
+        }
+
         if (packageId) {
           wx.redirectTo({
             url: `/pages/course/detail/index?id=${encodeURIComponent(packageId)}`
@@ -216,6 +230,30 @@ Page({
     } finally {
       this.safeSetData({
         loading: false
+      })
+    }
+  },
+
+  async redirectToPackageDetailAfterGroupEnded(packageId) {
+    if (!packageId) {
+      wx.showToast({
+        title: GROUP_ENDED_TOAST_TEXT,
+        icon: 'none'
+      })
+      wx.switchTab({
+        url: HOME_PAGE_PATH
+      })
+      return
+    }
+
+    try {
+      await fetchPackageDetail(packageId)
+      wx.redirectTo({
+        url: `/pages/course/detail/index?id=${encodeURIComponent(packageId)}&${GROUP_ENDED_TOAST_QUERY}`
+      })
+    } catch (error) {
+      wx.switchTab({
+        url: HOME_PAGE_PATH
       })
     }
   },

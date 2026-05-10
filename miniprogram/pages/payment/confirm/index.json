@@ -1,5 +1,6 @@
 {
   "navigationBarTitleText": "参与拼团",
+  "enableShareAppMessage": true,
   "usingComponents": {
     "mp-toptips": "../../../vendor/weui-miniprogram/toptips/toptips",
     "mp-cells": "../../../vendor/weui-miniprogram/cells/cells",

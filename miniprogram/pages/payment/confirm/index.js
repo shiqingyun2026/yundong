@@ -389,5 +389,32 @@ Page({
         paying: false
       })
     }
+  },
+
+  onShareAppMessage() {
+    const { action, packageId, packageDetail, packageGroupDetail, packageGroupId } = this.data
+    const currentGroupId = (packageGroupDetail && packageGroupDetail.id) || packageGroupId || ''
+
+    if (action !== 'join' || !currentGroupId) {
+      return {
+        title: packageDetail ? `${packageDetail.name}｜家门口组团上课` : '家门口的少儿运动团课',
+        path: packageDetail ? `/pages/course/detail/index?id=${packageId}` : '/pages/home/index',
+        imageUrl: packageDetail && packageDetail.cover ? packageDetail.cover : ''
+      }
+    }
+
+    const currentCount = Number(packageGroupDetail && packageGroupDetail.currentCount) || 0
+    const targetCount = Number(packageGroupDetail && packageGroupDetail.targetCount) || 0
+    const remainingCount = Math.max(0, targetCount - currentCount)
+    const packageName = (packageDetail && packageDetail.name) || '邻动体适能课程'
+
+    return {
+      title: `还差${remainingCount}人，来拼「${packageName}」`,
+      path:
+        `/pages/group/detail/index?packageGroupId=${encodeURIComponent(currentGroupId)}` +
+        `&packageId=${encodeURIComponent(packageId || '')}` +
+        `&entry=share&action=join`,
+      imageUrl: packageDetail && packageDetail.cover ? packageDetail.cover : ''
+    }
   }
 })

@@ -12,7 +12,19 @@
   line-height: normal;
 }
 
+.service-share-button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  line-height: normal;
+}
+
 .service-contact-button::after {
+  border: 0;
+}
+
+.service-share-button::after {
   border: 0;
 }
 
@@ -472,6 +484,11 @@
   height: 28rpx;
 }
 
+.service-icon-image--share {
+  width: 36rpx;
+  height: 36rpx;
+}
+
 .service-text {
   margin-top: 8rpx;
   font-size: 22rpx;
@@ -479,7 +496,7 @@
 }
 
 .bottom-action {
-  flex: 5;
+  flex: 3.7;
   min-width: 0;
 }
 

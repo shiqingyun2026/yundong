@@ -1,10 +1,12 @@
 const { fetchPackageDetail } = require('../../../utils/package')
 
 const HOME_PAGE_PATH = '/pages/home/index'
+const GROUP_ENDED_TOAST_TEXT = '当前拼团已结束，您可另外开团'
 
 Page({
   data: {
     packageId: '',
+    shouldShowGroupEndedToast: false,
     packageDetail: null,
     heroImages: [],
     heroCurrent: 0,
@@ -23,7 +25,8 @@ Page({
   async onLoad(options) {
     const packageId = options.id || ''
     this.setData({
-      packageId
+      packageId,
+      shouldShowGroupEndedToast: `${options.groupEndedToast || ''}` === '1'
     })
     await this.loadPageData(packageId)
   },
@@ -73,6 +76,16 @@ Page({
         heroImages,
         heroCurrent: 0
       })
+
+      if (this.data.shouldShowGroupEndedToast) {
+        wx.showToast({
+          title: GROUP_ENDED_TOAST_TEXT,
+          icon: 'none'
+        })
+        this.setData({
+          shouldShowGroupEndedToast: false
+        })
+      }
     } catch (error) {
       wx.showToast({
         title: error && error.message ? error.message : '课程详情加载失败',

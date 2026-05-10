@@ -1,0 +1,22 @@
+const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
+const test = require('node:test')
+
+const courseDetailWxmlPath = path.resolve(__dirname, '..', 'pages/course/detail/index.wxml')
+const shareIconPath = path.resolve(__dirname, '..', 'assets/icons/wechat-share.svg')
+
+test('course detail bottom bar includes a share entry with the wechat icon', () => {
+  const source = fs.readFileSync(courseDetailWxmlPath, 'utf8')
+
+  assert.match(source, /open-type="contact"/)
+  assert.match(source, /open-type="share"/)
+  assert.match(source, /src="\/assets\/icons\/wechat-share\.svg"/)
+  assert.match(source, />分享<\/view>/)
+})
+
+test('wechat share icon uses the requested green brand color', () => {
+  const source = fs.readFileSync(shareIconPath, 'utf8')
+
+  assert.match(source, /#09B83E/)
+})

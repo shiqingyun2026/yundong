@@ -146,3 +146,81 @@ test('miniprogram group detail page: shared package group opens with join CTA an
   packageUtils.fetchPackageGroupDetail = originalFetchPackageGroupDetail
   authUtils.loginAndStoreSession = originalLoginAndStoreSession
 })
+
+test('miniprogram group detail page: ended shared group redirects to package detail with ended toast marker', async () => {
+  const originalFetchPackageGroupDetail = packageUtils.fetchPackageGroupDetail
+  const originalFetchPackageDetail = packageUtils.fetchPackageDetail
+  const originalLoginAndStoreSession = authUtils.loginAndStoreSession
+
+  const { wx, calls, storage } = createWxMock()
+  global.wx = wx
+  global.getApp = () => ({})
+  storage.set('token', 'seed-token')
+
+  packageUtils.fetchPackageGroupDetail = async () => ({
+    ...activeGroupDetail,
+    status: 'success'
+  })
+  packageUtils.fetchPackageDetail = async () => ({
+    id: 'package_seed_active_002'
+  })
+  authUtils.loginAndStoreSession = async () => ({ token: 'seed-token' })
+
+  const page = createPageHarness(loadPageDefinition('pages/group/detail/index.js'))
+  await page.onLoad({
+    packageGroupId: 'pkg-group-active-1',
+    packageId: 'package_seed_active_002',
+    entry: 'share',
+    action: 'join'
+  })
+
+  assert.deepEqual(calls.redirectTo[0], {
+    url: '/pages/course/detail/index?id=package_seed_active_002&groupEndedToast=1'
+  })
+
+  packageUtils.fetchPackageGroupDetail = originalFetchPackageGroupDetail
+  packageUtils.fetchPackageDetail = originalFetchPackageDetail
+  authUtils.loginAndStoreSession = originalLoginAndStoreSession
+})
+
+test('miniprogram group detail page: ended shared group with offline package falls back home', async () => {
+  const originalFetchPackageGroupDetail = packageUtils.fetchPackageGroupDetail
+  const originalFetchPackageDetail = packageUtils.fetchPackageDetail
+  const originalLoginAndStoreSession = authUtils.loginAndStoreSession
+
+  const { wx, calls, storage } = createWxMock()
+  global.wx = wx
+  global.getApp = () => ({})
+  storage.set('token', 'seed-token')
+
+  packageUtils.fetchPackageGroupDetail = async () => {
+    throw {
+      code: 2002,
+      message: '拼团不存在'
+    }
+  }
+  packageUtils.fetchPackageDetail = async () => {
+    throw {
+      code: 2001,
+      message: '课包不存在'
+    }
+  }
+  authUtils.loginAndStoreSession = async () => ({ token: 'seed-token' })
+
+  const page = createPageHarness(loadPageDefinition('pages/group/detail/index.js'))
+  await page.onLoad({
+    packageGroupId: 'pkg-group-ended-1',
+    packageId: 'package_offline_001',
+    entry: 'share',
+    action: 'join'
+  })
+
+  assert.deepEqual(calls.switchTab[0], {
+    url: '/pages/home/index'
+  })
+  assert.equal(calls.redirectTo.length, 0)
+
+  packageUtils.fetchPackageGroupDetail = originalFetchPackageGroupDetail
+  packageUtils.fetchPackageDetail = originalFetchPackageDetail
+  authUtils.loginAndStoreSession = originalLoginAndStoreSession
+})
