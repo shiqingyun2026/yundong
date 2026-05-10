@@ -14,7 +14,7 @@ const mockModule = (relativePath, exports) => {
   }
 }
 
-const loadService = ({ deliveryImpl } = {}) => {
+const loadService = ({ deliveryImpl, packageOverrides = {} } = {}) => {
   const servicePath = require.resolve(path.join(backendRoot, 'shared/services/groupResultNotifications.js'))
   const envPath = require.resolve(path.join(backendRoot, 'config/env.js'))
   const repositoriesPath = require.resolve(path.join(backendRoot, 'repositories/index.js'))
@@ -43,7 +43,8 @@ const loadService = ({ deliveryImpl } = {}) => {
         name: '少儿体适能基础课',
         location_district: '南山区',
         location_community: '科技园',
-        location_detail: '邻动运动馆'
+        location_detail: '邻动运动馆',
+        ...packageOverrides
       })
     },
     groupResultNotificationJobsRepository: {
@@ -133,11 +134,34 @@ test('enqueue group result notifications immediately processes newly created job
   assert.equal(createdPayloads.length, 1)
   assert.equal(createdPayloads[0].status, 'pending')
   assert.equal(createdPayloads[0].message_snapshot.template_key, 'groupSuccess')
-  assert.equal(createdPayloads[0].message_snapshot.course_address, '科技园 邻动运动馆')
+  assert.equal(createdPayloads[0].message_snapshot.course_address, '科技园')
   assert.equal(createdPayloads[0].message_snapshot.warm_tips, '客服稍后将联系您，请保持通话畅通')
   assert.equal(deliveryCalls.length, 1)
   assert.equal(deliveryCalls[0].supabase, null)
   assert.equal(deliveryCalls[0].limit, 20)
+})
+
+test('enqueue group result notifications only uses community field for course address', async () => {
+  const { enqueueGroupResultNotifications, createdPayloads } = loadService({
+    packageOverrides: {
+      location_province: '广东省',
+      location_city: '深圳市',
+      location_district: '南山区',
+      location_community: '科技园社区',
+      location_detail: '广东省深圳市南山区科技园社区 邻动运动馆'
+    }
+  })
+
+  const result = await enqueueGroupResultNotifications({
+    supabase: null,
+    groupId: 'group-1',
+    resultType: 'success',
+    now: new Date('2026-05-09T12:30:00.000Z')
+  })
+
+  assert.equal(result.createdCount, 1)
+  assert.equal(createdPayloads.length, 1)
+  assert.equal(createdPayloads[0].message_snapshot.course_address, '科技园社区')
 })
 
 test('enqueue group result notifications keeps job creation when immediate delivery throws', async () => {

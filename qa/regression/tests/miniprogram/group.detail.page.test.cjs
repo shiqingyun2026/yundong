@@ -159,7 +159,8 @@ test('miniprogram group detail page: ended shared group redirects to package det
 
   packageUtils.fetchPackageGroupDetail = async () => ({
     ...activeGroupDetail,
-    status: 'success'
+    status: 'failed',
+    currentCount: 0
   })
   packageUtils.fetchPackageDetail = async () => ({
     id: 'package_seed_active_002'

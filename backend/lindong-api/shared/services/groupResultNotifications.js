@@ -14,6 +14,11 @@ const TEMPLATE_KEY_BY_RESULT_TYPE = {
   failed: 'groupFail'
 }
 
+const collapseLocationText = value =>
+  `${value || ''}`
+    .replace(/\s+/g, ' ')
+    .trim()
+
 const normalizeResultType = status => {
   if (status === 'success') {
     return 'success'
@@ -27,11 +32,7 @@ const normalizeResultType = status => {
 }
 
 const buildPackageLocationText = pkg => {
-  const parts = [pkg && pkg.location_community, pkg && pkg.location_detail]
-    .map(item => `${item || ''}`.trim())
-    .filter(Boolean)
-
-  return parts.join(' ')
+  return collapseLocationText(pkg && pkg.location_community)
 }
 
 const buildGroupCourseText = ({ pkg, group }) => {

@@ -884,7 +884,7 @@ test('mini program user package group list exposes refund display states and pre
   assert.equal(result.list[2].can_open_detail, true)
 })
 
-test('package group detail rejects refunded viewers and hidden groups', async () => {
+test('package group detail returns ended groups and still rejects refunded viewers', async () => {
   clearModules([
     'config/env.js',
     'config/storage.js',
@@ -969,18 +969,16 @@ test('package group detail rejects refunded viewers and hidden groups', async ()
 
   const { fetchMiniProgramPackageGroupDetail } = require(path.join(backendRoot, 'shared/services/packageReaders.js'))
 
-  await assert.rejects(
-    () =>
-      fetchMiniProgramPackageGroupDetail({
-        packageGroupId: 'PG-hidden',
-        userId: 'user-1',
-        now: new Date('2026-04-21T10:00:00.000Z')
-      }),
-    error => {
-      assert.equal(error.code, 2002)
-      return true
-    }
-  )
+  const endedResult = await fetchMiniProgramPackageGroupDetail({
+    packageGroupId: 'PG-hidden',
+    userId: '',
+    now: new Date('2026-04-21T10:00:00.000Z')
+  })
+
+  assert.equal(endedResult.id, 'PG-hidden')
+  assert.equal(endedResult.status, 'canceled')
+  assert.equal(endedResult.current_count, 0)
+  assert.equal(endedResult.package.id, 'PKG-20260421-0001')
 
   currentGroup = {
     ...currentGroup,

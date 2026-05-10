@@ -502,9 +502,6 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
   if (!latestGroup) {
     throw createPackageServiceError(404, 2002, '拼团不存在')
   }
-  if (latestGroup.status === 'canceled' || Number(latestGroup.current_count) <= 0) {
-    throw createPackageServiceError(404, 2002, '拼团不存在')
-  }
 
   const pkg = await coursePackagesRepository.findPackageById(latestGroup.package_id)
   if (!pkg) {
