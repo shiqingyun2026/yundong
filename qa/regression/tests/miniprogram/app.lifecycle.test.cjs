@@ -74,6 +74,44 @@ test('miniprogram app: reopening from recent usage list resets non-home page to 
   })
 })
 
+test('miniprogram app: reopening from chat pull-down recent usage resets non-home page to home', () => {
+  const { wx, calls } = createWxMock()
+  global.wx = wx
+  global.getCurrentPages = () => [
+    {
+      route: 'pages/group/detail/index'
+    }
+  ]
+
+  const appDefinition = loadAppDefinition()
+  appDefinition.onShow({
+    scene: 1089
+  })
+
+  assert.deepEqual(calls.reLaunch[0], {
+    url: '/pages/home/index'
+  })
+})
+
+test('miniprogram app: reopening from top-right recent history resets non-home page to home', () => {
+  const { wx, calls } = createWxMock()
+  global.wx = wx
+  global.getCurrentPages = () => [
+    {
+      route: 'pages/group/detail/index'
+    }
+  ]
+
+  const appDefinition = loadAppDefinition()
+  appDefinition.onShow({
+    scene: 1090
+  })
+
+  assert.deepEqual(calls.reLaunch[0], {
+    url: '/pages/home/index'
+  })
+})
+
 test('miniprogram app: explicit share entry keeps target page on reopen', () => {
   const { wx, calls } = createWxMock()
   global.wx = wx

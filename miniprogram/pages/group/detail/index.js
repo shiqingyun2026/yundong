@@ -25,6 +25,20 @@ const HOME_PAGE_PATH = '/pages/home/index'
 const GROUP_ENDED_TOAST_QUERY = 'groupEndedToast=1'
 const GROUP_ENDED_TOAST_TEXT = '当前拼团已结束，您可另外开团'
 
+const resolveErrorCode = error => {
+  if (!error || typeof error !== 'object') {
+    return 0
+  }
+
+  const directCode = Number(error.code)
+  if (Number.isInteger(directCode) && directCode > 0) {
+    return directCode
+  }
+
+  const nestedCode = Number(error.data && error.data.code)
+  return Number.isInteger(nestedCode) && nestedCode > 0 ? nestedCode : 0
+}
+
 Page({
   data: {
     packageGroupId: '',
@@ -201,7 +215,8 @@ Page({
 
       this.updateGroupPresentation(groupDetail)
     } catch (error) {
-      if (error && (error.code === 2002 || error.code === 2006)) {
+      const errorCode = resolveErrorCode(error)
+      if (errorCode === 2002 || errorCode === 2006) {
         const packageId =
           this.data.packageId || (this.data.groupDetail && this.data.groupDetail.packageInfo && this.data.groupDetail.packageInfo.id) || ''
 

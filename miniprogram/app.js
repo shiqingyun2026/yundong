@@ -13,7 +13,7 @@ const { ensureSilentLogin } = require('./utils/auth')
 
 const HOME_PAGE_PATH = '/pages/home/index'
 const HOME_PAGE_ROUTE = 'pages/home/index'
-const RECENT_USAGE_SCENE = 1001
+const RECENT_USAGE_SCENES = new Set([1001, 1089, 1090, 1103, 1104])
 
 const getCurrentRoute = () => {
   try {
@@ -29,7 +29,7 @@ const shouldResetToHomeOnShow = options => {
   const scene = Number(options && options.scene)
   const currentRoute = getCurrentRoute()
 
-  return scene === RECENT_USAGE_SCENE && currentRoute && currentRoute !== HOME_PAGE_ROUTE
+  return RECENT_USAGE_SCENES.has(scene) && currentRoute && currentRoute !== HOME_PAGE_ROUTE
 }
 
 App({

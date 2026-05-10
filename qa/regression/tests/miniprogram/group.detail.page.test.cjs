@@ -225,3 +225,46 @@ test('miniprogram group detail page: ended shared group with offline package fal
   packageUtils.fetchPackageDetail = originalFetchPackageDetail
   authUtils.loginAndStoreSession = originalLoginAndStoreSession
 })
+
+test('miniprogram group detail page: shared refunded-viewer error redirects by nested business code payload', async () => {
+  const originalFetchPackageGroupDetail = packageUtils.fetchPackageGroupDetail
+  const originalFetchPackageDetail = packageUtils.fetchPackageDetail
+  const originalLoginAndStoreSession = authUtils.loginAndStoreSession
+
+  const { wx, calls, storage } = createWxMock()
+  global.wx = wx
+  global.getApp = () => ({})
+  storage.set('token', 'seed-token')
+
+  packageUtils.fetchPackageGroupDetail = async () => {
+    throw {
+      message: '退款订单不可查看拼团详情',
+      statusCode: 403,
+      data: {
+        code: 2006,
+        message: '退款订单不可查看拼团详情'
+      }
+    }
+  }
+  packageUtils.fetchPackageDetail = async () => ({
+    id: 'package_seed_active_002'
+  })
+  authUtils.loginAndStoreSession = async () => ({ token: 'seed-token' })
+
+  const page = createPageHarness(loadPageDefinition('pages/group/detail/index.js'))
+  await page.onLoad({
+    packageGroupId: 'pkg-group-refunded-1',
+    packageId: 'package_seed_active_002',
+    entry: 'share',
+    action: 'join'
+  })
+
+  assert.deepEqual(calls.redirectTo[0], {
+    url: '/pages/course/detail/index?id=package_seed_active_002&groupEndedToast=1'
+  })
+  assert.equal(calls.showToast.length, 0)
+
+  packageUtils.fetchPackageGroupDetail = originalFetchPackageGroupDetail
+  packageUtils.fetchPackageDetail = originalFetchPackageDetail
+  authUtils.loginAndStoreSession = originalLoginAndStoreSession
+})
