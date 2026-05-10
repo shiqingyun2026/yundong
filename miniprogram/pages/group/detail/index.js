@@ -1,4 +1,4 @@
-const { fetchPackageDetail, fetchPackageGroupDetail } = require('../../../utils/package')
+const { fetchPackageDetail, fetchPackageGroupDetail, resolveShareImageUrl } = require('../../../utils/package')
 const { loginAndStoreSession } = require('../../../utils/auth')
 const {
   requestGroupResultSubscription,
@@ -276,7 +276,7 @@ Page({
         `/pages/group/detail/index?packageGroupId=${encodeURIComponent(groupDetail.id)}` +
         `&packageId=${encodeURIComponent(groupDetail.packageInfo.id || '')}` +
         `&entry=share&action=join`,
-      imageUrl: ''
+      imageUrl: resolveShareImageUrl(groupDetail.packageInfo.cover)
     }
   },
 

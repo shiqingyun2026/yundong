@@ -364,6 +364,39 @@ const formatScheduleDisplayText = value => {
   return `${matched[1]} ${matched[2].padStart(5, '0')} 共5节课`
 }
 
+const resolveShareImageUrl = value => {
+  const normalized = pickFirstNonEmptyString([value])
+  if (!normalized || !/^https?:\/\//i.test(normalized)) {
+    return normalized
+  }
+
+  try {
+    const url = new URL(normalized)
+
+    if (url.hostname.includes('images.unsplash.com')) {
+      url.searchParams.set('auto', 'format')
+      url.searchParams.set('fit', 'crop')
+      url.searchParams.set('crop', 'center')
+      url.searchParams.set('w', '760')
+      url.searchParams.set('h', '608')
+      url.searchParams.set('q', '80')
+      return url.toString()
+    }
+
+    if (
+      (url.hostname.includes('aliyuncs.com') || url.hostname.includes('oss-')) &&
+      !url.searchParams.has('x-oss-process')
+    ) {
+      url.searchParams.set('x-oss-process', 'image/resize,m_fill,w_760,h_608/quality,q_90')
+      return url.toString()
+    }
+
+    return url.toString()
+  } catch (error) {
+    return normalized
+  }
+}
+
 const normalizePackageCard = item => ({
   id: item.package_id || item.packageId || item.id || '',
   name: item.name || '',
@@ -449,6 +482,7 @@ const normalizePackageGroupDetail = payload => ({
   packageInfo: {
     id: payload.package && payload.package.id ? payload.package.id : '',
     name: payload.package && payload.package.name ? payload.package.name : '',
+    cover: payload.package && payload.package.cover ? payload.package.cover : '',
     ageRange: payload.package && payload.package.age_range ? payload.package.age_range : '',
     description: normalizeRichTextImages(payload.package && payload.package.description ? payload.package.description : ''),
     coachName: payload.package && payload.package.coach_name ? payload.package.coach_name : '',
@@ -480,9 +514,10 @@ const normalizePackageGroupDetail = payload => ({
         ...member,
         avatar_url: member.avatar_url || DEFAULT_MEMBER_AVATAR,
         childAge: member.child_age === null || member.child_age === undefined ? null : Number(member.child_age) || 0,
+        displayNameMasked: member.display_name_masked || '',
         displayName: member.display_name || member.child_nickname || member.nickname || '孩子昵称未填写',
         displayText: [
-          member.display_name || member.child_nickname || member.nickname || '孩子昵称未填写',
+          member.display_name_masked || member.display_name || member.child_nickname || member.nickname || '孩子昵称未填写',
           member.child_age === null || member.child_age === undefined || !Number(member.child_age)
             ? ''
             : `${Number(member.child_age)}岁`
@@ -501,6 +536,7 @@ const normalizeUserPackageGroupListItem = item => ({
   packageGroupId: item.package_group_id || '',
   packageId: item.package_id || '',
   packageName: item.package_name || '',
+  childNicknameMasked: item.child_nickname_masked || '',
   childNickname: item.child_nickname || item.childNickname || '',
   childAge:
     item.child_age === null || item.child_age === undefined
@@ -740,5 +776,6 @@ module.exports = {
   normalizePackageDetail,
   normalizePackageGroupDetail,
   prepareCloudPayment,
-  preparePayment
+  preparePayment,
+  resolveShareImageUrl
 }

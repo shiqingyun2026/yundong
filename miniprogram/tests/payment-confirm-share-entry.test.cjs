@@ -7,6 +7,8 @@ const paymentConfirmWxmlPath = path.resolve(__dirname, '..', 'pages/payment/conf
 const paymentConfirmJsPath = path.resolve(__dirname, '..', 'pages/payment/confirm/index.js')
 const paymentConfirmWxssPath = path.resolve(__dirname, '..', 'pages/payment/confirm/index.wxss')
 const paymentConfirmJsonPath = path.resolve(__dirname, '..', 'pages/payment/confirm/index.json')
+const groupDetailJsPath = path.resolve(__dirname, '..', 'pages/group/detail/index.js')
+const packageUtilsPath = path.resolve(__dirname, '..', 'utils/package.js')
 
 test('join payment page bottom bar includes a share entry with the wechat icon', () => {
   const source = fs.readFileSync(paymentConfirmWxmlPath, 'utf8')
@@ -24,6 +26,7 @@ test('join payment page registers a share handler to the current group detail pa
   assert.match(source, /onShareAppMessage\(\)/)
   assert.match(source, /\/pages\/group\/detail\/index\?packageGroupId=/)
   assert.match(source, /entry=share&action=join/)
+  assert.match(source, /imageUrl:\s*resolveShareImageUrl\(/)
 })
 
 test('join payment page enables share and shortens the pay button layout', () => {
@@ -33,4 +36,12 @@ test('join payment page enables share and shortens the pay button layout', () =>
   assert.match(jsonSource, /"enableShareAppMessage":\s*true/)
   assert.match(styleSource, /\.payment-action\s*\{/)
   assert.match(styleSource, /\.service-entry\s*\{/)
+})
+
+test('group detail share card uses the course cover image', () => {
+  const groupDetailSource = fs.readFileSync(groupDetailJsPath, 'utf8')
+  const packageUtilsSource = fs.readFileSync(packageUtilsPath, 'utf8')
+
+  assert.match(groupDetailSource, /imageUrl:\s*resolveShareImageUrl\(groupDetail\.packageInfo\.cover\)/)
+  assert.match(packageUtilsSource, /cover:\s*payload\.package && payload\.package\.cover \? payload\.package\.cover : ''/)
 })

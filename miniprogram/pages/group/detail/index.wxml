@@ -119,7 +119,7 @@
             <image class="member-avatar" src="{{item.avatar_url}}" mode="aspectFill"></image>
             <view class="member-meta">
               <view class="member-name-row">
-                <view class="member-name">{{item.displayText || item.displayName || item.nickname}}</view>
+                <view class="member-name">{{item.displayText || item.displayNameMasked || item.displayName || item.nickname}}</view>
                 <view wx:if="{{item.isCurrentOrderChild}}" class="member-current-tag">本次报名</view>
               </view>
             </view>

@@ -86,7 +86,7 @@
         <view wx:if="{{packageGroupDetail.members.length}}" class="member-list-block">
           <view wx:for="{{packageGroupDetail.members}}" wx:key="user_id" class="member-item">
             <image class="member-avatar" src="{{item.avatar_url}}" mode="aspectFill"></image>
-            <view class="member-name">{{item.displayText || item.displayName || item.nickname}}</view>
+            <view class="member-name">{{item.displayText || item.displayNameMasked || item.displayName || item.nickname}}</view>
           </view>
         </view>
         <view wx:else class="section-desc">暂未获取到成员信息</view>

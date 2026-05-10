@@ -16,6 +16,20 @@ const formatFenText = amountFen => (Number(amountFen || 0) / 100).toFixed(2)
 
 const DEFAULT_MEMBER_AVATAR = '/assets/member-default-avatar.jpg'
 
+const maskStudentNickname = value => {
+  const normalized = `${value === null || value === undefined ? '' : value}`.trim()
+  if (!normalized) {
+    return ''
+  }
+
+  const chars = Array.from(normalized)
+  if (chars.length <= 1) {
+    return '*'
+  }
+
+  return `${chars.slice(0, -1).join('')}*`
+}
+
 const pickFirstNonEmptyString = values => {
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index]
@@ -564,19 +578,24 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
           }),
     first_class_time: latestGroup.first_class_time ? formatPackageDateTime(latestGroup.first_class_time) : null,
     schedule_list: scheduleList,
-    members: successOrders.map(order => ({
-      user_id: order.user_id,
-      nickname:
+    members: successOrders.map(order => {
+      const childNickname =
         (order.package_context && order.package_context.child_nickname) ||
         (usersById[order.user_id] && usersById[order.user_id].nickname) ||
-        '微信用户',
-      child_nickname: (order.package_context && order.package_context.child_nickname) || '',
-      child_age:
-        order.package_context && order.package_context.child_age !== undefined && order.package_context.child_age !== null
-          ? Number(order.package_context.child_age) || 0
-          : null,
-      avatar_url: DEFAULT_MEMBER_AVATAR
-    })),
+        '微信用户'
+
+      return {
+        user_id: order.user_id,
+        nickname: childNickname,
+        display_name_masked: maskStudentNickname(childNickname) || '微信用户',
+        child_nickname: (order.package_context && order.package_context.child_nickname) || '',
+        child_age:
+          order.package_context && order.package_context.child_age !== undefined && order.package_context.child_age !== null
+            ? Number(order.package_context.child_age) || 0
+            : null,
+        avatar_url: DEFAULT_MEMBER_AVATAR
+      }
+    }),
     child_nickname:
       (leaderOrder &&
         leaderOrder.package_context &&
@@ -677,6 +696,9 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
       package_name: pkg ? pkg.name : '',
       child_nickname:
         (order.package_context && order.package_context.child_nickname) || '',
+      child_nickname_masked: maskStudentNickname(
+        (order.package_context && order.package_context.child_nickname) || ''
+      ),
       child_age:
         order.package_context && order.package_context.child_age !== undefined && order.package_context.child_age !== null
           ? Number(order.package_context.child_age) || 0

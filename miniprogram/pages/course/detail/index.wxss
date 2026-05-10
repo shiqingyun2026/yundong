@@ -485,8 +485,8 @@
 }
 
 .service-icon-image--share {
-  width: 36rpx;
-  height: 36rpx;
+  width: 48rpx;
+  height: 48rpx;
 }
 
 .service-text {

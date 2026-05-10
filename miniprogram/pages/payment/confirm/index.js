@@ -8,7 +8,8 @@ const {
   fetchPackageGroupDetail,
   formatDisplayAmount,
   mockPaymentSuccess,
-  preparePayment
+  preparePayment,
+  resolveShareImageUrl
 } = require('../../../utils/package')
 const { ensureSilentLogin } = require('../../../utils/auth')
 
@@ -399,7 +400,7 @@ Page({
       return {
         title: packageDetail ? `${packageDetail.name}｜家门口组团上课` : '家门口的少儿运动团课',
         path: packageDetail ? `/pages/course/detail/index?id=${packageId}` : '/pages/home/index',
-        imageUrl: packageDetail && packageDetail.cover ? packageDetail.cover : ''
+        imageUrl: resolveShareImageUrl((packageDetail && packageDetail.cover) || (packageDetail && packageDetail.images && packageDetail.images[0]) || '')
       }
     }
 
@@ -414,7 +415,7 @@ Page({
         `/pages/group/detail/index?packageGroupId=${encodeURIComponent(currentGroupId)}` +
         `&packageId=${encodeURIComponent(packageId || '')}` +
         `&entry=share&action=join`,
-      imageUrl: packageDetail && packageDetail.cover ? packageDetail.cover : ''
+      imageUrl: resolveShareImageUrl((packageDetail && packageDetail.cover) || (packageDetail && packageDetail.images && packageDetail.images[0]) || '')
     }
   }
 })

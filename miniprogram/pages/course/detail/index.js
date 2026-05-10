@@ -1,4 +1,4 @@
-const { fetchPackageDetail } = require('../../../utils/package')
+const { fetchPackageDetail, resolveShareImageUrl } = require('../../../utils/package')
 
 const HOME_PAGE_PATH = '/pages/home/index'
 const GROUP_ENDED_TOAST_TEXT = '当前拼团已结束，您可另外开团'
@@ -260,7 +260,7 @@ Page({
     return {
       title: packageDetail ? `${packageDetail.name}｜家门口组团上课` : '家门口的少儿运动团课',
       path: `/pages/course/detail/index?id=${packageId}`,
-      imageUrl: packageDetail && packageDetail.cover ? packageDetail.cover : ''
+      imageUrl: resolveShareImageUrl((packageDetail && packageDetail.cover) || (packageDetail && packageDetail.images && packageDetail.images[0]) || '')
     }
   },
 
@@ -270,7 +270,7 @@ Page({
     return {
       title: packageDetail ? `${packageDetail.name}｜家门口组团上课` : '家门口的少儿运动团课',
       query: `id=${packageId}`,
-      imageUrl: packageDetail && packageDetail.cover ? packageDetail.cover : ''
+      imageUrl: resolveShareImageUrl((packageDetail && packageDetail.cover) || (packageDetail && packageDetail.images && packageDetail.images[0]) || '')
     }
   }
 })
