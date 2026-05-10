@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "openapi": []
+  },
+  "triggers": [
+    {
+      "name": "group-result-notifications-process-every-5-minutes",
+      "type": "timer",
+      "config": "0 */5 * * * * *"
+    }
+  ]
+}

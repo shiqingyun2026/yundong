@@ -6,6 +6,7 @@ const {
   ordersRepository,
   packageGroupsRepository
 } = require('../../repositories')
+const { processPendingGroupResultNotificationJobs } = require('./groupResultNotificationDelivery')
 const { formatPackageDateTime } = require('./packageSchedule')
 
 const TEMPLATE_KEY_BY_RESULT_TYPE = {
@@ -129,6 +130,26 @@ const buildMessageSnapshot = ({ group, resultType }) => {
   }
 }
 
+const deliverPendingNotificationsImmediately = async ({ supabase, limit }) => {
+  try {
+    return await processPendingGroupResultNotificationJobs({
+      supabase,
+      limit
+    })
+  } catch (error) {
+    console.error('[group-result-notifications] immediate delivery failed', error)
+    return {
+      deliveryMode: '',
+      total: 0,
+      sent: 0,
+      failed: 1,
+      skipped: 0,
+      jobs: [],
+      error: error.message || 'immediate_delivery_failed'
+    }
+  }
+}
+
 const enqueueGroupResultNotifications = async ({ supabase, groupId, resultType, now = new Date() }) => {
   void supabase
 
@@ -214,12 +235,20 @@ const enqueueGroupResultNotifications = async ({ supabase, groupId, resultType, 
   const jobs = await groupResultNotificationJobsRepository.createNotificationJobs(payload)
   const createdJobs = jobs.filter(item => item.group_id === groupId && item.result_type === normalizedResultType)
   const createdCount = Math.max(0, createdJobs.length - beforeExistingCount)
+  const immediateDelivery =
+    createdCount > 0
+      ? await deliverPendingNotificationsImmediately({
+          supabase,
+          limit: Math.max(createdCount, Number(process.env.GROUP_RESULT_NOTIFICATION_BATCH_SIZE) || 20)
+        })
+      : null
 
   return {
     groupId,
     resultType: normalizedResultType,
     createdCount,
-    skippedCount: Math.max(0, userIds.length - createdCount)
+    skippedCount: Math.max(0, userIds.length - createdCount),
+    immediateDelivery
   }
 }
 
