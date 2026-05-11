@@ -86,7 +86,7 @@ Page({
   },
 
   handleOpenDetail(event) {
-    const { groupId, childNickname = '', childAge = '', canOpenDetail } = event.currentTarget.dataset
+    const { groupId, orderId = '', childNickname = '', childAge = '', canOpenDetail } = event.currentTarget.dataset
     const item = this.data.groupList.find(item => item.packageGroupId === groupId)
     if ((item && item.canOpenDetail === false) || canOpenDetail === false || canOpenDetail === 'false') {
       return
@@ -99,6 +99,7 @@ Page({
       url:
         `/pages/group/detail/index?packageGroupId=${groupId}` +
         `&source=myGroupList` +
+        `&selectedOrderId=${encodeURIComponent(orderId)}` +
         `&selectedChildNickname=${encodeURIComponent(childNickname)}` +
         `&selectedChildAge=${encodeURIComponent(childAge === null || childAge === undefined ? '' : `${childAge}`)}`
     })

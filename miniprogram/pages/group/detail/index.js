@@ -47,6 +47,7 @@ Page({
     source: '',
     action: 'start',
     successType: '',
+    selectedOrderId: '',
     selectedChildNickname: '',
     selectedChildAge: '',
     loading: true,
@@ -57,6 +58,9 @@ Page({
     showSuccessEntry: false,
     successEntryTitle: '',
     successSummaryText: '',
+    showSuccessPrimaryShareAction: false,
+    showSuccessPrimaryDetailAction: false,
+    successPrimaryActionText: '',
     missingCount: 0,
     primaryActionText: '邀请好友参团',
     showPrimaryShareAction: false,
@@ -78,6 +82,7 @@ Page({
       source: options.source || '',
       action: options.action || 'start',
       successType: options.successType || '',
+      selectedOrderId: decodeURIComponent(options.selectedOrderId || ''),
       selectedChildNickname: decodeURIComponent(options.selectedChildNickname || ''),
       selectedChildAge: decodeURIComponent(options.selectedChildAge || ''),
       showSuccessEntry: options.entry === 'paymentSuccess',
@@ -127,23 +132,24 @@ Page({
     const isPaymentSuccessEntry = this.data.entry === 'paymentSuccess'
     const isShareEntry = this.data.entry === 'share'
     const isActive = groupDetail.status === 'active'
+    const isPaymentJoinCompletedSuccess =
+      isPaymentSuccessEntry && this.data.successType === 'join' && groupDetail.status === 'success'
     const showSuccessEntry = isPaymentSuccessEntry
     const showSubscribeCard = isPaymentSuccessEntry && isActive
     const successSummaryText = isPaymentSuccessEntry ? this.resolveSuccessSummaryText(groupDetail, missingCount) : ''
     const showPrimaryShareAction = isActive && !!groupDetail.userJoined && !isShareEntry
     const showJoinAction = isActive && (!groupDetail.userJoined || isShareEntry)
-    const normalizedSelectedAge =
-      this.data.selectedChildAge === '' || this.data.selectedChildAge === null || this.data.selectedChildAge === undefined
-        ? null
-        : Number(this.data.selectedChildAge) || 0
-    const members = Array.isArray(groupDetail.members)
-      ? groupDetail.members.map(member => ({
+    const showSuccessPrimaryShareAction = showSuccessEntry && isActive && !!groupDetail.userJoined
+    const showSuccessPrimaryDetailAction = showSuccessEntry && isPaymentJoinCompletedSuccess
+    const selectedOrderId = `${this.data.selectedOrderId || ''}`.trim()
+    const membersSource = Array.isArray(groupDetail.members) ? groupDetail.members : []
+    const members = membersSource.length
+      ? membersSource.map(member => ({
           ...member,
-          isCurrentOrderChild:
-            this.data.source === 'myGroupList' &&
-            !!this.data.selectedChildNickname &&
-            (member.displayName || member.child_nickname || member.nickname || '') === this.data.selectedChildNickname &&
-            (normalizedSelectedAge === null || Number(member.childAge) === normalizedSelectedAge)
+          isCurrentOrderChild: this.resolveCurrentOrderChild({
+            member,
+            selectedOrderId
+          })
         }))
       : []
 
@@ -155,8 +161,11 @@ Page({
       statusText: statusInfo.text,
       statusClassName: statusInfo.className,
       showSuccessEntry,
-      successEntryTitle: showSuccessEntry ? this.resolveSuccessEntryTitle() : '',
+      successEntryTitle: showSuccessEntry ? this.resolveSuccessEntryTitle(groupDetail) : '',
       successSummaryText,
+      showSuccessPrimaryShareAction,
+      showSuccessPrimaryDetailAction,
+      successPrimaryActionText: showSuccessPrimaryDetailAction ? '查看我的拼团' : '邀请好友参团',
       missingCount,
       showSubscribeCard,
       primaryActionText: showPrimaryShareAction ? '邀请好友参团' : showJoinAction ? '立即参团' : '',
@@ -189,8 +198,20 @@ Page({
     return missingCount > 0 ? `${prefix} · 还差${missingCount}人成团` : `${prefix} · 即将成团`
   },
 
-  resolveSuccessEntryTitle() {
+  resolveSuccessEntryTitle(groupDetail) {
+    if (this.data.successType === 'join' && groupDetail && groupDetail.status === 'success') {
+      return '拼团成功，稍后客服将联系您'
+    }
+
     return this.data.successType === 'join' ? '参团成功' : '开团成功'
+  },
+
+  resolveCurrentOrderChild({ member, selectedOrderId }) {
+    if (this.data.source !== 'myGroupList' || !selectedOrderId) {
+      return false
+    }
+
+    return `${member.orderId || member.order_id || ''}`.trim() === selectedOrderId
   },
 
   async loadGroupDetail(packageGroupId) {
@@ -375,6 +396,27 @@ Page({
 
     wx.navigateTo({
       url: `/pages/payment/confirm/index?action=join&packageId=${groupDetail.packageInfo.id}&packageGroupId=${groupDetail.id}`
+    })
+  },
+
+  handleSuccessPrimaryAction() {
+    const { groupDetail, packageId } = this.data
+    if (!groupDetail) {
+      return
+    }
+
+    if (!wx.getStorageSync('token')) {
+      wx.switchTab({
+        url: '/pages/mine/index'
+      })
+      return
+    }
+
+    wx.redirectTo({
+      url:
+        `/pages/group/detail/index?packageGroupId=${encodeURIComponent(groupDetail.id)}` +
+        `&packageId=${encodeURIComponent((groupDetail.packageInfo && groupDetail.packageInfo.id) || packageId || '')}` +
+        `&source=myGroupList`
     })
   }
 })

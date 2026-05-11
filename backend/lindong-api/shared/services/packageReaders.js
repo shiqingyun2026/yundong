@@ -582,6 +582,7 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
         '微信用户'
 
       return {
+        order_id: order.id,
         user_id: order.user_id,
         nickname: childNickname,
         display_name_masked: maskStudentNickname(childNickname) || '微信用户',

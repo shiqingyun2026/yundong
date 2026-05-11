@@ -22,6 +22,7 @@
       class="weui-panel weui-ext-card group-card card-shadow"
       wx:for="{{groupList}}"
       wx:key="orderId"
+      data-order-id="{{item.orderId}}"
       data-group-id="{{item.packageGroupId}}"
       data-package-id="{{item.packageId}}"
       data-child-nickname="{{item.childNickname}}"
@@ -47,7 +48,7 @@
 
         <view class="group-meta">{{item.displayTimeText}}</view>
         <view class="group-meta">{{item.locationText}}</view>
-        <view class="group-meta">报名学员：{{item.childNicknameMasked || item.childNickname || '未填写'}}</view>
+        <view class="group-meta">报名学员：{{item.childNickname || '未填写'}}</view>
       </view>
     </view>
   </view>

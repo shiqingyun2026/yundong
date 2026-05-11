@@ -512,6 +512,7 @@ const normalizePackageGroupDetail = payload => ({
   members: Array.isArray(payload.members)
     ? payload.members.map(member => ({
         ...member,
+        orderId: member.order_id || member.orderId || '',
         avatar_url: member.avatar_url || DEFAULT_MEMBER_AVATAR,
         childAge: member.child_age === null || member.child_age === undefined ? null : Number(member.child_age) || 0,
         displayNameMasked: member.display_name_masked || '',

@@ -553,6 +553,7 @@ test('package group detail returns leader child profile, default member avatars 
       listOrders: async () => [],
       listOrdersByPackageGroupId: async () => [
         {
+          id: 'order-1',
           user_id: 'user-1',
           package_action: 'start',
           package_context: {
@@ -561,6 +562,7 @@ test('package group detail returns leader child profile, default member avatars 
           }
         },
         {
+          id: 'order-2',
           user_id: 'user-2',
           package_action: 'join',
           package_context: {
@@ -610,10 +612,12 @@ test('package group detail returns leader child profile, default member avatars 
   assert.equal(result.remaining_seconds, 172800)
   assert.equal(result.members.length, 2)
   assert.equal(result.members[0].nickname, '小满')
+  assert.equal(result.members[0].order_id, 'order-1')
   assert.equal(result.members[0].display_name_masked, '小*')
   assert.equal(result.members[0].child_age, 6)
   assert.equal(result.members[0].avatar_url, '/assets/member-default-avatar.jpg')
   assert.equal(result.members[1].nickname, '乐乐')
+  assert.equal(result.members[1].order_id, 'order-2')
   assert.equal(result.members[1].display_name_masked, '乐*')
   assert.equal(result.members[1].child_age, 5)
 })

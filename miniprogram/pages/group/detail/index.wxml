@@ -24,11 +24,19 @@
         </view>
 
         <button
-          wx:if="{{groupDetail.status === 'active' && groupDetail.userJoined}}"
+          wx:if="{{showSuccessPrimaryShareAction}}"
           class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary success-primary-button"
           open-type="share"
         >
-          <view class="weui-ext-button__inner">邀请好友参团</view>
+          <view class="weui-ext-button__inner">{{successPrimaryActionText}}</view>
+        </button>
+
+        <button
+          wx:if="{{showSuccessPrimaryDetailAction}}"
+          class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary success-primary-button"
+          bindtap="handleSuccessPrimaryAction"
+        >
+          <view class="weui-ext-button__inner">{{successPrimaryActionText}}</view>
         </button>
 
         <button

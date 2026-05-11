@@ -14,5 +14,5 @@ test('member list views use masked student nickname fields', () => {
 
   assert.match(groupDetailSource, /\{\{item\.displayText \|\| item\.displayNameMasked \|\| item\.displayName \|\| item\.nickname\}\}/)
   assert.match(paymentConfirmSource, /\{\{item\.displayText \|\| item\.displayNameMasked \|\| item\.displayName \|\| item\.nickname\}\}/)
-  assert.match(myGroupListSource, /\{\{item\.childNicknameMasked \|\| item\.childNickname \|\| '未填写'\}\}/)
+  assert.match(myGroupListSource, /\{\{item\.childNickname \|\| '未填写'\}\}/)
 })
