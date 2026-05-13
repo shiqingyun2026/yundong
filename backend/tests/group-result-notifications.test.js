@@ -14,7 +14,7 @@ const mockModule = (relativePath, exports) => {
   }
 }
 
-const loadService = ({ deliveryImpl, packageOverrides = {} } = {}) => {
+const loadService = ({ deliveryImpl, packageOverrides = {}, groupOverrides = {} } = {}) => {
   const servicePath = require.resolve(path.join(backendRoot, 'shared/services/groupResultNotifications.js'))
   const envPath = require.resolve(path.join(backendRoot, 'config/env.js'))
   const repositoriesPath = require.resolve(path.join(backendRoot, 'repositories/index.js'))
@@ -79,7 +79,8 @@ const loadService = ({ deliveryImpl, packageOverrides = {} } = {}) => {
         package_id: 'package-1',
         status: 'success',
         target_count: 2,
-        first_class_time: '2026-05-16T10:00:00.000Z'
+        first_class_time: '2026-05-16T10:00:00.000Z',
+        ...groupOverrides
       })
     }
   })
@@ -184,4 +185,30 @@ test('enqueue group result notifications keeps job creation when immediate deliv
   assert.equal(result.immediateDelivery.error, 'wechat access token unavailable')
   assert.equal(createdPayloads.length, 1)
   assert.equal(deliveryCalls.length, 1)
+})
+
+test('failed notifications can use explicit recipient user ids after orders leave success status', async () => {
+  const { enqueueGroupResultNotifications, createdPayloads } = loadService({
+    groupOverrides: {
+      status: 'failed'
+    },
+    packageOverrides: {
+      name: '少儿体适能周末班'
+    }
+  })
+
+  const result = await enqueueGroupResultNotifications({
+    supabase: null,
+    groupId: 'group-1',
+    resultType: 'failed',
+    explicitRecipientUserIds: ['user-1'],
+    now: new Date('2026-05-09T12:30:00.000Z')
+  })
+
+  assert.equal(result.createdCount, 1)
+  assert.equal(result.skippedCount, 0)
+  assert.equal(createdPayloads.length, 1)
+  assert.equal(createdPayloads[0].user_id, 'user-1')
+  assert.equal(createdPayloads[0].result_type, 'failed')
+  assert.equal(createdPayloads[0].message_snapshot.template_key, 'groupFail')
 })

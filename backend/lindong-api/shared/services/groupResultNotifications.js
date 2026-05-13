@@ -151,7 +151,13 @@ const deliverPendingNotificationsImmediately = async ({ supabase, limit }) => {
   }
 }
 
-const enqueueGroupResultNotifications = async ({ supabase, groupId, resultType, now = new Date() }) => {
+const enqueueGroupResultNotifications = async ({
+  supabase,
+  groupId,
+  resultType,
+  explicitRecipientUserIds = [],
+  now = new Date()
+}) => {
   void supabase
 
   const normalizedResultType = normalizeResultType(resultType)
@@ -177,9 +183,12 @@ const enqueueGroupResultNotifications = async ({ supabase, groupId, resultType, 
     }
   }
 
-  const userIds = await listSuccessfulOrderUserIds({
-    packageGroupId: groupId
-  })
+  const providedUserIds = [...new Set((explicitRecipientUserIds || []).filter(Boolean))]
+  const userIds = providedUserIds.length
+    ? providedUserIds
+    : await listSuccessfulOrderUserIds({
+        packageGroupId: groupId
+      })
   const recipients = await listSubscribedRecipients({
     packageGroupId: groupId,
     userIds,
@@ -253,7 +262,13 @@ const enqueueGroupResultNotifications = async ({ supabase, groupId, resultType, 
   }
 }
 
-const enqueueNotificationsForGroups = async ({ supabase, groupIds, resultType, now = new Date() }) => {
+const enqueueNotificationsForGroups = async ({
+  supabase,
+  groupIds,
+  resultType,
+  recipientUserIdsByGroupId = {},
+  now = new Date()
+}) => {
   const ids = [...new Set((groupIds || []).filter(Boolean))]
   const results = []
 
@@ -262,6 +277,7 @@ const enqueueNotificationsForGroups = async ({ supabase, groupIds, resultType, n
       supabase,
       groupId,
       resultType,
+      explicitRecipientUserIds: recipientUserIdsByGroupId && recipientUserIdsByGroupId[groupId],
       now
     })
     results.push(result)

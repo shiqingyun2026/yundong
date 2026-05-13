@@ -207,11 +207,24 @@ const cleanupExpiredPackageGroups = async ({ packageId, packageIds = [], now = n
   const refundFailedOrderIds = refundResults
     .filter(item => item.status === 'refund_failed')
     .map(item => item.orderId)
+  const recipientUserIdsByGroupId = successOrders.reduce((result, order) => {
+    if (!order || !order.package_group_id || !order.user_id) {
+      return result
+    }
+
+    if (!result[order.package_group_id]) {
+      result[order.package_group_id] = []
+    }
+
+    result[order.package_group_id].push(order.user_id)
+    return result
+  }, {})
 
   await enqueueNotificationsForGroups({
     supabase: null,
     groupIds,
     resultType: 'failed',
+    recipientUserIdsByGroupId,
     now
   })
 
