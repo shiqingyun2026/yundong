@@ -202,6 +202,23 @@ button {
   gap: 12px;
 }
 
+.checkbox-field {
+  gap: 10px;
+}
+
+.checkbox-field__control {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #3c4655;
+  font-size: 14px;
+}
+
+.checkbox-field__control input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

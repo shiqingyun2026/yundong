@@ -1,7 +1,7 @@
 <view class="service-agreement-page">
   <view class="service-agreement-header">
     <view class="service-agreement-title">课程服务协议</view>
-    <view class="service-agreement-subtitle">当前为临时占位文本，后续可替换为正式服务协议。</view>
+    <view class="service-agreement-subtitle">版本发布日期：2026年5月19日  生效日期：2026年5月19日</view>
   </view>
 
   <view class="weui-panel weui-ext-card service-agreement-card card-shadow">

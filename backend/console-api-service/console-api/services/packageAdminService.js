@@ -522,6 +522,7 @@ const mapPackagePayloadToDb = ({ payload = {}, admin = {}, create = false, exist
   assign('total_price', 'total_price', value => Number(value) || 0)
   assign('class_count', 'class_count', value => Number(value) || 0)
   assign('class_duration_minutes', 'class_duration_minutes', value => Number(value) || 0)
+  assign('show_limited_time_offer_tag', 'show_limited_time_offer_tag', value => !!value)
   assign('group_price_config', 'group_price_config', normalizeGroupPriceConfig)
   assign('location_district', 'location_district', normalizeText)
   assign('location_community', 'location_community', normalizeText)
@@ -610,6 +611,7 @@ const mapPackageListItem = (item, { now = new Date() } = {}) => {
     age_range: item.age_range || item.age_limit || '',
     class_count: Number(item.class_count) || 0,
     class_duration_minutes: Number(item.class_duration_minutes) || 0,
+    show_limited_time_offer_tag: !!item.show_limited_time_offer_tag,
     group_price_config: item.group_price_config || [],
     supported_people: item.supported_people || [],
     location_text: buildAdminLocationText(item),
@@ -635,6 +637,7 @@ const mapPackageDetail = (item, { now = new Date() } = {}) => ({
   coach_intro: item.coach_intro || '',
   coach_certificates: item.coach_certificates || [],
   description: item.description || '',
+  show_limited_time_offer_tag: !!item.show_limited_time_offer_tag,
   created_by: item.created_by || '',
   updated_by: item.updated_by || ''
 })
@@ -716,6 +719,7 @@ const createAdminPackage = async ({ payload = {}, admin = {}, ip = null, now = n
       total_price_fen: Number(created.total_price) || 0,
       class_count: Number(created.class_count) || 0,
       class_duration_minutes: Number(created.class_duration_minutes) || 0,
+      show_limited_time_offer_tag: !!created.show_limited_time_offer_tag,
       group_price_config: created.group_price_config || [],
       supported_people: created.supported_people || [],
       publish_time: formatDateTime(created.publish_time)
@@ -778,6 +782,7 @@ const updateAdminPackage = async ({ packageId, payload = {}, admin = {}, ip = nu
       total_price_fen: Number(updated.total_price) || 0,
       class_count: Number(updated.class_count) || 0,
       class_duration_minutes: Number(updated.class_duration_minutes) || 0,
+      show_limited_time_offer_tag: !!updated.show_limited_time_offer_tag,
       group_price_config: updated.group_price_config || [],
       supported_people: updated.supported_people || [],
       publish_time: formatDateTime(updated.publish_time)

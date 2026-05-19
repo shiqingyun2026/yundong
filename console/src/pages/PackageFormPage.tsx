@@ -40,6 +40,7 @@ const emptyPackage: PackageDetail = {
   age_range: '',
   class_count: 0,
   class_duration_minutes: 0,
+  show_limited_time_offer_tag: false,
   group_price_config: [],
   supported_people: [],
   location_text: '',
@@ -115,6 +116,7 @@ const buildPayload = (form: PackageDetail) => {
     images: form.cover.trim() ? [form.cover.trim()] : [],
     class_count: Number(form.class_count) || 0,
     class_duration_minutes: Number(form.class_duration_minutes) || 0,
+    show_limited_time_offer_tag: !!form.show_limited_time_offer_tag,
     group_price_config: groupPriceConfig,
     supported_people: deriveSupportedPeople(groupPriceConfig),
     location_district: form.location_district.trim(),
@@ -659,6 +661,18 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 disabled={!isEditable}
               />
             </label>
+            <label className="checkbox-field">
+              <span>营销标签</span>
+              <span className="checkbox-field__control">
+                <input
+                  type="checkbox"
+                  checked={!!form.show_limited_time_offer_tag}
+                  onChange={event => updateField('show_limited_time_offer_tag', event.target.checked)}
+                  disabled={!isEditable}
+                />
+                <span>首页列表与课程详情显示“限时特惠”</span>
+              </span>
+            </label>
             <label>
               <span>开团截止时长（小时）</span>
               <input
@@ -1018,6 +1032,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 <p>课包类型：{form.package_category || '-'}</p>
                 <p>课程节数：{form.class_count || '-'} 节</p>
                 <p>单节时长：{form.class_duration_minutes || '-'} 分钟</p>
+                <p>限时特惠标签：{form.show_limited_time_offer_tag ? '显示' : '不显示'}</p>
                 <p>支持团型：{supportedPeopleText}</p>
                 <p>状态：{getStatusText(form.status)}</p>
               </div>

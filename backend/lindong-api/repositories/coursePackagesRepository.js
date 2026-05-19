@@ -14,6 +14,7 @@ const PACKAGE_SELECT_FIELDS = `
   age_range,
   class_count,
   class_duration_minutes,
+  show_limited_time_offer_tag,
   supported_people,
   group_price_config,
   location_district,
@@ -79,6 +80,14 @@ const normalizeGroupPriceConfig = value => {
   return deduped
 }
 
+const normalizeBooleanFlag = value => {
+  if (value === true || value === 1 || value === '1') {
+    return 1
+  }
+
+  return 0
+}
+
 const normalizePackageCategory = value => {
   const normalized = `${value || ''}`.trim()
   return PACKAGE_CATEGORIES.includes(normalized) ? normalized : '体适能'
@@ -99,6 +108,7 @@ const normalizePackage = row => {
     age_range: row.age_range || row.age_limit || '',
     class_count: Number(row.class_count) || 0,
     class_duration_minutes: Number(row.class_duration_minutes) || 0,
+    show_limited_time_offer_tag: !!normalizeBooleanFlag(row.show_limited_time_offer_tag),
     supported_people: normalizeSupportedPeople(row.supported_people),
     group_price_config: normalizeGroupPriceConfig(row.group_price_config),
     location_district: row.location_district || '',
@@ -211,6 +221,7 @@ const createPackage = async payload => {
     age_range: payload.age_range || '',
     class_count: Number(payload.class_count || 0),
     class_duration_minutes: Number(payload.class_duration_minutes || 0),
+    show_limited_time_offer_tag: normalizeBooleanFlag(payload.show_limited_time_offer_tag),
     supported_people: stringifySupportedPeople(payload.supported_people),
     group_price_config: stringifyJsonField(normalizeGroupPriceConfig(payload.group_price_config)),
     coach_certificates: JSON.stringify(Array.isArray(payload.coach_certificates) ? payload.coach_certificates : []),
@@ -227,13 +238,13 @@ const createPackage = async payload => {
   await execute(
     `
       insert into course_packages (
-        id, name, cover, images, total_price, package_category, age_range, class_count, class_duration_minutes, supported_people, group_price_config,
+        id, name, cover, images, total_price, package_category, age_range, class_count, class_duration_minutes, show_limited_time_offer_tag, supported_people, group_price_config,
         location_district, location_community, location_detail,
         longitude, latitude, coach_name, coach_intro, coach_certificates,
         description, deadline_hours, publish_time, unpublish_time, status, created_at, updated_at,
         created_by, updated_by
       ) values (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
         ?, ?, ?,
         ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?, ?,
@@ -250,6 +261,7 @@ const createPackage = async payload => {
       data.age_range,
       data.class_count,
       data.class_duration_minutes,
+      data.show_limited_time_offer_tag,
       data.supported_people,
       data.group_price_config,
       data.location_district || '',
@@ -296,6 +308,7 @@ const updatePackage = async (id, payload = {}) => {
   assign('age_range', payload.age_range)
   assign('class_count', payload.class_count, value => Number(value || 0))
   assign('class_duration_minutes', payload.class_duration_minutes, value => Number(value || 0))
+  assign('show_limited_time_offer_tag', payload.show_limited_time_offer_tag, normalizeBooleanFlag)
   assign('supported_people', payload.supported_people, stringifySupportedPeople)
   assign('group_price_config', payload.group_price_config, value => stringifyJsonField(normalizeGroupPriceConfig(value)))
   assign('location_district', payload.location_district)

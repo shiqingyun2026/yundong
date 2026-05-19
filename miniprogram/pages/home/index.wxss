@@ -365,6 +365,19 @@
   line-height: 1;
 }
 
+.limited-offer-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40rpx;
+  padding: 0 14rpx;
+  border-radius: 999rpx;
+  background: #ff8a1f;
+  color: #ffffff;
+  font-size: 20rpx;
+  font-weight: 600;
+  line-height: 1;
+}
+
 .joined-text {
   color: var(--brand-primary);
   font-size: 24rpx;

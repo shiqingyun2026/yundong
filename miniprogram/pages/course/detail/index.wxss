@@ -139,10 +139,38 @@
   margin-top: 8rpx;
 }
 
+.group-price-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex-wrap: wrap;
+}
+
+.group-price-row + .group-price-row {
+  margin-top: 8rpx;
+}
+
 .group-price-item {
   font-size: 28rpx;
   line-height: 1.8;
   color: #1f2329;
+}
+
+.limited-offer-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40rpx;
+  padding: 0 14rpx;
+  border-radius: 999rpx;
+  background: #ff8a1f;
+  color: #ffffff;
+  font-size: 20rpx;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.limited-offer-tag--detail {
+  flex-shrink: 0;
 }
 
 .rich-text {

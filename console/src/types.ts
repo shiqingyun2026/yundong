@@ -279,6 +279,7 @@ export interface PackageListItem {
   age_range: string
   class_count: number
   class_duration_minutes: number
+  show_limited_time_offer_tag: boolean
   group_price_config: Array<{
     target_count: number
     price_fen: number

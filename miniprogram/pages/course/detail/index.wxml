@@ -43,9 +43,12 @@
           <view class="info-item">
             <view class="info-label">支持拼团</view>
             <view wx:if="{{packageDetail.supportedGroupPriceList.length}}" class="group-price-list">
-              <view wx:for="{{packageDetail.supportedGroupPriceList}}" wx:key="count" class="group-price-item">
-                <text>{{item.count}}人团</text>
-                <text>，每人¥{{item.memberAmountDisplayText || item.memberAmountText}}</text>
+              <view wx:for="{{packageDetail.supportedGroupPriceList}}" wx:key="count" class="group-price-row">
+                <view class="group-price-item">
+                  <text>{{item.count}}人团</text>
+                  <text>，每人¥{{item.memberAmountDisplayText || item.memberAmountText}}</text>
+                </view>
+                <view wx:if="{{packageDetail.showLimitedTimeOfferTag && index === 0}}" class="limited-offer-tag limited-offer-tag--detail">限时特惠</view>
               </view>
             </view>
           </view>

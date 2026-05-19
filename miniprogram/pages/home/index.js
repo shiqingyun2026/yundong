@@ -99,6 +99,7 @@ const buildLocationFallbackFeedback = location => {
 const buildPackageCard = item => ({
   ...item,
   classCountTagText: item.classCount > 0 ? `包含${item.classCount}节课` : '',
+  showLimitedTimeOfferTag: !!item.showLimitedTimeOfferTag,
   locationText: item.locationDisplayText || item.locationText || '',
   perMemberText: `¥${item.minMemberAmountDisplayText || item.minMemberAmountText}`,
   coverLoadFailed: false,

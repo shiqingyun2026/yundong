@@ -119,6 +119,7 @@
                 <text class="group-price__suffix">起</text>
               </view>
               <view wx:if="{{item.classCountTagText}}" class="class-count-tag">{{item.classCountTagText}}</view>
+              <view wx:if="{{item.showLimitedTimeOfferTag}}" class="limited-offer-tag">限时特惠</view>
             </view>
             <view class="joined-text">立即查看</view>
           </view>
