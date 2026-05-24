@@ -4,6 +4,7 @@ const { getCosStorageConfig, getStorageProviderName } = require('../../config/st
 
 const sha1 = value => crypto.createHash('sha1').update(value).digest('hex')
 const hmacSha1 = (key, value, encoding = 'hex') => crypto.createHmac('sha1', key).update(value).digest(encoding)
+const COS_AUTH_QUERY_KEYS = ['q-sign-algorithm', 'q-ak', 'q-sign-time', 'q-key-time', 'q-header-list', 'q-url-param-list', 'q-signature']
 
 const encodePath = objectPath => {
   return `/${`${objectPath || ''}`.split('/').map(segment => encodeURIComponent(segment)).join('/')}`
@@ -11,6 +12,37 @@ const encodePath = objectPath => {
 
 const isCosStorageReady = config => {
   return !!(config && config.secretId && config.secretKey)
+}
+
+const isCosHost = host => /\.cos\.[^.]+\.myqcloud\.com$/i.test(`${host || ''}`)
+
+const stripCosAuthQuery = parsedUrl => {
+  const searchParams = new URLSearchParams(parsedUrl.search || '')
+  COS_AUTH_QUERY_KEYS.forEach(key => {
+    searchParams.delete(key)
+  })
+  const nextSearch = searchParams.toString()
+  parsedUrl.search = nextSearch ? `?${nextSearch}` : ''
+  return parsedUrl
+}
+
+const normalizeCosPublicUrl = rawUrl => {
+  if (!rawUrl) {
+    return ''
+  }
+
+  let parsed
+  try {
+    parsed = new URL(rawUrl)
+  } catch (error) {
+    return rawUrl
+  }
+
+  if (!isCosHost(parsed.host)) {
+    return rawUrl
+  }
+
+  return stripCosAuthQuery(parsed).toString()
 }
 
 const buildGetAuthQuery = ({ objectPath, host, now = Math.floor(Date.now() / 1000) }) => {
@@ -42,11 +74,12 @@ const signCosPublicUrl = rawUrl => {
     return rawUrl || ''
   }
 
+  const normalizedUrl = normalizeCosPublicUrl(rawUrl)
   let parsed
   try {
-    parsed = new URL(rawUrl)
+    parsed = new URL(normalizedUrl)
   } catch (error) {
-    return rawUrl
+    return normalizedUrl
   }
 
   const config = getCosStorageConfig()
@@ -54,13 +87,13 @@ const signCosPublicUrl = rawUrl => {
     return rawUrl
   }
 
-  if (!/\.cos\.[^.]+\.myqcloud\.com$/i.test(parsed.host)) {
-    return rawUrl
+  if (!isCosHost(parsed.host)) {
+    return normalizedUrl
   }
 
   const objectPath = decodeURIComponent(parsed.pathname || '').replace(/^\/+/, '')
   if (!objectPath) {
-    return rawUrl
+    return normalizedUrl
   }
 
   const query = buildGetAuthQuery({
@@ -68,7 +101,7 @@ const signCosPublicUrl = rawUrl => {
     host: parsed.host
   })
   if (!query) {
-    return rawUrl
+    return normalizedUrl
   }
 
   parsed.search = parsed.search ? `${parsed.search.slice(1)}&${query}` : query
@@ -93,6 +126,7 @@ const signCosUrlsInText = value => {
 }
 
 module.exports = {
+  normalizeCosPublicUrl,
   signCosImageList,
   signCosPublicUrl,
   signCosUrlsInText

@@ -123,15 +123,17 @@
 }
 
 .banner-dot {
-  width: 12rpx;
+  width: 30rpx;
   height: 12rpx;
   border-radius: 999rpx;
   background: rgba(255, 255, 255, 0.46);
-  transition: all 180ms ease;
+  transform: scaleX(0.4);
+  transform-origin: center;
+  transition: transform 180ms ease, background-color 180ms ease;
 }
 
 .banner-dot--active {
-  width: 30rpx;
+  transform: scaleX(1);
   background: #ffffff;
 }
 

@@ -128,6 +128,13 @@
   color: #888888;
 }
 
+.info-label-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex-wrap: wrap;
+}
+
 .info-value {
   margin-top: 8rpx;
   font-size: 28rpx;

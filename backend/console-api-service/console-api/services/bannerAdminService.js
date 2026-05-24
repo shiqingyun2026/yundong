@@ -2,7 +2,7 @@ const crypto = require('node:crypto')
 
 const { readBannerStore, writeBannerStore } = require('../../shared/services/bannerStore')
 const { getBannerStatus, syncBannerStoreStatus } = require('../../shared/services/bannerState')
-const { signCosPublicUrl } = require('../../shared/services/cosSignedUrl')
+const { normalizeCosPublicUrl, signCosPublicUrl } = require('../../shared/services/cosSignedUrl')
 const { writeAdminLog } = require('../../utils/adminStore')
 const { formatDateTime, getPagination, parseShanghaiDateTimeInput } = require('../routes/_helpers')
 const { ensureCondition, ensureFound } = require('./_guards')
@@ -154,7 +154,10 @@ const buildBannerRecord = ({ payload = {}, existing = null, now = new Date() }) 
   const current = existing || {}
   return {
     id: current.id || crypto.randomUUID(),
-    image_url: payload.image_url !== undefined ? normalizeText(payload.image_url) : current.image_url || '',
+    image_url:
+      payload.image_url !== undefined
+        ? normalizeCosPublicUrl(normalizeText(payload.image_url))
+        : current.image_url || '',
     title: payload.title !== undefined ? normalizeText(payload.title) : current.title || '',
     jump_type: payload.jump_type !== undefined ? normalizeText(payload.jump_type) : current.jump_type || 'none',
     jump_target: payload.jump_target !== undefined ? normalizeText(payload.jump_target) : current.jump_target || '',

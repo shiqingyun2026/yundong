@@ -79,3 +79,28 @@ test('banner detail returns Shanghai wall-clock time after create', async () => 
   assert.equal(detail.online_time, '2026-04-27 10:30:00')
   assert.equal(detail.offline_time, '2026-05-01 22:00:00')
 })
+
+test('banner create strips existing COS auth query before storing image url', async () => {
+  const { bannerAdminService, state } = loadBannerAdminServiceWithStore([])
+  const now = new Date('2026-04-26T01:00:00.000Z')
+
+  await bannerAdminService.createAdminBanner({
+    payload: {
+      image_url:
+        'https://demo-1250000000.cos.ap-shanghai.myqcloud.com/course-cover/banner.png?q-signature=old&q-ak=old',
+      title: '五一课程 Banner',
+      jump_type: 'none',
+      jump_target: '',
+      sort: 10,
+      online_time: '2026-04-27T10:30',
+      offline_time: '2026-05-01T22:00'
+    },
+    admin: { id: 'admin-1', username: 'root', role: 'super_admin' },
+    now
+  })
+
+  assert.equal(
+    state.banners[0].image_url,
+    'https://demo-1250000000.cos.ap-shanghai.myqcloud.com/course-cover/banner.png'
+  )
+})

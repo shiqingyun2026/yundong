@@ -111,6 +111,12 @@ const buildPackageCard = item => ({
       : ''
 })
 
+const buildBannerViewModel = (item, index, renderSeed) => ({
+  ...item,
+  renderKey: `${item.id || 'banner'}-${renderSeed}-${index}`,
+  imageLoadFailed: false
+})
+
 const filterPackageListByTab = (list, activeTab) => {
   const source = list || []
 
@@ -128,7 +134,8 @@ const filterPackageListByTab = (list, activeTab) => {
 Page({
   data: {
     tabs: HOME_TABS,
-    bannerList: HOME_BANNERS,
+    bannerList: [],
+    showBannerSwiper: false,
     activeBannerIndex: 0,
     activeTab: 'all',
     statusBarHeight: 20,
@@ -227,24 +234,42 @@ Page({
     const app = getApp()
     const currentLocation = app.getCurrentLocation() || DEFAULT_LOCATION
     const city = (currentLocation && currentLocation.city) || ''
+    const renderSeed = Date.now()
 
     try {
       const bannerList = await fetchHomeBannerList({ city })
       if (Array.isArray(bannerList) && bannerList.length) {
-        this.setData({
-          bannerList,
-          activeBannerIndex: 0
-        })
+        const nextBannerList = bannerList.map((item, index) => buildBannerViewModel(item, index, renderSeed))
+        this.setData(
+          {
+            showBannerSwiper: false,
+            bannerList: nextBannerList,
+            activeBannerIndex: 0
+          },
+          () => {
+            this.setData({
+              showBannerSwiper: true
+            })
+          }
+        )
         return
       }
     } catch (error) {
       console.warn('[home] loadBannerList fallback to local banners', error)
     }
 
-    this.setData({
-      bannerList: HOME_BANNERS,
-      activeBannerIndex: 0
-    })
+    this.setData(
+      {
+        showBannerSwiper: false,
+        bannerList: HOME_BANNERS.map((item, index) => buildBannerViewModel(item, index, renderSeed)),
+        activeBannerIndex: 0
+      },
+      () => {
+        this.setData({
+          showBannerSwiper: true
+        })
+      }
+    )
   },
 
   tryGetLocation({ applyToSelected = false } = {}) {
@@ -462,8 +487,13 @@ Page({
 
   handleBannerChange(event) {
     const current = Number(event.detail && event.detail.current)
+    const nextIndex = Number.isFinite(current) ? current : 0
+    if (nextIndex === this.data.activeBannerIndex) {
+      return
+    }
+
     this.setData({
-      activeBannerIndex: Number.isFinite(current) ? current : 0
+      activeBannerIndex: nextIndex
     })
   },
 
@@ -509,6 +539,20 @@ Page({
         icon: 'none'
       })
     }
+  },
+
+  handleBannerImageLoad(event) {
+    const { id } = event.currentTarget.dataset
+    if (!id) {
+      return
+    }
+    console.log('[home] banner image loaded', { id })
+  },
+
+  handleBannerImageError(event) {
+    const { id } = event.currentTarget.dataset
+    const { errMsg } = event.detail || {}
+    console.warn('[home] banner image failed', { id, errMsg })
   },
 
   onShareAppMessage() {

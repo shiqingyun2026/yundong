@@ -170,11 +170,17 @@ const privacyPolicyNodes = [
 ]
 
 const courseServiceAgreementNodes = [
-  sectionNode('协议主体', [
-    paragraphNode('甲方：天天体育宝（深圳市龙岗区快虾科技工作室）'),
-    paragraphNode('乙方：用户（学员法定监护人）'),
-    paragraphNode('欢迎使用天天体育宝课程服务。请您（即学员法定监护人）仔细阅读本协议的全部内容，并确认理解并同意后，再进行课程购买及使用。')
-  ]),
+  {
+    name: 'div',
+    attrs: {
+      style: sectionStyle(true)
+    },
+    children: [
+      paragraphNode('甲方：天天体育宝（深圳市龙岗区快虾科技工作室）'),
+      paragraphNode('乙方：用户（学员法定监护人）'),
+      paragraphNode('欢迎使用天天体育宝课程服务。请您（即学员法定监护人）仔细阅读本协议的全部内容，并确认理解并同意后，再进行课程购买及使用。')
+    ]
+  },
   sectionNode('第一条 账户注册与信息填报', [
     paragraphNode('1. 信息真实性'),
     paragraphNode('乙方在天天体育宝官方平台（包括小程序、APP等）注册账户及报名时，须如实、完整地填写监护人本人的联系电话以及学员的基本信息。'),

@@ -14,7 +14,7 @@
     </mp-navigation-bar>
   </view>
 
-  <view class="banner-panel card-shadow">
+  <view wx:if="{{showBannerSwiper && bannerList.length}}" class="banner-panel card-shadow">
     <swiper
       class="banner-swiper"
       indicator-dots="{{false}}"
@@ -22,16 +22,18 @@
       circular="{{bannerList.length > 1}}"
       interval="3800"
       duration="360"
-      current="{{activeBannerIndex}}"
-      bindchange="handleBannerChange"
+      bindanimationfinish="handleBannerChange"
     >
-      <swiper-item wx:for="{{bannerList}}" wx:key="id">
+      <swiper-item wx:for="{{bannerList}}" wx:key="renderKey">
         <view class="banner-slide banner-slide--{{item.theme}}" data-index="{{index}}" bindtap="handleBannerTap">
           <image
             wx:if="{{item.image}}"
             class="banner-image"
             src="{{item.image}}"
             mode="aspectFill"
+            data-id="{{item.id}}"
+            bindload="handleBannerImageLoad"
+            binderror="handleBannerImageError"
           />
           <view class="banner-overlay">
             <view wx:if="{{item.kicker}}" class="banner-kicker">{{item.kicker}}</view>
