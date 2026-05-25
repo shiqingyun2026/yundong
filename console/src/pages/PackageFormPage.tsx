@@ -36,6 +36,7 @@ const emptyPackage: PackageDetail = {
   id: '',
   name: '',
   cover: '',
+  wechat_share_cover: '',
   package_category: '体适能',
   age_range: '',
   class_count: 0,
@@ -113,6 +114,7 @@ const buildPayload = (form: PackageDetail) => {
     package_category: form.package_category,
     age_range: form.age_range.trim(),
     cover: form.cover.trim(),
+    wechat_share_cover: form.wechat_share_cover.trim(),
     images: form.cover.trim() ? [form.cover.trim()] : [],
     class_count: Number(form.class_count) || 0,
     class_duration_minutes: Number(form.class_duration_minutes) || 0,
@@ -357,7 +359,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
 
   const handleUploadSingle = async (
     event: ChangeEvent<HTMLInputElement>,
-    field: 'cover',
+    field: 'cover' | 'wechat_share_cover',
     folder: 'course-cover'
   ) => {
     const file = event.target.files?.[0]
@@ -371,7 +373,9 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
     try {
       const url = await uploadImage(file, folder)
       updateField(field, url)
-      updateField('images', [url])
+      if (field === 'cover') {
+        updateField('images', [url])
+      }
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : '上传失败')
     } finally {
@@ -531,6 +535,18 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
 
     if (!form.publish_time) {
       setError('请填写上架时间')
+      setSaving(false)
+      return
+    }
+
+    if (!form.cover.trim()) {
+      setError('请上传课包封面图')
+      setSaving(false)
+      return
+    }
+
+    if (!form.wechat_share_cover.trim()) {
+      setError('请上传微信分享封面')
       setSaving(false)
       return
     }
@@ -917,6 +933,35 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
             {form.cover ? (
               <div className="image-preview-grid single">
                 <img className="image-preview" src={form.cover} alt="课包封面" />
+              </div>
+            ) : null}
+          </div>
+
+          <div className="stack">
+            <label>
+              <span>微信分享封面 URL<RequiredMark /></span>
+              <input
+                value={form.wechat_share_cover}
+                onChange={event => updateField('wechat_share_cover', event.target.value)}
+                disabled={!isEditable}
+              />
+            </label>
+            {isEditable ? (
+              <div className="button-row">
+                <label className="file-button">
+                  点击上传微信分享封面
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={event => void handleUploadSingle(event, 'wechat_share_cover', 'course-cover')}
+                  />
+                </label>
+                {uploading ? <span className="muted-text">{uploading}</span> : null}
+              </div>
+            ) : null}
+            {form.wechat_share_cover ? (
+              <div className="image-preview-grid single">
+                <img className="image-preview" src={form.wechat_share_cover} alt="微信分享封面" />
               </div>
             ) : null}
           </div>

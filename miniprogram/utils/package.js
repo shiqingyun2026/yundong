@@ -391,6 +391,20 @@ const resolveShareImageUrl = value => {
       return url.toString()
     }
 
+    const isCosOriginHost = /\.cos\.[^.]+\.myqcloud\.com$/i.test(url.hostname)
+    const isCosBackedCustomCdnCover = /\/course-cover\//i.test(url.pathname)
+
+    if (isCosOriginHost || isCosBackedCustomCdnCover) {
+      const shareCropRule = 'imageMogr2/crop/760x608/gravity/center/quality/90'
+
+      if (!url.searchParams.has(shareCropRule)) {
+        const currentSearch = url.search
+        url.search = currentSearch ? `${currentSearch}&${shareCropRule}` : `?${shareCropRule}`
+      }
+
+      return url.toString()
+    }
+
     return url.toString()
   } catch (error) {
     return normalized
@@ -450,6 +464,7 @@ const normalizePackageDetail = payload => ({
   id: payload.id || '',
   name: payload.name || '',
   cover: payload.cover || '',
+  wechatShareCover: payload.wechat_share_cover || payload.wechatShareCover || '',
   images: Array.isArray(payload.images) && payload.images.length ? payload.images : payload.cover ? [payload.cover] : [],
   totalPriceFen: Number(payload.total_price_fen) || 0,
   totalPriceText: `${payload.total_price_text || formatFenText(payload.total_price_fen)}`,
@@ -485,6 +500,7 @@ const normalizePackageGroupDetail = payload => ({
     id: payload.package && payload.package.id ? payload.package.id : '',
     name: payload.package && payload.package.name ? payload.package.name : '',
     cover: payload.package && payload.package.cover ? payload.package.cover : '',
+    wechatShareCover: payload.package && payload.package.wechat_share_cover ? payload.package.wechat_share_cover : '',
     ageRange: payload.package && payload.package.age_range ? payload.package.age_range : '',
     description: normalizeRichTextImages(payload.package && payload.package.description ? payload.package.description : ''),
     coachName: payload.package && payload.package.coach_name ? payload.package.coach_name : '',

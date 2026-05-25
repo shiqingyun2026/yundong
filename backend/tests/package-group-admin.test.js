@@ -173,6 +173,7 @@ const createPackageRepositoryState = () => ({
       id: 'PKG-20260418-0001',
       name: '周末体适能5次课包',
       cover: 'https://example.com/pkg.png',
+      wechat_share_cover: 'https://example.com/pkg-share.png',
       images: [],
       total_price: 1000,
       package_category: '体适能',
@@ -1123,6 +1124,7 @@ test('admin package create requires valid package category', async () => {
           package_category: '篮球',
           age_range: '4-8岁',
           cover: 'https://example.com/pkg.png',
+          wechat_share_cover: 'https://example.com/pkg-share.png',
           total_price_fen: 1000,
           class_count: 10,
           class_duration_minutes: 60,
@@ -1155,6 +1157,7 @@ test('admin package create does not require coach name', async () => {
       package_category: '体适能',
       age_range: '4-8岁',
       cover: 'https://example.com/pkg.png',
+      wechat_share_cover: 'https://example.com/pkg-share.png',
       total_price_fen: 1000,
       class_count: 10,
       class_duration_minutes: 60,
@@ -1181,6 +1184,7 @@ test('admin package create derives total price from group price config', async (
       package_category: '体适能',
       age_range: '4-8岁',
       cover: 'https://example.com/pkg.png',
+      wechat_share_cover: 'https://example.com/pkg-share.png',
       class_count: 10,
       class_duration_minutes: 60,
       group_price_config: [
@@ -1210,6 +1214,7 @@ test('admin package create derives supported people from group price config', as
       package_category: '体适能',
       age_range: '4-8岁',
       cover: 'https://example.com/pkg-new.png',
+      wechat_share_cover: 'https://example.com/pkg-new-share.png',
       class_count: 12,
       class_duration_minutes: 90,
       group_price_config: [
@@ -1238,6 +1243,38 @@ test('admin package create derives supported people from group price config', as
   ])
   assert.equal(created.status, 2)
   assert.equal(result.status, 'pending')
+})
+
+test('admin package create requires wechat share cover', async () => {
+  const { packageAdminService } = loadPackageServicesWithState()
+
+  await assert.rejects(
+    () =>
+      packageAdminService.createAdminPackage({
+        payload: {
+          name: '测试课包',
+          package_category: '体适能',
+          age_range: '4-8岁',
+          cover: 'https://example.com/pkg.png',
+          class_count: 10,
+          class_duration_minutes: 60,
+          group_price_config: [{ target_count: 2, price_fen: 500 }],
+          location_district: '南山区',
+          location_community: '深圳湾社区',
+          location_detail: '会所二楼',
+          coach_intro: '简介',
+          description: '介绍',
+          publish_time: '2026-04-21T10:00:00.000Z'
+        },
+        admin: { id: 'admin-1' }
+      }),
+    error => {
+      assert.equal(error.responseCode, 1001)
+      assert.equal(error.statusCode, 400)
+      assert.equal(error.message, '微信分享封面不能为空')
+      return true
+    }
+  )
 })
 
 test('admin package detail auto switches pending package to active after publish time', async () => {

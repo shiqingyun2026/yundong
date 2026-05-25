@@ -275,6 +275,7 @@ export interface PackageListItem {
   id: string
   name: string
   cover: string
+  wechat_share_cover: string
   package_category: CourseCategory
   age_range: string
   class_count: number

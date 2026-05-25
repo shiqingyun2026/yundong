@@ -78,7 +78,8 @@ test('miniprogram course detail page: share timeline uses course name cover and 
     name: '[测试] 深圳南山体适能课',
     images: ['https://example.com/a.png'],
     coachCertificates: [],
-    cover: 'https://example.com/course-cover.png'
+    cover: 'https://example.com/course-cover.png',
+    wechatShareCover: 'https://example.com/wechat-share-cover.png'
   })
 
   const page = createPageHarness(loadPageDefinition('pages/course/detail/index.js'))
@@ -87,7 +88,7 @@ test('miniprogram course detail page: share timeline uses course name cover and 
   assert.deepEqual(page.onShareTimeline(), {
     title: '[测试] 深圳南山体适能课｜家门口组团上课',
     query: 'id=package_seed_active_003',
-    imageUrl: 'https://example.com/course-cover.png'
+    imageUrl: 'https://example.com/wechat-share-cover.png'
   })
 
   packageUtils.fetchPackageDetail = originalFetchPackageDetail

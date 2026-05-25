@@ -1,3 +1,5 @@
+const { resolveShareImageUrl } = require('../../../utils/package')
+
 const resolveExpireTime = activeGroup => {
   const expireDate = activeGroup && activeGroup.expireTime ? new Date(activeGroup.expireTime) : null
   if (expireDate && !Number.isNaN(expireDate.getTime())) {
@@ -248,7 +250,7 @@ const buildSharePayload = ({ activeGroup, courseDetail, courseId, sharedGroupId 
   return {
     title: `邀请你加入「${courseDetail.title}」拼团`,
     path: `/pages/course/detail/index?id=${courseId}&groupId=${targetGroupId}`,
-    imageUrl: (courseDetail.images && courseDetail.images[0]) || '',
+    imageUrl: resolveShareImageUrl(courseDetail.cover),
     success() {
       wx.showToast({ title: '分享成功', icon: 'success', duration: 2000 })
     }

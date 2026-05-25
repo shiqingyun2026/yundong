@@ -8,6 +8,7 @@ const PACKAGE_SELECT_FIELDS = `
   id,
   name,
   cover,
+  wechat_share_cover,
   images,
   total_price,
   package_category,
@@ -102,6 +103,7 @@ const normalizePackage = row => {
     id: row.id,
     name: row.name || '',
     cover: row.cover || '',
+    wechat_share_cover: row.wechat_share_cover || '',
     images: Array.isArray(row.images) ? row.images : parseJsonField(row.images) || [],
     total_price: Number(row.total_price) || 0,
     package_category: normalizePackageCategory(row.package_category),
@@ -238,13 +240,13 @@ const createPackage = async payload => {
   await execute(
     `
       insert into course_packages (
-        id, name, cover, images, total_price, package_category, age_range, class_count, class_duration_minutes, show_limited_time_offer_tag, supported_people, group_price_config,
+        id, name, cover, wechat_share_cover, images, total_price, package_category, age_range, class_count, class_duration_minutes, show_limited_time_offer_tag, supported_people, group_price_config,
         location_district, location_community, location_detail,
         longitude, latitude, coach_name, coach_intro, coach_certificates,
         description, deadline_hours, publish_time, unpublish_time, status, created_at, updated_at,
         created_by, updated_by
       ) values (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
         ?, ?, ?,
         ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?, ?,
@@ -255,6 +257,7 @@ const createPackage = async payload => {
       data.id,
       data.name || '',
       data.cover || '',
+      data.wechat_share_cover || '',
       data.images,
       data.total_price,
       data.package_category,
@@ -302,6 +305,7 @@ const updatePackage = async (id, payload = {}) => {
 
   assign('name', payload.name)
   assign('cover', payload.cover)
+  assign('wechat_share_cover', payload.wechat_share_cover)
   assign('images', payload.images, value => JSON.stringify(Array.isArray(value) ? value : []))
   assign('total_price', payload.total_price, value => Number(value || 0))
   assign('package_category', payload.package_category, normalizePackageCategory)

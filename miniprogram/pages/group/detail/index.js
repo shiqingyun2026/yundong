@@ -312,7 +312,7 @@ Page({
         `/pages/group/detail/index?packageGroupId=${encodeURIComponent(groupDetail.id)}` +
         `&packageId=${encodeURIComponent(groupDetail.packageInfo.id || '')}` +
         `&entry=share&action=join`,
-      imageUrl: resolveShareImageUrl(groupDetail.packageInfo.cover)
+      imageUrl: resolveShareImageUrl(groupDetail.packageInfo.wechatShareCover)
     }
   },
 

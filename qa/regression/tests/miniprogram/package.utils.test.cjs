@@ -35,6 +35,7 @@ test('miniprogram package utils: package detail normalization exposes active gro
     id: 'package_seed_active_002',
     name: '[测试] 深圳宝安体能进阶·等待上课',
     cover: 'https://example.com/cover.png',
+    wechat_share_cover: 'https://example.com/wechat-share-cover.png',
     images: ['https://example.com/cover.png'],
     total_price_fen: 198000,
     group_price_config: [{ target_count: 4, price_fen: 49500 }],
@@ -72,6 +73,7 @@ test('miniprogram package utils: package detail normalization exposes active gro
   })
 
   assert.equal(detail.totalPriceDisplayText, '1980')
+  assert.equal(detail.wechatShareCover, 'https://example.com/wechat-share-cover.png')
   assert.equal(detail.supportedGroupPriceList[0].memberAmountDisplayText, '495')
   assert.equal(detail.activeGroups.length, 1)
   assert.equal(detail.activeGroups[0].joinButtonText, '还缺2人，立即拼')
@@ -85,6 +87,7 @@ test('miniprogram package utils: group detail normalization keeps schedule and m
     package: {
       id: '11111111-1111-1111-1111-111111111103',
       name: '[测试] 深圳宝安体能进阶·等待上课',
+      wechat_share_cover: 'https://example.com/group-share-cover.png',
       location_city: '深圳市',
       location_district: '宝安区',
       location_community: '壹方城',
@@ -101,6 +104,7 @@ test('miniprogram package utils: group detail normalization keeps schedule and m
   })
 
   assert.equal(detail.packageInfo.locationText, '深圳市 / 宝安区 / 壹方城')
+  assert.equal(detail.packageInfo.wechatShareCover, 'https://example.com/group-share-cover.png')
   assert.equal(detail.scheduleDisplayText, '每周六 10:00 共5节课')
   assert.equal(detail.progressPercent, '100%')
   assert.equal(detail.members[0].avatar_url, '/assets/member-default-avatar.jpg')

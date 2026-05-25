@@ -438,6 +438,7 @@ const validatePackagePayload = (payload = {}, { partial = false } = {}) => {
     ['package_category', '课包类型不能为空'],
     ['age_range', '适用年龄不能为空'],
     ['cover', '封面图不能为空'],
+    ['wechat_share_cover', '微信分享封面不能为空'],
     ['location_district', '所在区域不能为空'],
     ['location_community', '小区名称不能为空'],
     ['location_detail', '详细地点不能为空'],
@@ -514,6 +515,7 @@ const mapPackagePayloadToDb = ({ payload = {}, admin = {}, create = false, exist
   assign('package_category', 'package_category', normalizePackageCategory)
   assign('age_range', 'age_range', normalizeText)
   assign('cover', 'cover', normalizeText)
+  assign('wechat_share_cover', 'wechat_share_cover', normalizeText)
   assign('images', 'images', value => {
     const items = Array.isArray(value) ? value.filter(Boolean) : []
     return items.length ? items : payload.cover ? [normalizeText(payload.cover)] : existing && existing.cover ? [existing.cover] : []
@@ -605,6 +607,7 @@ const mapPackageListItem = (item, { now = new Date() } = {}) => {
     id: item.id,
     name: item.name,
     cover: item.cover || '',
+    wechat_share_cover: item.wechat_share_cover || '',
     total_price_fen: Number(item.total_price) || 0,
     total_price_text: formatFenText(item.total_price),
     package_category: item.package_category || '体适能',
@@ -749,7 +752,13 @@ const updateAdminPackage = async ({ packageId, payload = {}, admin = {}, ip = nu
     statusCode: 400,
     message: '已上架课包不可编辑'
   })
-  validatePackagePayload(payload, { partial: true })
+  validatePackagePayload(
+    {
+      ...existing,
+      ...payload
+    },
+    { partial: false }
+  )
 
   const updated = await coursePackagesRepository.updatePackage(
     packageId,

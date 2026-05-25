@@ -26,7 +26,8 @@ test('join payment page registers a share handler to the current group detail pa
   assert.match(source, /onShareAppMessage\(\)/)
   assert.match(source, /\/pages\/group\/detail\/index\?packageGroupId=/)
   assert.match(source, /entry=share&action=join/)
-  assert.match(source, /imageUrl:\s*resolveShareImageUrl\(/)
+  assert.match(source, /imageUrl:\s*resolveShareImageUrl\(packageDetail && packageDetail\.wechatShareCover\)/)
+  assert.doesNotMatch(source, /packageDetail && packageDetail\.cover/)
 })
 
 test('join payment page enables share and shortens the pay button layout', () => {
@@ -38,10 +39,13 @@ test('join payment page enables share and shortens the pay button layout', () =>
   assert.match(styleSource, /\.service-entry\s*\{/)
 })
 
-test('group detail share card uses the course cover image', () => {
+test('group detail share card uses the wechat share cover image', () => {
   const groupDetailSource = fs.readFileSync(groupDetailJsPath, 'utf8')
   const packageUtilsSource = fs.readFileSync(packageUtilsPath, 'utf8')
 
-  assert.match(groupDetailSource, /imageUrl:\s*resolveShareImageUrl\(groupDetail\.packageInfo\.cover\)/)
-  assert.match(packageUtilsSource, /cover:\s*payload\.package && payload\.package\.cover \? payload\.package\.cover : ''/)
+  assert.match(groupDetailSource, /imageUrl:\s*resolveShareImageUrl\(groupDetail\.packageInfo\.wechatShareCover\)/)
+  assert.match(
+    packageUtilsSource,
+    /wechatShareCover:\s*payload\.package && payload\.package\.wechat_share_cover \? payload\.package\.wechat_share_cover : ''/
+  )
 })

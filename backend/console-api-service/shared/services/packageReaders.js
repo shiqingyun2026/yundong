@@ -290,10 +290,11 @@ const fetchMiniProgramPackageList = async ({
     const minMemberAmountFen = resolveLowestGroupPriceFen(item)
 
     return {
-      id: item.id,
-      name: item.name,
-      cover: signCosPublicUrl(item.cover),
-      package_category: item.package_category || '体适能',
+    id: item.id,
+    name: item.name,
+    cover: signCosPublicUrl(item.cover),
+    wechat_share_cover: signCosPublicUrl(item.wechat_share_cover),
+    package_category: item.package_category || '体适能',
       age_range: item.age_range || '',
       class_count: Number(item.class_count) || 0,
       class_duration_minutes: Number(item.class_duration_minutes) || 0,
@@ -350,6 +351,7 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
     id: pkg.id,
     name: pkg.name,
     cover: signCosPublicUrl(pkg.cover),
+    wechat_share_cover: signCosPublicUrl(pkg.wechat_share_cover),
     images: signCosImageList((pkg.images && pkg.images.length ? pkg.images : pkg.cover ? [pkg.cover] : []) || []),
     total_price_fen: Number(pkg.total_price) || 0,
     total_price_text: formatFenText(pkg.total_price),
@@ -452,6 +454,8 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
     package: {
       id: pkg.id,
       name: pkg.name,
+      cover: signCosPublicUrl(pkg.cover),
+      wechat_share_cover: signCosPublicUrl(pkg.wechat_share_cover),
       age_range: pkg.age_range || '',
       coach_name: pkg.coach_name || '',
       coach_intro: signCosUrlsInText(pkg.coach_intro || ''),

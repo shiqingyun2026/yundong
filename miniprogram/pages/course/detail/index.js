@@ -260,7 +260,7 @@ Page({
     return {
       title: packageDetail ? `${packageDetail.name}｜家门口组团上课` : '家门口的少儿运动团课',
       path: `/pages/course/detail/index?id=${packageId}`,
-      imageUrl: resolveShareImageUrl((packageDetail && packageDetail.cover) || (packageDetail && packageDetail.images && packageDetail.images[0]) || '')
+      imageUrl: resolveShareImageUrl(packageDetail && packageDetail.wechatShareCover)
     }
   },
 
@@ -270,7 +270,7 @@ Page({
     return {
       title: packageDetail ? `${packageDetail.name}｜家门口组团上课` : '家门口的少儿运动团课',
       query: `id=${packageId}`,
-      imageUrl: resolveShareImageUrl((packageDetail && packageDetail.cover) || (packageDetail && packageDetail.images && packageDetail.images[0]) || '')
+      imageUrl: resolveShareImageUrl(packageDetail && packageDetail.wechatShareCover)
     }
   }
 })

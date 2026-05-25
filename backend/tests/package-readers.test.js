@@ -76,6 +76,7 @@ test('package readers only return packages inside the publish window for mini pr
             id: 'pkg-visible',
             name: '云test',
             cover: 'https://example.com/visible.jpg',
+            wechat_share_cover: 'https://example.com/visible-share.jpg',
             package_category: '体适能',
             age_range: '4-8岁',
             class_count: 5,
@@ -100,6 +101,7 @@ test('package readers only return packages inside the publish window for mini pr
             id: 'pkg-pending',
             name: '未来上架课包',
             cover: 'https://example.com/pending.jpg',
+            wechat_share_cover: 'https://example.com/pending-share.jpg',
             package_category: '体适能',
             class_count: 5,
             class_duration_minutes: 60,
@@ -119,6 +121,7 @@ test('package readers only return packages inside the publish window for mini pr
             id: 'pkg-offline',
             name: '已下架课包',
             cover: 'https://example.com/offline.jpg',
+            wechat_share_cover: 'https://example.com/offline-share.jpg',
             package_category: '体适能',
             class_count: 5,
             class_duration_minutes: 60,
@@ -301,6 +304,8 @@ test('package detail hides groups once their deadline has arrived', async () => 
       findPackageById: async () => ({
         id: 'PKG-20260421-0001',
         name: '云test',
+        cover: 'https://example.com/detail-cover.jpg',
+        wechat_share_cover: 'https://example.com/detail-share-cover.jpg',
         total_price: 12000,
         group_price_config: [{ target_count: 4, price_fen: 3000 }],
         supported_people: [4],
@@ -390,6 +395,8 @@ test('package detail hides groups once their deadline has arrived', async () => 
     statuses: ['active'],
     afterDeadline: now
   })
+  assert.equal(result.cover, 'https://example.com/detail-cover.jpg')
+  assert.equal(result.wechat_share_cover, 'https://example.com/detail-share-cover.jpg')
   assert.deepEqual(result.active_groups.map(item => item.id), ['group-active'])
   assert.equal(result.active_groups[0].remaining_seconds, 3600)
 })
@@ -525,6 +532,7 @@ test('package group detail returns leader child profile, default member avatars 
         id: 'PKG-20260421-0001',
         name: '云test',
         total_price: 12000,
+        wechat_share_cover: 'https://example.com/group-share-cover.png',
         group_price_config: [{ target_count: 4, price_fen: 3000 }],
         coach_name: '教练A',
         coach_intro: '<p>教练介绍</p>',
@@ -603,6 +611,7 @@ test('package group detail returns leader child profile, default member avatars 
   })
 
   assert.equal(result.package.location_text, '深圳市 / 南山区 / 科技园社区')
+  assert.equal(result.package.wechat_share_cover, 'https://example.com/group-share-cover.png')
   assert.equal(result.package.description, '<p>课程介绍</p>')
   assert.equal(result.package.coach_name, '教练A')
   assert.equal(result.package.coach_intro, '<p>教练介绍</p>')
