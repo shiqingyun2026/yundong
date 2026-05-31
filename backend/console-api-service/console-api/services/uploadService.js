@@ -2,7 +2,6 @@ const crypto = require('crypto')
 
 const { getAdminUploadConfig, getStorageProviderName } = require('../../config/storage')
 const { createConsoleApiError } = require('./_errors')
-const supabaseProvider = require('./storage/supabaseProvider')
 const cosProvider = require('./storage/cosProvider')
 
 const normalizeFolder = value => {
@@ -28,10 +27,6 @@ const buildObjectPath = ({ filename, folder }) => {
 
 const getStorageProvider = () => {
   const providerName = getStorageProviderName()
-
-  if (providerName === 'supabase') {
-    return supabaseProvider
-  }
 
   if (providerName === 'cos') {
     return cosProvider

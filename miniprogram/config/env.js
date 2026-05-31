@@ -1,7 +1,7 @@
 const ENV_API_BASE_URLS = {
-  develop: 'https://lindong-backend.shiqingyun2026.workers.dev',
-  trial: 'https://lindong-backend.shiqingyun2026.workers.dev',
-  release: 'https://lindong-backend.shiqingyun2026.workers.dev'
+  develop: '',
+  trial: '',
+  release: ''
 }
 
 const ENV_API_TRANSPORTS = {

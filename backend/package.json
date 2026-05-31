@@ -11,13 +11,9 @@
     "miniprogram-container:dev": "node lindong-api/miniprogram-container/server.js",
     "console:start": "node console-api-service/console-api/server.js",
     "console:dev": "node console-api-service/console-api/server.js",
-    "cf:dev": "wrangler dev",
-    "cf:deploy": "wrangler deploy",
-    "seed:regression-course": "node scripts/create-test-course.js",
     "ensure:bootstrap-admin": "node scripts/ensure-bootstrap-admin.js",
     "verify:course-lifecycle": "node scripts/verify-course-lifecycle.js",
     "verify:group-rules": "node scripts/verify-group-rules.js",
-    "verify:admin-seed": "node scripts/verify-admin-seed.js",
     "verify:console-api-smoke": "node --test tests/console-api.smoke.test.js"
   },
   "dependencies": {
@@ -27,8 +23,5 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.11.3"
-  },
-  "devDependencies": {
-    "wrangler": "^4.44.0"
   }
 }

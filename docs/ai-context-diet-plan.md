@@ -15,7 +15,6 @@
 当前根目录下有多个并列子项目：
 
 - `/Users/yun/lindong/backend`
-- `/Users/yun/lindong/frontend`
 - `/Users/yun/lindong/console`
 - `/Users/yun/lindong/miniprogram`
 - `/Users/yun/lindong/qa`
@@ -44,7 +43,6 @@ AI 协作时，默认不要读取下列路径：
 - `/Users/yun/lindong/qa/regression/playwright-report`
 - `/Users/yun/lindong/qa/regression/test-results`
 - `/Users/yun/lindong/backend/node_modules`
-- `/Users/yun/lindong/frontend/node_modules`
 - `/Users/yun/lindong/console/node_modules`
 - `/Users/yun/lindong/qa/regression/node_modules`
 
@@ -74,7 +72,6 @@ docs/
 不要在仓库根目录处理所有问题。默认按任务类型切换工作目录：
 
 - 后端问题：`/Users/yun/lindong/backend`
-- 前端 H5 问题：`/Users/yun/lindong/frontend`
 - 管理台问题：`/Users/yun/lindong/console`
 - 小程序问题：`/Users/yun/lindong/miniprogram`
 - 回归测试问题：`/Users/yun/lindong/qa/regression`

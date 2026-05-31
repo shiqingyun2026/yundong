@@ -109,13 +109,11 @@ Vercel 和 Cloudflare 本身不是“错”，但它们对应的是：
 
 * `Dockerfile` 里用了 `npm ci --omit=dev`
 * 当前 `package.json` 和 `package-lock.json` 根依赖不同步
-* `wrangler` 在 `package.json` 里，但锁文件根依赖里没有
 * Docker 构建阶段被 `npm ci` 严格模式拦下
 
 这轮最终修复：
 
 * 把 `Dockerfile` 改成 `npm install --omit=dev`
-* 把 `wrangler` 移到 `devDependencies`
 
 **经验**：
 云托管源码部署时，构建失败先看 Docker 日志里的失败层，不要先怀疑平台本身。
@@ -232,9 +230,10 @@ Vercel 和 Cloudflare 本身不是“错”，但它们对应的是：
 
 至少需要：
 
-* `SUPABASE_URL`
-* `SUPABASE_SERVICE_ROLE_KEY`
 * `JWT_SECRET`
+* `MYSQL_HOST`
+* `MYSQL_USER`
+* `MYSQL_DATABASE`
 
 ### 6.3 上传包
 
@@ -248,7 +247,7 @@ Vercel 和 Cloudflare 本身不是“错”，但它们对应的是：
 
 - 真机看到的接口行为，最终以这里的代码为准
 - 不要再直接把混合 `backend/` 作为小程序后端部署目录
-- 这轮已经把旧的手工 `deploy-artifacts/lindong-api-deploy` 迁移掉，避免源码与部署包漂移
+- 旧的手工部署产物目录已经移除，避免源码与部署包漂移
 
 并且真实验证过：
 

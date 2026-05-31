@@ -1,12 +1,6 @@
 const { pickFirst, toInt } = require('./env')
 
-const getStorageProviderName = () => pickFirst(process.env.STORAGE_PROVIDER, 'cos').toLowerCase()
-
-const getSupabaseStorageConfig = () => ({
-  provider: 'supabase',
-  bucket: pickFirst(process.env.SUPABASE_STORAGE_BUCKET, 'course-images'),
-  baseUrl: `${process.env.SUPABASE_URL || ''}`.trim()
-})
+const getStorageProviderName = () => 'cos'
 
 const getCosStorageConfig = () => ({
   provider: 'cos',
@@ -18,13 +12,7 @@ const getCosStorageConfig = () => ({
   expiresSeconds: Math.max(1, toInt(process.env.COS_UPLOAD_EXPIRES_SECONDS, 900))
 })
 
-const getStorageConfig = () => {
-  if (getStorageProviderName() === 'cos') {
-    return getCosStorageConfig()
-  }
-
-  return getSupabaseStorageConfig()
-}
+const getStorageConfig = () => getCosStorageConfig()
 
 const getAdminUploadConfig = () => ({
   maxUploadBytes: Math.max(1, toInt(process.env.ADMIN_UPLOAD_MAX_BYTES, 5 * 1024 * 1024))
@@ -34,6 +22,5 @@ module.exports = {
   getAdminUploadConfig,
   getCosStorageConfig,
   getStorageConfig,
-  getStorageProviderName,
-  getSupabaseStorageConfig
+  getStorageProviderName
 }

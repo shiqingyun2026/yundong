@@ -204,11 +204,35 @@ const normalizeRichTextImages = html => {
     return ''
   }
 
-  return content.replace(/<img\b([^>]*)>/gi, (match, attrs = '') => {
+  const normalizedImages = content.replace(/<img\b([^>]*)>/gi, (match, attrs = '') => {
     const normalizedAttrs = `${attrs}`.replace(/\sstyle\s*=\s*(['"]).*?\1/gi, '')
 
     return `<img${normalizedAttrs} style="display:block;box-sizing:border-box;max-width:100%;width:100%;height:auto;margin:0 auto;" />`
   })
+
+  return normalizedImages
+    .split(/(<[^>]+>)/g)
+    .map((segment, index, segments) => {
+      if (!segment) {
+        return ''
+      }
+
+      if (/^<[^>]+>$/.test(segment)) {
+        return segment
+      }
+
+      if (!segment.trim()) {
+        const previousIsTag = index > 0 && /^<[^>]+>$/.test(segments[index - 1])
+        const nextIsTag = index < segments.length - 1 && /^<[^>]+>$/.test(segments[index + 1])
+
+        if (previousIsTag || nextIsTag) {
+          return ''
+        }
+      }
+
+      return segment.replace(/\r?\n/g, '<br />')
+    })
+    .join('')
 }
 
 const normalizeGroupPriceConfig = value => {

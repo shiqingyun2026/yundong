@@ -132,7 +132,7 @@ mockModule('console-api/services/uploadService.js', {
     return {
       bucket: 'course-images',
       path: 'course-cover/2026-03-29/file.png',
-      provider: 'supabase',
+      provider: 'cos',
       size: 128,
       public_url: 'https://example.com/storage/v1/object/public/course-cover/2026-03-29/file.png'
     }
@@ -632,7 +632,7 @@ test('console api smoke: key authenticated routes stay wired', async () => {
 
   assert.equal(uploadImage.status, 200)
   assert.equal(uploadImage.body.code, 0)
-  assert.equal(uploadImage.body.data.provider, 'supabase')
+  assert.equal(uploadImage.body.data.provider, 'cos')
   assert.equal(uploadImage.body.data.public_url, 'https://example.com/storage/v1/object/public/course-cover/2026-03-29/file.png')
 
   assert.equal(courses.status, 200)

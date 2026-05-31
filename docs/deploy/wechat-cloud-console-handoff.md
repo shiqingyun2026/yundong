@@ -218,14 +218,9 @@ CloudBase SQL 执行器当前兼容性较弱，不适合一次性执行复杂 DD
 
 ## 5. 今天额外沉淀
 
-### 5.1 页面主链路回归数据已脚本化
+### 5.1 页面主链路回归数据已收口到回归工程
 
-[create-test-course.js](/Users/yun/lindong/backend/scripts/create-test-course.js) 现在会稳定准备：
-
-- `"[回归测试] 无活跃拼团课程"`
-- `"[回归测试] 可直接参团课程"`
-
-默认 mock 用户 `seed0326_u02` 可直接完成“立即开团”和“去参团”两条页面主链路。
+当前建议直接使用 `qa/regression/` 中维护的固定回归数据与 Playwright 用例，不再依赖独立的临时造数脚本。
 
 ### 5.2 旧云函数路线已清理
 

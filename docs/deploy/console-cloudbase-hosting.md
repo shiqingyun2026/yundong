@@ -24,9 +24,7 @@
 后台接口：
 
 - 建议同步迁到 CloudBase 云托管
-- 切换前当前生产环境变量仍指向：
-  - `https://lindong-backend.shiqingyun2026.workers.dev/api/admin`
-- 切换后建议改为：
+- 当前建议直接指向：
   - `https://<console-api-cloudbase-domain>/api/admin`
 - 后台上传图片默认 provider 现已建议为 `cos`
 

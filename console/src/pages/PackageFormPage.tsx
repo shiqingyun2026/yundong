@@ -1,9 +1,9 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
+import { RichTextEditor } from '../components/RichTextEditor'
 import { PageBackButton } from '../components/PageBackButton'
 import { api, uploadImage } from '../lib/api'
-import { sanitizeRichHtml } from '../lib/html'
 import type { CourseLocationSuggestion, PackageDetail, PackageGroupLessonItem, PackageGroupListItem, PackageGroupListResponse } from '../types'
 import { REGION_OPTIONS, toDateTimeLocal } from './courseFormHelpers'
 
@@ -384,28 +384,17 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
     }
   }
 
-  const handleRichTextImageUpload = async (
-    event: ChangeEvent<HTMLInputElement>,
-    field: 'description' | 'coach_intro',
-    altText: string
-  ) => {
-    const file = event.target.files?.[0]
-    if (!file) {
-      return
-    }
-
+  const uploadRichTextImage = async (file: File) => {
     setUploading('上传图片中...')
     setError('')
 
     try {
-      const url = await uploadImage(file, 'course-detail')
-      const imageMarkup = `<p><img src="${url}" alt="${altText}" /></p>`
-      updateField(field, `${form[field]}\n${imageMarkup}`.trim())
+      return await uploadImage(file, 'course-detail')
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : '上传失败')
+      throw uploadError
     } finally {
       setUploading('')
-      event.target.value = ''
     }
   }
 
@@ -972,29 +961,15 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 <p className="section-kicker">Coach Intro</p>
                 <h4>教练简介</h4>
               </div>
-              {isEditable ? (
-                <label className="file-button">
-                  上传图片并插入简介
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={event => void handleRichTextImageUpload(event, 'coach_intro', '教练简介图')}
-                  />
-                </label>
-              ) : null}
             </div>
-            <textarea
-              rows={8}
+            <RichTextEditor
               value={form.coach_intro}
-              onChange={event => updateField('coach_intro', event.target.value)}
+              onChange={value => updateField('coach_intro', value)}
               disabled={!isEditable}
+              placeholder="请输入教练简介"
+              onUploadImage={uploadRichTextImage}
             />
-            {form.coach_intro ? (
-              <div
-                className="description-preview rich-preview"
-                dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(form.coach_intro) }}
-              />
-            ) : null}
+            {uploading ? <span className="muted-text">{uploading}</span> : null}
           </div>
 
           <div className="stack">
@@ -1040,29 +1015,15 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 <p className="section-kicker">Package Intro</p>
                 <h4>课包介绍</h4>
               </div>
-              {isEditable ? (
-                <label className="file-button">
-                  上传图片并插入介绍
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={event => void handleRichTextImageUpload(event, 'description', '课包介绍图')}
-                  />
-                </label>
-              ) : null}
             </div>
-            <textarea
-              rows={10}
+            <RichTextEditor
               value={form.description}
-              onChange={event => updateField('description', event.target.value)}
+              onChange={value => updateField('description', value)}
               disabled={!isEditable}
+              placeholder="请输入课包介绍"
+              onUploadImage={uploadRichTextImage}
             />
-            {form.description ? (
-              <div
-                className="description-preview rich-preview"
-                dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(form.description) }}
-              />
-            ) : null}
+            {uploading ? <span className="muted-text">{uploading}</span> : null}
           </div>
 
           <section className="panel subtle-panel stack">

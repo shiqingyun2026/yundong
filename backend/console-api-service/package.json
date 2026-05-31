@@ -17,8 +17,5 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.11.3"
-  },
-  "devDependencies": {
-    "wrangler": "^4.44.0"
   }
 }

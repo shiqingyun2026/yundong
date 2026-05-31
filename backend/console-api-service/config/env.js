@@ -59,7 +59,6 @@ const env = {
   },
   storage: {
     provider: pickFirst(process.env.STORAGE_PROVIDER, 'cos').toLowerCase(),
-    supabaseBucket: pickFirst(process.env.SUPABASE_STORAGE_BUCKET, 'course-images'),
     bucket: pickFirst(process.env.COS_BUCKET, process.env.CLOUDBASE_STORAGE_BUCKET),
     region: pickFirst(process.env.COS_REGION, process.env.CLOUDBASE_STORAGE_REGION),
     publicBaseUrl: getOptionalEnv('COS_PUBLIC_BASE_URL'),
