@@ -2,7 +2,7 @@ const { execute, query } = require('../config/db')
 const { buildInClause, createUuid, parseJsonField, stringifyJsonField, toDbDateTime } = require('./_helpers')
 const { buildPackageId } = require('./bizSerialCountersRepository')
 
-const PACKAGE_CATEGORIES = ['体适能', '跳绳']
+const PACKAGE_CATEGORIES = ['体适能', '跳绳', '体验课']
 
 const PACKAGE_SELECT_FIELDS = `
   id,

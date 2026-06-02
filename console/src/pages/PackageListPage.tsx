@@ -145,6 +145,7 @@ export function PackageListPage() {
             <select value={packageCategory} onChange={event => setPackageCategory(event.target.value)}>
               <option value="">全部类型</option>
               <option value="体适能">体适能</option>
+              <option value="体验课">体验课</option>
               <option value="跳绳">跳绳</option>
             </select>
           </label>

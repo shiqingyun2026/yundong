@@ -452,7 +452,7 @@ const loadPackageServicesWithState = (options = {}) => {
   }
   const normalizePackageCategory = value => {
     const normalized = `${value || ''}`.trim()
-    return ['体适能', '跳绳'].includes(normalized) ? normalized : '体适能'
+    return ['体适能', '跳绳', '体验课'].includes(normalized) ? normalized : '体适能'
   }
   const normalizeGroupPriceConfig = value =>
     (Array.isArray(value) ? value : [])
@@ -525,7 +525,7 @@ const loadPackageServicesWithState = (options = {}) => {
 
   mockModule('repositories/index.js', {
     coursePackagesRepository: {
-      PACKAGE_CATEGORIES: ['体适能', '跳绳'],
+      PACKAGE_CATEGORIES: ['体适能', '跳绳', '体验课'],
       normalizePackageCategory,
       normalizeGroupPriceConfig,
       normalizeSupportedPeople,
@@ -1142,7 +1142,7 @@ test('admin package create requires valid package category', async () => {
     error => {
       assert.equal(error.responseCode, 1001)
       assert.equal(error.statusCode, 400)
-      assert.match(error.message, /体适能或跳绳/)
+      assert.match(error.message, /体适能、跳绳或体验课/)
       return true
     }
   )
@@ -1243,6 +1243,41 @@ test('admin package create derives supported people from group price config', as
   ])
   assert.equal(created.status, 2)
   assert.equal(result.status, 'pending')
+})
+
+test('admin package create forces class_count to 1 for trial packages', async () => {
+  const { packageAdminService, state } = loadPackageServicesWithState()
+
+  const result = await packageAdminService.createAdminPackage({
+    payload: {
+      name: '周末体验课',
+      package_category: '体验课',
+      age_range: '4-8岁',
+      cover: 'https://example.com/pkg-trial.png',
+      wechat_share_cover: 'https://example.com/pkg-trial-share.png',
+      class_count: 5,
+      class_duration_minutes: 60,
+      group_price_config: [
+        { target_count: 2, price_fen: 5000 },
+        { target_count: 4, price_fen: 3000 }
+      ],
+      location_district: '南山区',
+      location_community: '深圳湾社区',
+      location_detail: '会所二楼',
+      coach_intro: '<p>简介</p>',
+      description: '<p>介绍</p>',
+      publish_time: '2026-04-21T10:00:00.000Z'
+    },
+    admin: { id: 'admin-1' },
+    now: new Date('2026-04-20T08:00:00.000Z')
+  })
+
+  const created = state.packages.at(-1)
+
+  assert.equal(result.package_category, '体验课')
+  assert.equal(result.class_count, 1)
+  assert.equal(created.package_category, '体验课')
+  assert.equal(created.class_count, 1)
 })
 
 test('admin package create requires wechat share cover', async () => {

@@ -1,4 +1,4 @@
-export type CourseCategory = '体适能' | '跳绳'
+export type CourseCategory = '体适能' | '跳绳' | '体验课'
 
 export interface AdminUser {
   id: string

@@ -424,13 +424,16 @@ const deriveTotalPriceFromGroupPriceConfig = config =>
     (maxAmount, item) => Math.max(maxAmount, (Number(item.target_count) || 0) * (Number(item.price_fen) || 0)),
     0
   )
-const PACKAGE_CATEGORIES = (coursePackagesRepository && coursePackagesRepository.PACKAGE_CATEGORIES) || ['体适能', '跳绳']
+const PACKAGE_CATEGORIES = (coursePackagesRepository && coursePackagesRepository.PACKAGE_CATEGORIES) || ['体适能', '跳绳', '体验课']
 const normalizePackageCategory = value =>
   coursePackagesRepository && typeof coursePackagesRepository.normalizePackageCategory === 'function'
     ? coursePackagesRepository.normalizePackageCategory(value)
     : PACKAGE_CATEGORIES.includes(normalizeText(value))
       ? normalizeText(value)
       : '体适能'
+const isTrialPackageCategory = value => normalizePackageCategory(value) === '体验课'
+const normalizeClassCountByCategory = ({ packageCategory, classCount }) =>
+  isTrialPackageCategory(packageCategory) ? 1 : Number(classCount) || 0
 
 const validatePackagePayload = (payload = {}, { partial = false } = {}) => {
   const requiredFields = [
@@ -463,12 +466,15 @@ const validatePackagePayload = (payload = {}, { partial = false } = {}) => {
     ensureCondition(PACKAGE_CATEGORIES.includes(normalizeText(payload.package_category)), {
       responseCode: 1001,
       statusCode: 400,
-      message: '课包类型仅支持体适能或跳绳'
+      message: '课包类型仅支持体适能、跳绳或体验课'
     })
   }
 
   if (!partial || payload.class_count !== undefined) {
-    const classCount = Number(payload.class_count)
+    const classCount = normalizeClassCountByCategory({
+      packageCategory: payload.package_category,
+      classCount: payload.class_count
+    })
     ensureCondition(Number.isInteger(classCount) && classCount > 0, {
       responseCode: 1001,
       statusCode: 400,
@@ -522,7 +528,12 @@ const mapPackagePayloadToDb = ({ payload = {}, admin = {}, create = false, exist
   })
   assign('total_price', 'total_price_fen', value => Number(value) || 0)
   assign('total_price', 'total_price', value => Number(value) || 0)
-  assign('class_count', 'class_count', value => Number(value) || 0)
+  assign('class_count', 'class_count', value =>
+    normalizeClassCountByCategory({
+      packageCategory: payload.package_category !== undefined ? payload.package_category : existing && existing.package_category,
+      classCount: value
+    })
+  )
   assign('class_duration_minutes', 'class_duration_minutes', value => Number(value) || 0)
   assign('show_limited_time_offer_tag', 'show_limited_time_offer_tag', value => !!value)
   assign('group_price_config', 'group_price_config', normalizeGroupPriceConfig)

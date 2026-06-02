@@ -108,6 +108,7 @@ const formatScheduleList = (scheduleList: PackageGroupLessonItem[]) =>
 
 const buildPayload = (form: PackageDetail) => {
   const groupPriceConfig = normalizeGroupPriceConfig(form.group_price_config)
+  const isTrialPackage = form.package_category === '体验课'
 
   return {
     name: form.name.trim(),
@@ -116,7 +117,7 @@ const buildPayload = (form: PackageDetail) => {
     cover: form.cover.trim(),
     wechat_share_cover: form.wechat_share_cover.trim(),
     images: form.cover.trim() ? [form.cover.trim()] : [],
-    class_count: Number(form.class_count) || 0,
+    class_count: isTrialPackage ? 1 : Number(form.class_count) || 0,
     class_duration_minutes: Number(form.class_duration_minutes) || 0,
     show_limited_time_offer_tag: !!form.show_limited_time_offer_tag,
     group_price_config: groupPriceConfig,
@@ -243,6 +244,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
   const canOfflinePackage = mode !== 'create' && form.status === 'active'
   const isReadOnly = mode === 'view'
   const isEditable = !isReadOnly && (mode === 'create' || canEditPackage(form.status))
+  const isTrialPackage = form.package_category === '体验课'
   const pageTitle = mode === 'create' ? '新建课包' : mode === 'edit' ? '编辑课包' : '课包详情'
   const cityOptions = REGION_OPTIONS.find(item => item.value === province)?.cities || []
   const districtOptions = cityOptions.find(item => item.value === city)?.districts || []
@@ -630,10 +632,18 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
               <span>课包类型<RequiredMark /></span>
               <select
                 value={form.package_category}
-                onChange={event => updateField('package_category', event.target.value as PackageDetail['package_category'])}
+                onChange={event => {
+                  const nextCategory = event.target.value as PackageDetail['package_category']
+                  setForm(current => ({
+                    ...current,
+                    package_category: nextCategory,
+                    class_count: nextCategory === '体验课' ? 1 : current.class_count
+                  }))
+                }}
                 disabled={!isEditable}
               >
                 <option value="体适能">体适能</option>
+                <option value="体验课">体验课</option>
                 <option value="跳绳">跳绳</option>
               </select>
             </label>
@@ -651,9 +661,9 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
               <input
                 type="number"
                 min="1"
-                value={form.class_count}
+                value={isTrialPackage ? 1 : form.class_count}
                 onChange={event => updateField('class_count', Number(event.target.value))}
-                disabled={!isEditable}
+                disabled={!isEditable || isTrialPackage}
               />
             </label>
             <label>
