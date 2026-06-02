@@ -1013,3 +1013,104 @@ test('package group detail returns ended groups and still rejects refunded viewe
     }
   )
 })
+
+test('trial package group detail returns a single-session schedule', async () => {
+  clearModules([
+    'config/env.js',
+    'config/storage.js',
+    'repositories/index.js',
+    'shared/domain/packageGroupRules.js',
+    'shared/services/packageGroupStore.js',
+    'shared/services/cosSignedUrl.js',
+    'shared/services/packageReaders.js',
+    'shared/services/packageSchedule.js'
+  ])
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true
+    }
+  })
+
+  mockModule('config/storage.js', {
+    getStorageProviderName: () => 'supabase',
+    getCosStorageConfig: () => ({
+      bucket: '',
+      region: '',
+      secretId: '',
+      secretKey: '',
+      expiresSeconds: 900
+    })
+  })
+
+  mockModule('repositories/index.js', {
+    coursePackagesRepository: {
+      findPackageById: async () => ({
+        id: 'PKG-TRIAL-0001',
+        name: '周末体验课',
+        package_category: '体验课',
+        total_price: 12000,
+        group_price_config: [{ target_count: 4, price_fen: 3000 }],
+        location_city: '深圳市',
+        location_district: '广东省 / 深圳市 / 南山区',
+        location_community: '科技园社区'
+      })
+    },
+    packageGroupsRepository: {
+      findPackageGroupById: async () => ({
+        id: 'PG-TRIAL-0001',
+        package_id: 'PKG-TRIAL-0001',
+        status: 'active',
+        target_count: 4,
+        current_count: 1,
+        weekday: 0,
+        hour: 10,
+        deadline: '2026-04-23T10:00:00.000Z',
+        first_class_time: '2026-04-24 10:00:00'
+      })
+    },
+    ordersRepository: {
+      listOrdersByPackageGroupId: async () => [
+        {
+          id: 'order-trial-start',
+          user_id: 'user-1',
+          package_action: 'start',
+          package_context: {
+            child_nickname: '小满',
+            child_age: 6
+          }
+        }
+      ],
+      listOrders: async () => []
+    },
+    usersRepository: {
+      listUsersByIds: async () => [{ id: 'user-1', nickname: '微信用户1', avatar_url: 'https://example.com/1.png' }]
+    }
+  })
+
+  mockModule('shared/domain/packageGroupRules.js', {
+    calculatePackageMemberAmountFen: ({ groupPriceConfig = [] }) => Number(groupPriceConfig[0] && groupPriceConfig[0].price_fen) || 0
+  })
+
+  mockModule('shared/services/packageGroupStore.js', {
+    cleanupExpiredPackageGroups: async () => {}
+  })
+
+  mockModule('shared/services/packageSchedule.js', {
+    buildPackageLessonSchedule: () => [{ index: 1, class_time: '2026-04-24 10:00:00', display_text: '2026-04-24 10:00:00' }],
+    formatPackageDateTime: value => value,
+    formatPendingPackageScheduleText: () => '每周六 10:00，共5次',
+    formatScheduleTextWithLockNote: () => '每周六 10:00，共5次，成团后锁定首课日期'
+  })
+
+  const { fetchMiniProgramPackageGroupDetail } = require(path.join(backendRoot, 'shared/services/packageReaders.js'))
+  const result = await fetchMiniProgramPackageGroupDetail({
+    packageGroupId: 'PG-TRIAL-0001',
+    userId: '',
+    now: new Date('2026-04-21T10:00:00.000Z')
+  })
+
+  assert.equal(result.schedule_mode, 'single_session')
+  assert.equal(result.schedule_text, '体验课时间 2026-04-24 10:00:00')
+  assert.equal(result.schedule_list.length, 1)
+})

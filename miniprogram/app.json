@@ -22,12 +22,12 @@
     "backgroundTextStyle": "dark"
   },
   "permission": {
-    "scope.userLocation": {
+    "scope.userFuzzyLocation": {
       "desc": "用于展示你附近的课程和训练地点"
     }
   },
   "requiredPrivateInfos": [
-    "getLocation"
+    "getFuzzyLocation"
   ],
   "tabBar": {
     "color": "#8f96a3",

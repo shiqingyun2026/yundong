@@ -29,9 +29,28 @@
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
-        <view class="section-title">选择每周上课时间</view>
+        <view class="section-title">{{isTrialPackage ? '选择上课日期与时间' : '选择每周上课时间'}}</view>
         <mp-cells extClass="start-form-cells start-schedule-cells">
           <mp-cell
+            wx:if="{{isTrialPackage}}"
+            extClass="start-form-cell start-form-cell--picker start-schedule-cell"
+            hasHeader="{{true}}"
+            hasBody="{{true}}"
+            hasFooter="{{false}}"
+          >
+            <view slot="title" class="start-form-label">上课日期</view>
+            <picker
+              class="start-form-picker"
+              mode="date"
+              start="{{minTrialClassDate}}"
+              value="{{selectedClassDate}}"
+              bindchange="handleClassDateChange"
+            >
+              <view class="start-form-value">{{selectedClassDate}}</view>
+            </picker>
+          </mp-cell>
+          <mp-cell
+            wx:else
             extClass="start-form-cell start-form-cell--picker start-schedule-cell"
             hasHeader="{{true}}"
             hasBody="{{true}}"
@@ -69,7 +88,7 @@
           </mp-cell>
         </mp-cells>
 
-        <view class="section-desc">系统会在成团后自动锁定首课日期，并连续生成 5 次课时。</view>
+        <view class="section-desc">{{isTrialPackage ? '最早可选日期为开团后第 2 天，体验课仅 1 节，成团后按所选日期与开始时间上课。' : '系统会在成团后自动锁定首课日期，并连续生成 5 次课时。'}}</view>
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">

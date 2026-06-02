@@ -276,6 +276,78 @@ test('package start payment creates group with configured deadline hours', async
   assert.equal(state.paymentRecord.package_group_id, 'PG-20260422-00002')
 })
 
+test('trial package start rejects class dates earlier than two days after group start', async () => {
+  clearModules([
+    'config/env.js',
+    'repositories/index.js',
+    'shared/services/packageGroupStore.js',
+    'shared/services/groupResultNotifications.js',
+    'shared/services/paymentShell.js',
+    'shared/services/packageOrders.js'
+  ])
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true
+    }
+  })
+
+  mockModule('repositories/index.js', {
+    coursePackagesRepository: {
+      findPackageById: async () => ({
+        id: 'PKG-TRIAL-0001',
+        status: 1,
+        package_category: '体验课',
+        class_count: 1,
+        total_price: 12000,
+        supported_people: [4],
+        group_price_config: [{ target_count: 4, price_fen: 3000 }],
+        deadline_hours: 48
+      })
+    },
+    ordersRepository: {
+      listPendingOrderIdsByUserAndPackage: async () => [],
+      closeOrdersByIds: async () => [],
+      createOrder: async payload => payload
+    }
+  })
+
+  mockModule('shared/services/packageGroupStore.js', {
+    cleanupExpiredPackageGroups: async () => ({ groupIds: [], refundedOrderIds: [], closedOrderIds: [] }),
+    closePendingPackageOrdersByIds: async () => [],
+    listPendingOrderIdsForPackage: async () => []
+  })
+
+  mockModule('shared/services/groupResultNotifications.js', {
+    enqueueGroupResultNotifications: async () => ({})
+  })
+
+  mockModule('shared/services/paymentShell.js', {
+    markPaymentRecordRefunded: async () => ({})
+  })
+
+  const { createPackageStartOrder } = require(path.join(backendRoot, 'shared/services/packageOrders.js'))
+
+  await assert.rejects(
+    () =>
+      createPackageStartOrder({
+        userId: 'user-1',
+        packageId: 'PKG-TRIAL-0001',
+        targetCount: 4,
+        classDate: '2026-04-21',
+        hour: 10,
+        childNickname: '小满',
+        childAge: 6,
+        parentMobile: '13800138000',
+        now: new Date('2026-04-20T08:00:00.000Z')
+      }),
+    error => {
+      assert.match(error.message, /开团后第2天|上课日期/)
+      return true
+    }
+  )
+})
+
 test('package orders enqueue group success notification when join payment completes the group', async () => {
   clearModules([
     'config/env.js',

@@ -17,6 +17,7 @@ const {
   normalizeHour,
   normalizeWeekday
 } = require('./packageSchedule')
+const { parseShanghaiDate } = require('../utils/dateTime')
 const { enqueueGroupResultNotifications } = require('./groupResultNotifications')
 const { cleanupExpiredPackageGroups, closePendingPackageOrdersByIds, listPendingOrderIdsForPackage } = require('./packageGroupStore')
 const { createPackageServiceError, isPackageServiceError } = require('./packageServiceError')
@@ -36,6 +37,8 @@ const getPackageByIdOrThrow = async packageId => {
   return pkg
 }
 
+const isTrialPackage = pkg => !!pkg && `${pkg.package_category || ''}`.trim() === '体验课'
+
 const validateWeekdayAndHour = ({ weekday, hour }) => {
   if (!normalizeWeekday(weekday)) {
     throw createPackageServiceError(400, 1001, 'weekday 参数错误')
@@ -43,6 +46,36 @@ const validateWeekdayAndHour = ({ weekday, hour }) => {
 
   if (normalizeHour(hour) < 0) {
     throw createPackageServiceError(400, 1001, 'hour 参数错误')
+  }
+}
+
+const buildTrialFirstClassTime = ({ classDate, hour }) => {
+  const normalizedHour = normalizeHour(hour)
+  if (!classDate || normalizedHour < 0) {
+    return null
+  }
+
+  return parseShanghaiDate(`${classDate} ${`${normalizedHour}`.padStart(2, '0')}:00:00`)
+}
+
+const validateTrialClassDateAndHour = ({ classDate, hour, now = new Date() }) => {
+  const normalizedHour = normalizeHour(hour)
+  const selectedDate = classDate ? parseShanghaiDate(`${classDate} 00:00:00`) : null
+
+  if (!selectedDate) {
+    throw createPackageServiceError(400, 1001, '请填写正确的上课日期')
+  }
+
+  if (normalizedHour < 0 || normalizedHour < 9 || normalizedHour > 19) {
+    throw createPackageServiceError(400, 1001, 'hour 参数错误')
+  }
+
+  const minDate = new Date(now.getTime())
+  minDate.setHours(0, 0, 0, 0)
+  minDate.setDate(minDate.getDate() + 2)
+
+  if (selectedDate.getTime() < minDate.getTime()) {
+    throw createPackageServiceError(400, 1001, '上课日期不能早于开团后第2天')
   }
 }
 
@@ -91,6 +124,7 @@ const createPackageStartOrder = async ({
   packageId,
   targetCount,
   weekday,
+  classDate,
   hour,
   childNickname,
   childAge,
@@ -98,7 +132,6 @@ const createPackageStartOrder = async ({
   now = new Date()
 }) => {
   ensureMySqlMode()
-  validateWeekdayAndHour({ weekday, hour })
   const normalizedChildProfile = validateChildProfile({
     childNickname,
     childAge,
@@ -108,6 +141,13 @@ const createPackageStartOrder = async ({
   const pkg = await getPackageByIdOrThrow(packageId)
   if (Number(pkg.status) !== 1) {
     throw createPackageServiceError(404, 2001, '课包不存在')
+  }
+  const trialPackage = isTrialPackage(pkg)
+
+  if (trialPackage) {
+    validateTrialClassDateAndHour({ classDate, hour, now })
+  } else {
+    validateWeekdayAndHour({ weekday, hour })
   }
 
   assertSupportedTargetCount({
@@ -141,7 +181,8 @@ const createPackageStartOrder = async ({
     package_action: 'start',
     package_context: {
       target_count: Number(targetCount),
-      weekday: Number(weekday),
+      weekday: trialPackage ? 0 : Number(weekday),
+      class_date: trialPackage ? `${classDate || ''}`.trim() : '',
       hour: Number(hour),
       child_nickname: normalizedChildProfile.childNickname,
       child_age: normalizedChildProfile.childAge,
@@ -154,6 +195,7 @@ const createPackageStartOrder = async ({
     order,
     package: pkg,
     memberAmountFen,
+    classDate: trialPackage ? `${classDate || ''}`.trim() : '',
     childNickname: normalizedChildProfile.childNickname,
     childAge: normalizedChildProfile.childAge,
     parentMobile: normalizedChildProfile.parentMobile
@@ -320,9 +362,15 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
     const context = order.package_context || {}
     const targetCount = Number(context.target_count || context.targetCount || 0)
     const weekday = Number(context.weekday || 0)
+    const classDate = `${context.class_date || context.classDate || ''}`.trim()
     const hour = Number(context.hour || 0)
+    const trialPackage = isTrialPackage(pkg)
 
-    validateWeekdayAndHour({ weekday, hour })
+    if (trialPackage) {
+      validateTrialClassDateAndHour({ classDate, hour, now })
+    } else {
+      validateWeekdayAndHour({ weekday, hour })
+    }
     assertSupportedTargetCount({
       supportedPeople: pkg.supported_people,
       targetCount
@@ -335,20 +383,25 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
     const nextStatus =
       Number(targetCount) <= 1 ? PACKAGE_GROUP_STATUS.SUCCESS : PACKAGE_GROUP_STATUS.ACTIVE
     const firstClassTime =
-      nextStatus === PACKAGE_GROUP_STATUS.SUCCESS
-        ? computeFirstPackageClassTime({
-            successTime: now,
-            weekday,
+      trialPackage
+        ? buildTrialFirstClassTime({
+            classDate,
             hour
           })
-        : null
+        : nextStatus === PACKAGE_GROUP_STATUS.SUCCESS
+          ? computeFirstPackageClassTime({
+              successTime: now,
+              weekday,
+              hour
+            })
+          : null
 
     const group = await packageGroupsRepository.createPackageGroup(
       buildPackageGroupCreationPayload({
         packageId: pkg.id,
         creatorId: userId,
         targetCount,
-        weekday,
+        weekday: trialPackage ? 0 : weekday,
         hour,
         deadline,
         currentCount: 1,
@@ -414,11 +467,13 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
     })
     const firstClassTime =
       nextStatus === PACKAGE_GROUP_STATUS.SUCCESS
-        ? computeFirstPackageClassTime({
-            successTime: now,
-            weekday: group.weekday,
-            hour: group.hour
-          })
+        ? !normalizeWeekday(group.weekday) && group.first_class_time
+          ? parseShanghaiDate(group.first_class_time)
+          : computeFirstPackageClassTime({
+              successTime: now,
+              weekday: group.weekday,
+              hour: group.hour
+            })
         : null
 
     const updatedOrder = await ordersRepository.updateOrder(order.id, {

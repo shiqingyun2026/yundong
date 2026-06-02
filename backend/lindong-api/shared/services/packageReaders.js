@@ -15,6 +15,7 @@ const { parseShanghaiDate } = require('../utils/dateTime')
 const formatFenText = amountFen => (Number(amountFen || 0) / 100).toFixed(2)
 
 const DEFAULT_MEMBER_AVATAR = '/assets/member-default-avatar.jpg'
+const isTrialPackage = pkg => !!pkg && `${pkg.package_category || ''}`.trim() === '体验课'
 
 const maskStudentNickname = value => {
   const normalized = `${value === null || value === undefined ? '' : value}`.trim()
@@ -480,10 +481,13 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
           remaining_seconds: deadline ? Math.max(0, Math.floor((deadline.getTime() - now.getTime()) / 1000)) : 0,
           member_amount_fen: memberAmountFen,
           member_amount_text: formatFenText(memberAmountFen),
-          schedule_text: formatPendingPackageScheduleText({
-            weekday: group.weekday,
-            hour: group.hour
-          })
+          schedule_text:
+            isTrialPackage(pkg) && group.first_class_time
+              ? `体验课时间 ${formatPackageDateTime(group.first_class_time)}`
+              : formatPendingPackageScheduleText({
+                  weekday: group.weekday,
+                  hour: group.hour
+                })
         }
       })
   }
@@ -534,13 +538,14 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
     targetCount: latestGroup.target_count,
     groupPriceConfig: pkg.group_price_config
   })
+  const trialPackage = isTrialPackage(pkg)
   const scheduleList = latestGroup.first_class_time
     ? buildPackageLessonSchedule({
         firstClassTime: latestGroup.first_class_time,
-        weeks: 5
+        weeks: trialPackage ? 1 : 5
       })
     : []
-  const scheduleMode = scheduleList.length ? 'locked' : 'pending'
+  const scheduleMode = trialPackage ? 'single_session' : scheduleList.length ? 'locked' : 'pending'
   const userJoined = !!(userId && successOrders.some(item => item.user_id === userId))
   const leaderOrder = successOrders.find(item => item.package_action === 'start') || successOrders[0] || null
 
@@ -573,12 +578,16 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
     member_amount_text: formatFenText(memberAmountFen),
     schedule_mode: scheduleMode,
     schedule_text:
-      scheduleMode === 'locked'
-        ? `首课时间 ${formatPackageDateTime(latestGroup.first_class_time)}，共5次`
-        : formatScheduleTextWithLockNote({
-            weekday: latestGroup.weekday,
-            hour: latestGroup.hour
-          }),
+      scheduleMode === 'single_session'
+        ? latestGroup.first_class_time
+          ? `体验课时间 ${formatPackageDateTime(latestGroup.first_class_time)}`
+          : '体验课时间待定'
+        : scheduleMode === 'locked'
+          ? `首课时间 ${formatPackageDateTime(latestGroup.first_class_time)}，共5次`
+          : formatScheduleTextWithLockNote({
+              weekday: latestGroup.weekday,
+              hour: latestGroup.hour
+            }),
     first_class_time: latestGroup.first_class_time ? formatPackageDateTime(latestGroup.first_class_time) : null,
     schedule_list: scheduleList,
     members: successOrders.map(order => {

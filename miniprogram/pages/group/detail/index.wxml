@@ -136,11 +136,11 @@
         <view wx:else class="section-desc">暂未获取到成员信息</view>
       </view>
 
-      <view wx:if="{{groupDetail.scheduleMode === 'locked' && groupDetail.scheduleList.length}}" class="weui-panel weui-ext-card page-section card-shadow">
-        <view class="section-title">5次课时安排</view>
+      <view wx:if="{{(groupDetail.scheduleMode === 'locked' || groupDetail.scheduleMode === 'single_session') && groupDetail.scheduleList.length}}" class="weui-panel weui-ext-card page-section card-shadow">
+        <view class="section-title">{{groupDetail.scheduleMode === 'single_session' ? '单次体验课安排' : '5次课时安排'}}</view>
         <view class="schedule-list">
           <view wx:for="{{groupDetail.scheduleList}}" wx:key="index" class="schedule-item">
-            <view class="schedule-index">第{{item.index}}次</view>
+            <view class="schedule-index">{{groupDetail.scheduleMode === 'single_session' ? '上课时间' : ('第' + item.index + '次')}}</view>
             <view class="schedule-text">{{item.display_text}}</view>
           </view>
         </view>

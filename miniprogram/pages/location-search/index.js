@@ -190,7 +190,7 @@ Page({
       })
 
       const res = await new Promise((resolve, reject) => {
-        wx.getLocation({
+        wx.getFuzzyLocation({
           type: 'gcj02',
           success: resolve,
           fail: reject

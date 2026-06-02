@@ -17,6 +17,7 @@ Page({
     action: 'start',
     successType: 'start',
     targetCount: 0,
+    classDate: '',
     weekday: 6,
     hour: 10,
     childNickname: '',
@@ -41,6 +42,7 @@ Page({
       action: options.action || 'start',
       successType: options.successType || (options.action === 'join' ? 'join' : 'start'),
       targetCount: Number(options.targetCount) || 0,
+      classDate: decodeURIComponent(options.classDate || ''),
       weekday: Number(options.weekday) || 6,
       hour: Number(options.hour) || 10,
       childNickname: decodeURIComponent(options.childNickname || ''),
@@ -152,6 +154,7 @@ Page({
       url:
         `/pages/package/start/index?packageId=${this.data.packageId}` +
         `&targetCount=${this.data.targetCount}` +
+        `&classDate=${encodeURIComponent(this.data.classDate)}` +
         `&weekday=${this.data.weekday}` +
         `&hour=${this.data.hour}` +
         `&childNickname=${encodeURIComponent(this.data.childNickname)}` +

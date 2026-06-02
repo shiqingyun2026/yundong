@@ -98,7 +98,7 @@
           <view wx:else class="course-cover course-cover-fallback">
             <view class="cover-fallback-kicker">天天体育宝</view>
             <view class="cover-fallback-title">{{item.packageCategory || '体适能'}}课程</view>
-            <view class="cover-fallback-desc">5次连续训练计划</view>
+            <view class="cover-fallback-desc">{{item.coverFallbackDesc}}</view>
           </view>
         </view>
 

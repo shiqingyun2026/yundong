@@ -9,6 +9,7 @@ const {
 const HOME_TABS = [
   { key: 'all', label: '全部课程' },
   { key: 'fitness', label: '体适能', category: '体适能' },
+  { key: 'trial', label: '体验课', category: '体验课' },
   { key: 'jump_rope', label: '跳绳', category: '跳绳' }
 ]
 
@@ -99,6 +100,7 @@ const buildLocationFallbackFeedback = location => {
 const buildPackageCard = item => ({
   ...item,
   classCountTagText: item.classCount > 0 ? `包含${item.classCount}节课` : '',
+  coverFallbackDesc: item.packageCategory === '体验课' ? '单次拼团体验课' : '5次连续训练计划',
   showLimitedTimeOfferTag: !!item.showLimitedTimeOfferTag,
   locationText: item.locationDisplayText || item.locationText || '',
   perMemberText: `¥${item.minMemberAmountDisplayText || item.minMemberAmountText}`,
@@ -122,6 +124,10 @@ const filterPackageListByTab = (list, activeTab) => {
 
   if (activeTab === 'fitness') {
     return source.filter(item => (item.packageCategory || '体适能') === '体适能')
+  }
+
+  if (activeTab === 'trial') {
+    return source.filter(item => item.packageCategory === '体验课')
   }
 
   if (activeTab === 'jump_rope') {
@@ -319,7 +325,7 @@ Page({
         })
       }, LOCATION_TIMEOUT_MS)
 
-      wx.getLocation({
+      wx.getFuzzyLocation({
         type: 'gcj02',
         success: async res => {
           const location = await resolveLocationDetails({
@@ -416,7 +422,7 @@ Page({
     wx.getSetting({
       success: res => {
         const authSetting = (res && res.authSetting) || {}
-        if (authSetting['scope.userLocation']) {
+        if (authSetting['scope.userFuzzyLocation']) {
           this.tryGetLocation({
             applyToSelected: true
           }).then(() => {
@@ -431,7 +437,7 @@ Page({
         wx.openSetting({
           success: openRes => {
             const nextAuthSetting = (openRes && openRes.authSetting) || {}
-            if (nextAuthSetting['scope.userLocation']) {
+            if (nextAuthSetting['scope.userFuzzyLocation']) {
               this.tryGetLocation({
                 applyToSelected: true
               }).then(() => {

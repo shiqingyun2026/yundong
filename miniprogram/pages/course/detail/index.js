@@ -2,12 +2,15 @@ const { fetchPackageDetail, resolveShareImageUrl } = require('../../../utils/pac
 
 const HOME_PAGE_PATH = '/pages/home/index'
 const GROUP_ENDED_TOAST_TEXT = '当前拼团已结束，您可另外开团'
+const isTrialPackageDetail = packageDetail =>
+  !!packageDetail && ((packageDetail.packageType || '') === 'trial' || packageDetail.packageCategory === '体验课')
 
 Page({
   data: {
     packageId: '',
     shouldShowGroupEndedToast: false,
     packageDetail: null,
+    isTrialPackage: false,
     heroImages: [],
     heroCurrent: 0,
     loading: true,
@@ -73,6 +76,7 @@ Page({
 
       this.setData({
         packageDetail,
+        isTrialPackage: isTrialPackageDetail(packageDetail),
         heroImages,
         heroCurrent: 0
       })

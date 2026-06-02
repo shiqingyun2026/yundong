@@ -31,6 +31,23 @@ const hourOptions = START_HOUR_OPTIONS.map(hour => ({
   label: `${hour}`.padStart(2, '0') + ':00'
 }))
 
+const isTrialPackageDetail = packageDetail =>
+  !!packageDetail && ((packageDetail.packageType || '') === 'trial' || packageDetail.packageCategory === '体验课')
+
+const formatDateInputValue = date => {
+  const year = date.getFullYear()
+  const month = `${date.getMonth() + 1}`.padStart(2, '0')
+  const day = `${date.getDate()}`.padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const buildMinTrialClassDate = now => {
+  const base = now instanceof Date ? new Date(now.getTime()) : new Date()
+  base.setHours(0, 0, 0, 0)
+  base.setDate(base.getDate() + 2)
+  return formatDateInputValue(base)
+}
+
 const invokeWechatPayment = paymentParams =>
   new Promise((resolve, reject) => {
     if (!wx.requestPayment) {
@@ -89,6 +106,7 @@ Page({
     loading: true,
     submitting: false,
     agreementChecked: true,
+    isTrialPackage: false,
     weekdayOptions,
     hourOptions,
     selectedTargetCount: 0,
@@ -96,6 +114,8 @@ Page({
     selectedHour: 10,
     selectedWeekdayIndex: 5,
     selectedHourIndex: 1,
+    selectedClassDate: '',
+    minTrialClassDate: '',
     memberAmountText: '0.00',
     memberAmountDisplayText: '0',
     childNickname: '',
@@ -108,6 +128,7 @@ Page({
     const selectedTargetCount = Number(options.targetCount) || 0
     const selectedWeekday = Number(options.weekday) || 6
     const selectedHour = Number(options.hour) || 10
+    const selectedClassDate = `${options.classDate || ''}`.trim()
     const selectedWeekdayIndex = Math.max(0, weekdayOptions.findIndex(item => item.value === selectedWeekday))
     const selectedHourIndex = Math.max(0, hourOptions.findIndex(item => item.value === selectedHour))
     this.setData({
@@ -117,6 +138,7 @@ Page({
       selectedHour,
       selectedWeekdayIndex,
       selectedHourIndex,
+      selectedClassDate,
       childNickname: decodeURIComponent(options.childNickname || ''),
       childAge: decodeURIComponent(options.childAge || ''),
       parentMobile: decodeURIComponent(options.parentMobile || '')
@@ -143,10 +165,16 @@ Page({
         ? 4
         : (packageDetail.supportedPeople[0] || 2)
       const defaultTargetCount = this.data.selectedTargetCount || preferredTargetCount
+      const isTrialPackage = isTrialPackageDetail(packageDetail)
+      const minTrialClassDate = buildMinTrialClassDate()
+      const selectedClassDate = this.data.selectedClassDate || minTrialClassDate
 
       this.setData({
         packageDetail,
-        selectedTargetCount: defaultTargetCount
+        isTrialPackage,
+        selectedTargetCount: defaultTargetCount,
+        minTrialClassDate,
+        selectedClassDate
       })
       this.updateAmountPreview(packageDetail, defaultTargetCount)
     } catch (error) {
@@ -191,6 +219,13 @@ Page({
     this.setData({
       selectedWeekdayIndex,
       selectedWeekday: option.value
+    })
+  },
+
+  handleClassDateChange(event) {
+    const nextValue = `${event.detail.value || ''}`.trim()
+    this.setData({
+      selectedClassDate: nextValue || this.data.minTrialClassDate
     })
   },
 
@@ -311,15 +346,26 @@ Page({
     })
 
     try {
-      const order = await createPackageStartOrder({
-        packageId: this.data.packageId,
-        targetCount: this.data.selectedTargetCount,
-        weekday: this.data.selectedWeekday,
-        hour: this.data.selectedHour,
-        childNickname: this.data.childNickname.trim(),
-        childAge: this.data.childAge,
-        parentMobile: this.data.parentMobile
-      })
+      const orderPayload = this.data.isTrialPackage
+        ? {
+            packageId: this.data.packageId,
+            targetCount: this.data.selectedTargetCount,
+            classDate: this.data.selectedClassDate,
+            hour: this.data.selectedHour,
+            childNickname: this.data.childNickname.trim(),
+            childAge: this.data.childAge,
+            parentMobile: this.data.parentMobile
+          }
+        : {
+            packageId: this.data.packageId,
+            targetCount: this.data.selectedTargetCount,
+            weekday: this.data.selectedWeekday,
+            hour: this.data.selectedHour,
+            childNickname: this.data.childNickname.trim(),
+            childAge: this.data.childAge,
+            parentMobile: this.data.parentMobile
+          }
+      const order = await createPackageStartOrder(orderPayload)
       const orderId = order.orderId || ''
 
       if (!orderId) {
@@ -353,6 +399,7 @@ Page({
               `&packageGroupId=${encodeURIComponent(nextPackageGroupId)}` +
               `&action=start` +
               `&targetCount=${this.data.selectedTargetCount}` +
+              `&classDate=${encodeURIComponent(this.data.selectedClassDate)}` +
               `&weekday=${this.data.selectedWeekday}` +
               `&hour=${this.data.selectedHour}` +
               `&childNickname=${encodeURIComponent(this.data.childNickname.trim())}` +
@@ -405,6 +452,7 @@ Page({
             `&packageId=${this.data.packageId}` +
             `&action=start` +
             `&targetCount=${this.data.selectedTargetCount}` +
+            `&classDate=${encodeURIComponent(this.data.selectedClassDate)}` +
             `&weekday=${this.data.selectedWeekday}` +
             `&hour=${this.data.selectedHour}` +
             `&childNickname=${encodeURIComponent(this.data.childNickname.trim())}` +
@@ -418,6 +466,7 @@ Page({
             `&packageId=${this.data.packageId}` +
             `&action=start` +
             `&targetCount=${this.data.selectedTargetCount}` +
+            `&classDate=${encodeURIComponent(this.data.selectedClassDate)}` +
             `&weekday=${this.data.selectedWeekday}` +
             `&hour=${this.data.selectedHour}` +
             `&childNickname=${encodeURIComponent(this.data.childNickname.trim())}` +
