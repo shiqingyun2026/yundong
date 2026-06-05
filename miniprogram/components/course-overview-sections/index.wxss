@@ -1,0 +1,128 @@
+.shared-course-title {
+  flex: 1;
+  font-size: 38rpx;
+  font-weight: 700;
+  color: #1f2329;
+  line-height: 1.5;
+}
+
+.shared-feature-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+  margin-top: 24rpx;
+}
+
+.shared-feature-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 10rpx 20rpx;
+  border-radius: 999rpx;
+  background: #eef8f8;
+  color: #169ca3;
+  font-size: 22rpx;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.shared-info-list {
+  margin-top: 28rpx;
+}
+
+.shared-info-item + .shared-info-item {
+  margin-top: 18rpx;
+}
+
+.shared-info-label {
+  font-size: 24rpx;
+  color: #888888;
+}
+
+.shared-info-label-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex-wrap: wrap;
+}
+
+.shared-info-value {
+  margin-top: 8rpx;
+  font-size: 28rpx;
+  color: #353535;
+  line-height: 1.7;
+}
+
+.shared-info-subvalue {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: #8a94a6;
+}
+
+.shared-group-price-list {
+  margin-top: 8rpx;
+}
+
+.shared-group-price-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex-wrap: wrap;
+}
+
+.shared-group-price-row + .shared-group-price-row {
+  margin-top: 8rpx;
+}
+
+.shared-group-price-item {
+  font-size: 28rpx;
+  line-height: 1.8;
+  color: #1f2329;
+}
+
+.shared-limited-offer-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40rpx;
+  padding: 0 14rpx;
+  border-radius: 999rpx;
+  background: #ff8a1f;
+  color: #ffffff;
+  font-size: 20rpx;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.shared-intro-card .section-title {
+  text-align: left;
+}
+
+.shared-rich-text {
+  margin-top: 20rpx;
+  font-size: 28rpx;
+  color: #3c4655;
+  line-height: 1.8;
+}
+
+.shared-coach-name {
+  margin-top: 20rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1f2329;
+}
+
+.shared-certificate-list {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 24rpx;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.shared-certificate-image {
+  width: 220rpx;
+  height: 146rpx;
+  flex-shrink: 0;
+  border-radius: 20rpx;
+  background: #eef2f7;
+}

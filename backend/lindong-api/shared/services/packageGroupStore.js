@@ -58,10 +58,10 @@ const markPaymentRecordRefundFailed = async ({ orderId, reason = '', payload = {
   })
 }
 
-const startAutoRefundForPackageOrder = async ({ order, now = new Date() }) => {
+const startAutoRefundForPackageOrder = async ({ order, reason = AUTO_REFUND_REASON, now = new Date() }) => {
   await ordersRepository.updateOrder(order.id, {
     status: 'refund_pending',
-    refund_reason: AUTO_REFUND_REASON,
+    refund_reason: reason,
     updated_at: now
   })
 
@@ -69,7 +69,7 @@ const startAutoRefundForPackageOrder = async ({ order, now = new Date() }) => {
     const prepared = await prepareCloudPayRefund({
       supabase: null,
       orderId: order.id,
-      reason: AUTO_REFUND_REASON
+      reason
     })
 
     const refundResult = await createWechatPayRefund({
@@ -206,6 +206,7 @@ const cleanupExpiredPackageGroups = async ({ packageId, packageIds = [], now = n
     successOrders.map(order =>
       startAutoRefundForPackageOrder({
         order,
+        reason: AUTO_REFUND_REASON,
         now
       })
     )
@@ -249,5 +250,6 @@ const cleanupExpiredPackageGroups = async ({ packageId, packageIds = [], now = n
 module.exports = {
   cleanupExpiredPackageGroups,
   closePendingPackageOrdersByIds,
-  listPendingOrderIdsForPackage
+  listPendingOrderIdsForPackage,
+  startAutoRefundForPackageOrder
 }

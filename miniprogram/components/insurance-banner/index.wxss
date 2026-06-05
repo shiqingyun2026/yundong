@@ -1,0 +1,15 @@
+.insurance-card {
+  margin-bottom: 24rpx;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  border-radius: 24rpx;
+}
+
+.insurance-banner-image {
+  width: 100%;
+  height: 69rpx;
+  display: block;
+  border-radius: 24rpx;
+}

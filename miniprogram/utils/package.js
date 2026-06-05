@@ -527,7 +527,11 @@ const normalizePackageGroupDetail = payload => ({
     name: payload.package && payload.package.name ? payload.package.name : '',
     cover: payload.package && payload.package.cover ? payload.package.cover : '',
     wechatShareCover: payload.package && payload.package.wechat_share_cover ? payload.package.wechat_share_cover : '',
+    classCount: Number(payload.package && payload.package.class_count) || 0,
     ageRange: payload.package && payload.package.age_range ? payload.package.age_range : '',
+    showLimitedTimeOfferTag: !!(payload.package && payload.package.show_limited_time_offer_tag),
+    featureTags: payload.package ? buildPackageFeatureTags(payload.package) : [],
+    supportedGroupPriceList: payload.package ? buildSupportedGroupPriceList(payload.package) : [],
     description: normalizeRichTextImages(payload.package && payload.package.description ? payload.package.description : ''),
     coachName: payload.package && payload.package.coach_name ? payload.package.coach_name : '',
     coachIntro: normalizeRichTextImages(payload.package && payload.package.coach_intro ? payload.package.coach_intro : ''),
@@ -535,7 +539,8 @@ const normalizePackageGroupDetail = payload => ({
       payload.package && Array.isArray(payload.package.coach_certificates)
         ? payload.package.coach_certificates
         : [],
-    locationText: payload.package ? formatPackageLocationText(payload.package) : ''
+    locationText: payload.package ? formatPackageLocationText(payload.package) : '',
+    locationDisplayText: payload.package ? formatPackageLocationText(payload.package) : ''
   },
   targetCount: Number(payload.target_count) || 0,
   currentCount: Number(payload.current_count) || 0,

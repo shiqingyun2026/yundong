@@ -10,8 +10,12 @@ const {
   calculatePackageMemberAmountFen,
   findGroupPriceFen
 } = require('../../shared/domain/packageGroupRules')
-const { AUTO_REFUND_REASON } = require('../../shared/constants/refunds')
-const { cleanupExpiredPackageGroups, closePendingPackageOrdersByIds } = require('../../shared/services/packageGroupStore')
+const { AUTO_REFUND_REASON, PACKAGE_OFFLINE_REFUND_REASON } = require('../../shared/constants/refunds')
+const {
+  cleanupExpiredPackageGroups,
+  closePendingPackageOrdersByIds,
+  startAutoRefundForPackageOrder
+} = require('../../shared/services/packageGroupStore')
 const {
   buildPackageLessonSchedule,
   formatPackageDateTime,
@@ -19,7 +23,6 @@ const {
 } = require('../../shared/services/packageSchedule')
 const { buildAdminLocationText, formatFenText } = require('../../shared/services/packageReaders')
 const { parseShanghaiDate } = require('../../shared/utils/dateTime')
-const { markPaymentRecordRefunded } = require('../../shared/services/paymentShell')
 const { writeAdminLog } = require('../../utils/adminStore')
 const { formatDateTime, getPagination, parseShanghaiDateTimeInput } = require('../routes/_helpers')
 const { geocodeAddressWithTencentMap, searchPlacesWithTencentMap } = require('./tencentMapService')
@@ -59,7 +62,8 @@ const failActivePackageGroups = async ({ packageId, now = new Date() }) => {
   if (!groupIds.length) {
     return {
       groupIds: [],
-      refundedOrderIds: [],
+      refundPendingOrderIds: [],
+      refundFailedOrderIds: [],
       closedOrderIds: []
     }
   }
@@ -96,26 +100,20 @@ const failActivePackageGroups = async ({ packageId, now = new Date() }) => {
     now
   })
 
-  await Promise.all(
-    successOrders.map(async order => {
-      await ordersRepository.updateOrder(order.id, {
-        status: 'refunded',
-        refund_time: now,
-        refund_reason: AUTO_REFUND_REASON,
-        updated_at: now
-      })
-      await markPaymentRecordRefunded({
-        supabase: null,
-        orderId: order.id,
-        reason: AUTO_REFUND_REASON,
+  const refundResults = await Promise.all(
+    successOrders.map(order =>
+      startAutoRefundForPackageOrder({
+        order,
+        reason: PACKAGE_OFFLINE_REFUND_REASON,
         now
       })
-    })
+    )
   )
 
   return {
     groupIds,
-    refundedOrderIds: successOrders.map(item => item.id).filter(Boolean),
+    refundPendingOrderIds: refundResults.filter(item => item.status === 'refund_pending').map(item => item.orderId),
+    refundFailedOrderIds: refundResults.filter(item => item.status === 'refund_failed').map(item => item.orderId),
     closedOrderIds: (closedOrders || []).map(item => item.id).filter(Boolean)
   }
 }
@@ -858,7 +856,12 @@ const offlineAdminPackage = async ({ packageId, admin = {}, ip = null, now = new
       offline_at: formatDateTime(offlinedAt),
       unpublish_time: formatDateTime(updated.unpublish_time),
       auto_failed_group_ids: [...new Set([...(expiredCleanupResult.groupIds || []), ...(activeGroupCleanupResult.groupIds || [])])],
-      auto_refunded_order_ids: [...new Set([...(expiredCleanupResult.refundedOrderIds || []), ...(activeGroupCleanupResult.refundedOrderIds || [])])],
+      auto_refund_pending_order_ids: [
+        ...new Set([...(expiredCleanupResult.refundPendingOrderIds || []), ...(activeGroupCleanupResult.refundPendingOrderIds || [])])
+      ],
+      auto_refund_failed_order_ids: [
+        ...new Set([...(expiredCleanupResult.refundFailedOrderIds || []), ...(activeGroupCleanupResult.refundFailedOrderIds || [])])
+      ],
       auto_closed_order_ids: [...new Set([...(expiredCleanupResult.closedOrderIds || []), ...(activeGroupCleanupResult.closedOrderIds || [])])]
     },
     ip

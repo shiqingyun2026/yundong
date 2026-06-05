@@ -56,10 +56,10 @@ const markPaymentRecordRefundFailed = async ({ orderId, reason = '', payload = {
   })
 }
 
-const startAutoRefundForPackageOrder = async ({ order, now = new Date() }) => {
+const startAutoRefundForPackageOrder = async ({ order, reason = AUTO_REFUND_REASON, now = new Date() }) => {
   await ordersRepository.updateOrder(order.id, {
     status: 'refund_pending',
-    refund_reason: AUTO_REFUND_REASON,
+    refund_reason: reason,
     updated_at: now
   })
 
@@ -67,7 +67,7 @@ const startAutoRefundForPackageOrder = async ({ order, now = new Date() }) => {
     const { invokeCloudPayRefund } = require('../../console-api/services/cloudPayRefundGateway')
     const refundResult = await invokeCloudPayRefund({
       orderId: order.id,
-      reason: AUTO_REFUND_REASON,
+      reason,
       operatorId: ''
     })
 
@@ -197,6 +197,7 @@ const cleanupExpiredPackageGroups = async ({ packageId, packageIds = [], now = n
     successOrders.map(order =>
       startAutoRefundForPackageOrder({
         order,
+        reason: AUTO_REFUND_REASON,
         now
       })
     )
@@ -240,5 +241,6 @@ const cleanupExpiredPackageGroups = async ({ packageId, packageIds = [], now = n
 module.exports = {
   cleanupExpiredPackageGroups,
   closePendingPackageOrdersByIds,
-  listPendingOrderIdsForPackage
+  listPendingOrderIdsForPackage,
+  startAutoRefundForPackageOrder
 }

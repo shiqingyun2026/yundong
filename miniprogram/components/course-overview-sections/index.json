@@ -1,0 +1,6 @@
+{
+  "component": true,
+  "usingComponents": {
+    "insurance-banner": "../insurance-banner/index"
+  }
+}

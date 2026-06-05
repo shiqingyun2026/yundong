@@ -1,0 +1,69 @@
+<block wx:if="{{packageInfo}}">
+  <view class="weui-panel weui-ext-card page-section card-shadow shared-course-info-card">
+    <view class="shared-course-title">{{packageInfo.name}}</view>
+
+    <view wx:if="{{packageInfo.featureTags.length}}" class="shared-feature-tag-list">
+      <view wx:for="{{packageInfo.featureTags}}" wx:key="*this" class="shared-feature-tag">{{item}}</view>
+    </view>
+
+    <view class="shared-info-list">
+      <view class="shared-info-item">
+        <view class="shared-info-label">上课地点</view>
+        <view class="shared-info-value">{{packageInfo.locationDisplayText || packageInfo.locationText}}</view>
+      </view>
+
+      <view wx:if="{{packageInfo.ageRange}}" class="shared-info-item">
+        <view class="shared-info-label">适用年龄</view>
+        <view class="shared-info-value">{{packageInfo.ageRange}}</view>
+      </view>
+
+      <view wx:if="{{packageInfo.supportedGroupPriceList.length}}" class="shared-info-item">
+        <view class="shared-info-label-row">
+          <view class="shared-info-label">支持拼团</view>
+          <view wx:if="{{packageInfo.showLimitedTimeOfferTag}}" class="shared-limited-offer-tag">限时特惠</view>
+        </view>
+        <view class="shared-group-price-list">
+          <view wx:for="{{packageInfo.supportedGroupPriceList}}" wx:key="count" class="shared-group-price-row">
+            <view class="shared-group-price-item">
+              <text>{{item.count}}人团</text>
+              <text>，每人¥{{item.memberAmountDisplayText || item.memberAmountText}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view wx:for="{{extraInfoRows}}" wx:key="label" class="shared-info-item">
+        <view class="shared-info-label">{{item.label}}</view>
+        <view class="shared-info-value">{{item.value}}</view>
+        <view wx:if="{{item.subvalue}}" class="shared-info-subvalue">{{item.subvalue}}</view>
+      </view>
+    </view>
+  </view>
+
+  <insurance-banner />
+
+  <view wx:if="{{packageInfo.description}}" class="weui-panel weui-ext-card page-section card-shadow shared-intro-card">
+    <view class="section-title">课程介绍</view>
+    <rich-text class="shared-rich-text" nodes="{{packageInfo.description}}"></rich-text>
+  </view>
+
+  <view
+    wx:if="{{packageInfo.coachName || packageInfo.coachIntro || packageInfo.coachCertificates.length}}"
+    class="weui-panel weui-ext-card page-section card-shadow shared-intro-card"
+  >
+    <view class="section-title">教练信息</view>
+    <view wx:if="{{packageInfo.coachName}}" class="shared-coach-name">{{packageInfo.coachName}}</view>
+    <rich-text wx:if="{{packageInfo.coachIntro}}" class="shared-rich-text" nodes="{{packageInfo.coachIntro}}"></rich-text>
+    <view wx:if="{{packageInfo.coachCertificates.length}}" class="shared-certificate-list">
+      <image
+        wx:for="{{packageInfo.coachCertificates}}"
+        wx:key="*this"
+        class="shared-certificate-image"
+        src="{{item}}"
+        mode="aspectFill"
+        data-url="{{item}}"
+        bindtap="handlePreviewCertificate"
+      ></image>
+    </view>
+  </view>
+</block>

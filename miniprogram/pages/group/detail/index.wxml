@@ -56,51 +56,7 @@
         </view>
       </view>
 
-      <view class="weui-panel weui-ext-card page-section card-shadow course-info-card">
-        <view class="course-title">{{groupDetail.packageInfo.name}}</view>
-        <view class="group-tag-row">
-          <view class="group-price-tag">{{groupDetail.targetCount}}人成团</view>
-          <view class="group-price-tag">每人 ¥{{groupDetail.memberAmountDisplayText || groupDetail.memberAmountText}}</view>
-        </view>
-
-        <view class="info-list">
-          <view class="info-row">
-            <image class="info-icon-image" src="/assets/icons/status-info-primary.svg" mode="aspectFit"></image>
-            <view class="info-value">{{groupDetail.scheduleMode === 'locked' ? groupDetail.firstClassTimeText : groupDetail.scheduleText}}</view>
-          </view>
-          <view class="info-row">
-            <image class="info-icon-image" src="/assets/icons/location-primary.svg" mode="aspectFit"></image>
-            <view class="info-content">
-              <view class="info-value">{{groupDetail.packageInfo.locationText}}</view>
-              <view wx:if="{{groupDetail.status === 'active' && groupDetail.remainingSeconds > 0}}" class="info-subvalue">
-                拼团剩余时间：{{groupDetail.remainingPlainText}}
-              </view>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <view wx:if="{{groupDetail.packageInfo.description}}" class="weui-panel weui-ext-card page-section card-shadow intro-card">
-        <view class="section-title">课程介绍</view>
-        <rich-text class="rich-text" nodes="{{groupDetail.packageInfo.description}}"></rich-text>
-      </view>
-
-      <view wx:if="{{groupDetail.packageInfo.coachName || groupDetail.packageInfo.coachIntro || groupDetail.packageInfo.coachCertificates.length}}" class="weui-panel weui-ext-card page-section card-shadow intro-card">
-        <view class="section-title">教练信息</view>
-        <view wx:if="{{groupDetail.packageInfo.coachName}}" class="coach-name">{{groupDetail.packageInfo.coachName}}</view>
-        <rich-text wx:if="{{groupDetail.packageInfo.coachIntro}}" class="rich-text" nodes="{{groupDetail.packageInfo.coachIntro}}"></rich-text>
-        <view wx:if="{{groupDetail.packageInfo.coachCertificates.length}}" class="certificate-list">
-          <image
-            wx:for="{{groupDetail.packageInfo.coachCertificates}}"
-            wx:key="*this"
-            class="certificate-image"
-            src="{{item}}"
-            mode="aspectFill"
-            data-url="{{item}}"
-            bindtap="handlePreviewCertificate"
-          ></image>
-        </view>
-      </view>
+      <course-overview-sections packageInfo="{{groupDetail.packageInfo}}" extraInfoRows="{{groupOverviewExtraInfoRows}}" />
 
       <view class="weui-panel weui-ext-card page-section card-shadow group-rules-card">
         <view class="section-title">拼团说明</view>

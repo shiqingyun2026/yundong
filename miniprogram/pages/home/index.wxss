@@ -51,13 +51,13 @@
   margin-bottom: 24rpx;
   padding: 0;
   overflow: hidden;
-  border-radius: 36rpx;
+  border-radius: 90rpx;
   background: #ffffff;
 }
 
 .banner-swiper {
   width: 100%;
-  height: 152rpx;
+  height: 124rpx;
 }
 
 .banner-slide {
@@ -65,7 +65,7 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
-  border-radius: 36rpx;
+  border-radius: 90rpx;
   background: linear-gradient(135deg, #d8efff 0%, #eef7ff 100%);
 }
 

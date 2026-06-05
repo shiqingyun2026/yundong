@@ -14,7 +14,6 @@
     "slideview": "./slideview/slideview",
     "msg": "./msg/msg",
     "dialog": "./dialog/dialog",
-    "uploader": "./uploader/uploader",
     "gallery": "./gallery/gallery",
     "grids": "./grids/grids",
     "checkbox": "./checkbox/checkbox",

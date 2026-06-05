@@ -70,7 +70,8 @@ Page({
     subscribeSubmitting: false,
     subscribeStatusText: '',
     subscribeStatusTone: 'muted',
-    subscribed: false
+    subscribed: false,
+    groupOverviewExtraInfoRows: []
   },
 
   async onLoad(options) {
@@ -158,6 +159,20 @@ Page({
         ...groupDetail,
         members
       },
+      groupOverviewExtraInfoRows: [
+        {
+          label: '拼团课时',
+          value: groupDetail.scheduleMode === 'locked' ? groupDetail.firstClassTimeText : groupDetail.scheduleText
+        },
+        {
+          label: '拼团状态',
+          value: `${groupDetail.targetCount}人成团，每人 ¥${groupDetail.memberAmountDisplayText || groupDetail.memberAmountText}`,
+          subvalue:
+            groupDetail.status === 'active' && groupDetail.remainingSeconds > 0
+              ? `拼团剩余时间：${groupDetail.remainingPlainText}`
+              : ''
+        }
+      ],
       statusText: statusInfo.text,
       statusClassName: statusInfo.className,
       showSuccessEntry,

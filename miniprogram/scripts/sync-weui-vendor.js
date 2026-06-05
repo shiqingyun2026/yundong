@@ -15,6 +15,19 @@ fs.mkdirSync(path.dirname(targetDir), { recursive: true })
 fs.rmSync(targetDir, { recursive: true, force: true })
 fs.cpSync(sourceDir, targetDir, { recursive: true, force: true })
 
+const uploaderDir = path.join(targetDir, 'uploader')
+const vendorIndexPath = path.join(targetDir, 'index.json')
+
+fs.rmSync(uploaderDir, { recursive: true, force: true })
+
+if (fs.existsSync(vendorIndexPath)) {
+  const vendorIndex = JSON.parse(fs.readFileSync(vendorIndexPath, 'utf8'))
+  if (vendorIndex.usingComponents && vendorIndex.usingComponents.uploader) {
+    delete vendorIndex.usingComponents.uploader
+    fs.writeFileSync(vendorIndexPath, `${JSON.stringify(vendorIndex, null, 2)}\n`)
+  }
+}
+
 if (fs.existsSync(sourceAssetsDir)) {
   fs.mkdirSync(targetAssetsDir, { recursive: true })
   fs.cpSync(sourceAssetsDir, targetAssetsDir, { recursive: true, force: true })

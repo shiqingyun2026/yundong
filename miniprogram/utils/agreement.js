@@ -249,13 +249,13 @@ const AGREEMENT_DOCS = [
   {
     key: 'user',
     title: '用户协议',
-    subtitle: '版本发布日期：2026年4月25日  生效日期：2026年4月25日',
+    subtitle: '版本发布日期：2026年6月2日  生效日期：2026年6月2日',
     nodes: userAgreementNodes
   },
   {
     key: 'privacy',
     title: '隐私政策',
-    subtitle: '更新日期：2026年4月25日  生效日期：2026年4月25日',
+    subtitle: '更新日期：2026年6月2日  生效日期：2026年6月2日',
     nodes: privacyPolicyNodes
   },
   {

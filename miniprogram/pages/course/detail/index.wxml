@@ -22,67 +22,7 @@
     </view>
 
     <view class="detail-content">
-      <view class="weui-panel weui-ext-card page-section card-shadow">
-        <view class="title-row">
-          <view class="course-title">{{packageDetail.name}}</view>
-        </view>
-
-        <view wx:if="{{packageDetail.featureTags.length}}" class="feature-tag-list">
-          <view wx:for="{{packageDetail.featureTags}}" wx:key="*this" class="feature-tag">{{item}}</view>
-        </view>
-
-        <view class="info-list">
-          <view class="info-item">
-            <view class="info-label">上课地点</view>
-            <view class="info-value">{{packageDetail.locationDisplayText || packageDetail.locationText}}</view>
-          </view>
-          <view class="info-item">
-            <view class="info-label">适用年龄</view>
-            <view class="info-value">{{packageDetail.ageRange || '-'}}</view>
-          </view>
-          <view class="info-item">
-            <view class="info-label-row">
-              <view class="info-label">支持拼团</view>
-              <view wx:if="{{packageDetail.showLimitedTimeOfferTag}}" class="limited-offer-tag limited-offer-tag--detail">限时特惠</view>
-            </view>
-            <view wx:if="{{packageDetail.supportedGroupPriceList.length}}" class="group-price-list">
-              <view wx:for="{{packageDetail.supportedGroupPriceList}}" wx:key="count" class="group-price-row">
-                <view class="group-price-item">
-                  <text>{{item.count}}人团</text>
-                  <text>，每人¥{{item.memberAmountDisplayText || item.memberAmountText}}</text>
-                </view>
-              </view>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <view class="weui-panel weui-ext-card page-section card-shadow">
-        <view class="section-title">课程介绍</view>
-        <rich-text class="rich-text" nodes="{{packageDetail.description}}"></rich-text>
-      </view>
-
-      <view class="weui-panel weui-ext-card page-section card-shadow">
-        <view class="section-title">教练信息</view>
-        <view class="coach-name">{{packageDetail.coachName}}</view>
-        <rich-text class="rich-text" nodes="{{packageDetail.coachIntro}}"></rich-text>
-        <view class="certificate-list">
-          <image
-            wx:for="{{packageDetail.coachCertificates}}"
-            wx:key="*this"
-            class="certificate-image"
-            src="{{item}}"
-            mode="aspectFill"
-            data-url="{{item}}"
-            bindtap="handlePreviewCertificate"
-          ></image>
-        </view>
-      </view>
-
-      <view class="weui-panel weui-ext-card page-section card-shadow insurance-card">
-        <view class="section-title">保险说明</view>
-        <view class="section-desc insurance-text">{{packageDetail.insuranceDesc}}</view>
-      </view>
+      <course-overview-sections packageInfo="{{packageDetail}}" />
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">当前进行中的拼团</view>

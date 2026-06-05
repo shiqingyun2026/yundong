@@ -7,6 +7,7 @@
     "mp-icon": "../../../vendor/weui-miniprogram/icon/icon",
     "mp-badge": "../../../vendor/weui-miniprogram/badge/badge",
     "mp-loading": "../../../vendor/weui-miniprogram/loading/loading",
-    "login-sheet": "../../../components/login-sheet/index"
+    "login-sheet": "../../../components/login-sheet/index",
+    "course-overview-sections": "../../../components/course-overview-sections/index"
   }
 }

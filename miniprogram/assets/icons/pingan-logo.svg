@@ -1,0 +1,7 @@
+<svg width="360" height="360" viewBox="0 0 360 360" xmlns="http://www.w3.org/2000/svg">
+  <rect width="360" height="360" rx="24" fill="#FF6A00"/>
+  <text x="180" y="145" text-anchor="middle" font-size="56" font-weight="700" fill="#FFFFFF" font-family="'PingFang SC','Microsoft YaHei',sans-serif">中国平安</text>
+  <text x="180" y="215" text-anchor="middle" font-size="58" font-weight="700" fill="#FFFFFF" font-family="Arial,sans-serif" letter-spacing="2">PING AN</text>
+  <rect x="227" y="202" width="11" height="11" rx="2" fill="#008D4E"/>
+  <text x="180" y="275" text-anchor="middle" font-size="28" font-weight="500" fill="#FFFFFF" font-family="'PingFang SC','Microsoft YaHei',sans-serif" letter-spacing="2">专业 · 价值</text>
+</svg>

@@ -7,6 +7,7 @@
     "pages/agreement-content/index",
     "pages/service-agreement/index",
     "pages/location-search/index",
+    "pages/insurance/intro/index",
     "pages/package/start/index",
     "pages/course/detail/index",
     "pages/payment/confirm/index",

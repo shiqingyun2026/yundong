@@ -7,9 +7,8 @@ const {
 } = require('../../utils/location')
 
 const HOME_TABS = [
-  { key: 'all', label: '全部课程' },
-  { key: 'fitness', label: '体适能', category: '体适能' },
   { key: 'trial', label: '体验课', category: '体验课' },
+  { key: 'fitness', label: '体适能', category: '体适能' },
   { key: 'jump_rope', label: '跳绳', category: '跳绳' }
 ]
 
@@ -143,7 +142,7 @@ Page({
     bannerList: [],
     showBannerSwiper: false,
     activeBannerIndex: 0,
-    activeTab: 'all',
+    activeTab: 'trial',
     statusBarHeight: 20,
     navBarHeight: 88,
     navBarBodyHeight: 44,

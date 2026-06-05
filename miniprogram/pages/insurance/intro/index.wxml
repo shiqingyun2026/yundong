@@ -1,0 +1,49 @@
+<scroll-view class="insurance-page" scroll-y>
+  <view class="insurance-container">
+    <view class="insurance-card insurance-card--hero">
+      <view class="hero-header">
+        <view class="product-name">{{productName}}</view>
+        <view class="brand-logo">
+          <image class="brand-logo-image" src="/assets/icons/pingan-logo.svg" mode="aspectFit"></image>
+        </view>
+      </view>
+      <view class="product-tag">{{productTag}}</view>
+      <view class="note-box">
+        <view wx:for="{{noteLines}}" wx:key="*this" class="note-line">{{item}}</view>
+      </view>
+    </view>
+
+    <view class="insurance-card">
+      <view class="section-title">保障计划一览</view>
+      <view wx:for="{{benefitSections}}" wx:key="title" class="benefit-section">
+        <view class="sub-title">{{item.title}}</view>
+        <view class="benefit-grid">
+          <view wx:for="{{item.items}}" wx:key="name" class="benefit-row">
+            <view class="benefit-name">{{item.name}}</view>
+            <view class="benefit-amount">{{item.amount}}</view>
+          </view>
+        </view>
+      </view>
+
+      <view class="fact-list">
+        <view wx:for="{{policyFacts}}" wx:key="label" class="fact-item">
+          <view class="fact-label">{{item.label}}</view>
+          <view class="fact-value">{{item.value}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="insurance-card">
+      <view class="section-title">保障责任详解</view>
+      <view wx:for="{{coverageDetails}}" wx:key="title" class="detail-item">
+        <view class="sub-title">{{item.title}}</view>
+        <view class="detail-desc">{{item.description}}</view>
+      </view>
+      <view class="reminder-box">{{reminderText}}</view>
+    </view>
+
+    <view class="insurance-card insurance-card--footnote">
+      <view class="footnote-text">{{footnote}}</view>
+    </view>
+  </view>
+</scroll-view>
