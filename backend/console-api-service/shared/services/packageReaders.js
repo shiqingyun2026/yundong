@@ -15,7 +15,6 @@ const { parseShanghaiDate } = require('../utils/dateTime')
 const formatFenText = amountFen => (Number(amountFen || 0) / 100).toFixed(2)
 
 const DEFAULT_MEMBER_AVATAR = '/assets/member-default-avatar.jpg'
-const isTrialPackage = pkg => !!pkg && `${pkg.package_category || ''}`.trim() === '体验课'
 
 const pickFirstNonEmptyString = values => {
   for (let index = 0; index < values.length; index += 1) {
@@ -397,13 +396,12 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
           remaining_seconds: deadline ? Math.max(0, Math.floor((deadline.getTime() - now.getTime()) / 1000)) : 0,
           member_amount_fen: memberAmountFen,
           member_amount_text: formatFenText(memberAmountFen),
-          schedule_text:
-            isTrialPackage(pkg) && group.first_class_time
-              ? `体验课时间 ${formatPackageDateTime(group.first_class_time)}`
-              : formatPendingPackageScheduleText({
-                  weekday: group.weekday,
-                  hour: group.hour
-                })
+          schedule_text: formatPendingPackageScheduleText({
+            weekday: group.weekday,
+            hour: group.hour,
+            scheduleConfig: group.schedule_config,
+            classCount: Number(pkg.class_count) || 0
+          })
         }
       })
   }
@@ -442,14 +440,14 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
     targetCount: latestGroup.target_count,
     groupPriceConfig: pkg.group_price_config
   })
-  const trialPackage = isTrialPackage(pkg)
-  const scheduleList = latestGroup.first_class_time
-    ? buildPackageLessonSchedule({
-        firstClassTime: latestGroup.first_class_time,
-        weeks: trialPackage ? 1 : 5
-      })
-    : []
-  const scheduleMode = trialPackage ? 'single_session' : scheduleList.length ? 'locked' : 'pending'
+  const scheduleConfig = latestGroup.schedule_config || null
+  const classCount = Math.max(1, Number(pkg.class_count) || 0)
+  const scheduleList = buildPackageLessonSchedule({
+    scheduleConfig,
+    firstClassTime: latestGroup.first_class_time,
+    weeks: classCount
+  })
+  const scheduleMode = scheduleConfig && scheduleConfig.schedule_type === 'single' ? 'single_session' : scheduleList.length ? 'locked' : 'pending'
   const userJoined = !!(userId && successOrders.some(item => item.user_id === userId))
   const leaderOrder = successOrders.find(item => item.package_action === 'start') || successOrders[0] || null
 
@@ -484,13 +482,15 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
     schedule_text:
       scheduleMode === 'single_session'
         ? latestGroup.first_class_time
-          ? `体验课时间 ${formatPackageDateTime(latestGroup.first_class_time)}`
-          : '体验课时间待定'
+          ? `上课时间 ${formatPackageDateTime(latestGroup.first_class_time)}`
+          : '上课时间待定'
         : scheduleMode === 'locked'
-          ? `首课时间 ${formatPackageDateTime(latestGroup.first_class_time)}，共5次`
+          ? `首课时间 ${formatPackageDateTime(latestGroup.first_class_time)}，共${classCount}次`
           : formatScheduleTextWithLockNote({
               weekday: latestGroup.weekday,
-              hour: latestGroup.hour
+              hour: latestGroup.hour,
+              scheduleConfig,
+              classCount
             }),
     first_class_time: latestGroup.first_class_time ? formatPackageDateTime(latestGroup.first_class_time) : null,
     schedule_list: scheduleList,

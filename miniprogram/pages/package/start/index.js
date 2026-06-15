@@ -1,5 +1,4 @@
 const {
-  START_HOUR_OPTIONS,
   calculatePackageMemberAmountFen,
   closePaymentOrder,
   createPackageStartOrder,
@@ -10,43 +9,21 @@ const {
   preparePayment
 } = require('../../../utils/package')
 const { loginAndStoreSession } = require('../../../utils/auth')
+const {
+  buildMinScheduleDate,
+  buildSchedulePreview,
+  getAllowedScheduleTypeOptions,
+  parseScheduleTypeValue,
+  resolveScheduleTypeValue,
+  SCHEDULE_TYPES,
+  START_TIME_OPTIONS,
+  WEEKDAY_OPTIONS
+} = require('../../../utils/packageSchedule')
 
-const START_PAGE_WEEKDAY_LABELS = {
-  1: '一',
-  2: '二',
-  3: '三',
-  4: '四',
-  5: '五',
-  6: '六',
-  7: '天'
-}
-
-const weekdayOptions = Object.keys(START_PAGE_WEEKDAY_LABELS).map(key => ({
-  value: Number(key),
-  label: START_PAGE_WEEKDAY_LABELS[key]
+const timeOptions = START_TIME_OPTIONS.map(value => ({
+  value,
+  label: value
 }))
-
-const hourOptions = START_HOUR_OPTIONS.map(hour => ({
-  value: hour,
-  label: `${hour}`.padStart(2, '0') + ':00'
-}))
-
-const isTrialPackageDetail = packageDetail =>
-  !!packageDetail && ((packageDetail.packageType || '') === 'trial' || packageDetail.packageCategory === '体验课')
-
-const formatDateInputValue = date => {
-  const year = date.getFullYear()
-  const month = `${date.getMonth() + 1}`.padStart(2, '0')
-  const day = `${date.getDate()}`.padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-const buildMinTrialClassDate = now => {
-  const base = now instanceof Date ? new Date(now.getTime()) : new Date()
-  base.setHours(0, 0, 0, 0)
-  base.setDate(base.getDate() + 2)
-  return formatDateInputValue(base)
-}
 
 const invokeWechatPayment = paymentParams =>
   new Promise((resolve, reject) => {
@@ -99,6 +76,21 @@ const waitForPaymentConfirmation = async ({ orderId, fallbackPackageGroupId = ''
   }
 }
 
+const encodeScheduleDays = value => encodeURIComponent(JSON.stringify(Array.isArray(value) ? value : []))
+
+const decodeScheduleDays = value => {
+  if (!value) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(decodeURIComponent(value))
+    return Array.isArray(parsed) ? parsed.map(Number).filter(Boolean) : []
+  } catch (error) {
+    return []
+  }
+}
+
 Page({
   data: {
     packageId: '',
@@ -106,39 +98,42 @@ Page({
     loading: true,
     submitting: false,
     agreementChecked: true,
-    isTrialPackage: false,
-    weekdayOptions,
-    hourOptions,
+    weekdayOptions: WEEKDAY_OPTIONS,
+    timeOptions,
+    scheduleTypeOptions: [],
     selectedTargetCount: 0,
-    selectedWeekday: 6,
-    selectedHour: 10,
-    selectedWeekdayIndex: 5,
-    selectedHourIndex: 1,
-    selectedClassDate: '',
-    minTrialClassDate: '',
+    classCount: 1,
+    minScheduleDate: '',
+    selectedScheduleTypeValue: SCHEDULE_TYPES.SINGLE,
+    selectedScheduleDate: '',
+    selectedScheduleDays: [],
+    selectedScheduleTime: START_TIME_OPTIONS[0],
+    selectedTimeIndex: 0,
     memberAmountText: '0.00',
     memberAmountDisplayText: '0',
     childNickname: '',
     childAge: '',
-    parentMobile: ''
+    parentMobile: '',
+    schedulePreviewList: []
   },
 
   async onLoad(options) {
     const packageId = options.packageId || ''
     const selectedTargetCount = Number(options.targetCount) || 0
-    const selectedWeekday = Number(options.weekday) || 6
-    const selectedHour = Number(options.hour) || 10
-    const selectedClassDate = `${options.classDate || ''}`.trim()
-    const selectedWeekdayIndex = Math.max(0, weekdayOptions.findIndex(item => item.value === selectedWeekday))
-    const selectedHourIndex = Math.max(0, hourOptions.findIndex(item => item.value === selectedHour))
+    const selectedScheduleTypeValue = `${options.scheduleType || ''}`.trim() || SCHEDULE_TYPES.SINGLE
+    const selectedScheduleDate = `${options.scheduleDate || options.classDate || ''}`.trim()
+    const selectedScheduleDays = decodeScheduleDays(options.scheduleDays)
+    const selectedScheduleTime = `${options.scheduleTime || (options.hour ? `${`${options.hour}`.padStart(2, '0')}:00` : '') || START_TIME_OPTIONS[0]}`.trim()
+    const selectedTimeIndex = Math.max(0, timeOptions.findIndex(item => item.value === selectedScheduleTime))
+
     this.setData({
       packageId,
       selectedTargetCount,
-      selectedWeekday,
-      selectedHour,
-      selectedWeekdayIndex,
-      selectedHourIndex,
-      selectedClassDate,
+      selectedScheduleTypeValue,
+      selectedScheduleDate,
+      selectedScheduleDays,
+      selectedScheduleTime,
+      selectedTimeIndex,
       childNickname: decodeURIComponent(options.childNickname || ''),
       childAge: decodeURIComponent(options.childAge || ''),
       parentMobile: decodeURIComponent(options.parentMobile || '')
@@ -163,20 +158,40 @@ Page({
       const packageDetail = await fetchPackageDetail(packageId)
       const preferredTargetCount = packageDetail.supportedPeople.includes(4)
         ? 4
-        : (packageDetail.supportedPeople[0] || 2)
+        : packageDetail.supportedPeople[0] || 2
       const defaultTargetCount = this.data.selectedTargetCount || preferredTargetCount
-      const isTrialPackage = isTrialPackageDetail(packageDetail)
-      const minTrialClassDate = buildMinTrialClassDate()
-      const selectedClassDate = this.data.selectedClassDate || minTrialClassDate
+      const classCount = Math.max(1, Number(packageDetail.classCount) || 1)
+      const minScheduleDate = buildMinScheduleDate(new Date())
+      const scheduleTypeOptions = getAllowedScheduleTypeOptions(classCount)
+      const defaultScheduleTypeValue =
+        classCount === 1
+          ? SCHEDULE_TYPES.SINGLE
+          : this.data.selectedScheduleTypeValue && scheduleTypeOptions.some(item => item.value === this.data.selectedScheduleTypeValue)
+            ? this.data.selectedScheduleTypeValue
+            : resolveScheduleTypeValue({
+                classCount,
+                scheduleType: classCount >= 2 ? SCHEDULE_TYPES.DAILY : SCHEDULE_TYPES.SINGLE,
+                weeklyTimes: 1
+              })
+      const selectedScheduleDate = this.data.selectedScheduleDate || minScheduleDate
+      const { scheduleType, weeklyTimes } = parseScheduleTypeValue(defaultScheduleTypeValue)
+      const selectedScheduleDays =
+        scheduleType === SCHEDULE_TYPES.WEEKLY
+          ? this.normalizeSelectedScheduleDays(this.data.selectedScheduleDays, weeklyTimes)
+          : []
 
       this.setData({
         packageDetail,
-        isTrialPackage,
+        classCount,
         selectedTargetCount: defaultTargetCount,
-        minTrialClassDate,
-        selectedClassDate
+        minScheduleDate,
+        scheduleTypeOptions,
+        selectedScheduleTypeValue: defaultScheduleTypeValue,
+        selectedScheduleDate,
+        selectedScheduleDays
       })
       this.updateAmountPreview(packageDetail, defaultTargetCount)
+      this.updateSchedulePreview()
     } catch (error) {
       wx.showToast({
         title: '开团信息加载失败',
@@ -187,6 +202,14 @@ Page({
         loading: false
       })
     }
+  },
+
+  normalizeSelectedScheduleDays(days, requiredCount) {
+    const normalized = [...new Set((Array.isArray(days) ? days : []).map(Number).filter(Boolean))].sort((left, right) => left - right)
+    if (normalized.length === requiredCount) {
+      return normalized
+    }
+    return WEEKDAY_OPTIONS.slice(0, requiredCount).map(item => item.value)
   },
 
   updateAmountPreview(packageDetail, targetCount) {
@@ -202,6 +225,20 @@ Page({
     })
   },
 
+  updateSchedulePreview() {
+    const schedulePreviewList = buildSchedulePreview({
+      classCount: this.data.classCount,
+      scheduleTypeValue: this.data.selectedScheduleTypeValue,
+      scheduleDate: this.data.selectedScheduleDate,
+      scheduleDays: this.data.selectedScheduleDays,
+      scheduleTime: this.data.selectedScheduleTime
+    })
+
+    this.setData({
+      schedulePreviewList
+    })
+  },
+
   handleTargetSelect(event) {
     const { value } = event.currentTarget.dataset
     const selectedTargetCount = Number(value) || 0
@@ -212,31 +249,61 @@ Page({
     this.updateAmountPreview(this.data.packageDetail, selectedTargetCount)
   },
 
-  handleWeekdayChange(event) {
-    const selectedWeekdayIndex = Number(event.detail.value) || 0
-    const option = this.data.weekdayOptions[selectedWeekdayIndex] || this.data.weekdayOptions[0]
+  handleScheduleTypeSelect(event) {
+    const { value } = event.currentTarget.dataset
+    const selectedScheduleTypeValue = `${value || ''}`.trim()
+    const { scheduleType, weeklyTimes } = parseScheduleTypeValue(selectedScheduleTypeValue)
 
     this.setData({
-      selectedWeekdayIndex,
-      selectedWeekday: option.value
+      selectedScheduleTypeValue,
+      selectedScheduleDays: scheduleType === SCHEDULE_TYPES.WEEKLY ? this.normalizeSelectedScheduleDays([], weeklyTimes) : []
     })
+    this.updateSchedulePreview()
   },
 
-  handleClassDateChange(event) {
+  handleScheduleDateChange(event) {
     const nextValue = `${event.detail.value || ''}`.trim()
     this.setData({
-      selectedClassDate: nextValue || this.data.minTrialClassDate
+      selectedScheduleDate: nextValue || this.data.minScheduleDate
     })
+    this.updateSchedulePreview()
   },
 
-  handleHourChange(event) {
-    const selectedHourIndex = Number(event.detail.value) || 0
-    const option = this.data.hourOptions[selectedHourIndex] || this.data.hourOptions[0]
+  handleTimeChange(event) {
+    const selectedTimeIndex = Number(event.detail.value) || 0
+    const option = this.data.timeOptions[selectedTimeIndex] || this.data.timeOptions[0]
 
     this.setData({
-      selectedHourIndex,
-      selectedHour: option.value
+      selectedTimeIndex,
+      selectedScheduleTime: option.value
     })
+    this.updateSchedulePreview()
+  },
+
+  handleScheduleDayToggle(event) {
+    const day = Number(event.currentTarget.dataset.day) || 0
+    const { weeklyTimes } = parseScheduleTypeValue(this.data.selectedScheduleTypeValue)
+    if (!day || !weeklyTimes) {
+      return
+    }
+
+    const selectedSet = new Set(this.data.selectedScheduleDays || [])
+    if (selectedSet.has(day)) {
+      selectedSet.delete(day)
+    } else if (selectedSet.size < weeklyTimes) {
+      selectedSet.add(day)
+    } else {
+      wx.showToast({
+        title: `每周${weeklyTimes}次需选择${weeklyTimes}个星期`,
+        icon: 'none'
+      })
+      return
+    }
+
+    this.setData({
+      selectedScheduleDays: [...selectedSet].sort((left, right) => left - right)
+    })
+    this.updateSchedulePreview()
   },
 
   handleAgreementToggle() {
@@ -292,6 +359,86 @@ Page({
     }
   },
 
+  validateScheduleSelection() {
+    const { classCount, selectedScheduleTypeValue, selectedScheduleDate, selectedScheduleDays, selectedScheduleTime } = this.data
+    const { scheduleType, weeklyTimes } = parseScheduleTypeValue(selectedScheduleTypeValue)
+
+    if (!selectedScheduleTime) {
+      return '请选择上课时间'
+    }
+
+    if (classCount === 1) {
+      if (!selectedScheduleDate) {
+        return '请选择上课日期'
+      }
+      return ''
+    }
+
+    if (scheduleType === SCHEDULE_TYPES.DAILY) {
+      if (!selectedScheduleDate) {
+        return '请选择开始上课日期'
+      }
+      return ''
+    }
+
+    if (scheduleType === SCHEDULE_TYPES.WEEKLY) {
+      if ((selectedScheduleDays || []).length !== weeklyTimes) {
+        return `每周${weeklyTimes}次需选择${weeklyTimes}个不同星期`
+      }
+      return ''
+    }
+
+    return '请选择上课频率'
+  },
+
+  buildSchedulePayload() {
+    const { classCount, selectedScheduleTypeValue, selectedScheduleDate, selectedScheduleDays, selectedScheduleTime, minScheduleDate } = this.data
+    const { scheduleType } = parseScheduleTypeValue(selectedScheduleTypeValue)
+
+    if (classCount === 1) {
+      return {
+        scheduleType: SCHEDULE_TYPES.SINGLE,
+        scheduleDate: selectedScheduleDate,
+        scheduleDays: [],
+        scheduleTime: selectedScheduleTime
+      }
+    }
+
+    if (scheduleType === SCHEDULE_TYPES.DAILY) {
+      return {
+        scheduleType: SCHEDULE_TYPES.DAILY,
+        scheduleDate: selectedScheduleDate,
+        scheduleDays: [],
+        scheduleTime: selectedScheduleTime
+      }
+    }
+
+    return {
+      scheduleType: SCHEDULE_TYPES.WEEKLY,
+      scheduleDate: minScheduleDate,
+      scheduleDays: this.data.selectedScheduleDays,
+      scheduleTime: selectedScheduleTime
+    }
+  },
+
+  buildResultUrl({ status, packageGroupId = '' }) {
+    const schedulePayload = this.buildSchedulePayload()
+    return (
+      `/pages/payment/result/index?status=${status}` +
+      `&packageId=${this.data.packageId}` +
+      `&packageGroupId=${encodeURIComponent(packageGroupId)}` +
+      `&action=start` +
+      `&targetCount=${this.data.selectedTargetCount}` +
+      `&scheduleType=${encodeURIComponent(resolveScheduleTypeValue({ classCount: this.data.classCount, scheduleType: schedulePayload.scheduleType, weeklyTimes: schedulePayload.scheduleDays.length || 1 }))}` +
+      `&scheduleDate=${encodeURIComponent(schedulePayload.scheduleDate || '')}` +
+      `&scheduleDays=${encodeScheduleDays(schedulePayload.scheduleDays)}` +
+      `&scheduleTime=${encodeURIComponent(schedulePayload.scheduleTime || '')}` +
+      `&childNickname=${encodeURIComponent(this.data.childNickname.trim())}` +
+      `&childAge=${encodeURIComponent(this.data.childAge)}` +
+      `&parentMobile=${encodeURIComponent(this.data.parentMobile)}`
+    )
+  },
+
   async handleSubmit() {
     if (!this.data.agreementChecked) {
       wx.showToast({
@@ -304,6 +451,15 @@ Page({
     if (!this.data.selectedTargetCount) {
       wx.showToast({
         title: '请选择拼团人数',
+        icon: 'none'
+      })
+      return
+    }
+
+    const scheduleError = this.validateScheduleSelection()
+    if (scheduleError) {
+      wx.showToast({
+        title: scheduleError,
         icon: 'none'
       })
       return
@@ -333,11 +489,7 @@ Page({
       return
     }
 
-    if (!(await this.ensureLogin())) {
-      return
-    }
-
-    if (this.data.submitting) {
+    if (!(await this.ensureLogin()) || this.data.submitting) {
       return
     }
 
@@ -346,26 +498,18 @@ Page({
     })
 
     try {
-      const orderPayload = this.data.isTrialPackage
-        ? {
-            packageId: this.data.packageId,
-            targetCount: this.data.selectedTargetCount,
-            classDate: this.data.selectedClassDate,
-            hour: this.data.selectedHour,
-            childNickname: this.data.childNickname.trim(),
-            childAge: this.data.childAge,
-            parentMobile: this.data.parentMobile
-          }
-        : {
-            packageId: this.data.packageId,
-            targetCount: this.data.selectedTargetCount,
-            weekday: this.data.selectedWeekday,
-            hour: this.data.selectedHour,
-            childNickname: this.data.childNickname.trim(),
-            childAge: this.data.childAge,
-            parentMobile: this.data.parentMobile
-          }
-      const order = await createPackageStartOrder(orderPayload)
+      const schedulePayload = this.buildSchedulePayload()
+      const order = await createPackageStartOrder({
+        packageId: this.data.packageId,
+        targetCount: this.data.selectedTargetCount,
+        scheduleType: schedulePayload.scheduleType,
+        scheduleDate: schedulePayload.scheduleDate,
+        scheduleDays: schedulePayload.scheduleDays,
+        scheduleTime: schedulePayload.scheduleTime,
+        childNickname: this.data.childNickname.trim(),
+        childAge: this.data.childAge,
+        parentMobile: this.data.parentMobile
+      })
       const orderId = order.orderId || ''
 
       if (!orderId) {
@@ -393,18 +537,10 @@ Page({
 
         if (!confirmation.confirmed) {
           wx.redirectTo({
-            url:
-              `/pages/payment/result/index?status=processing` +
-              `&packageId=${this.data.packageId}` +
-              `&packageGroupId=${encodeURIComponent(nextPackageGroupId)}` +
-              `&action=start` +
-              `&targetCount=${this.data.selectedTargetCount}` +
-              `&classDate=${encodeURIComponent(this.data.selectedClassDate)}` +
-              `&weekday=${this.data.selectedWeekday}` +
-              `&hour=${this.data.selectedHour}` +
-              `&childNickname=${encodeURIComponent(this.data.childNickname.trim())}` +
-              `&childAge=${encodeURIComponent(this.data.childAge)}` +
-              `&parentMobile=${encodeURIComponent(this.data.parentMobile)}`
+            url: this.buildResultUrl({
+              status: 'processing',
+              packageGroupId: nextPackageGroupId
+            })
           })
           return
         }
@@ -447,31 +583,15 @@ Page({
           icon: 'none'
         })
         wx.redirectTo({
-          url:
-            `/pages/payment/result/index?status=cancel` +
-            `&packageId=${this.data.packageId}` +
-            `&action=start` +
-            `&targetCount=${this.data.selectedTargetCount}` +
-            `&classDate=${encodeURIComponent(this.data.selectedClassDate)}` +
-            `&weekday=${this.data.selectedWeekday}` +
-            `&hour=${this.data.selectedHour}` +
-            `&childNickname=${encodeURIComponent(this.data.childNickname.trim())}` +
-            `&childAge=${encodeURIComponent(this.data.childAge)}` +
-            `&parentMobile=${encodeURIComponent(this.data.parentMobile)}`
+          url: this.buildResultUrl({
+            status: 'cancel'
+          })
         })
       } else {
         wx.redirectTo({
-          url:
-            `/pages/payment/result/index?status=fail` +
-            `&packageId=${this.data.packageId}` +
-            `&action=start` +
-            `&targetCount=${this.data.selectedTargetCount}` +
-            `&classDate=${encodeURIComponent(this.data.selectedClassDate)}` +
-            `&weekday=${this.data.selectedWeekday}` +
-            `&hour=${this.data.selectedHour}` +
-            `&childNickname=${encodeURIComponent(this.data.childNickname.trim())}` +
-            `&childAge=${encodeURIComponent(this.data.childAge)}` +
-            `&parentMobile=${encodeURIComponent(this.data.parentMobile)}`
+          url: this.buildResultUrl({
+            status: 'fail'
+          })
         })
       }
     } finally {

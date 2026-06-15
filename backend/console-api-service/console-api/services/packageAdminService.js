@@ -919,12 +919,12 @@ const listAdminPackageGroups = async ({ query = {}, now = new Date() }) => {
       targetCount: group.target_count,
       groupPriceConfig: pkg.group_price_config
     })
-    const baseScheduleList = group.first_class_time
-      ? buildPackageLessonSchedule({
-          firstClassTime: group.first_class_time,
-          weeks: 5
-        })
-      : []
+    const classCount = Math.max(1, Number(pkg.class_count) || 0)
+    const baseScheduleList = buildPackageLessonSchedule({
+      scheduleConfig: group.schedule_config,
+      firstClassTime: group.first_class_time,
+      weeks: classCount
+    })
     const lessonSchedule = buildLessonCoachSchedule({
       scheduleList: baseScheduleList,
       coachAssignment: group.coach_assignment
@@ -945,10 +945,12 @@ const listAdminPackageGroups = async ({ query = {}, now = new Date() }) => {
       weekday: Number(group.weekday) || 0,
       hour: Number(group.hour) || 0,
       schedule_text: group.first_class_time
-        ? `首课时间 ${formatPackageDateTime(group.first_class_time)}，共5次`
+        ? `首课时间 ${formatPackageDateTime(group.first_class_time)}，共${classCount}次`
         : formatPendingPackageScheduleText({
             weekday: group.weekday,
-            hour: group.hour
+            hour: group.hour,
+            scheduleConfig: group.schedule_config,
+            classCount
           }),
       first_class_time: group.first_class_time ? formatPackageDateTime(group.first_class_time) : null,
       schedule_list: lessonSchedule,
@@ -1001,12 +1003,12 @@ const getAdminPackageGroupDetail = async ({ packageGroupId, now = new Date() }) 
     targetCount: group.target_count,
     groupPriceConfig: pkg.group_price_config
   })
-  const baseScheduleList = group.first_class_time
-    ? buildPackageLessonSchedule({
-        firstClassTime: group.first_class_time,
-        weeks: 5
-      })
-    : []
+  const classCount = Math.max(1, Number(pkg.class_count) || 0)
+  const baseScheduleList = buildPackageLessonSchedule({
+    scheduleConfig: group.schedule_config,
+    firstClassTime: group.first_class_time,
+    weeks: classCount
+  })
   const lessonSchedule = buildLessonCoachSchedule({
     scheduleList: baseScheduleList,
     coachAssignment: group.coach_assignment
@@ -1092,10 +1094,12 @@ const getAdminPackageGroupDetail = async ({ packageGroupId, now = new Date() }) 
     weekday: Number(group.weekday) || 0,
     hour: Number(group.hour) || 0,
     schedule_text: group.first_class_time
-      ? `首课时间 ${formatPackageDateTime(group.first_class_time)}，共5次`
+      ? `首课时间 ${formatPackageDateTime(group.first_class_time)}，共${classCount}次`
       : formatPendingPackageScheduleText({
           weekday: group.weekday,
-          hour: group.hour
+          hour: group.hour,
+          scheduleConfig: group.schedule_config,
+          classCount
         }),
     first_class_time: group.first_class_time ? formatPackageDateTime(group.first_class_time) : null,
     schedule_list: lessonSchedule,

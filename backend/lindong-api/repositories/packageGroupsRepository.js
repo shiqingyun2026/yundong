@@ -2,6 +2,22 @@ const { execute, query } = require('../config/db')
 const { buildInClause, createUuid, toDbDateTime } = require('./_helpers')
 const { buildPackageGroupId } = require('./bizSerialCountersRepository')
 
+const parseJsonField = value => {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+
+  if (typeof value === 'object') {
+    return value
+  }
+
+  try {
+    return JSON.parse(value)
+  } catch (error) {
+    return null
+  }
+}
+
 const PACKAGE_GROUP_SELECT_FIELDS = `
   id,
   package_id,
@@ -14,7 +30,8 @@ const PACKAGE_GROUP_SELECT_FIELDS = `
   first_class_time,
   deadline,
   created_at,
-  success_time
+  success_time,
+  schedule_config
 `
 
 const normalizePackageGroupStatus = value => {
@@ -42,7 +59,8 @@ const normalizePackageGroup = row => {
     first_class_time: row.first_class_time || null,
     deadline: row.deadline || null,
     created_at: row.created_at || null,
-    success_time: row.success_time || null
+    success_time: row.success_time || null,
+    schedule_config: parseJsonField(row.schedule_config) || null
   }
 }
 
@@ -58,7 +76,8 @@ const createPackageGroup = async ({
   first_class_time = null,
   deadline,
   created_at = new Date(),
-  success_time = null
+  success_time = null,
+  schedule_config = null
 }) => {
   const resolvedId = id || (await buildPackageGroupId(created_at || deadline || new Date()))
 
@@ -66,8 +85,8 @@ const createPackageGroup = async ({
     `
       insert into package_groups (
         id, package_id, creator_id, target_count, current_count, status,
-        weekday, hour, first_class_time, deadline, created_at, success_time
-      ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        weekday, hour, first_class_time, deadline, created_at, success_time, schedule_config
+      ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       resolvedId,
@@ -81,7 +100,8 @@ const createPackageGroup = async ({
       first_class_time ? toDbDateTime(first_class_time) : null,
       toDbDateTime(deadline),
       toDbDateTime(created_at) || toDbDateTime(new Date()),
-      success_time ? toDbDateTime(success_time) : null
+      success_time ? toDbDateTime(success_time) : null,
+      schedule_config ? JSON.stringify(schedule_config) : null
     ]
   )
 
@@ -228,6 +248,7 @@ const updatePackageGroup = async (id, payload = {}) => {
   assign('deadline', payload.deadline, value => (value ? toDbDateTime(value) : null))
   assign('created_at', payload.created_at, value => (value ? toDbDateTime(value) : null))
   assign('success_time', payload.success_time, value => (value ? toDbDateTime(value) : null))
+  assign('schedule_config', payload.schedule_config, value => (value ? JSON.stringify(value) : null))
 
   if (!updates.length) {
     return findPackageGroupById(id)

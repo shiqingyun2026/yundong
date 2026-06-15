@@ -14,8 +14,11 @@ const {
   buildPackageLessonSchedule,
   computeFirstPackageClassTime,
   formatPackageDateTime,
-  normalizeHour,
-  normalizeWeekday
+  normalizeScheduleType,
+  normalizeTimeText,
+  normalizeWeekday,
+  normalizeWeekdays,
+  SCHEDULE_TYPES
 } = require('./packageSchedule')
 const { parseShanghaiDate } = require('../utils/dateTime')
 const { enqueueGroupResultNotifications } = require('./groupResultNotifications')
@@ -37,50 +40,105 @@ const getPackageByIdOrThrow = async packageId => {
   return pkg
 }
 
-const isTrialPackage = pkg => !!pkg && `${pkg.package_category || ''}`.trim() === '体验课'
+const resolvePackageClassCount = pkg => Math.max(1, Number(pkg && pkg.class_count) || 0)
 
-const validateWeekdayAndHour = ({ weekday, hour }) => {
-  if (!normalizeWeekday(weekday)) {
-    throw createPackageServiceError(400, 1001, 'weekday 参数错误')
-  }
-
-  if (normalizeHour(hour) < 0) {
-    throw createPackageServiceError(400, 1001, 'hour 参数错误')
-  }
+const buildScheduleMinDate = now => {
+  const minDate = new Date(now.getTime())
+  minDate.setHours(0, 0, 0, 0)
+  minDate.setDate(minDate.getDate() + 2)
+  return minDate
 }
 
-const buildTrialFirstClassTime = ({ classDate, hour }) => {
-  const normalizedHour = normalizeHour(hour)
-  if (!classDate || normalizedHour < 0) {
-    return null
+const formatDateOnly = value => {
+  const date = parseShanghaiDate(value)
+  if (!date) {
+    return ''
   }
 
-  return parseShanghaiDate(`${classDate} ${`${normalizedHour}`.padStart(2, '0')}:00:00`)
+  return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, '0')}-${`${date.getDate()}`.padStart(2, '0')}`
 }
 
-const validateTrialClassDateAndHour = ({ classDate, hour, now = new Date() }) => {
-  const normalizedHour = normalizeHour(hour)
-  const selectedDate = classDate ? parseShanghaiDate(`${classDate} 00:00:00`) : null
-
+const validateScheduleDateAtOrAfterMin = ({ scheduleDate, now = new Date() }) => {
+  const selectedDate = scheduleDate ? parseShanghaiDate(`${scheduleDate} 00:00:00`) : null
   if (!selectedDate) {
     throw createPackageServiceError(400, 1001, '请填写正确的上课日期')
   }
 
-  if (normalizedHour < 0 || normalizedHour < 9 || normalizedHour > 19) {
-    throw createPackageServiceError(400, 1001, 'hour 参数错误')
-  }
-
-  const minDate = new Date(now.getTime())
-  minDate.setHours(0, 0, 0, 0)
-  minDate.setDate(minDate.getDate() + 2)
-
-  if (selectedDate.getTime() < minDate.getTime()) {
+  if (selectedDate.getTime() < buildScheduleMinDate(now).getTime()) {
     throw createPackageServiceError(400, 1001, '上课日期不能早于开团后第2天')
   }
 }
 
-const normalizeChildNickname = value => `${value || ''}`.trim()
+const validateScheduleTime = value => {
+  const normalizedTime = normalizeTimeText(value)
+  if (!normalizedTime) {
+    throw createPackageServiceError(400, 1001, '请选择正确的上课时间')
+  }
 
+  const [hour] = normalizedTime.split(':').map(Number)
+  if (hour < 9 || hour > 19) {
+    throw createPackageServiceError(400, 1001, '请选择正确的上课时间')
+  }
+
+  return normalizedTime
+}
+
+const normalizeScheduleConfig = ({ classCount, scheduleType, scheduleDate, scheduleTime, scheduleDays, now = new Date() }) => {
+  const totalCount = Math.max(1, Number(classCount) || 0)
+  const normalizedType = normalizeScheduleType(scheduleType)
+  const normalizedTime = validateScheduleTime(scheduleTime)
+  const normalizedWeekdays = normalizeWeekdays(scheduleDays)
+
+  if (totalCount === 1) {
+    if (normalizedType !== SCHEDULE_TYPES.SINGLE) {
+      throw createPackageServiceError(400, 1001, '单节课必须选择具体上课日期')
+    }
+
+    validateScheduleDateAtOrAfterMin({ scheduleDate, now })
+
+    return {
+      schedule_type: SCHEDULE_TYPES.SINGLE,
+      schedule_date: `${scheduleDate}`.trim(),
+      schedule_time: normalizedTime,
+      schedule_days: [],
+      class_count: 1
+    }
+  }
+
+  if (![SCHEDULE_TYPES.DAILY, SCHEDULE_TYPES.WEEKLY].includes(normalizedType)) {
+    throw createPackageServiceError(400, 1001, '请选择上课频率')
+  }
+
+  if (normalizedType === SCHEDULE_TYPES.DAILY) {
+    validateScheduleDateAtOrAfterMin({ scheduleDate, now })
+    return {
+      schedule_type: SCHEDULE_TYPES.DAILY,
+      schedule_date: `${scheduleDate}`.trim(),
+      schedule_time: normalizedTime,
+      schedule_days: [],
+      class_count: totalCount
+    }
+  }
+
+  const maxWeeklySelections = totalCount >= 3 ? 3 : 2
+  if (!normalizedWeekdays.length || normalizedWeekdays.length > maxWeeklySelections) {
+    throw createPackageServiceError(
+      400,
+      1001,
+      maxWeeklySelections === 2 ? '请选择每周1次或每周2次的上课星期' : '请选择每周1次、2次或3次的上课星期'
+    )
+  }
+
+  return {
+    schedule_type: SCHEDULE_TYPES.WEEKLY,
+    schedule_date: formatDateOnly(buildScheduleMinDate(now)),
+    schedule_time: normalizedTime,
+    schedule_days: normalizedWeekdays,
+    class_count: totalCount
+  }
+}
+
+const normalizeChildNickname = value => `${value || ''}`.trim()
 const normalizeParentMobile = value => `${value ?? ''}`.replace(/\D/g, '').slice(0, 11)
 
 const normalizeChildAge = value => {
@@ -119,52 +177,73 @@ const validateChildProfile = ({ childNickname, childAge, parentMobile }) => {
   }
 }
 
+const buildScheduleConfigFromContext = ({ context = {}, pkg, now = new Date() }) => {
+  const totalCount = resolvePackageClassCount(pkg)
+  const scheduleConfig = context.schedule_config || {}
+  if (scheduleConfig && scheduleConfig.schedule_type) {
+    return normalizeScheduleConfig({
+      classCount: totalCount,
+      scheduleType: scheduleConfig.schedule_type,
+      scheduleDate: scheduleConfig.schedule_date,
+      scheduleTime: scheduleConfig.schedule_time,
+      scheduleDays: scheduleConfig.schedule_days,
+      now
+    })
+  }
+
+  const weekday = normalizeWeekday(context.weekday || context.schedule_day)
+  const legacyClassDate = `${context.class_date || context.classDate || ''}`.trim()
+  const legacyTime = context.schedule_time || context.scheduleTime || (context.hour !== undefined ? `${context.hour}:00` : '')
+
+  return normalizeScheduleConfig({
+    classCount: totalCount,
+    scheduleType: totalCount === 1 ? SCHEDULE_TYPES.SINGLE : SCHEDULE_TYPES.WEEKLY,
+    scheduleDate: totalCount === 1 ? legacyClassDate : formatDateOnly(buildScheduleMinDate(now)),
+    scheduleTime: legacyTime,
+    scheduleDays: weekday ? [weekday] : [],
+    now
+  })
+}
+
 const createPackageStartOrder = async ({
   userId,
   packageId,
   targetCount,
-  weekday,
-  classDate,
-  hour,
+  scheduleType,
+  scheduleDate,
+  scheduleDays,
+  scheduleTime,
   childNickname,
   childAge,
   parentMobile,
   now = new Date()
 }) => {
   ensureMySqlMode()
-  const normalizedChildProfile = validateChildProfile({
-    childNickname,
-    childAge,
-    parentMobile
-  })
+  const normalizedChildProfile = validateChildProfile({ childNickname, childAge, parentMobile })
 
   const pkg = await getPackageByIdOrThrow(packageId)
   if (Number(pkg.status) !== 1) {
     throw createPackageServiceError(404, 2001, '课包不存在')
   }
-  const trialPackage = isTrialPackage(pkg)
 
-  if (trialPackage) {
-    validateTrialClassDateAndHour({ classDate, hour, now })
-  } else {
-    validateWeekdayAndHour({ weekday, hour })
-  }
+  const classCount = resolvePackageClassCount(pkg)
+  const normalizedScheduleConfig = normalizeScheduleConfig({
+    classCount,
+    scheduleType,
+    scheduleDate,
+    scheduleTime,
+    scheduleDays,
+    now
+  })
 
   assertSupportedTargetCount({
     supportedPeople: pkg.supported_people,
     targetCount
   })
 
-  await cleanupExpiredPackageGroups({
-    packageId,
-    now
-  })
-
+  await cleanupExpiredPackageGroups({ packageId, now })
   await closePendingPackageOrdersByIds({
-    orderIds: await listPendingOrderIdsForPackage({
-      userId,
-      packageId
-    }),
+    orderIds: await listPendingOrderIdsForPackage({ userId, packageId }),
     now
   })
 
@@ -181,9 +260,13 @@ const createPackageStartOrder = async ({
     package_action: 'start',
     package_context: {
       target_count: Number(targetCount),
-      weekday: trialPackage ? 0 : Number(weekday),
-      class_date: trialPackage ? `${classDate || ''}`.trim() : '',
-      hour: Number(hour),
+      weekday:
+        normalizedScheduleConfig.schedule_type === SCHEDULE_TYPES.WEEKLY && normalizedScheduleConfig.schedule_days.length === 1
+          ? normalizedScheduleConfig.schedule_days[0]
+          : 0,
+      class_date: normalizedScheduleConfig.schedule_type === SCHEDULE_TYPES.SINGLE ? normalizedScheduleConfig.schedule_date : '',
+      hour: Number((normalizedScheduleConfig.schedule_time || '00:00').split(':')[0]) || 0,
+      schedule_config: normalizedScheduleConfig,
       child_nickname: normalizedChildProfile.childNickname,
       child_age: normalizedChildProfile.childAge,
       parent_mobile: normalizedChildProfile.parentMobile
@@ -195,38 +278,23 @@ const createPackageStartOrder = async ({
     order,
     package: pkg,
     memberAmountFen,
-    classDate: trialPackage ? `${classDate || ''}`.trim() : '',
+    scheduleConfig: normalizedScheduleConfig,
     childNickname: normalizedChildProfile.childNickname,
     childAge: normalizedChildProfile.childAge,
     parentMobile: normalizedChildProfile.parentMobile
   }
 }
 
-const createPackageJoinOrder = async ({
-  userId,
-  packageId,
-  packageGroupId,
-  childNickname,
-  childAge,
-  parentMobile,
-  now = new Date()
-}) => {
+const createPackageJoinOrder = async ({ userId, packageId, packageGroupId, childNickname, childAge, parentMobile, now = new Date() }) => {
   ensureMySqlMode()
-  const normalizedChildProfile = validateChildProfile({
-    childNickname,
-    childAge,
-    parentMobile
-  })
+  const normalizedChildProfile = validateChildProfile({ childNickname, childAge, parentMobile })
 
   const pkg = await getPackageByIdOrThrow(packageId)
   if (Number(pkg.status) !== 1) {
     throw createPackageServiceError(404, 2001, '课包不存在')
   }
 
-  await cleanupExpiredPackageGroups({
-    packageId,
-    now
-  })
+  await cleanupExpiredPackageGroups({ packageId, now })
 
   const group = await packageGroupsRepository.findPackageGroupById(packageGroupId)
   if (!group || group.package_id !== packageId) {
@@ -238,10 +306,7 @@ const createPackageJoinOrder = async ({
   }
 
   await closePendingPackageOrdersByIds({
-    orderIds: await listPendingOrderIdsForPackage({
-      userId,
-      packageId
-    }),
+    orderIds: await listPendingOrderIdsForPackage({ userId, packageId }),
     now
   })
 
@@ -282,10 +347,10 @@ const resolveOrderGroupSummary = async order => {
   return {
     packageGroupId: group ? group.id : order.package_group_id || null,
     groupStatus: group ? group.status : PACKAGE_GROUP_STATUS.FAILED,
-    scheduleList: group && group.first_class_time
+    scheduleList: group
       ? buildPackageLessonSchedule({
-          firstClassTime: group.first_class_time,
-          weeks: 5
+          scheduleConfig: group.schedule_config,
+          firstClassTime: group.first_class_time
         })
       : [],
     firstClassTime: group && group.first_class_time ? formatPackageDateTime(group.first_class_time) : null
@@ -293,11 +358,7 @@ const resolveOrderGroupSummary = async order => {
 }
 
 const syncOrderPaymentRecordGroupId = async ({ order, packageGroupId, now = new Date() }) => {
-  if (!order || !packageGroupId) {
-    return null
-  }
-
-  if (!paymentRecordsRepository || typeof paymentRecordsRepository.findPaymentRecordByOrderId !== 'function') {
+  if (!order || !packageGroupId || !paymentRecordsRepository || typeof paymentRecordsRepository.findPaymentRecordByOrderId !== 'function') {
     return null
   }
 
@@ -315,10 +376,7 @@ const syncOrderPaymentRecordGroupId = async ({ order, packageGroupId, now = new 
 const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date() }) => {
   ensureMySqlMode()
 
-  let order = await ordersRepository.findOrderForUser({
-    userId,
-    orderId
-  })
+  let order = await ordersRepository.findOrderForUser({ userId, orderId })
   if (!order) {
     throw createPackageServiceError(404, 2003, '订单不存在')
   }
@@ -327,20 +385,10 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
     throw createPackageServiceError(400, 2006, '订单状态异常')
   }
 
-  await cleanupExpiredPackageGroups({
-    packageId: order.package_id,
-    now
-  })
+  await cleanupExpiredPackageGroups({ packageId: order.package_id, now })
+  order = await ordersRepository.findOrderForUser({ userId, orderId })
 
-  order = await ordersRepository.findOrderForUser({
-    userId,
-    orderId
-  })
-  if (!order) {
-    throw createPackageServiceError(404, 2003, '订单不存在')
-  }
-
-  if (order.status === 'refunded' || order.status === 'closed') {
+  if (!order || order.status === 'refunded' || order.status === 'closed') {
     throw createPackageServiceError(400, 2006, '订单状态异常')
   }
 
@@ -361,48 +409,35 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
   if (order.package_action === 'start') {
     const context = order.package_context || {}
     const targetCount = Number(context.target_count || context.targetCount || 0)
-    const weekday = Number(context.weekday || 0)
-    const classDate = `${context.class_date || context.classDate || ''}`.trim()
-    const hour = Number(context.hour || 0)
-    const trialPackage = isTrialPackage(pkg)
+    const normalizedScheduleConfig = buildScheduleConfigFromContext({ context, pkg, now })
 
-    if (trialPackage) {
-      validateTrialClassDateAndHour({ classDate, hour, now })
-    } else {
-      validateWeekdayAndHour({ weekday, hour })
-    }
     assertSupportedTargetCount({
       supportedPeople: pkg.supported_people,
       targetCount
     })
 
-    const deadline = buildPackageDeadlineFromPackage({
-      createdAt: now,
-      pkg
-    })
-    const nextStatus =
-      Number(targetCount) <= 1 ? PACKAGE_GROUP_STATUS.SUCCESS : PACKAGE_GROUP_STATUS.ACTIVE
+    const deadline = buildPackageDeadlineFromPackage({ createdAt: now, pkg })
+    const nextStatus = Number(targetCount) <= 1 ? PACKAGE_GROUP_STATUS.SUCCESS : PACKAGE_GROUP_STATUS.ACTIVE
     const firstClassTime =
-      trialPackage
-        ? buildTrialFirstClassTime({
-            classDate,
-            hour
+      nextStatus === PACKAGE_GROUP_STATUS.SUCCESS
+        ? computeFirstPackageClassTime({
+            successTime: now,
+            scheduleConfig: normalizedScheduleConfig,
+            classCount: normalizedScheduleConfig.class_count
           })
-        : nextStatus === PACKAGE_GROUP_STATUS.SUCCESS
-          ? computeFirstPackageClassTime({
-              successTime: now,
-              weekday,
-              hour
-            })
-          : null
+        : null
 
     const group = await packageGroupsRepository.createPackageGroup(
       buildPackageGroupCreationPayload({
         packageId: pkg.id,
         creatorId: userId,
         targetCount,
-        weekday: trialPackage ? 0 : weekday,
-        hour,
+        weekday:
+          normalizedScheduleConfig.schedule_type === SCHEDULE_TYPES.WEEKLY && normalizedScheduleConfig.schedule_days.length === 1
+            ? normalizedScheduleConfig.schedule_days[0]
+            : 0,
+        hour: Number((normalizedScheduleConfig.schedule_time || '00:00').split(':')[0]) || 0,
+        scheduleConfig: normalizedScheduleConfig,
         deadline,
         currentCount: 1,
         status: nextStatus,
@@ -418,6 +453,7 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
       pay_time: now,
       updated_at: now
     })
+
     await syncOrderPaymentRecordGroupId({
       order: updatedOrder,
       packageGroupId: group.id,
@@ -439,12 +475,10 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
       packageGroupId: group.id,
       groupStatus: group.status,
       firstClassTime: group.first_class_time ? formatPackageDateTime(group.first_class_time) : null,
-      scheduleList: group.first_class_time
-        ? buildPackageLessonSchedule({
-            firstClassTime: group.first_class_time,
-            weeks: 5
-          })
-        : []
+      scheduleList: buildPackageLessonSchedule({
+        scheduleConfig: group.schedule_config,
+        firstClassTime: group.first_class_time
+      })
     }
   }
 
@@ -467,13 +501,10 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
     })
     const firstClassTime =
       nextStatus === PACKAGE_GROUP_STATUS.SUCCESS
-        ? !normalizeWeekday(group.weekday) && group.first_class_time
-          ? parseShanghaiDate(group.first_class_time)
-          : computeFirstPackageClassTime({
-              successTime: now,
-              weekday: group.weekday,
-              hour: group.hour
-            })
+        ? computeFirstPackageClassTime({
+            successTime: now,
+            scheduleConfig: group.schedule_config
+          })
         : null
 
     const updatedOrder = await ordersRepository.updateOrder(order.id, {
@@ -503,12 +534,10 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
       packageGroupId: updatedGroup.id,
       groupStatus: updatedGroup.status,
       firstClassTime: updatedGroup.first_class_time ? formatPackageDateTime(updatedGroup.first_class_time) : null,
-      scheduleList: updatedGroup.first_class_time
-        ? buildPackageLessonSchedule({
-            firstClassTime: updatedGroup.first_class_time,
-            weeks: 5
-          })
-        : []
+      scheduleList: buildPackageLessonSchedule({
+        scheduleConfig: updatedGroup.schedule_config,
+        firstClassTime: updatedGroup.first_class_time
+      })
     }
   }
 

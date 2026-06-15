@@ -13,15 +13,16 @@ const resolveSupabase = () => (env.useMySqlRepositories ? null : getSupabaseClie
 
 router.post('/start', authenticate, async (req, res) => {
   try {
-    const { packageId, targetCount, weekday, classDate, hour, childNickname, childAge, parentMobile } = req.body || {}
+    const { packageId, targetCount, scheduleType, scheduleDate, scheduleDays, scheduleTime, childNickname, childAge, parentMobile } = req.body || {}
     const result = await createPackageStartOrder({
       supabase: resolveSupabase(),
       userId: req.userId,
       packageId,
       targetCount,
-      weekday,
-      classDate,
-      hour,
+      scheduleType,
+      scheduleDate,
+      scheduleDays,
+      scheduleTime,
       childNickname,
       childAge,
       parentMobile
@@ -34,9 +35,10 @@ router.post('/start', authenticate, async (req, res) => {
       action: result.order.package_action,
       packageId: result.order.package_id,
       targetCount: Number(targetCount),
-      weekday: Number(weekday),
-      class_date: result.classDate || '',
-      hour: Number(hour),
+      schedule_type: (result.scheduleConfig && result.scheduleConfig.schedule_type) || '',
+      schedule_date: (result.scheduleConfig && result.scheduleConfig.schedule_date) || '',
+      schedule_days: (result.scheduleConfig && result.scheduleConfig.schedule_days) || [],
+      schedule_time: (result.scheduleConfig && result.scheduleConfig.schedule_time) || '',
       child_nickname: result.childNickname,
       child_age: result.childAge,
       parent_mobile: result.parentMobile,

@@ -29,45 +29,64 @@
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
-        <view class="section-title">{{isTrialPackage ? '选择上课日期与时间' : '选择每周上课时间'}}</view>
+        <view class="section-title">{{classCount === 1 ? '选择上课日期与时间' : '上课时间（智能排课）'}}</view>
+
+        <view wx:if="{{scheduleTypeOptions.length}}" class="schedule-type-section">
+          <view class="subsection-title">课程频率</view>
+          <view class="schedule-type-grid">
+            <view
+              wx:for="{{scheduleTypeOptions}}"
+              wx:key="value"
+              class="schedule-type-chip {{selectedScheduleTypeValue === item.value ? 'schedule-type-chip--active' : ''}}"
+              data-value="{{item.value}}"
+              bindtap="handleScheduleTypeSelect"
+            >
+              {{item.label}}
+            </view>
+          </view>
+        </view>
+
         <mp-cells extClass="start-form-cells start-schedule-cells">
           <mp-cell
-            wx:if="{{isTrialPackage}}"
+            wx:if="{{classCount === 1 || selectedScheduleTypeValue === 'daily'}}"
             extClass="start-form-cell start-form-cell--picker start-schedule-cell"
             hasHeader="{{true}}"
             hasBody="{{true}}"
             hasFooter="{{false}}"
           >
-            <view slot="title" class="start-form-label">上课日期</view>
+            <view slot="title" class="start-form-label">{{classCount === 1 ? '上课日期' : '开始日期'}}</view>
             <picker
               class="start-form-picker"
               mode="date"
-              start="{{minTrialClassDate}}"
-              value="{{selectedClassDate}}"
-              bindchange="handleClassDateChange"
+              start="{{minScheduleDate}}"
+              value="{{selectedScheduleDate}}"
+              bindchange="handleScheduleDateChange"
             >
-              <view class="start-form-value">{{selectedClassDate}}</view>
+              <view class="start-form-value">{{selectedScheduleDate}}</view>
             </picker>
           </mp-cell>
+
           <mp-cell
-            wx:else
-            extClass="start-form-cell start-form-cell--picker start-schedule-cell"
+            wx:if="{{selectedScheduleTypeValue.indexOf('weekly') === 0}}"
+            extClass="start-form-cell start-schedule-cell start-form-cell--stack"
             hasHeader="{{true}}"
             hasBody="{{true}}"
             hasFooter="{{false}}"
           >
-            <view slot="title" class="start-form-label">星期</view>
-            <picker
-              class="start-form-picker"
-              mode="selector"
-              range="{{weekdayOptions}}"
-              range-key="label"
-              value="{{selectedWeekdayIndex}}"
-              bindchange="handleWeekdayChange"
-            >
-              <view class="start-form-value">{{weekdayOptions[selectedWeekdayIndex].label}}</view>
-            </picker>
+            <view slot="title" class="start-form-label">上课星期</view>
+            <view class="weekday-chip-grid">
+              <view
+                wx:for="{{weekdayOptions}}"
+                wx:key="value"
+                class="weekday-chip {{selectedScheduleDays.indexOf(item.value) > -1 ? 'weekday-chip--active' : ''}}"
+                data-day="{{item.value}}"
+                bindtap="handleScheduleDayToggle"
+              >
+                {{item.label}}
+              </view>
+            </view>
           </mp-cell>
+
           <mp-cell
             extClass="start-form-cell start-form-cell--picker start-schedule-cell"
             hasHeader="{{true}}"
@@ -78,28 +97,36 @@
             <picker
               class="start-form-picker"
               mode="selector"
-              range="{{hourOptions}}"
+              range="{{timeOptions}}"
               range-key="label"
-              value="{{selectedHourIndex}}"
-              bindchange="handleHourChange"
+              value="{{selectedTimeIndex}}"
+              bindchange="handleTimeChange"
             >
-              <view class="start-form-value">{{hourOptions[selectedHourIndex].label}}</view>
+              <view class="start-form-value">{{selectedScheduleTime}}</view>
             </picker>
           </mp-cell>
         </mp-cells>
 
-        <view class="section-desc">{{isTrialPackage ? '最早可选日期为开团后第 2 天，体验课仅 1 节，成团后按所选日期与开始时间上课。' : '系统会在成团后自动锁定首课日期，并连续生成 5 次课时。'}}</view>
+        <view class="section-desc">
+          {{classCount === 1 || selectedScheduleTypeValue === 'daily' ? '最早可选日期为开团后第 2 天。' : '系统会从开团后第 2 天起，按所选星期自动生成完整课表。'}}
+        </view>
+      </view>
+
+      <view class="weui-panel weui-ext-card page-section card-shadow">
+        <view class="section-title">课时预览</view>
+        <view wx:if="{{schedulePreviewList.length}}" class="schedule-preview-list">
+          <view wx:for="{{schedulePreviewList}}" wx:key="index" class="schedule-preview-item">
+            <view class="schedule-preview-index">第{{item.index}}节</view>
+            <view class="schedule-preview-text">{{item.displayText}}</view>
+          </view>
+        </view>
+        <view wx:else class="section-desc">完成频率、日期/星期和时间选择后，将自动生成课时表。</view>
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">学生信息</view>
         <mp-cells extClass="start-form-cells child-form-cells">
-          <mp-cell
-            extClass="start-form-cell child-form-cell"
-            hasHeader="{{true}}"
-            hasBody="{{true}}"
-            hasFooter="{{false}}"
-          >
+          <mp-cell extClass="start-form-cell child-form-cell" hasHeader="{{true}}" hasBody="{{true}}" hasFooter="{{false}}">
             <view slot="title" class="start-form-label">学生昵称</view>
             <input
               class="start-form-input"
@@ -113,12 +140,7 @@
               bindconfirm="handleStudentInputConfirm"
             />
           </mp-cell>
-          <mp-cell
-            extClass="start-form-cell child-form-cell"
-            hasHeader="{{true}}"
-            hasBody="{{true}}"
-            hasFooter="{{false}}"
-          >
+          <mp-cell extClass="start-form-cell child-form-cell" hasHeader="{{true}}" hasBody="{{true}}" hasFooter="{{false}}">
             <view slot="title" class="start-form-label">年龄</view>
             <input
               class="start-form-input"
@@ -133,12 +155,7 @@
               bindconfirm="handleStudentInputConfirm"
             />
           </mp-cell>
-          <mp-cell
-            extClass="start-form-cell child-form-cell"
-            hasHeader="{{true}}"
-            hasBody="{{true}}"
-            hasFooter="{{false}}"
-          >
+          <mp-cell extClass="start-form-cell child-form-cell" hasHeader="{{true}}" hasBody="{{true}}" hasFooter="{{false}}">
             <view slot="title" class="start-form-label">家长手机号</view>
             <input
               class="start-form-input"
@@ -159,60 +176,24 @@
       <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">拼团说明</view>
         <view class="notice-list">
-          <view class="notice-item">
-            <view class="notice-dot"></view>
-            <view class="notice-text">满员即成团</view>
-          </view>
-          <view class="notice-item">
-            <view class="notice-dot"></view>
-            <view class="notice-text">拼团截止时间：开团后48小时</view>
-          </view>
-          <view class="notice-item">
-            <view class="notice-dot"></view>
-            <view class="notice-text">未成团退款规则：48小时内未成团将自动原路退款</view>
-          </view>
+          <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">满员即成团</view></view>
+          <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">拼团截止时间：开团后48小时</view></view>
+          <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">未成团退款规则：48小时内未成团将自动原路退款</view></view>
         </view>
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow notice-card">
         <view class="section-title">上课注意事项</view>
         <view class="notice-list">
-          <view class="notice-item">
-            <view class="notice-dot"></view>
-            <view class="notice-text">开团后，按固定课时进行上课。</view>
-          </view>
-          <view class="notice-item">
-            <view class="notice-dot"></view>
-            <view class="notice-text">极端天气或请假人数过半，课程顺延至下周。</view>
-          </view>
-          <view class="notice-item">
-            <view class="notice-dot"></view>
-            <view class="notice-text">个人请假，不退费不补课。</view>
-          </view>
-          <view class="notice-item">
-            <view class="notice-dot"></view>
-            <view class="notice-text">上课期间，课程不得转让，不可更换学员。</view>
-          </view>
-          <view class="notice-item">
-            <view class="notice-dot"></view>
-            <view class="notice-text">饭后至少半个小时再运动，请家长提前做好安排。</view>
-          </view>
-          <view class="notice-item">
-            <view class="notice-dot"></view>
-            <view class="notice-text">上课前替换换好运动服和运动鞋，并准备好饮用水。</view>
-          </view>
-          <view class="notice-item">
-            <view class="notice-dot"></view>
-            <view class="notice-text">如学员有特殊情况，请提前告知。</view>
-          </view>
-          <view class="notice-item">
-            <view class="notice-dot"></view>
-            <view class="notice-text">每次上课，至少要求一个家长全程在场。</view>
-          </view>
-          <view class="notice-item">
-            <view class="notice-dot"></view>
-            <view class="notice-text">建议家长提前给孩子购买意外险。</view>
-          </view>
+          <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">开团后，按固定课时进行上课。</view></view>
+          <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">极端天气或请假人数过半，课程顺延至下周。</view></view>
+          <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">个人请假，不退费不补课。</view></view>
+          <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">上课期间，课程不得转让，不可更换学员。</view></view>
+          <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">饭后至少半个小时再运动，请家长提前做好安排。</view></view>
+          <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">上课前替换换好运动服和运动鞋，并准备好饮用水。</view></view>
+          <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">如学员有特殊情况，请提前告知。</view></view>
+          <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">每次上课，至少要求一个家长全程在场。</view></view>
+          <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">建议家长提前给孩子购买意外险。</view></view>
         </view>
       </view>
 

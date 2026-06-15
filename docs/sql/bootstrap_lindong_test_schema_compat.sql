@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS `package_groups` (
   `weekday` INT NOT NULL,
   `hour` INT NOT NULL,
   `first_class_time` DATETIME NULL,
+  `schedule_config` LONGTEXT NULL,
   `deadline` DATETIME NOT NULL,
   `created_at` DATETIME NULL,
   `success_time` DATETIME NULL,

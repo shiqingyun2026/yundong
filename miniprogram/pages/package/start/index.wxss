@@ -71,6 +71,48 @@
   margin-top: 20rpx;
 }
 
+.schedule-type-section {
+  padding: 0 32rpx;
+}
+
+.subsection-title {
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  color: #5f6b7a;
+}
+
+.schedule-type-grid,
+.weekday-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+.schedule-type-chip,
+.weekday-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 176rpx;
+  min-height: 80rpx;
+  padding: 0 24rpx;
+  border: 2rpx solid #e5e5e5;
+  border-radius: 12rpx;
+  background: #ffffff;
+  color: #666666;
+  font-size: 28rpx;
+  line-height: 1.4;
+}
+
+.schedule-type-chip--active,
+.weekday-chip--active {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+  font-weight: 600;
+}
+
 .target-chip {
   display: flex;
   align-items: center;
@@ -111,6 +153,12 @@
   align-items: center;
 }
 
+.start-form-cell--stack.weui-cell {
+  align-items: flex-start;
+  padding-top: 20rpx;
+  padding-bottom: 20rpx;
+}
+
 .start-form-cell.weui-cell::before {
   left: 32rpx;
   right: 32rpx;
@@ -129,6 +177,11 @@
   align-items: center;
   padding: 0;
   justify-content: flex-end;
+}
+
+.start-form-cell--stack .weui-cell__bd {
+  display: block;
+  min-height: 0;
 }
 
 .start-form-label {
@@ -218,6 +271,35 @@
 
 .bottom-placeholder {
   height: 160rpx;
+}
+
+.schedule-preview-list {
+  margin-top: 12rpx;
+  padding: 0 32rpx;
+}
+
+.schedule-preview-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
+  min-height: 88rpx;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.schedule-preview-index {
+  flex-shrink: 0;
+  font-size: 28rpx;
+  color: #353535;
+  font-weight: 600;
+}
+
+.schedule-preview-text {
+  flex: 1;
+  font-size: 26rpx;
+  color: #5f6b7a;
+  text-align: right;
+  line-height: 1.5;
 }
 
 .payment-bar {

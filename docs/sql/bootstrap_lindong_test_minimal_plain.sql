@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS package_groups (
   weekday INT NOT NULL DEFAULT 0,
   hour INT NOT NULL DEFAULT 0,
   first_class_time DATETIME NULL,
+  schedule_config JSON NULL,
   deadline DATETIME NOT NULL,
   created_at DATETIME NOT NULL,
   success_time DATETIME NULL,

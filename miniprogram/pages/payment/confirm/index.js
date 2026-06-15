@@ -71,8 +71,10 @@ Page({
     packageGroupId: '',
     orderId: '',
     targetCount: 0,
-    weekday: 6,
-    hour: 10,
+    scheduleType: '',
+    scheduleDate: '',
+    scheduleDays: '[]',
+    scheduleTime: '',
     childNickname: '',
     childAge: '',
     parentMobile: '',
@@ -93,8 +95,10 @@ Page({
       packageGroupId: options.packageGroupId || '',
       orderId: options.orderId || '',
       targetCount: Number(options.targetCount) || 0,
-      weekday: Number(options.weekday) || 6,
-      hour: Number(options.hour) || 10,
+      scheduleType: decodeURIComponent(options.scheduleType || ''),
+      scheduleDate: decodeURIComponent(options.scheduleDate || ''),
+      scheduleDays: decodeURIComponent(options.scheduleDays || '[]'),
+      scheduleTime: decodeURIComponent(options.scheduleTime || ''),
       childNickname: decodeURIComponent(options.childNickname || ''),
       childAge: decodeURIComponent(options.childAge || ''),
       parentMobile: decodeURIComponent(options.parentMobile || '')
@@ -252,8 +256,16 @@ Page({
     return createPackageStartOrder({
       packageId: this.data.packageId,
       targetCount: this.data.targetCount,
-      weekday: this.data.weekday,
-      hour: this.data.hour,
+      scheduleType: this.data.scheduleType,
+      scheduleDate: this.data.scheduleDate,
+      scheduleDays: (() => {
+        try {
+          return JSON.parse(this.data.scheduleDays || '[]')
+        } catch (error) {
+          return []
+        }
+      })(),
+      scheduleTime: this.data.scheduleTime,
       childNickname: this.data.childNickname.trim(),
       childAge: this.data.childAge,
       parentMobile: this.data.parentMobile
@@ -320,8 +332,10 @@ Page({
               `&packageGroupId=${encodeURIComponent(nextPackageGroupId)}` +
               `&action=${this.data.action}` +
               `&targetCount=${this.data.targetCount}` +
-              `&weekday=${this.data.weekday}` +
-              `&hour=${this.data.hour}` +
+              `&scheduleType=${encodeURIComponent(this.data.scheduleType)}` +
+              `&scheduleDate=${encodeURIComponent(this.data.scheduleDate)}` +
+              `&scheduleDays=${encodeURIComponent(this.data.scheduleDays)}` +
+              `&scheduleTime=${encodeURIComponent(this.data.scheduleTime)}` +
               `&childNickname=${encodeURIComponent(this.data.childNickname.trim())}` +
               `&childAge=${encodeURIComponent(this.data.childAge)}` +
               `&parentMobile=${encodeURIComponent(this.data.parentMobile)}`
@@ -373,8 +387,10 @@ Page({
             `&packageGroupId=${encodeURIComponent(this.data.packageGroupId || '')}` +
             `&action=${this.data.action}` +
             `&targetCount=${this.data.targetCount}` +
-            `&weekday=${this.data.weekday}` +
-            `&hour=${this.data.hour}` +
+            `&scheduleType=${encodeURIComponent(this.data.scheduleType)}` +
+            `&scheduleDate=${encodeURIComponent(this.data.scheduleDate)}` +
+            `&scheduleDays=${encodeURIComponent(this.data.scheduleDays)}` +
+            `&scheduleTime=${encodeURIComponent(this.data.scheduleTime)}` +
             `&childNickname=${encodeURIComponent(this.data.childNickname.trim())}` +
             `&childAge=${encodeURIComponent(this.data.childAge)}` +
             `&parentMobile=${encodeURIComponent(this.data.parentMobile)}`

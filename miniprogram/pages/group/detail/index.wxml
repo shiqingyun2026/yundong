@@ -93,7 +93,7 @@
       </view>
 
       <view wx:if="{{(groupDetail.scheduleMode === 'locked' || groupDetail.scheduleMode === 'single_session') && groupDetail.scheduleList.length}}" class="weui-panel weui-ext-card page-section card-shadow">
-        <view class="section-title">{{groupDetail.scheduleMode === 'single_session' ? '单次体验课安排' : '5次课时安排'}}</view>
+        <view class="section-title">{{groupDetail.scheduleMode === 'single_session' ? '单次课程安排' : (groupDetail.packageInfo.classCount + '次课时安排')}}</view>
         <view class="schedule-list">
           <view wx:for="{{groupDetail.scheduleList}}" wx:key="index" class="schedule-item">
             <view class="schedule-index">{{groupDetail.scheduleMode === 'single_session' ? '上课时间' : ('第' + item.index + '次')}}</view>

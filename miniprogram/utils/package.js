@@ -643,9 +643,10 @@ const fetchPackageGroupDetail = async packageGroupId =>
 const createPackageStartOrder = async ({
   packageId,
   targetCount,
-  weekday,
-  classDate,
-  hour,
+  scheduleType,
+  scheduleDate,
+  scheduleDays,
+  scheduleTime,
   childNickname,
   childAge,
   parentMobile
@@ -655,9 +656,10 @@ const createPackageStartOrder = async ({
     {
       packageId,
       targetCount,
-      weekday,
-      classDate,
-      hour,
+      scheduleType,
+      scheduleDate,
+      scheduleDays,
+      scheduleTime,
       childNickname,
       childAge,
       parentMobile

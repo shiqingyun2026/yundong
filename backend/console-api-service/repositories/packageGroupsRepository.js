@@ -39,7 +39,8 @@ const PACKAGE_GROUP_SELECT_FIELDS = `
   deadline,
   created_at,
   success_time,
-  coach_assignment
+  coach_assignment,
+  schedule_config
 `
 
 const normalizePackageGroup = row => {
@@ -60,7 +61,8 @@ const normalizePackageGroup = row => {
     deadline: row.deadline || null,
     created_at: row.created_at || null,
     success_time: row.success_time || null,
-    coach_assignment: parseJsonField(row.coach_assignment) || null
+    coach_assignment: parseJsonField(row.coach_assignment) || null,
+    schedule_config: parseJsonField(row.schedule_config) || null
   }
 }
 
@@ -77,7 +79,8 @@ const createPackageGroup = async ({
   deadline,
   created_at = new Date(),
   success_time = null,
-  coach_assignment = null
+  coach_assignment = null,
+  schedule_config = null
 }) => {
   const resolvedId = id || (await buildPackageGroupId(created_at || deadline || new Date()))
 
@@ -85,8 +88,8 @@ const createPackageGroup = async ({
     `
       insert into package_groups (
         id, package_id, creator_id, target_count, current_count, status,
-        weekday, hour, first_class_time, deadline, created_at, success_time, coach_assignment
-      ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        weekday, hour, first_class_time, deadline, created_at, success_time, coach_assignment, schedule_config
+      ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       resolvedId,
@@ -101,7 +104,8 @@ const createPackageGroup = async ({
       toDbDateTime(deadline),
       toDbDateTime(created_at) || toDbDateTime(new Date()),
       success_time ? toDbDateTime(success_time) : null,
-      coach_assignment ? JSON.stringify(coach_assignment) : null
+      coach_assignment ? JSON.stringify(coach_assignment) : null,
+      schedule_config ? JSON.stringify(schedule_config) : null
     ]
   )
 
@@ -249,6 +253,7 @@ const updatePackageGroup = async (id, payload = {}) => {
   assign('created_at', payload.created_at, value => (value ? toDbDateTime(value) : null))
   assign('success_time', payload.success_time, value => (value ? toDbDateTime(value) : null))
   assign('coach_assignment', payload.coach_assignment, value => (value ? JSON.stringify(value) : null))
+  assign('schedule_config', payload.schedule_config, value => (value ? JSON.stringify(value) : null))
 
   if (!updates.length) {
     return findPackageGroupById(id)

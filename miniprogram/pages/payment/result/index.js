@@ -17,9 +17,10 @@ Page({
     action: 'start',
     successType: 'start',
     targetCount: 0,
-    classDate: '',
-    weekday: 6,
-    hour: 10,
+    scheduleType: '',
+    scheduleDate: '',
+    scheduleDays: '[]',
+    scheduleTime: '',
     childNickname: '',
     childAge: '',
     parentMobile: '',
@@ -42,9 +43,10 @@ Page({
       action: options.action || 'start',
       successType: options.successType || (options.action === 'join' ? 'join' : 'start'),
       targetCount: Number(options.targetCount) || 0,
-      classDate: decodeURIComponent(options.classDate || ''),
-      weekday: Number(options.weekday) || 6,
-      hour: Number(options.hour) || 10,
+      scheduleType: decodeURIComponent(options.scheduleType || ''),
+      scheduleDate: decodeURIComponent(options.scheduleDate || ''),
+      scheduleDays: decodeURIComponent(options.scheduleDays || '[]'),
+      scheduleTime: decodeURIComponent(options.scheduleTime || ''),
       childNickname: decodeURIComponent(options.childNickname || ''),
       childAge: decodeURIComponent(options.childAge || ''),
       parentMobile: decodeURIComponent(options.parentMobile || ''),
@@ -154,9 +156,10 @@ Page({
       url:
         `/pages/package/start/index?packageId=${this.data.packageId}` +
         `&targetCount=${this.data.targetCount}` +
-        `&classDate=${encodeURIComponent(this.data.classDate)}` +
-        `&weekday=${this.data.weekday}` +
-        `&hour=${this.data.hour}` +
+        `&scheduleType=${encodeURIComponent(this.data.scheduleType)}` +
+        `&scheduleDate=${encodeURIComponent(this.data.scheduleDate)}` +
+        `&scheduleDays=${encodeURIComponent(this.data.scheduleDays)}` +
+        `&scheduleTime=${encodeURIComponent(this.data.scheduleTime)}` +
         `&childNickname=${encodeURIComponent(this.data.childNickname)}` +
         `&childAge=${encodeURIComponent(this.data.childAge)}` +
         `&parentMobile=${encodeURIComponent(this.data.parentMobile)}`
