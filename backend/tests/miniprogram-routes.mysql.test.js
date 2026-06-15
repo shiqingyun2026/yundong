@@ -282,7 +282,7 @@ const loadAppForMySqlRoutes = ({ paymentProviderMode = 'mock' } = {}) => {
   })
 
   mockModule('shared/services/packageOrders.js', {
-    createPackageStartOrder: async ({ supabase, packageId, targetCount, weekday, hour, childNickname, childAge, parentMobile, userId }) => ({
+    createPackageStartOrder: async ({ supabase, packageId, targetCount, weekday, hour, childNickname, childAge, parentMobile, userId, scheduleList }) => ({
       order: {
         id: 'package-order-start-1',
         order_no: 'LDPKG-20260428-000001',
@@ -298,6 +298,15 @@ const loadAppForMySqlRoutes = ({ paymentProviderMode = 'mock' } = {}) => {
       targetCount,
       weekday,
       hour,
+      scheduleConfig: {
+        schedule_list:
+          scheduleList || [
+            {
+              index: 1,
+              class_time: '2026-06-21 09:00:00'
+            }
+          ]
+      },
       userId,
       supabaseWasPassed: supabase
     }),
@@ -630,6 +639,12 @@ test('mini program routes work in mysql mode without supabase client', async () 
   assert.equal(createPackageStartOrder.body.data.child_nickname, '小满')
   assert.equal(createPackageStartOrder.body.data.child_age, 6)
   assert.equal(createPackageStartOrder.body.data.parent_mobile, '13800138000')
+  assert.deepEqual(createPackageStartOrder.body.data.schedule_list, [
+    {
+      index: 1,
+      class_time: '2026-06-21 09:00:00'
+    }
+  ])
 
   assert.equal(createPackageJoinOrder.status, 200)
   assert.equal(createPackageJoinOrder.body.data.orderId, 'package-order-join-1')

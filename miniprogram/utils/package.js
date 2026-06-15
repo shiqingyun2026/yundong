@@ -490,6 +490,7 @@ const normalizePackageDetail = payload => ({
   cover: payload.cover || '',
   packageCategory: payload.package_category || payload.packageCategory || '体适能',
   classCount: Number(payload.class_count || payload.classCount) || 0,
+  classDurationMinutes: Number(payload.class_duration_minutes || payload.classDurationMinutes) || 0,
   wechatShareCover: payload.wechat_share_cover || payload.wechatShareCover || '',
   images: Array.isArray(payload.images) && payload.images.length ? payload.images : payload.cover ? [payload.cover] : [],
   totalPriceFen: Number(payload.total_price_fen) || 0,
@@ -647,6 +648,7 @@ const createPackageStartOrder = async ({
   scheduleDate,
   scheduleDays,
   scheduleTime,
+  scheduleList,
   childNickname,
   childAge,
   parentMobile
@@ -660,6 +662,7 @@ const createPackageStartOrder = async ({
       scheduleDate,
       scheduleDays,
       scheduleTime,
+      scheduleList,
       childNickname,
       childAge,
       parentMobile

@@ -195,7 +195,14 @@ test('package start payment creates group with configured deadline hours', async
         package_context: {
           target_count: 4,
           weekday: 6,
-          hour: 10
+          hour: 10,
+          schedule_config: {
+            schedule_type: 'weekly',
+            schedule_date: '2026-04-24',
+            schedule_time: '10:00',
+            schedule_days: [6],
+            class_count: 5
+          }
         },
         status: 'pending'
       }
@@ -213,6 +220,7 @@ test('package start payment creates group with configured deadline hours', async
       findPackageById: async () => ({
         id: 'PKG-20260422-0001',
         status: 1,
+        class_count: 5,
         total_price: 12000,
         supported_people: [4],
         group_price_config: [{ target_count: 4, price_fen: 3000 }],
@@ -334,8 +342,10 @@ test('trial package start rejects class dates earlier than two days after group 
         userId: 'user-1',
         packageId: 'PKG-TRIAL-0001',
         targetCount: 4,
-        classDate: '2026-04-21',
-        hour: 10,
+        scheduleType: 'single',
+        scheduleDate: '2026-04-21',
+        scheduleTime: '10:00',
+        scheduleDays: [],
         childNickname: '小满',
         childAge: 6,
         parentMobile: '13800138000',
@@ -346,6 +356,90 @@ test('trial package start rejects class dates earlier than two days after group 
       return true
     }
   )
+})
+
+test('package start order stores custom schedule list in schedule config', async () => {
+  clearModules([
+    'config/env.js',
+    'repositories/index.js',
+    'shared/services/packageGroupStore.js',
+    'shared/services/groupResultNotifications.js',
+    'shared/services/paymentShell.js',
+    'shared/services/packageOrders.js'
+  ])
+
+  const state = {
+    createdOrder: null
+  }
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true
+    }
+  })
+
+  mockModule('repositories/index.js', {
+    coursePackagesRepository: {
+      findPackageById: async () => ({
+        id: 'PKG-START-0001',
+        status: 1,
+        class_count: 3,
+        total_price: 12000,
+        supported_people: [4],
+        group_price_config: [{ target_count: 4, price_fen: 3000 }],
+        deadline_hours: 48
+      })
+    },
+    ordersRepository: {
+      listPendingOrderIdsByUserAndPackage: async () => [],
+      closeOrdersByIds: async () => [],
+      createOrder: async payload => {
+        state.createdOrder = payload
+        return payload
+      }
+    }
+  })
+
+  mockModule('shared/services/packageGroupStore.js', {
+    cleanupExpiredPackageGroups: async () => ({ groupIds: [], refundedOrderIds: [], closedOrderIds: [] }),
+    closePendingPackageOrdersByIds: async () => [],
+    listPendingOrderIdsForPackage: async () => []
+  })
+
+  mockModule('shared/services/groupResultNotifications.js', {
+    enqueueGroupResultNotifications: async () => ({})
+  })
+
+  mockModule('shared/services/paymentShell.js', {
+    markPaymentRecordRefunded: async () => ({})
+  })
+
+  const { createPackageStartOrder } = require(path.join(backendRoot, 'shared/services/packageOrders.js'))
+
+  await createPackageStartOrder({
+    userId: 'user-1',
+    packageId: 'PKG-START-0001',
+    targetCount: 4,
+    scheduleType: 'weekly',
+    scheduleDate: '2026-04-22',
+    scheduleTime: '10:00',
+    scheduleDays: [1, 3, 5],
+    scheduleList: [
+      { index: 1, class_time: '2026-04-22 10:00:00' },
+      { index: 2, class_time: '2026-04-24 10:30:00' },
+      { index: 3, class_time: '2026-04-26 11:00:00' }
+    ],
+    childNickname: '小满',
+    childAge: 6,
+    parentMobile: '13800138000',
+    now: new Date('2026-04-20T08:00:00.000Z')
+  })
+
+  assert.deepEqual(state.createdOrder.package_context.schedule_config.schedule_list, [
+    { index: 1, class_time: '2026-04-22 10:00:00', display_text: '2026-04-22 10:00:00' },
+    { index: 2, class_time: '2026-04-24 10:30:00', display_text: '2026-04-24 10:30:00' },
+    { index: 3, class_time: '2026-04-26 11:00:00', display_text: '2026-04-26 11:00:00' }
+  ])
 })
 
 test('package orders enqueue group success notification when join payment completes the group', async () => {

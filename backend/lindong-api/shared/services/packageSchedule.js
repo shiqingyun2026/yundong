@@ -112,6 +112,26 @@ const buildScheduleItemsFromDates = dates =>
     display_text: formatPackageDateTime(date)
   }))
 
+const normalizeCustomScheduleList = value => {
+  const items = Array.isArray(value) ? value : []
+
+  return items
+    .map((item, index) => {
+      const classTime = formatPackageDateTime(item && (item.class_time || item.classTime || item.display_text || item.displayText))
+      if (!classTime) {
+        return null
+      }
+
+      return {
+        index: Number(item && item.index) > 0 ? Number(item.index) : index + 1,
+        class_time: classTime,
+        display_text: classTime
+      }
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.index - right.index)
+}
+
 const buildLegacyWeeklySchedule = ({ firstClassTime, weeks = 5 }) => {
   const firstDate = parseShanghaiDate(firstClassTime)
   const totalWeeks = Math.max(1, Number(weeks) || 5)
@@ -200,12 +220,19 @@ const buildWeeklySchedule = ({ classCount, weekdays, time, anchorDate }) => {
 const buildPackageLessonSchedule = options => {
   const payload = options || {}
   const scheduleConfig = payload.scheduleConfig || payload.schedule_config || {}
+  const customScheduleList = normalizeCustomScheduleList(
+    payload.scheduleList || payload.schedule_list || scheduleConfig.scheduleList || scheduleConfig.schedule_list
+  )
   const scheduleType = normalizeScheduleType(payload.scheduleType || payload.schedule_type || scheduleConfig.scheduleType || scheduleConfig.schedule_type)
   const classCount = Number(payload.classCount || payload.class_count || scheduleConfig.classCount || scheduleConfig.class_count || 0)
   const startDate = `${payload.startDate || payload.start_date || payload.scheduleDate || payload.schedule_date || scheduleConfig.startDate || scheduleConfig.start_date || scheduleConfig.scheduleDate || scheduleConfig.schedule_date || ''}`.trim()
   const anchorDate = `${payload.anchorDate || payload.anchor_date || scheduleConfig.anchorDate || scheduleConfig.anchor_date || startDate || ''}`.trim()
   const time = payload.time || payload.scheduleTime || payload.schedule_time || scheduleConfig.time || scheduleConfig.scheduleTime || scheduleConfig.schedule_time || ''
   const weekdays = payload.weekdays || payload.scheduleDays || payload.schedule_days || scheduleConfig.weekdays || scheduleConfig.scheduleDays || scheduleConfig.schedule_days || []
+
+  if (customScheduleList.length) {
+    return customScheduleList
+  }
 
   if (scheduleType === SCHEDULE_TYPES.SINGLE) {
     return buildSingleSchedule({
@@ -334,6 +361,7 @@ module.exports = {
   formatScheduleTextWithLockNote,
   normalizeHour,
   normalizeMinute,
+  normalizeCustomScheduleList,
   normalizeScheduleType,
   normalizeTimeText,
   normalizeWeekday,

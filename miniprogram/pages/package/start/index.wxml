@@ -32,7 +32,6 @@
         <view class="section-title">{{classCount === 1 ? '选择上课日期与时间' : '上课时间（智能排课）'}}</view>
 
         <view wx:if="{{scheduleTypeOptions.length}}" class="schedule-type-section">
-          <view class="subsection-title">课程频率</view>
           <view class="schedule-type-grid">
             <view
               wx:for="{{scheduleTypeOptions}}"
@@ -54,7 +53,7 @@
             hasBody="{{true}}"
             hasFooter="{{false}}"
           >
-            <view slot="title" class="start-form-label">{{classCount === 1 ? '上课日期' : '开始日期'}}</view>
+            <view slot="title" class="start-form-label">上课日期</view>
             <picker
               class="start-form-picker"
               mode="date"
@@ -62,27 +61,27 @@
               value="{{selectedScheduleDate}}"
               bindchange="handleScheduleDateChange"
             >
-              <view class="start-form-value">{{selectedScheduleDate}}</view>
+              <view class="start-form-picker-content">
+                <view class="start-form-value {{!selectedScheduleDate ? 'start-form-value--placeholder' : ''}}">
+                  {{selectedScheduleDate || '请选择'}}
+                </view>
+              </view>
             </picker>
           </mp-cell>
 
           <mp-cell
-            wx:if="{{selectedScheduleTypeValue.indexOf('weekly') === 0}}"
-            extClass="start-form-cell start-schedule-cell start-form-cell--stack"
+            wx:if="{{isWeeklySchedule}}"
+            extClass="start-form-cell start-form-cell--picker start-schedule-cell"
             hasHeader="{{true}}"
             hasBody="{{true}}"
             hasFooter="{{false}}"
           >
-            <view slot="title" class="start-form-label">上课星期</view>
-            <view class="weekday-chip-grid">
-              <view
-                wx:for="{{weekdayOptions}}"
-                wx:key="value"
-                class="weekday-chip {{selectedScheduleDays.indexOf(item.value) > -1 ? 'weekday-chip--active' : ''}}"
-                data-day="{{item.value}}"
-                bindtap="handleScheduleDayToggle"
-              >
-                {{item.label}}
+            <view slot="title" class="start-form-label">上课日期</view>
+            <view class="start-form-picker" bindtap="openScheduleDaysPopup">
+              <view class="start-form-picker-content">
+                <view class="start-form-value {{scheduleDaysDisplayText === '请选择' ? 'start-form-value--placeholder' : ''}}">
+                  {{scheduleDaysDisplayText}}
+                </view>
               </view>
             </view>
           </mp-cell>
@@ -99,10 +98,14 @@
               mode="selector"
               range="{{timeOptions}}"
               range-key="label"
-              value="{{selectedTimeIndex}}"
+              value="{{selectedTimeIndex >= 0 ? selectedTimeIndex : 0}}"
               bindchange="handleTimeChange"
             >
-              <view class="start-form-value">{{selectedScheduleTime}}</view>
+              <view class="start-form-picker-content">
+                <view class="start-form-value {{selectedScheduleTimeLabel === '请选择' ? 'start-form-value--placeholder' : ''}}">
+                  {{selectedScheduleTimeLabel}}
+                </view>
+              </view>
             </picker>
           </mp-cell>
         </mp-cells>
@@ -112,12 +115,19 @@
         </view>
       </view>
 
-      <view class="weui-panel weui-ext-card page-section card-shadow">
+      <view wx:if="{{classCount > 1}}" class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">课时预览</view>
         <view wx:if="{{schedulePreviewList.length}}" class="schedule-preview-list">
-          <view wx:for="{{schedulePreviewList}}" wx:key="index" class="schedule-preview-item">
+          <view
+            wx:for="{{schedulePreviewList}}"
+            wx:key="index"
+            class="schedule-preview-item schedule-preview-item--editable"
+            data-index="{{item.index}}"
+            bindtap="openScheduleItemEditor"
+          >
             <view class="schedule-preview-index">第{{item.index}}节</view>
             <view class="schedule-preview-text">{{item.displayText}}</view>
+            <view class="schedule-preview-arrow">></view>
           </view>
         </view>
         <view wx:else class="section-desc">完成频率、日期/星期和时间选择后，将自动生成课时表。</view>
@@ -219,5 +229,76 @@
     <button class="weui-btn weui-ext-button weui-ext-button--large weui-ext-button--primary payment-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="handleSubmit">
       <view class="weui-ext-button__inner">支付{{memberAmountDisplayText}}元并开团</view>
     </button>
+  </view>
+
+  <view wx:if="{{showScheduleDaysPopup}}" class="schedule-popup-mask" bindtap="closeScheduleDaysPopup"></view>
+  <view wx:if="{{showScheduleDaysPopup}}" class="schedule-sheet">
+    <view class="schedule-sheet__grabber"></view>
+    <view class="schedule-sheet__header">
+      <view class="schedule-sheet__title">选择上课日期</view>
+      <view class="schedule-sheet__desc">需选择{{requiredScheduleDaysCount}}天</view>
+    </view>
+    <view class="weekday-chip-grid weekday-chip-grid--sheet">
+      <view
+        wx:for="{{weekdayOptions}}"
+        wx:key="value"
+        class="weekday-chip {{item.active ? 'weekday-chip--active' : ''}}"
+        data-day="{{item.value}}"
+        bindtap="handleScheduleDayToggle"
+      >
+        {{item.label}}
+      </view>
+    </view>
+    <view class="schedule-sheet__actions">
+      <button class="schedule-sheet__button schedule-sheet__button--ghost" bindtap="closeScheduleDaysPopup">取消</button>
+      <button class="schedule-sheet__button schedule-sheet__button--primary" bindtap="confirmScheduleDaysPopup">确定</button>
+    </view>
+  </view>
+
+  <view wx:if="{{showScheduleItemEditor}}" class="schedule-popup-mask" bindtap="closeScheduleItemEditor"></view>
+  <view wx:if="{{showScheduleItemEditor}}" class="schedule-item-editor-sheet">
+    <view class="schedule-item-editor-sheet__header">
+      <view class="schedule-item-editor-sheet__title">选择上课时间</view>
+      <view class="schedule-item-editor-sheet__close" bindtap="closeScheduleItemEditor">×</view>
+    </view>
+
+    <view class="schedule-item-editor-table">
+      <view class="schedule-item-editor-table__head">
+        <view class="schedule-item-editor-table__label">上课日期</view>
+        <view class="schedule-item-editor-table__label">上课时间</view>
+      </view>
+
+      <view class="schedule-item-editor-table__body">
+        <picker-view
+          class="schedule-item-editor-picker-view"
+          indicator-style="height: 112rpx;"
+          value="{{[editingScheduleDateIndex, editingScheduleItemTimeIndex]}}"
+          bindchange="handleScheduleItemPickerChange"
+        >
+          <picker-view-column class="schedule-item-editor-picker-column">
+            <view
+              wx:for="{{editingScheduleDateOptions}}"
+              wx:key="value"
+              class="schedule-item-editor-picker-item schedule-item-editor-picker-item--date"
+            >
+              {{item.label}}
+            </view>
+          </picker-view-column>
+          <picker-view-column class="schedule-item-editor-picker-column">
+            <view
+              wx:for="{{timeOptions}}"
+              wx:key="value"
+              class="schedule-item-editor-picker-item schedule-item-editor-picker-item--center"
+            >
+              {{item.label}}
+            </view>
+          </picker-view-column>
+        </picker-view>
+      </view>
+    </view>
+
+    <view class="schedule-item-editor-sheet__actions">
+      <button class="schedule-item-editor-sheet__button" bindtap="confirmScheduleItemEditor">确定</button>
+    </view>
   </view>
 </view>

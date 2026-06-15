@@ -14,6 +14,7 @@ const {
   buildPackageLessonSchedule,
   computeFirstPackageClassTime,
   formatPackageDateTime,
+  normalizeCustomScheduleList,
   normalizeScheduleType,
   normalizeTimeText,
   normalizeWeekday,
@@ -83,11 +84,25 @@ const validateScheduleTime = value => {
   return normalizedTime
 }
 
-const normalizeScheduleConfig = ({ classCount, scheduleType, scheduleDate, scheduleTime, scheduleDays, now = new Date() }) => {
+const normalizeScheduleConfig = ({ classCount, scheduleType, scheduleDate, scheduleTime, scheduleDays, scheduleList, now = new Date() }) => {
   const totalCount = Math.max(1, Number(classCount) || 0)
   const normalizedType = normalizeScheduleType(scheduleType)
   const normalizedTime = validateScheduleTime(scheduleTime)
   const normalizedWeekdays = normalizeWeekdays(scheduleDays)
+  const normalizedScheduleList = normalizeCustomScheduleList(scheduleList)
+
+  if (normalizedScheduleList.length) {
+    if (normalizedScheduleList.length !== totalCount) {
+      throw createPackageServiceError(400, 1001, '请为每节课选择上课日期和时间')
+    }
+
+    normalizedScheduleList.forEach(item => {
+      const classDate = parseShanghaiDate(item.class_time)
+      const normalizedDate = classDate ? formatDateOnly(classDate) : ''
+      validateScheduleDateAtOrAfterMin({ scheduleDate: normalizedDate, now })
+      validateScheduleTime(`${item.class_time}`.slice(11, 16))
+    })
+  }
 
   if (totalCount === 1) {
     if (normalizedType !== SCHEDULE_TYPES.SINGLE) {
@@ -101,7 +116,8 @@ const normalizeScheduleConfig = ({ classCount, scheduleType, scheduleDate, sched
       schedule_date: `${scheduleDate}`.trim(),
       schedule_time: normalizedTime,
       schedule_days: [],
-      class_count: 1
+      class_count: 1,
+      schedule_list: normalizedScheduleList
     }
   }
 
@@ -116,7 +132,8 @@ const normalizeScheduleConfig = ({ classCount, scheduleType, scheduleDate, sched
       schedule_date: `${scheduleDate}`.trim(),
       schedule_time: normalizedTime,
       schedule_days: [],
-      class_count: totalCount
+      class_count: totalCount,
+      schedule_list: normalizedScheduleList
     }
   }
 
@@ -134,7 +151,8 @@ const normalizeScheduleConfig = ({ classCount, scheduleType, scheduleDate, sched
     schedule_date: formatDateOnly(buildScheduleMinDate(now)),
     schedule_time: normalizedTime,
     schedule_days: normalizedWeekdays,
-    class_count: totalCount
+    class_count: totalCount,
+    schedule_list: normalizedScheduleList
   }
 }
 
@@ -187,6 +205,7 @@ const buildScheduleConfigFromContext = ({ context = {}, pkg, now = new Date() })
       scheduleDate: scheduleConfig.schedule_date,
       scheduleTime: scheduleConfig.schedule_time,
       scheduleDays: scheduleConfig.schedule_days,
+      scheduleList: scheduleConfig.schedule_list,
       now
     })
   }
@@ -213,6 +232,7 @@ const createPackageStartOrder = async ({
   scheduleDate,
   scheduleDays,
   scheduleTime,
+  scheduleList,
   childNickname,
   childAge,
   parentMobile,
@@ -233,6 +253,7 @@ const createPackageStartOrder = async ({
     scheduleDate,
     scheduleTime,
     scheduleDays,
+    scheduleList,
     now
   })
 
