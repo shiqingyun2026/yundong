@@ -318,6 +318,14 @@ const validateScheduleDateAtOrAfterMin = ({ scheduleDate, now = new Date() }) =>
     throw createPackageServiceError(400, 1001, '请填写正确的上课日期')
   }
 
+  console.info('[packageOrders] validateScheduleDateAtOrAfterMin', {
+    now_raw: now instanceof Date ? now.toISOString() : `${now || ''}`,
+    now_shanghai: formatShanghaiDateTime(now),
+    scheduleDate,
+    selected_date: formatShanghaiDateTime(selectedDate),
+    min_date: formatShanghaiDateTime(minDate)
+  })
+
   if (selectedDate.getTime() < minDate.getTime()) {
     throw createPackageServiceError(400, 1001, '上课日期不能早于开团后第3天')
   }
