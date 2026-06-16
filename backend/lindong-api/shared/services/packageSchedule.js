@@ -1,4 +1,4 @@
-const { parseShanghaiDate } = require('../utils/dateTime')
+const { formatShanghaiDateTime, parseShanghaiDate } = require('../utils/dateTime')
 
 const pad = value => `${value}`.padStart(2, '0')
 
@@ -75,36 +75,46 @@ const formatPackageTimeLabel = value => {
 const formatPackageHourLabel = hour => `${pad(normalizeHour(hour))}:00`
 
 const formatPackageDateTime = value => {
-  const date = parseShanghaiDate(value)
-  if (!date) {
+  const formatted = formatShanghaiDateTime(value)
+  if (!formatted) {
     return ''
   }
 
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(
-    date.getMinutes()
-  )}:${pad(date.getSeconds())}`
+  return formatted
+}
+
+const resolveShanghaiDateText = value => {
+  const normalized = `${value || ''}`.trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return normalized
+  }
+
+  const formatted = formatShanghaiDateTime(value)
+  if (!formatted) {
+    return ''
+  }
+
+  return formatted.slice(0, 10)
 }
 
 const toDateOnly = value => {
-  const date = parseShanghaiDate(value)
-  if (!date) {
+  const dateText = resolveShanghaiDateText(value)
+  if (!dateText) {
     return null
   }
 
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  return parseShanghaiDate(`${dateText} 00:00:00`)
 }
 
 const buildDateTimeFromDateAndTime = ({ date, time }) => {
-  const targetDate = toDateOnly(date)
   const normalizedTime = normalizeTimeText(time)
+  const dateText = resolveShanghaiDateText(date)
 
-  if (!targetDate || !normalizedTime) {
+  if (!dateText || !normalizedTime) {
     return null
   }
 
-  const [hour, minute] = normalizedTime.split(':').map(Number)
-  targetDate.setHours(hour, minute, 0, 0)
-  return targetDate
+  return parseShanghaiDate(`${dateText} ${normalizedTime}:00`)
 }
 
 const buildScheduleItemsFromDates = dates =>
@@ -198,21 +208,24 @@ const buildWeeklySchedule = ({ classCount, weekdays, time, anchorDate }) => {
   }
 
   const dates = []
-  const cursor = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate())
+  const cursor = toDateOnly(anchor)
   const maxIterations = totalCount * 14
   let guard = 0
 
   while (dates.length < totalCount && guard < maxIterations) {
-    const weekday = cursor.getDay() === 0 ? 7 : cursor.getDay()
+    const weekdayProbe = parseShanghaiDate(`${resolveShanghaiDateText(cursor)} 12:00:00`)
+    const weekday = weekdayProbe ? (weekdayProbe.getUTCDay() === 0 ? 7 : weekdayProbe.getUTCDay()) : 0
     if (normalizedWeekdays.includes(weekday)) {
-      const candidate = new Date(cursor.getTime())
-      candidate.setHours(anchor.getHours(), anchor.getMinutes(), 0, 0)
+      const candidate = buildDateTimeFromDateAndTime({
+        date: resolveShanghaiDateText(cursor),
+        time: normalizedTime
+      })
       if (candidate.getTime() >= anchor.getTime()) {
         dates.push(candidate)
       }
     }
 
-    cursor.setDate(cursor.getDate() + 1)
+    cursor.setTime(cursor.getTime() + 24 * 60 * 60 * 1000)
     guard += 1
   }
 
@@ -290,21 +303,27 @@ const computeFirstPackageClassTime = ({ successTime, weekday, hour, time, schedu
     return null
   }
 
-  const [targetHour, targetMinute] = normalizedTime.split(':').map(Number)
-  const targetJsDay = normalizedWeekday % 7
-  const candidate = new Date(baseTime.getTime())
-  candidate.setSeconds(0, 0)
-  candidate.setHours(targetHour, targetMinute, 0, 0)
-
-  let diffDays = (targetJsDay - candidate.getDay() + 7) % 7
-  candidate.setDate(candidate.getDate() + diffDays)
-
-  if (diffDays === 0 || candidate.getTime() < baseTime.getTime()) {
-    diffDays = diffDays === 0 ? 7 : 0
-    candidate.setDate(candidate.getDate() + diffDays)
+  const cursor = toDateOnly(baseTime)
+  if (!cursor) {
+    return null
   }
 
-  return candidate
+  cursor.setTime(cursor.getTime() + 24 * 60 * 60 * 1000)
+
+  for (let index = 0; index < 8; index += 1) {
+    const dateText = resolveShanghaiDateText(cursor)
+    const weekdayProbe = parseShanghaiDate(`${dateText} 12:00:00`)
+    const currentWeekday = weekdayProbe ? (weekdayProbe.getUTCDay() === 0 ? 7 : weekdayProbe.getUTCDay()) : 0
+    if (currentWeekday === normalizedWeekday) {
+      return buildDateTimeFromDateAndTime({
+        date: dateText,
+        time: normalizedTime
+      })
+    }
+    cursor.setTime(cursor.getTime() + 24 * 60 * 60 * 1000)
+  }
+
+  return null
 }
 
 const formatPendingPackageScheduleText = ({ weekday, hour, scheduleConfig, classCount }) => {
