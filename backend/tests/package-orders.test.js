@@ -1045,6 +1045,116 @@ test('wechat payment callback marks package order paid through package flow', as
   assert.equal(state.groupPaymentSuccessCalls.length, 0)
 })
 
+test('getOrderPaymentStatus reconciles pending wechat package payment via order query', async () => {
+  clearModules([
+    'config/env.js',
+    'repositories/index.js',
+    'shared/services/wechatMiniProgram.js',
+    'shared/services/groupOrders.js',
+    'shared/services/packageOrders.js',
+    'shared/services/paymentShell.js'
+  ])
+
+  const state = {
+    queryCalls: [],
+    packagePaymentSuccessCalls: [],
+    paymentRecord: {
+      id: 'payment-record-2',
+      order_id: 'package-order-2',
+      user_id: 'user-2',
+      out_trade_no: 'LDPKG-20260616-000001',
+      transaction_id: '',
+      status: 'pending',
+      callback_status: '',
+      callback_payload: null,
+      payment_mode: 'wechat',
+      paid_at: null,
+      closed_at: null
+    },
+    order: {
+      id: 'package-order-2',
+      user_id: 'user-2',
+      order_type: 2,
+      package_id: 'PKG-20260616-0001',
+      package_group_id: 'PG-20260616-00001',
+      status: 'pending',
+      pay_time: null,
+      refund_time: null,
+      refund_reason: ''
+    }
+  }
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true,
+      paymentProviderMode: 'wechat'
+    }
+  })
+
+  mockModule('repositories/index.js', {
+    paymentRecordsRepository: {
+      findPaymentRecordByOrderId: async orderId => (orderId === state.paymentRecord.order_id ? { ...state.paymentRecord } : null),
+      findPaymentRecordByOutTradeNo: async outTradeNo => (outTradeNo === state.paymentRecord.out_trade_no ? { ...state.paymentRecord } : null),
+      updatePaymentRecord: async (id, patch) => {
+        assert.equal(id, state.paymentRecord.id)
+        Object.assign(state.paymentRecord, patch)
+        return { ...state.paymentRecord }
+      }
+    },
+    ordersRepository: {
+      findOrderForUser: async ({ orderId }) => (orderId === state.order.id ? { ...state.order } : null),
+      findOrderById: async orderId => (orderId === state.order.id ? { ...state.order } : null)
+    },
+    usersRepository: {}
+  })
+
+  mockModule('shared/services/wechatMiniProgram.js', {
+    createMiniProgramPayment: async () => ({}),
+    buildMiniProgramPaymentParams: () => ({}),
+    decryptWechatPayResource: resource => resource,
+    queryWechatPaymentByOutTradeNo: async ({ outTradeNo }) => {
+      state.queryCalls.push(outTradeNo)
+      return {
+        out_trade_no: outTradeNo,
+        transaction_id: 'wx-transaction-2',
+        trade_state: 'SUCCESS'
+      }
+    }
+  })
+
+  mockModule('shared/services/groupOrders.js', {
+    markOrderPaymentSuccess: async () => {
+      throw new Error('group payment flow should not be used for package order')
+    }
+  })
+
+  mockModule('shared/services/packageOrders.js', {
+    markPackageOrderPaymentSuccess: async payload => {
+      state.packagePaymentSuccessCalls.push(payload)
+      state.order.status = 'success'
+      state.order.pay_time = '2026-06-16 15:00:00'
+      return {
+        order: { ...state.order },
+        status: 'success',
+        packageGroupId: 'PG-20260616-00001'
+      }
+    }
+  })
+
+  const { getOrderPaymentStatus } = require(path.join(backendRoot, 'shared/services/paymentShell.js'))
+  const result = await getOrderPaymentStatus({
+    userId: 'user-2',
+    orderId: 'package-order-2'
+  })
+
+  assert.deepEqual(state.queryCalls, ['LDPKG-20260616-000001'])
+  assert.equal(state.paymentRecord.status, 'paid')
+  assert.equal(state.paymentRecord.transaction_id, 'wx-transaction-2')
+  assert.equal(state.packagePaymentSuccessCalls.length, 1)
+  assert.equal(result.orderStatus, 'success')
+  assert.equal(result.paymentRecordStatus, 'paid')
+})
+
 test('payment shell resolves cloudpay provider mode', async () => {
   clearModules([
     'config/env.js',

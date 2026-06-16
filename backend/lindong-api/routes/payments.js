@@ -356,6 +356,14 @@ router.post('/mock-success', authenticate, async (req, res) => {
 
 router.post('/notify/wechat', async (req, res) => {
   try {
+    console.info('[payments/notify/wechat] received', {
+      timestamp: req.headers['wechatpay-timestamp'] || '',
+      serial: req.headers['wechatpay-serial'] || '',
+      bodyLength: `${req.rawBody || ''}`.length,
+      eventType: (req.body && req.body.event_type) || '',
+      resourceType: (req.body && req.body.resource_type) || ''
+    })
+
     const signatureVerified = verifyWechatPayCallbackSignature({
       timestamp: req.headers['wechatpay-timestamp'],
       nonce: req.headers['wechatpay-nonce'],
@@ -365,6 +373,11 @@ router.post('/notify/wechat', async (req, res) => {
     })
 
     if (!signatureVerified) {
+      console.warn('[payments/notify/wechat] signature verification failed', {
+        timestamp: req.headers['wechatpay-timestamp'] || '',
+        serial: req.headers['wechatpay-serial'] || '',
+        bodyLength: `${req.rawBody || ''}`.length
+      })
       return res.status(401).json({
         code: 'FAIL',
         message: 'invalid wechatpay signature'

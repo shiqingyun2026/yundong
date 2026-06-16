@@ -236,6 +236,20 @@ const createMiniProgramPayment = async ({ openId, description, outTradeNo, amoun
   })
 }
 
+const queryWechatPaymentByOutTradeNo = async ({ outTradeNo }) => {
+  const normalizedOutTradeNo = `${outTradeNo || ''}`.trim()
+  if (!normalizedOutTradeNo) {
+    throw new Error('outTradeNo is required')
+  }
+
+  const mchId = getWechatPayMerchantId()
+
+  return requestWechatPayV3({
+    method: 'GET',
+    pathname: `/v3/pay/transactions/out-trade-no/${encodeURIComponent(normalizedOutTradeNo)}?mchid=${encodeURIComponent(mchId)}`
+  })
+}
+
 const createWechatPayRefund = async ({
   outTradeNo = '',
   transactionId = '',
@@ -370,6 +384,7 @@ module.exports = {
   getWechatAccessToken,
   exchangeCodeForSession,
   createMiniProgramPayment,
+  queryWechatPaymentByOutTradeNo,
   createWechatPayRefund,
   queryWechatPayRefund,
   buildMiniProgramPaymentParams,

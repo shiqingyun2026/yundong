@@ -4,7 +4,8 @@ const { markOrderPaymentSuccess } = require('./groupOrders')
 const {
   createMiniProgramPayment,
   buildMiniProgramPaymentParams,
-  decryptWechatPayResource
+  decryptWechatPayResource,
+  queryWechatPaymentByOutTradeNo
 } = require('./wechatMiniProgram')
 
 const PAYMENT_MODE_MOCK = 'mock'
@@ -456,7 +457,7 @@ const prepareOrderPayment = async ({ supabase, userId, orderId, now = new Date()
 }
 
 const getOrderPaymentStatus = async ({ supabase, userId, orderId }) => {
-  const order = await getOrderForUser({
+  let order = await getOrderForUser({
     supabase,
     userId,
     orderId
@@ -466,10 +467,51 @@ const getOrderPaymentStatus = async ({ supabase, userId, orderId }) => {
     throw createServiceError(404, 'order not found')
   }
 
-  const paymentRecord = await getPaymentRecordByOrderId({
+  let paymentRecord = await getPaymentRecordByOrderId({
     supabase,
     orderId: order.id
   })
+
+  const shouldQueryWechatPayment =
+    paymentRecord &&
+    paymentRecord.payment_mode === PAYMENT_MODE_WECHAT &&
+    ['pending', 'processing'].includes(paymentRecord.status || '') &&
+    (order.status || '') === 'pending' &&
+    !!`${paymentRecord.out_trade_no || ''}`.trim()
+
+  if (shouldQueryWechatPayment) {
+    try {
+      const queryResult = await queryWechatPaymentByOutTradeNo({
+        outTradeNo: paymentRecord.out_trade_no
+      })
+      const queryTradeState = `${queryResult && (queryResult.trade_state || queryResult.tradeState || queryResult.status || '')}`
+        .trim()
+        .toUpperCase()
+
+      if (['SUCCESS', 'PAID', 'CLOSED', 'REVOKED'].includes(queryTradeState)) {
+        await handleWechatPaymentCallback({
+          supabase,
+          payload: queryResult
+        })
+
+        order = await getOrderForUser({
+          supabase,
+          userId,
+          orderId: order.id
+        })
+        paymentRecord = await getPaymentRecordByOrderId({
+          supabase,
+          orderId: order.id
+        })
+      }
+    } catch (error) {
+      console.warn('[paymentShell/getOrderPaymentStatus] wechat query reconcile skipped', {
+        orderId: order.id,
+        outTradeNo: paymentRecord.out_trade_no,
+        message: error && error.message ? error.message : 'unknown error'
+      })
+    }
+  }
 
   return {
     orderId: order.id,
