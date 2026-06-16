@@ -40,7 +40,9 @@ const normalizeMinute = value => {
 
 const normalizeTimeText = value => {
   const normalized = `${value || ''}`.trim()
-  const matched = normalized.match(/^(\d{1,2}):(\d{2})$/)
+  const rangeMatched = normalized.match(/^(\d{1,2}:\d{2})\s*[—–-]\s*\d{1,2}:\d{2}$/)
+  const candidate = rangeMatched ? rangeMatched[1] : normalized
+  const matched = candidate.match(/^(\d{1,2}):(\d{2})$/)
 
   if (!matched) {
     return ''
