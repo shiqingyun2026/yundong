@@ -420,6 +420,54 @@ const normalizeScheduleConfig = ({
   }
 }
 
+const buildScheduleSnapshotFields = scheduleConfig => {
+  const normalized = scheduleConfig && typeof scheduleConfig === 'object' ? scheduleConfig : {}
+  const normalizedType = normalizeScheduleType(normalized.schedule_type || normalized.scheduleType)
+  const normalizedTime = normalizeTimeText(normalized.schedule_time || normalized.scheduleTime)
+  const normalizedDays = normalizeWeekdays(normalized.schedule_days || normalized.scheduleDays)
+  const normalizedScheduleList = normalizeCustomScheduleList(normalized.schedule_list || normalized.scheduleList)
+
+  return {
+    schedule_type: normalizedType,
+    schedule_date: `${normalized.schedule_date || normalized.scheduleDate || ''}`.trim(),
+    schedule_time: normalizedTime,
+    schedule_days: normalizedDays,
+    class_count: Math.max(1, Number(normalized.class_count || normalized.classCount) || 0),
+    schedule_list: normalizedScheduleList
+  }
+}
+
+const buildPackageOrderContext = ({
+  targetCount = 0,
+  scheduleConfig = null,
+  childProfile = {},
+  existingContext = {}
+}) => {
+  const snapshot = buildScheduleSnapshotFields(scheduleConfig)
+  const hasScheduleSnapshot = !!snapshot.schedule_type
+
+  return {
+    ...existingContext,
+    target_count: Number(targetCount) || 0,
+    weekday:
+      snapshot.schedule_type === SCHEDULE_TYPES.WEEKLY && snapshot.schedule_days.length === 1
+        ? snapshot.schedule_days[0]
+        : 0,
+    class_date: snapshot.schedule_type === SCHEDULE_TYPES.SINGLE ? snapshot.schedule_date : '',
+    hour: Number((snapshot.schedule_time || '00:00').split(':')[0]) || 0,
+    schedule_type: snapshot.schedule_type,
+    schedule_date: snapshot.schedule_date,
+    schedule_time: snapshot.schedule_time,
+    schedule_days: snapshot.schedule_days,
+    class_count: snapshot.class_count,
+    schedule_list: snapshot.schedule_list,
+    schedule_config: hasScheduleSnapshot ? snapshot : null,
+    child_nickname: childProfile.childNickname || '',
+    child_age: childProfile.childAge === null || childProfile.childAge === undefined ? null : childProfile.childAge,
+    parent_mobile: childProfile.parentMobile || ''
+  }
+}
+
 const buildScheduleConfigFromContext = ({ context = {}, pkg, now = new Date() }) => {
   const totalCount = resolvePackageClassCount(pkg)
   const scheduleConfig = parseJsonObject(context.schedule_config)
@@ -554,19 +602,11 @@ const createPackageStartOrder = async ({
     order_type: 2,
     package_id: packageId,
     package_action: 'start',
-    package_context: {
-      target_count: Number(targetCount),
-      weekday:
-        normalizedScheduleConfig.schedule_type === SCHEDULE_TYPES.WEEKLY && normalizedScheduleConfig.schedule_days.length === 1
-          ? normalizedScheduleConfig.schedule_days[0]
-          : 0,
-      class_date: normalizedScheduleConfig.schedule_type === SCHEDULE_TYPES.SINGLE ? normalizedScheduleConfig.schedule_date : '',
-      hour: Number((normalizedScheduleConfig.schedule_time || '00:00').split(':')[0]) || 0,
-      schedule_config: normalizedScheduleConfig,
-      child_nickname: normalizedChildProfile.childNickname,
-      child_age: normalizedChildProfile.childAge,
-      parent_mobile: normalizedChildProfile.parentMobile
-    },
+    package_context: buildPackageOrderContext({
+      targetCount,
+      scheduleConfig: normalizedScheduleConfig,
+      childProfile: normalizedChildProfile
+    }),
     amount: memberAmountFen
   })
 
@@ -629,6 +669,21 @@ const createPackageJoinOrder = async ({
     targetCount: group.target_count,
     groupPriceConfig: pkg.group_price_config
   })
+  const normalizedScheduleConfig = group.schedule_config
+    ? normalizeScheduleConfig({
+        classCount: resolvePackageClassCount(pkg),
+        scheduleType: group.schedule_config.schedule_type,
+        scheduleDate: group.schedule_config.schedule_date,
+        scheduleTime: group.schedule_config.schedule_time,
+        scheduleDays: group.schedule_config.schedule_days,
+        scheduleList: buildPackageLessonSchedule({
+          scheduleConfig: group.schedule_config,
+          firstClassTime: group.first_class_time,
+          weeks: resolvePackageClassCount(pkg)
+        }),
+        now
+      })
+    : null
 
   const order = await ordersRepository.createOrder({
     user_id: userId,
@@ -636,11 +691,11 @@ const createPackageJoinOrder = async ({
     package_id: packageId,
     package_group_id: packageGroupId,
     package_action: 'join',
-    package_context: {
-      child_nickname: normalizedChildProfile.childNickname,
-      child_age: normalizedChildProfile.childAge,
-      parent_mobile: normalizedChildProfile.parentMobile
-    },
+    package_context: buildPackageOrderContext({
+      targetCount: group.target_count,
+      scheduleConfig: normalizedScheduleConfig,
+      childProfile: normalizedChildProfile
+    }),
     amount: memberAmountFen
   })
 
@@ -669,8 +724,35 @@ const resolveOrderGroupSummary = async order => {
             ? Number(order.package_context.schedule_config.class_count) || 0
             : undefined
         })
-      : [],
-    firstClassTime: group && group.first_class_time ? formatPackageDateTime(group.first_class_time) : null
+      : buildPackageLessonSchedule({
+          scheduleConfig: order && order.package_context && order.package_context.schedule_config
+            ? order.package_context.schedule_config
+            : null,
+          scheduleList: order && order.package_context && order.package_context.schedule_list
+            ? order.package_context.schedule_list
+            : [],
+          weeks:
+            order && order.package_context && order.package_context.schedule_config
+              ? Number(order.package_context.schedule_config.class_count) || 0
+              : undefined
+        }),
+    firstClassTime: group && group.first_class_time
+      ? formatPackageDateTime(group.first_class_time)
+      : (() => {
+          const fallbackScheduleList = buildPackageLessonSchedule({
+            scheduleConfig: order && order.package_context && order.package_context.schedule_config
+              ? order.package_context.schedule_config
+              : null,
+            scheduleList: order && order.package_context && order.package_context.schedule_list
+              ? order.package_context.schedule_list
+              : [],
+            weeks:
+              order && order.package_context && order.package_context.schedule_config
+                ? Number(order.package_context.schedule_config.class_count) || 0
+                : undefined
+          })
+          return fallbackScheduleList[0] ? fallbackScheduleList[0].class_time : null
+        })()
   }
 }
 
@@ -803,6 +885,19 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
     const updatedOrder = await ordersRepository.updateOrder(order.id, {
       status: 'success',
       package_group_id: group.id,
+      package_context: buildPackageOrderContext({
+        targetCount,
+        scheduleConfig: normalizedScheduleConfig,
+        childProfile: {
+          childNickname: context.child_nickname || '',
+          childAge:
+            context.child_age === null || context.child_age === undefined
+              ? null
+              : Number(context.child_age) || 0,
+          parentMobile: context.parent_mobile || ''
+        },
+        existingContext: context
+      }),
       pay_time: now,
       updated_at: now
     })

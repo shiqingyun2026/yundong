@@ -897,6 +897,115 @@ test('mini program user package group list exposes refund display states and pre
   assert.equal(result.list[2].can_open_detail, true)
 })
 
+test('mini program user package group list prefers schedule config when first class time is not locked', async () => {
+  clearModules([
+    'config/env.js',
+    'config/storage.js',
+    'repositories/index.js',
+    'shared/domain/packageGroupRules.js',
+    'shared/services/packageGroupStore.js',
+    'shared/services/cosSignedUrl.js',
+    'shared/services/packageReaders.js',
+    'shared/services/packageSchedule.js'
+  ])
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true
+    }
+  })
+
+  mockModule('config/storage.js', {
+    getStorageProviderName: () => 'supabase',
+    getCosStorageConfig: () => ({
+      bucket: '',
+      region: '',
+      secretId: '',
+      secretKey: '',
+      expiresSeconds: 900
+    })
+  })
+
+  mockModule('repositories/index.js', {
+    ordersRepository: {
+      listOrders: async () => [
+        {
+          id: 'order-weekly-config',
+          package_group_id: 'PG-weekly-config',
+          status: 'success',
+          package_context: {
+            child_nickname: '小满',
+            child_age: 6
+          },
+          created_at: '2026-04-21T08:00:00.000Z'
+        }
+      ]
+    },
+    packageGroupsRepository: {
+      findPackageGroupById: async () => ({
+        id: 'PG-weekly-config',
+        package_id: 'PKG-1',
+        status: 'active',
+        target_count: 4,
+        current_count: 2,
+        weekday: 0,
+        hour: 9,
+        first_class_time: null,
+        schedule_config: {
+          schedule_type: 'weekly',
+          schedule_time: '09:30',
+          schedule_days: [2, 4],
+          class_count: 3
+        }
+      })
+    },
+    coursePackagesRepository: {
+      findPackagesByIds: async () => [
+        {
+          id: 'PKG-1',
+          name: '云test',
+          class_count: 3,
+          total_price: 12000,
+          group_price_config: [{ target_count: 4, price_fen: 3000 }],
+          location_city: '深圳市',
+          location_district: '南山区',
+          location_community: '科技园社区',
+          location_detail: 'A场地'
+        }
+      ]
+    },
+    usersRepository: {}
+  })
+
+  mockModule('shared/domain/packageGroupRules.js', {
+    calculatePackageMemberAmountFen: ({ groupPriceConfig = [] }) => Number(groupPriceConfig[0] && groupPriceConfig[0].price_fen) || 0
+  })
+
+  mockModule('shared/services/packageGroupStore.js', {
+    cleanupExpiredPackageGroups: async () => {}
+  })
+
+  mockModule('shared/services/packageSchedule.js', {
+    buildPackageLessonSchedule: () => [],
+    formatPackageDateTime: value => value,
+    formatPendingPackageScheduleText: ({ scheduleConfig, classCount }) =>
+      `${scheduleConfig.schedule_time}|${(scheduleConfig.schedule_days || []).join(',')}|${classCount}`,
+    formatScheduleTextWithLockNote: () => 'unused'
+  })
+
+  const { fetchMiniProgramUserPackageGroupList } = require(path.join(backendRoot, 'shared/services/packageReaders.js'))
+  const result = await fetchMiniProgramUserPackageGroupList({
+    userId: 'user-1',
+    status: 'all',
+    page: 1,
+    pageSize: 10,
+    now: new Date('2026-04-21T12:00:00.000Z')
+  })
+
+  assert.equal(result.list.length, 1)
+  assert.equal(result.list[0].display_time_text, '09:30|2,4|3')
+})
+
 test('package group detail returns ended groups and still rejects refunded viewers', async () => {
   clearModules([
     'config/env.js',
@@ -1049,6 +1158,7 @@ test('trial package group detail returns a single-session schedule', async () =>
         id: 'PKG-TRIAL-0001',
         name: '周末体验课',
         package_category: '体验课',
+        class_count: 1,
         total_price: 12000,
         group_price_config: [{ target_count: 4, price_fen: 3000 }],
         location_city: '深圳市',
@@ -1066,7 +1176,14 @@ test('trial package group detail returns a single-session schedule', async () =>
         weekday: 0,
         hour: 10,
         deadline: '2026-04-23T10:00:00.000Z',
-        first_class_time: '2026-04-24 10:00:00'
+        first_class_time: '2026-04-24 10:00:00',
+        schedule_config: {
+          schedule_type: 'single',
+          schedule_date: '2026-04-24',
+          schedule_time: '10:00',
+          schedule_days: [],
+          class_count: 1
+        }
       })
     },
     ordersRepository: {
@@ -1111,6 +1228,6 @@ test('trial package group detail returns a single-session schedule', async () =>
   })
 
   assert.equal(result.schedule_mode, 'single_session')
-  assert.equal(result.schedule_text, '体验课时间 2026-04-24 10:00:00')
+  assert.equal(result.schedule_text, '上课时间 2026-04-24 10:00:00')
   assert.equal(result.schedule_list.length, 1)
 })

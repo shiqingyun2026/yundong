@@ -24,6 +24,7 @@ const clearModules = relativePaths => {
 test('package orders allow the same user to join the same package group multiple times', async () => {
   clearModules([
     'config/env.js',
+    'config/db.js',
     'repositories/index.js',
     'shared/services/packageGroupStore.js',
     'shared/services/groupResultNotifications.js',
@@ -55,6 +56,46 @@ test('package orders allow the same user to join the same package group multiple
     }
   })
 
+  mockModule('config/db.js', {
+    withTransaction: async run =>
+      run({
+        query: async (sql, params = []) => {
+          if (sql.includes('from orders')) {
+            const [orderId, userId] = params
+            const order = state.orders.find(item => item.id === orderId && item.user_id === userId)
+            return order ? [{ ...order }] : []
+          }
+
+          if (sql.includes('from package_groups')) {
+            const [packageGroupId] = params
+            return packageGroupId === state.group.id ? [{ ...state.group }] : []
+          }
+
+          return []
+        },
+        execute: async (sql, params = []) => {
+          if (sql.includes('update orders')) {
+            const orderId = params[params.length - 1]
+            const order = state.orders.find(item => item.id === orderId)
+            if (order) {
+              order.status = params[0]
+              order.pay_time = params[1]
+              order.updated_at = params[2]
+            }
+          }
+
+          if (sql.includes('update package_groups')) {
+            state.group.current_count = params[0]
+            state.group.status = params[1]
+            state.group.success_time = params[2]
+            state.group.first_class_time = params[3]
+          }
+
+          return {}
+        }
+      })
+  })
+
   mockModule('repositories/index.js', {
     coursePackagesRepository: {
       findPackageById: async () => ({
@@ -84,6 +125,7 @@ test('package orders allow the same user to join the same package group multiple
       },
       findOrderForUser: async ({ userId, orderId }) =>
         state.orders.find(order => order.id === orderId && order.user_id === userId) || null,
+      findOrderById: async orderId => state.orders.find(order => order.id === orderId) || null,
       updateOrder: async (orderId, patch) => {
         const order = state.orders.find(item => item.id === orderId)
         Object.assign(order, patch)
@@ -169,6 +211,7 @@ test('package orders allow the same user to join the same package group multiple
 test('package start payment creates group with configured deadline hours', async () => {
   clearModules([
     'config/env.js',
+    'config/db.js',
     'repositories/index.js',
     'shared/services/packageGroupStore.js',
     'shared/services/groupResultNotifications.js',
@@ -213,6 +256,46 @@ test('package start payment creates group with configured deadline hours', async
     env: {
       useMySqlRepositories: true
     }
+  })
+
+  mockModule('config/db.js', {
+    withTransaction: async run =>
+      run({
+        query: async (sql, params = []) => {
+          if (sql.includes('from orders')) {
+            const [orderId, userId] = params
+            const order = state.orders.find(item => item.id === orderId && item.user_id === userId)
+            return order ? [{ ...order }] : []
+          }
+
+          if (sql.includes('from package_groups')) {
+            const [packageGroupId] = params
+            return packageGroupId === state.group.id ? [{ ...state.group }] : []
+          }
+
+          return []
+        },
+        execute: async (sql, params = []) => {
+          if (sql.includes('update orders')) {
+            const orderId = params[params.length - 1]
+            const order = state.orders.find(item => item.id === orderId)
+            if (order) {
+              order.status = params[0]
+              order.pay_time = params[1]
+              order.updated_at = params[2]
+            }
+          }
+
+          if (sql.includes('update package_groups')) {
+            state.group.current_count = params[0]
+            state.group.status = params[1]
+            state.group.success_time = params[2]
+            state.group.first_class_time = params[3]
+          }
+
+          return {}
+        }
+      })
   })
 
   mockModule('repositories/index.js', {
@@ -440,11 +523,124 @@ test('package start order stores custom schedule list in schedule config', async
     { index: 2, class_time: '2026-04-24 10:30:00', display_text: '2026-04-24 10:30:00' },
     { index: 3, class_time: '2026-04-26 11:00:00', display_text: '2026-04-26 11:00:00' }
   ])
+  assert.equal(state.createdOrder.package_context.schedule_type, 'weekly')
+  assert.equal(state.createdOrder.package_context.schedule_time, '10:00')
+  assert.deepEqual(state.createdOrder.package_context.schedule_days, [1, 3, 5])
+  assert.equal(state.createdOrder.package_context.class_count, 3)
+  assert.deepEqual(state.createdOrder.package_context.schedule_list, [
+    { index: 1, class_time: '2026-04-22 10:00:00', display_text: '2026-04-22 10:00:00' },
+    { index: 2, class_time: '2026-04-24 10:30:00', display_text: '2026-04-24 10:30:00' },
+    { index: 3, class_time: '2026-04-26 11:00:00', display_text: '2026-04-26 11:00:00' }
+  ])
+})
+
+test('package join order stores schedule snapshot from group config', async () => {
+  clearModules([
+    'config/env.js',
+    'repositories/index.js',
+    'shared/services/packageGroupStore.js',
+    'shared/services/groupResultNotifications.js',
+    'shared/services/paymentShell.js',
+    'shared/services/packageOrders.js'
+  ])
+
+  const state = {
+    createdOrder: null
+  }
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true
+    }
+  })
+
+  mockModule('repositories/index.js', {
+    coursePackagesRepository: {
+      findPackageById: async () => ({
+        id: 'PKG-JOIN-0001',
+        status: 1,
+        class_count: 3,
+        total_price: 12000,
+        supported_people: [4],
+        group_price_config: [{ target_count: 4, price_fen: 3000 }],
+        deadline_hours: 48
+      })
+    },
+    ordersRepository: {
+      listPendingOrderIdsByUserAndPackage: async () => [],
+      closeOrdersByIds: async () => [],
+      createOrder: async payload => {
+        state.createdOrder = payload
+        return payload
+      }
+    },
+    packageGroupsRepository: {
+      listPackageGroups: async () => [],
+      findPackageGroupById: async () => ({
+        id: 'PG-JOIN-0001',
+        package_id: 'PKG-JOIN-0001',
+        status: 'active',
+        target_count: 4,
+        current_count: 1,
+        deadline: '2026-04-24T10:00:00.000Z',
+        first_class_time: null,
+        schedule_config: {
+          schedule_type: 'weekly',
+          schedule_date: '2026-04-22',
+          schedule_time: '09:30',
+          schedule_days: [2, 4],
+          class_count: 3,
+          schedule_list: [
+            { index: 1, class_time: '2026-04-22 09:30:00' },
+            { index: 2, class_time: '2026-04-24 09:30:00' },
+            { index: 3, class_time: '2026-04-29 09:30:00' }
+          ]
+        }
+      })
+    }
+  })
+
+  mockModule('shared/services/packageGroupStore.js', {
+    cleanupExpiredPackageGroups: async () => ({ groupIds: [], refundedOrderIds: [], closedOrderIds: [] }),
+    closePendingPackageOrdersByIds: async () => [],
+    listPendingOrderIdsForPackage: async () => []
+  })
+
+  mockModule('shared/services/groupResultNotifications.js', {
+    enqueueGroupResultNotifications: async () => ({})
+  })
+
+  mockModule('shared/services/paymentShell.js', {
+    markPaymentRecordRefunded: async () => ({})
+  })
+
+  const { createPackageJoinOrder } = require(path.join(backendRoot, 'shared/services/packageOrders.js'))
+
+  await createPackageJoinOrder({
+    userId: 'user-join-1',
+    packageId: 'PKG-JOIN-0001',
+    packageGroupId: 'PG-JOIN-0001',
+    childNickname: '乐乐',
+    childAge: 5,
+    parentMobile: '13800138001',
+    now: new Date('2026-04-20T08:00:00.000Z')
+  })
+
+  assert.equal(state.createdOrder.package_context.schedule_type, 'weekly')
+  assert.equal(state.createdOrder.package_context.schedule_time, '09:30')
+  assert.deepEqual(state.createdOrder.package_context.schedule_days, [2, 4])
+  assert.equal(state.createdOrder.package_context.class_count, 3)
+  assert.deepEqual(state.createdOrder.package_context.schedule_list, [
+    { index: 1, class_time: '2026-04-22 09:30:00', display_text: '2026-04-22 09:30:00' },
+    { index: 2, class_time: '2026-04-24 09:30:00', display_text: '2026-04-24 09:30:00' },
+    { index: 3, class_time: '2026-04-29 09:30:00', display_text: '2026-04-29 09:30:00' }
+  ])
 })
 
 test('package orders enqueue group success notification when join payment completes the group', async () => {
   clearModules([
     'config/env.js',
+    'config/db.js',
     'repositories/index.js',
     'shared/services/packageGroupStore.js',
     'shared/services/groupResultNotifications.js',
@@ -485,6 +681,46 @@ test('package orders enqueue group success notification when join payment comple
     }
   })
 
+  mockModule('config/db.js', {
+    withTransaction: async run =>
+      run({
+        query: async (sql, params = []) => {
+          if (sql.includes('from orders')) {
+            const [orderId, userId] = params
+            const order = state.orders.find(item => item.id === orderId && item.user_id === userId)
+            return order ? [{ ...order }] : []
+          }
+
+          if (sql.includes('from package_groups')) {
+            const [packageGroupId] = params
+            return packageGroupId === state.group.id ? [{ ...state.group }] : []
+          }
+
+          return []
+        },
+        execute: async (sql, params = []) => {
+          if (sql.includes('update orders')) {
+            const orderId = params[params.length - 1]
+            const order = state.orders.find(item => item.id === orderId)
+            if (order) {
+              order.status = params[0]
+              order.pay_time = params[1]
+              order.updated_at = params[2]
+            }
+          }
+
+          if (sql.includes('update package_groups')) {
+            state.group.current_count = params[0]
+            state.group.status = params[1]
+            state.group.success_time = params[2]
+            state.group.first_class_time = params[3]
+          }
+
+          return {}
+        }
+      })
+  })
+
   mockModule('repositories/index.js', {
     coursePackagesRepository: {
       findPackageById: async () => ({
@@ -499,6 +735,7 @@ test('package orders enqueue group success notification when join payment comple
     ordersRepository: {
       findOrderForUser: async ({ userId, orderId }) =>
         state.orders.find(order => order.id === orderId && order.user_id === userId) || null,
+      findOrderById: async orderId => state.orders.find(order => order.id === orderId) || null,
       updateOrder: async (orderId, patch) => {
         const order = state.orders.find(item => item.id === orderId)
         Object.assign(order, patch)

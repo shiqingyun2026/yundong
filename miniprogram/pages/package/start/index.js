@@ -401,6 +401,7 @@ Page({
       classCount: this.data.classCount,
       scheduleTypeValue: this.data.selectedScheduleTypeValue,
       scheduleDate: this.data.selectedScheduleDate,
+      scheduleAnchorDate: this.data.minScheduleDate,
       scheduleDays: this.data.selectedScheduleDays,
       scheduleTime: this.data.selectedScheduleTime
     })

@@ -387,7 +387,7 @@ INSERT INTO course_packages (
 
 INSERT INTO package_groups (
   id, package_id, creator_id, target_count, current_count, status, weekday, hour,
-  first_class_time, deadline, created_at, success_time
+  first_class_time, schedule_config, deadline, created_at, success_time
 ) VALUES
   (
     'pg_test_001',
@@ -399,6 +399,16 @@ INSERT INTO package_groups (
     6,
     10,
     '2026-06-15 10:00:00',
+    JSON_OBJECT(
+      'schedule_type', 'weekly',
+      'schedule_date', '2026-06-15',
+      'schedule_time', '10:00',
+      'schedule_days', JSON_ARRAY(6),
+      'class_count', 1,
+      'schedule_list', JSON_ARRAY(
+        JSON_OBJECT('index', 1, 'class_time', '2026-06-15 10:00:00', 'display_text', '2026-06-15 10:00:00')
+      )
+    ),
     '2027-12-31 23:59:59',
     '2026-06-01 11:00:00',
     NULL
@@ -419,7 +429,32 @@ INSERT INTO orders (
     'pkg_test_001',
     'pg_test_001',
     'start',
-    JSON_OBJECT('weekday', 6, 'hour', 10),
+    JSON_OBJECT(
+      'target_count', 4,
+      'weekday', 6,
+      'hour', 10,
+      'schedule_type', 'weekly',
+      'schedule_date', '2026-06-15',
+      'schedule_time', '10:00',
+      'schedule_days', JSON_ARRAY(6),
+      'class_count', 1,
+      'schedule_list', JSON_ARRAY(
+        JSON_OBJECT('index', 1, 'class_time', '2026-06-15 10:00:00', 'display_text', '2026-06-15 10:00:00')
+      ),
+      'schedule_config', JSON_OBJECT(
+        'schedule_type', 'weekly',
+        'schedule_date', '2026-06-15',
+        'schedule_time', '10:00',
+        'schedule_days', JSON_ARRAY(6),
+        'class_count', 1,
+        'schedule_list', JSON_ARRAY(
+          JSON_OBJECT('index', 1, 'class_time', '2026-06-15 10:00:00', 'display_text', '2026-06-15 10:00:00')
+        )
+      ),
+      'child_nickname', '小满',
+      'child_age', 6,
+      'parent_mobile', '13800138000'
+    ),
     4900,
     'paid',
     '2026-06-01 11:10:00',
@@ -440,7 +475,32 @@ INSERT INTO orders (
     'pkg_test_001',
     'pg_test_001',
     'join',
-    JSON_OBJECT('weekday', 6, 'hour', 10),
+    JSON_OBJECT(
+      'target_count', 4,
+      'weekday', 6,
+      'hour', 10,
+      'schedule_type', 'weekly',
+      'schedule_date', '2026-06-15',
+      'schedule_time', '10:00',
+      'schedule_days', JSON_ARRAY(6),
+      'class_count', 1,
+      'schedule_list', JSON_ARRAY(
+        JSON_OBJECT('index', 1, 'class_time', '2026-06-15 10:00:00', 'display_text', '2026-06-15 10:00:00')
+      ),
+      'schedule_config', JSON_OBJECT(
+        'schedule_type', 'weekly',
+        'schedule_date', '2026-06-15',
+        'schedule_time', '10:00',
+        'schedule_days', JSON_ARRAY(6),
+        'class_count', 1,
+        'schedule_list', JSON_ARRAY(
+          JSON_OBJECT('index', 1, 'class_time', '2026-06-15 10:00:00', 'display_text', '2026-06-15 10:00:00')
+        )
+      ),
+      'child_nickname', '乐乐',
+      'child_age', 5,
+      'parent_mobile', '13800138001'
+    ),
     4900,
     'paid',
     '2026-06-01 11:15:00',

@@ -201,17 +201,17 @@ INSERT INTO course_packages (
 
 INSERT INTO package_groups (
   id, package_id, creator_id, target_count, current_count, status, weekday, hour,
-  first_class_time, deadline, created_at, success_time
+  first_class_time, schedule_config, deadline, created_at, success_time
 ) VALUES
-('pg_test_001', 'pkg_test_001', 'user_test_001', 4, 2, 'active', 6, 10, '2026-06-15 10:00:00', '2027-12-31 23:59:59', '2026-06-01 11:00:00', NULL);
+('pg_test_001', 'pkg_test_001', 'user_test_001', 4, 2, 'active', 6, 10, '2026-06-15 10:00:00', '{"schedule_type":"weekly","schedule_date":"2026-06-15","schedule_time":"10:00","schedule_days":[6],"class_count":1,"schedule_list":[{"index":1,"class_time":"2026-06-15 10:00:00","display_text":"2026-06-15 10:00:00"}]}', '2027-12-31 23:59:59', '2026-06-01 11:00:00', NULL);
 
 INSERT INTO orders (
   id, order_no, user_id, order_type, course_id, group_id, package_id, package_group_id,
   package_action, package_context, amount, status, created_at, updated_at,
   pay_time, refund_time, refund_reason, refund_operator_id, transaction_id
 ) VALUES
-('order_test_001', 'LDPKG-20260601-000001', 'user_test_001', 2, NULL, NULL, 'pkg_test_001', 'pg_test_001', 'start', '{"weekday":6,"hour":10}', 4900, 'paid', '2026-06-01 11:10:00', '2026-06-01 11:10:00', '2026-06-01 11:10:00', NULL, '', NULL, 'tx_test_001'),
-('order_test_002', 'LDPKG-20260601-000002', 'user_test_002', 2, NULL, NULL, 'pkg_test_001', 'pg_test_001', 'join', '{"weekday":6,"hour":10}', 4900, 'paid', '2026-06-01 11:15:00', '2026-06-01 11:15:00', '2026-06-01 11:15:00', NULL, '', NULL, 'tx_test_002');
+('order_test_001', 'LDPKG-20260601-000001', 'user_test_001', 2, NULL, NULL, 'pkg_test_001', 'pg_test_001', 'start', '{"target_count":4,"weekday":6,"hour":10,"schedule_type":"weekly","schedule_date":"2026-06-15","schedule_time":"10:00","schedule_days":[6],"class_count":1,"schedule_list":[{"index":1,"class_time":"2026-06-15 10:00:00","display_text":"2026-06-15 10:00:00"}],"schedule_config":{"schedule_type":"weekly","schedule_date":"2026-06-15","schedule_time":"10:00","schedule_days":[6],"class_count":1,"schedule_list":[{"index":1,"class_time":"2026-06-15 10:00:00","display_text":"2026-06-15 10:00:00"}]},"child_nickname":"小满","child_age":6,"parent_mobile":"13800138000"}', 4900, 'paid', '2026-06-01 11:10:00', '2026-06-01 11:10:00', '2026-06-01 11:10:00', NULL, '', NULL, 'tx_test_001'),
+('order_test_002', 'LDPKG-20260601-000002', 'user_test_002', 2, NULL, NULL, 'pkg_test_001', 'pg_test_001', 'join', '{"target_count":4,"weekday":6,"hour":10,"schedule_type":"weekly","schedule_date":"2026-06-15","schedule_time":"10:00","schedule_days":[6],"class_count":1,"schedule_list":[{"index":1,"class_time":"2026-06-15 10:00:00","display_text":"2026-06-15 10:00:00"}],"schedule_config":{"schedule_type":"weekly","schedule_date":"2026-06-15","schedule_time":"10:00","schedule_days":[6],"class_count":1,"schedule_list":[{"index":1,"class_time":"2026-06-15 10:00:00","display_text":"2026-06-15 10:00:00"}]},"child_nickname":"乐乐","child_age":5,"parent_mobile":"13800138001"}', 4900, 'paid', '2026-06-01 11:15:00', '2026-06-01 11:15:00', '2026-06-01 11:15:00', NULL, '', NULL, 'tx_test_002');
 
 INSERT INTO payment_records (
   id, order_id, user_id, course_id, group_id, package_id, package_group_id,

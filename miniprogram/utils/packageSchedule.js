@@ -155,7 +155,7 @@ const getAllowedScheduleTypeOptions = classCount => {
   })
 }
 
-const buildSchedulePreview = ({ classCount, scheduleTypeValue, scheduleDate, scheduleDays, scheduleTime }) => {
+const buildSchedulePreview = ({ classCount, scheduleTypeValue, scheduleDate, scheduleAnchorDate, scheduleDays, scheduleTime }) => {
   const totalCount = Math.max(1, Number(classCount) || 0)
   const { scheduleType, weeklyTimes } = parseScheduleTypeValue(scheduleTypeValue)
   const normalizedDays = [...new Set((Array.isArray(scheduleDays) ? scheduleDays : []).map(Number).filter(Boolean))].sort(
@@ -201,7 +201,7 @@ const buildSchedulePreview = ({ classCount, scheduleTypeValue, scheduleDate, sch
 
   if (scheduleType === SCHEDULE_TYPES.WEEKLY && normalizedDays.length === weeklyTimes) {
     const anchor = buildDateTime({
-      date: scheduleDate,
+      date: scheduleDate || scheduleAnchorDate,
       time: scheduleTime
     })
     if (!anchor) {

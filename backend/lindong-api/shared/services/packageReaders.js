@@ -734,7 +734,9 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
         ? formatPackageDateTime(group.first_class_time)
         : formatPendingPackageScheduleText({
             weekday: group.weekday,
-            hour: group.hour
+            hour: group.hour,
+            scheduleConfig: group.schedule_config,
+            classCount: Number(pkg && pkg.class_count) || 0
           }),
       created_at: order.created_at || null,
       member_amount_text: formatFenText(memberAmountFen)

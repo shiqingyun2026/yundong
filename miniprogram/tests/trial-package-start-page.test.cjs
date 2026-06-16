@@ -16,8 +16,23 @@ test('package start page uses classCount-based scheduling instead of package typ
 
 test('package schedule utils provide min-date and preview helpers', () => {
   const source = fs.readFileSync(scheduleUtilsPath, 'utf8')
+  const { buildSchedulePreview } = require(scheduleUtilsPath)
 
   assert.match(source, /buildMinScheduleDate/)
   assert.match(source, /buildSchedulePreview/)
   assert.match(source, /START_TIME_OPTIONS/)
+
+  const previewList = buildSchedulePreview({
+    classCount: 3,
+    scheduleTypeValue: 'weekly:3',
+    scheduleDate: '',
+    scheduleAnchorDate: '2026-06-17',
+    scheduleDays: [1, 3, 5],
+    scheduleTime: '09:00'
+  })
+
+  assert.equal(previewList.length, 3)
+  assert.equal(previewList[0].classTime, '2026-06-17 09:00:00')
+  assert.equal(previewList[1].classTime, '2026-06-19 09:00:00')
+  assert.equal(previewList[2].classTime, '2026-06-22 09:00:00')
 })

@@ -65,6 +65,7 @@
                 <view class="start-form-value {{!selectedScheduleDate ? 'start-form-value--placeholder' : ''}}">
                   {{selectedScheduleDate || '请选择'}}
                 </view>
+                <view class="start-form-arrow {{!selectedScheduleDate ? 'start-form-arrow--placeholder' : ''}}">></view>
               </view>
             </picker>
           </mp-cell>
@@ -82,6 +83,7 @@
                 <view class="start-form-value {{scheduleDaysDisplayText === '请选择' ? 'start-form-value--placeholder' : ''}}">
                   {{scheduleDaysDisplayText}}
                 </view>
+                <view class="start-form-arrow {{scheduleDaysDisplayText === '请选择' ? 'start-form-arrow--placeholder' : ''}}">></view>
               </view>
             </view>
           </mp-cell>
@@ -105,6 +107,7 @@
                 <view class="start-form-value {{selectedScheduleTimeLabel === '请选择' ? 'start-form-value--placeholder' : ''}}">
                   {{selectedScheduleTimeLabel}}
                 </view>
+                <view class="start-form-arrow {{selectedScheduleTimeLabel === '请选择' ? 'start-form-arrow--placeholder' : ''}}">></view>
               </view>
             </picker>
           </mp-cell>
@@ -138,47 +141,65 @@
         <mp-cells extClass="start-form-cells child-form-cells">
           <mp-cell extClass="start-form-cell child-form-cell" hasHeader="{{true}}" hasBody="{{true}}" hasFooter="{{false}}">
             <view slot="title" class="start-form-label">学生昵称</view>
-            <input
-              class="start-form-input"
-              type="text"
-              maxlength="20"
-              placeholder="请输入学生昵称"
-              cursor-spacing="24"
-              confirm-type="done"
-              value="{{childNickname}}"
-              bindinput="handleChildNicknameInput"
-              bindconfirm="handleStudentInputConfirm"
-            />
+            <view class="start-form-input-wrapper">
+              <input
+                class="start-form-input"
+                type="text"
+                maxlength="20"
+                placeholder=""
+                cursor-spacing="24"
+                confirm-type="done"
+                value="{{childNickname}}"
+                bindinput="handleChildNicknameInput"
+                bindconfirm="handleStudentInputConfirm"
+              />
+              <view wx:if="{{!childNickname}}" class="start-form-input-placeholder">
+                <view class="start-form-input-placeholder__text">请输入</view>
+                <view class="start-form-arrow start-form-arrow--placeholder">></view>
+              </view>
+            </view>
           </mp-cell>
           <mp-cell extClass="start-form-cell child-form-cell" hasHeader="{{true}}" hasBody="{{true}}" hasFooter="{{false}}">
             <view slot="title" class="start-form-label">年龄</view>
-            <input
-              class="start-form-input"
-              type="text"
-              inputmode="numeric"
-              maxlength="2"
-              placeholder="请输入年龄"
-              cursor-spacing="24"
-              confirm-type="done"
-              value="{{childAge}}"
-              bindinput="handleChildAgeInput"
-              bindconfirm="handleStudentInputConfirm"
-            />
+            <view class="start-form-input-wrapper">
+              <input
+                class="start-form-input"
+                type="text"
+                inputmode="numeric"
+                maxlength="2"
+                placeholder=""
+                cursor-spacing="24"
+                confirm-type="done"
+                value="{{childAge}}"
+                bindinput="handleChildAgeInput"
+                bindconfirm="handleStudentInputConfirm"
+              />
+              <view wx:if="{{!childAge}}" class="start-form-input-placeholder">
+                <view class="start-form-input-placeholder__text">请输入</view>
+                <view class="start-form-arrow start-form-arrow--placeholder">></view>
+              </view>
+            </view>
           </mp-cell>
           <mp-cell extClass="start-form-cell child-form-cell" hasHeader="{{true}}" hasBody="{{true}}" hasFooter="{{false}}">
             <view slot="title" class="start-form-label">家长手机号</view>
-            <input
-              class="start-form-input"
-              type="text"
-              inputmode="numeric"
-              maxlength="11"
-              placeholder="请输入家长手机号"
-              cursor-spacing="24"
-              confirm-type="done"
-              value="{{parentMobile}}"
-              bindinput="handleParentMobileInput"
-              bindconfirm="handleStudentInputConfirm"
-            />
+            <view class="start-form-input-wrapper">
+              <input
+                class="start-form-input"
+                type="text"
+                inputmode="numeric"
+                maxlength="11"
+                placeholder=""
+                cursor-spacing="24"
+                confirm-type="done"
+                value="{{parentMobile}}"
+                bindinput="handleParentMobileInput"
+                bindconfirm="handleStudentInputConfirm"
+              />
+              <view wx:if="{{!parentMobile}}" class="start-form-input-placeholder">
+                <view class="start-form-input-placeholder__text">请输入</view>
+                <view class="start-form-arrow start-form-arrow--placeholder">></view>
+              </view>
+            </view>
           </mp-cell>
         </mp-cells>
       </view>
@@ -203,7 +224,6 @@
           <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">上课前替换换好运动服和运动鞋，并准备好饮用水。</view></view>
           <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">如学员有特殊情况，请提前告知。</view></view>
           <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">每次上课，至少要求一个家长全程在场。</view></view>
-          <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">建议家长提前给孩子购买意外险。</view></view>
         </view>
       </view>
 
