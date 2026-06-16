@@ -367,7 +367,7 @@ test('package start payment creates group with configured deadline hours', async
   assert.equal(state.paymentRecord.package_group_id, 'PG-20260422-00002')
 })
 
-test('trial package start rejects class dates earlier than two days after group start', async () => {
+test('trial package start rejects class dates earlier than three days after group start', async () => {
   clearModules([
     'config/env.js',
     'repositories/index.js',
@@ -435,10 +435,85 @@ test('trial package start rejects class dates earlier than two days after group 
         now: new Date('2026-04-20T08:00:00.000Z')
       }),
     error => {
-      assert.match(error.message, /开团后第2天|上课日期/)
+      assert.match(error.message, /开团后第3天|上课日期/)
       return true
     }
   )
+})
+
+test('package start accepts the first valid Shanghai date after T+2 even under UTC runtime', async () => {
+  clearModules([
+    'config/env.js',
+    'repositories/index.js',
+    'shared/services/packageGroupStore.js',
+    'shared/services/groupResultNotifications.js',
+    'shared/services/paymentShell.js',
+    'shared/services/packageOrders.js'
+  ])
+
+  const state = {
+    createdOrder: null
+  }
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true
+    }
+  })
+
+  mockModule('repositories/index.js', {
+    coursePackagesRepository: {
+      findPackageById: async () => ({
+        id: 'PKG-TZ-0001',
+        status: 1,
+        class_count: 1,
+        total_price: 12000,
+        supported_people: [4],
+        group_price_config: [{ target_count: 4, price_fen: 3000 }],
+        deadline_hours: 48
+      })
+    },
+    ordersRepository: {
+      listPendingOrderIdsByUserAndPackage: async () => [],
+      closeOrdersByIds: async () => [],
+      createOrder: async payload => {
+        state.createdOrder = payload
+        return payload
+      }
+    }
+  })
+
+  mockModule('shared/services/packageGroupStore.js', {
+    cleanupExpiredPackageGroups: async () => ({ groupIds: [], refundedOrderIds: [], closedOrderIds: [] }),
+    closePendingPackageOrdersByIds: async () => [],
+    listPendingOrderIdsForPackage: async () => []
+  })
+
+  mockModule('shared/services/groupResultNotifications.js', {
+    enqueueGroupResultNotifications: async () => ({})
+  })
+
+  mockModule('shared/services/paymentShell.js', {
+    markPaymentRecordRefunded: async () => ({})
+  })
+
+  const { createPackageStartOrder } = require(path.join(backendRoot, 'shared/services/packageOrders.js'))
+
+  await createPackageStartOrder({
+    userId: 'user-1',
+    packageId: 'PKG-TZ-0001',
+    targetCount: 4,
+    scheduleType: 'single',
+    scheduleDate: '2026-04-24',
+    scheduleTime: '10:00',
+    scheduleDays: [],
+    childNickname: '小满',
+    childAge: 6,
+    parentMobile: '13800138000',
+    now: new Date('2026-04-20T16:30:00.000Z')
+  })
+
+  assert.equal(state.createdOrder.package_context.schedule_date, '2026-04-24')
 })
 
 test('package start order stores custom schedule list in schedule config', async () => {
@@ -515,7 +590,7 @@ test('package start order stores custom schedule list in schedule config', async
     childNickname: '小满',
     childAge: 6,
     parentMobile: '13800138000',
-    now: new Date('2026-04-20T08:00:00.000Z')
+    now: new Date('2026-04-19T08:00:00.000Z')
   })
 
   assert.deepEqual(state.createdOrder.package_context.schedule_config.schedule_list, [
@@ -623,7 +698,7 @@ test('package join order stores schedule snapshot from group config', async () =
     childNickname: '乐乐',
     childAge: 5,
     parentMobile: '13800138001',
-    now: new Date('2026-04-20T08:00:00.000Z')
+    now: new Date('2026-04-19T08:00:00.000Z')
   })
 
   assert.equal(state.createdOrder.package_context.schedule_type, 'weekly')

@@ -39,6 +39,7 @@
 - `console/dist/` 是构建产物；除非任务明确要求，否则不要直接改，也不要把它作为主修改目标。
 - 环境变量、密钥、生产账号、支付证书等敏感信息不得写入代码或文档。
 - 涉及数据库变更时，默认按用户在腾讯云 DMS / SQL 窗口中手动执行的方式提供操作指引，而不是优先提供 terminal 命令；说明顺序应为：先确认当前库名与环境，再给执行前检查 SQL，再给正式 migration SQL，再给执行后回查 SQL。除非用户明确要求，否则不要默认代替用户直接执行生产或测试环境数据库变更。
+- 未指定数据库时，默认测试环境数据库为 `tiyubao-pre`；提供给用户的 SQL 语句应默认以 `USE \`tiyubao-pre\`;` 开头，避免出现 `No database selected`。
 - 详细模块规范与命令索引见：
   - `docs/agent/miniprogram.md`
   - `docs/agent/console.md`

@@ -640,7 +640,7 @@ Page({
     const nextDate = `${editingScheduleItemDate || ''}`.trim() || minScheduleDate
     if (nextDate < minScheduleDate) {
       wx.showToast({
-        title: '上课日期不能早于开团后第2天',
+        title: '上课日期不能早于开团后第3天',
         icon: 'none'
       })
       return

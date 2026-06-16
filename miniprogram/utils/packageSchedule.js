@@ -92,7 +92,7 @@ const buildMinScheduleDate = now => {
     return ''
   }
 
-  date.setDate(date.getDate() + 2)
+  date.setDate(date.getDate() + 3)
   return formatDateInputValue(date)
 }
 

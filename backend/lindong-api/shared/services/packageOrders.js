@@ -22,7 +22,7 @@ const {
   normalizeWeekdays,
   SCHEDULE_TYPES
 } = require('./packageSchedule')
-const { parseShanghaiDate } = require('../utils/dateTime')
+const { formatShanghaiDateTime, parseShanghaiDate } = require('../utils/dateTime')
 const { toDbDateTime } = require('../../repositories/_helpers')
 const { AUTO_REFUND_REASON } = require('../constants/refunds')
 const { enqueueGroupResultNotifications } = require('./groupResultNotifications')
@@ -288,9 +288,13 @@ const getPackageByIdOrThrow = async packageId => {
 const resolvePackageClassCount = pkg => Math.max(1, Number(pkg && pkg.class_count) || 0)
 
 const buildScheduleMinDate = now => {
-  const minDate = new Date(now.getTime())
-  minDate.setHours(0, 0, 0, 0)
-  minDate.setDate(minDate.getDate() + 2)
+  const shanghaiDateText = formatShanghaiDateTime(now).slice(0, 10)
+  const minDate = parseShanghaiDate(`${shanghaiDateText} 00:00:00`)
+  if (!minDate) {
+    return null
+  }
+
+  minDate.setDate(minDate.getDate() + 3)
   return minDate
 }
 
@@ -309,8 +313,13 @@ const validateScheduleDateAtOrAfterMin = ({ scheduleDate, now = new Date() }) =>
     throw createPackageServiceError(400, 1001, '请填写正确的上课日期')
   }
 
-  if (selectedDate.getTime() < buildScheduleMinDate(now).getTime()) {
-    throw createPackageServiceError(400, 1001, '上课日期不能早于开团后第2天')
+  const minDate = buildScheduleMinDate(now)
+  if (!minDate) {
+    throw createPackageServiceError(400, 1001, '请填写正确的上课日期')
+  }
+
+  if (selectedDate.getTime() < minDate.getTime()) {
+    throw createPackageServiceError(400, 1001, '上课日期不能早于开团后第3天')
   }
 }
 

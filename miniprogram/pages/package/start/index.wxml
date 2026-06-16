@@ -114,7 +114,7 @@
         </mp-cells>
 
         <view class="section-desc">
-          {{classCount === 1 || selectedScheduleTypeValue === 'daily' ? '最早可选日期为开团后第 2 天。' : '系统会从开团后第 2 天起，按所选星期自动生成完整课表。'}}
+          {{classCount === 1 || selectedScheduleTypeValue === 'daily' ? '最早可选日期为开团后第 3 天。' : '系统会从开团后第 3 天起，按所选星期自动生成完整课表。'}}
         </view>
       </view>
 
