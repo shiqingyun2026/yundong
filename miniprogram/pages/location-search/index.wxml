@@ -4,77 +4,41 @@
 >
   <mp-toptips id="ui-toptips" root-portal="{{true}}" />
   <view class="page-header">
-    <view class="header-gradient"></view>
-    <mp-navigation-bar extClass="location-search-nav" background="transparent" color="#1f2329" back="{{false}}">
+    <mp-navigation-bar extClass="location-search-nav" background="#F7F8FA" color="#1f2329" back="{{false}}">
       <view slot="left" class="header-back" bindtap="handleBack">
-        <mp-icon extClass="header-back-icon" icon="back" type="outline" color="#1f2329" size="{{28}}" />
+        <mp-icon extClass="header-back-icon" icon="back" type="outline" color="#1f2329" size="{{14}}" />
       </view>
       <view slot="center" class="header-title">选择地址</view>
       <view slot="right" class="header-space"></view>
     </mp-navigation-bar>
     <view class="header-content">
-      <view class="header-copy">
-        <view class="header-eyebrow">CITY PICKER</view>
-        <view class="header-heading">搜索你想去的上课地点</view>
-        <view class="header-desc">支持搜索小区、商圈、学校或地标，帮你更快找到附近课程。</view>
-      </view>
-
-      <view class="weui-panel weui-ext-card search-shell card-shadow">
-        <view class="search-meta">
-          <view class="city-pill">{{city}}</view>
-          <view class="search-tip">可输入地标 / 商圈 / 详细地址</view>
-        </view>
+      <view class="search-shell card-shadow">
+        <view class="city-pill">{{city}} <text class="city-arrow">▼</text></view>
         <view class="search-box">
-          <mp-searchbar
-            extClass="location-searchbar"
-            focus="{{true}}"
+          <mp-icon extClass="search-icon" icon="search" type="outline" color="#A0A7B4" size="{{18}}" />
+          <input
+            class="search-input"
+            type="text"
+            confirm-type="search"
             placeholder="搜索地址"
+            placeholder-class="search-placeholder"
             value="{{keyword}}"
-            cancel="{{false}}"
-            bind:input="handleInput"
-            bind:clear="handleClear"
+            bindinput="handleInput"
           />
+          <view wx:if="{{keyword}}" class="search-clear" bindtap="handleClear">×</view>
         </view>
       </view>
     </view>
   </view>
 
   <view class="page-body">
-    <view class="section-head">
-      <view class="section-title">当前位置</view>
-      <view class="section-subtitle">优先使用实时定位，快速选择离你最近的上课点</view>
-    </view>
-
     <view wx:if="{{gpsLocation}}" class="weui-panel weui-ext-card current-card card-shadow" bindtap="handleUseCurrentLocation">
-      <view class="current-main">
-        <view class="current-icon">
-          <mp-icon extClass="current-icon-image" icon="location" type="filled" color="#ffffff" size="{{34}}" />
-        </view>
-        <view class="current-content">
-          <view class="current-badge">GPS REALTIME</view>
-          <view class="current-name">{{gpsLocation.name}}</view>
-          <view class="current-address">{{gpsLocation.address}}</view>
-        </view>
+      <view class="current-icon">
+        <mp-icon extClass="current-icon-image" icon="location" type="filled" color="#1abcc5" size="{{24}}" />
       </view>
-      <view class="current-side">
-        <view class="current-action" catchtap="handleRefreshLocation">重定位</view>
-        <view class="current-hint">点击使用</view>
-      </view>
-    </view>
-
-    <view wx:if="{{!keyword && searchState === 'idle'}}" class="guide-panel">
-      <view class="guide-card guide-card-primary">
-        <view class="guide-title">搜索建议</view>
-        <view class="guide-chips">
-          <view class="guide-chip">龙岗万科里</view>
-          <view class="guide-chip">坂田天安云谷</view>
-          <view class="guide-chip">大运中心</view>
-          <view class="guide-chip">附近地铁站</view>
-        </view>
-      </view>
-      <view class="guide-card guide-card-secondary">
-        <view class="guide-title">选址说明</view>
-        <view class="guide-copy">我们会优先根据你选定的位置，展示更贴近该区域的课程和门店信息。</view>
+      <view class="current-row">
+        <view class="current-label">当前位置</view>
+        <view class="current-action" catchtap="handleRefreshLocation">重新定位</view>
       </view>
     </view>
 
@@ -95,11 +59,6 @@
     </view>
 
     <view wx:elif="{{searchState === 'result'}}" class="result-section">
-      <view class="result-header">
-        <view class="result-title">搜索结果</view>
-        <view class="result-subtitle">找到 {{resultList.length}} 个与“{{keyword}}”相关的结果</view>
-      </view>
-
       <view
         class="weui-panel weui-ext-card result-card card-shadow"
         wx:for="{{resultList}}"
@@ -107,31 +66,13 @@
         data-index="{{index}}"
         bind:tap="handleSelectResult"
       >
-        <view class="result-main">
-          <view class="result-icon {{item.iconClass}}">
-            <mp-icon
-              extClass="result-icon-image"
-              icon="{{item.iconKey}}"
-              type="{{item.iconType}}"
-              color="{{item.iconColor}}"
-              size="{{30}}"
-            />
-          </view>
-          <view class="result-content">
-            <view class="result-name">{{item.name}}</view>
-            <view class="result-address">{{item.address}}</view>
-          </view>
+        <view class="result-content">
+          <view class="result-name">{{item.name}}</view>
+          <view class="result-address">{{item.address}}</view>
         </view>
         <view class="result-meta">
-          <mp-badge wx:if="{{item.distanceText}}" extClass="weui-ext-tag distance-pill" content="{{item.distanceText}}" />
-          <mp-icon extClass="result-arrow" icon="arrow" type="outline" color="#c0c7d2" size="{{24}}" />
+          <view wx:if="{{item.distanceText}}" class="distance-text">{{item.distanceText}}</view>
         </view>
-      </view>
-
-      <view class="result-footer">
-        <view class="footer-line"></view>
-        <view class="footer-end">END</view>
-        <view class="footer-text">没有更多地点了，试试其他关键词</view>
       </view>
     </view>
   </view>

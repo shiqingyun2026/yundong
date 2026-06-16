@@ -1231,3 +1231,124 @@ test('trial package group detail returns a single-session schedule', async () =>
   assert.equal(result.schedule_text, '上课时间 2026-04-24 10:00:00')
   assert.equal(result.schedule_list.length, 1)
 })
+
+test('package group detail keeps pending schedule text before first class time is locked', async () => {
+  clearModules([
+    'config/env.js',
+    'config/storage.js',
+    'repositories/index.js',
+    'shared/domain/packageGroupRules.js',
+    'shared/services/packageGroupStore.js',
+    'shared/services/cosSignedUrl.js',
+    'shared/services/packageReaders.js',
+    'shared/services/packageSchedule.js'
+  ])
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true
+    }
+  })
+
+  mockModule('config/storage.js', {
+    getStorageProviderName: () => 'supabase',
+    getCosStorageConfig: () => ({
+      bucket: '',
+      region: '',
+      secretId: '',
+      secretKey: '',
+      expiresSeconds: 900
+    })
+  })
+
+  mockModule('repositories/index.js', {
+    coursePackagesRepository: {
+      findPackageById: async () => ({
+        id: 'PKG-PENDING-0001',
+        name: '周中晚课包',
+        cover: 'https://example.com/package-cover.png',
+        wechat_share_cover: 'https://example.com/package-share-cover.png',
+        age_range: '4-8岁',
+        class_count: 3,
+        total_price: 9000,
+        group_price_config: [{ target_count: 4, price_fen: 3000 }],
+        coach_name: '教练A',
+        coach_intro: '<p>教练介绍</p>',
+        coach_certificates: [],
+        description: '<p>课程介绍</p>',
+        location_city: '深圳市',
+        location_district: '南山区',
+        location_community: '科技园社区',
+        location_detail: 'A场地'
+      })
+    },
+    packageGroupsRepository: {
+      findPackageGroupById: async () => ({
+        id: 'PG-PENDING-0001',
+        package_id: 'PKG-PENDING-0001',
+        status: 'active',
+        target_count: 4,
+        current_count: 2,
+        weekday: 0,
+        hour: 9,
+        deadline: '2026-04-23 10:00:00',
+        first_class_time: null,
+        schedule_config: {
+          schedule_type: 'weekly',
+          schedule_time: '09:30',
+          schedule_days: [2, 4],
+          class_count: 3
+        }
+      })
+    },
+    ordersRepository: {
+      listOrdersByPackageGroupId: async ({ status }) =>
+        status === 'success'
+          ? [
+              {
+                id: 'order-start',
+                user_id: 'user-1',
+                package_action: 'start',
+                package_context: {
+                  child_nickname: '小满',
+                  child_age: 6
+                }
+              }
+            ]
+          : [],
+      listOrders: async () => []
+    },
+    usersRepository: {
+      listUsersByIds: async () => [{ id: 'user-1', nickname: '微信用户1' }]
+    }
+  })
+
+  mockModule('shared/domain/packageGroupRules.js', {
+    calculatePackageMemberAmountFen: ({ groupPriceConfig = [] }) => Number(groupPriceConfig[0] && groupPriceConfig[0].price_fen) || 0
+  })
+
+  mockModule('shared/services/packageGroupStore.js', {
+    cleanupExpiredPackageGroups: async () => {}
+  })
+
+  mockModule('shared/services/packageSchedule.js', {
+    buildPackageLessonSchedule: () => [{ index: 1, class_time: '2026-04-29 09:30:00', display_text: '2026-04-29 09:30:00' }],
+    formatPackageDateTime: value => value,
+    formatPendingPackageScheduleText: ({ scheduleConfig, classCount }) =>
+      `${scheduleConfig.schedule_time}|${(scheduleConfig.schedule_days || []).join(',')}|${classCount}`,
+    formatScheduleTextWithLockNote: ({ scheduleConfig, classCount }) =>
+      `${scheduleConfig.schedule_time}|${(scheduleConfig.schedule_days || []).join(',')}|${classCount}|lock`
+  })
+
+  const { fetchMiniProgramPackageGroupDetail } = require(path.join(backendRoot, 'shared/services/packageReaders.js'))
+  const result = await fetchMiniProgramPackageGroupDetail({
+    packageGroupId: 'PG-PENDING-0001',
+    userId: '',
+    now: new Date('2026-04-21T10:00:00.000Z')
+  })
+
+  assert.equal(result.schedule_mode, 'pending')
+  assert.equal(result.schedule_text, '09:30|2,4|3|lock')
+  assert.equal(result.first_class_time, null)
+  assert.equal(result.schedule_list.length, 1)
+})

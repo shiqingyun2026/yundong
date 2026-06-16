@@ -543,7 +543,13 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
     firstClassTime: latestGroup.first_class_time,
     weeks: classCount
   })
-  const scheduleMode = scheduleConfig && scheduleConfig.schedule_type === 'single' ? 'single_session' : scheduleList.length ? 'locked' : 'pending'
+  const hasLockedFirstClassTime = !!latestGroup.first_class_time
+  const scheduleMode =
+    hasLockedFirstClassTime && scheduleConfig && scheduleConfig.schedule_type === 'single'
+      ? 'single_session'
+      : hasLockedFirstClassTime
+        ? 'locked'
+        : 'pending'
   const userJoined = !!(userId && successOrders.some(item => item.user_id === userId))
   const leaderOrder = successOrders.find(item => item.package_action === 'start') || successOrders[0] || null
 

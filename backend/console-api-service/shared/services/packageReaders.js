@@ -16,6 +16,20 @@ const formatFenText = amountFen => (Number(amountFen || 0) / 100).toFixed(2)
 
 const DEFAULT_MEMBER_AVATAR = '/assets/member-default-avatar.jpg'
 
+const maskStudentNickname = value => {
+  const normalized = `${value === null || value === undefined ? '' : value}`.trim()
+  if (!normalized) {
+    return ''
+  }
+
+  const chars = Array.from(normalized)
+  if (chars.length <= 1) {
+    return '*'
+  }
+
+  return `${chars.slice(0, -1).join('')}*`
+}
+
 const pickFirstNonEmptyString = values => {
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index]
@@ -447,7 +461,13 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
     firstClassTime: latestGroup.first_class_time,
     weeks: classCount
   })
-  const scheduleMode = scheduleConfig && scheduleConfig.schedule_type === 'single' ? 'single_session' : scheduleList.length ? 'locked' : 'pending'
+  const hasLockedFirstClassTime = !!latestGroup.first_class_time
+  const scheduleMode =
+    hasLockedFirstClassTime && scheduleConfig && scheduleConfig.schedule_type === 'single'
+      ? 'single_session'
+      : hasLockedFirstClassTime
+        ? 'locked'
+        : 'pending'
   const userJoined = !!(userId && successOrders.some(item => item.user_id === userId))
   const leaderOrder = successOrders.find(item => item.package_action === 'start') || successOrders[0] || null
 
@@ -526,12 +546,12 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
 
   const safePage = Math.max(1, Number(page) || 1)
   const safePageSize = Math.max(1, Number(pageSize) || 10)
-  const orders = await ordersRepository.listOrders({
+  const initialOrders = await ordersRepository.listOrders({
     userId,
     orderType: 2,
-    statuses: ['success', 'refunded']
+    statuses: ['success', 'refund_pending', 'refunded', 'refund_failed']
   })
-  const packageGroupIds = [...new Set((orders || []).map(item => item.package_group_id).filter(Boolean))]
+  const packageGroupIds = [...new Set((initialOrders || []).map(item => item.package_group_id).filter(Boolean))]
   const packageGroups = await Promise.all(packageGroupIds.map(id => packageGroupsRepository.findPackageGroupById(id)))
   const groupById = packageGroups.filter(Boolean).reduce((result, item) => {
     result[item.id] = item
@@ -544,6 +564,11 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
     now
   })
 
+  const orders = await ordersRepository.listOrders({
+    userId,
+    orderType: 2,
+    statuses: ['success', 'refund_pending', 'refunded', 'refund_failed']
+  })
   const refreshedGroups = await Promise.all(packageGroupIds.map(id => packageGroupsRepository.findPackageGroupById(id)))
   const refreshedGroupById = refreshedGroups.filter(Boolean).reduce((result, item) => {
     result[item.id] = item
@@ -556,14 +581,29 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
     return result
   }, {})
 
-  const normalizedStatus = ['active', 'success', 'failed'].includes(status) ? status : 'all'
+  const normalizedStatus = ['active', 'success', 'failed', 'refund_pending', 'refunded', 'refund_failed'].includes(status) ? status : 'all'
   const listSource = (orders || [])
     .filter(order => refreshedGroupById[order.package_group_id])
-    .filter(order => normalizedStatus === 'all' || refreshedGroupById[order.package_group_id].status === normalizedStatus)
+    .filter(order => {
+      if (normalizedStatus === 'all') {
+        return true
+      }
+
+      const group = refreshedGroupById[order.package_group_id]
+      const displayStatus = ['refund_pending', 'refunded', 'refund_failed'].includes(order.status)
+        ? order.status
+        : group.status
+
+      if (normalizedStatus === 'failed') {
+        return ['failed', 'refund_pending', 'refunded', 'refund_failed'].includes(displayStatus)
+      }
+
+      return displayStatus === normalizedStatus
+    })
     .sort(
       (left, right) =>
-        (parseShanghaiDate(right.updated_at || right.created_at)?.getTime() || 0) -
-        (parseShanghaiDate(left.updated_at || left.created_at)?.getTime() || 0)
+        (parseShanghaiDate(right.created_at)?.getTime() || 0) -
+        (parseShanghaiDate(left.created_at)?.getTime() || 0)
     )
 
   const from = (safePage - 1) * safePageSize
@@ -576,13 +616,30 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
       groupPriceConfig: pkg ? pkg.group_price_config : []
     })
 
+    const displayStatus = ['refund_pending', 'refunded', 'refund_failed'].includes(order.status)
+      ? order.status
+      : group.status
+    const canOpenDetail = !['refund_pending', 'refunded', 'refund_failed'].includes(order.status)
+
     return {
       order_id: order.id,
       package_group_id: group.id,
       package_id: group.package_id,
       package_name: pkg ? pkg.name : '',
+      child_nickname:
+        (order.package_context && order.package_context.child_nickname) || '',
+      child_nickname_masked: maskStudentNickname(
+        (order.package_context && order.package_context.child_nickname) || ''
+      ),
+      child_age:
+        order.package_context && order.package_context.child_age !== undefined && order.package_context.child_age !== null
+          ? Number(order.package_context.child_age) || 0
+          : null,
       age_range: pkg ? pkg.age_range || '' : '',
-      status: group.status,
+      status: displayStatus,
+      order_status: order.status || '',
+      group_status: group.status,
+      can_open_detail: canOpenDetail,
       location_city: pkg ? pkg.location_city || '' : '',
       location_district: pkg ? pkg.location_district || '' : '',
       location_community: pkg ? pkg.location_community || '' : '',
@@ -596,8 +653,11 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
         ? formatPackageDateTime(group.first_class_time)
         : formatPendingPackageScheduleText({
             weekday: group.weekday,
-            hour: group.hour
+            hour: group.hour,
+            scheduleConfig: group.schedule_config,
+            classCount: Number(pkg && pkg.class_count) || 0
           }),
+      created_at: order.created_at || null,
       member_amount_text: formatFenText(memberAmountFen)
     }
   })
