@@ -765,6 +765,27 @@ const resolveOrderGroupSummary = async order => {
   }
 }
 
+const findStartGroupBySourceOrder = async ({ order }) => {
+  if (!order || !order.id || !order.package_id || !order.user_id) {
+    return null
+  }
+
+  const groups = await packageGroupsRepository.listPackageGroups({
+    packageId: order.package_id,
+    creatorId: order.user_id
+  })
+
+  return (
+    (groups || []).find(group => {
+      const scheduleConfig = group && group.schedule_config && typeof group.schedule_config === 'object' ? group.schedule_config : {}
+      return (
+        `${scheduleConfig.source_order_id || ''}`.trim() === order.id ||
+        (`${scheduleConfig.source_order_no || ''}`.trim() && `${scheduleConfig.source_order_no || ''}`.trim() === `${order.order_no || ''}`.trim())
+      )
+    }) || null
+  )
+}
+
 const syncOrderPaymentRecordGroupId = async ({ order, packageGroupId, now = new Date() }) => {
   if (!order || !packageGroupId) {
     return null
@@ -871,25 +892,34 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
           })
         : null
 
-    const group = await packageGroupsRepository.createPackageGroup(
-      buildPackageGroupCreationPayload({
-        packageId: pkg.id,
-        creatorId: userId,
-        targetCount,
-        weekday:
-          normalizedScheduleConfig.schedule_type === SCHEDULE_TYPES.WEEKLY && normalizedScheduleConfig.schedule_days.length === 1
-            ? normalizedScheduleConfig.schedule_days[0]
-            : 0,
-        hour: Number((normalizedScheduleConfig.schedule_time || '00:00').split(':')[0]) || 0,
-        scheduleConfig: normalizedScheduleConfig,
-        deadline,
-        currentCount: 1,
-        status: nextStatus,
-        firstClassTime,
-        successTime: nextStatus === PACKAGE_GROUP_STATUS.SUCCESS ? now : null,
-        createdAt: now
-      })
-    )
+    const existingGroup = await findStartGroupBySourceOrder({
+      order
+    })
+    const group =
+      existingGroup ||
+      (await packageGroupsRepository.createPackageGroup(
+        buildPackageGroupCreationPayload({
+          packageId: pkg.id,
+          creatorId: userId,
+          targetCount,
+          weekday:
+            normalizedScheduleConfig.schedule_type === SCHEDULE_TYPES.WEEKLY && normalizedScheduleConfig.schedule_days.length === 1
+              ? normalizedScheduleConfig.schedule_days[0]
+              : 0,
+          hour: Number((normalizedScheduleConfig.schedule_time || '00:00').split(':')[0]) || 0,
+          scheduleConfig: {
+            ...normalizedScheduleConfig,
+            source_order_id: order.id,
+            source_order_no: order.order_no || ''
+          },
+          deadline,
+          currentCount: 1,
+          status: nextStatus,
+          firstClassTime,
+          successTime: nextStatus === PACKAGE_GROUP_STATUS.SUCCESS ? now : null,
+          createdAt: now
+        })
+      ))
 
     const updatedOrder = await ordersRepository.updateOrder(order.id, {
       status: 'success',
@@ -916,7 +946,7 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
       now
     })
 
-    if (group.status === PACKAGE_GROUP_STATUS.SUCCESS) {
+    if (!existingGroup && group.status === PACKAGE_GROUP_STATUS.SUCCESS) {
       await enqueueGroupResultNotifications({
         supabase: null,
         groupId: group.id,

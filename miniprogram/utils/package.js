@@ -279,8 +279,8 @@ const calculatePackageMemberAmountFen = ({ totalPriceFen, targetCount, groupPric
 
 const buildPackageFeatureTags = payload => {
   const tags = []
-  const classCount = Number(payload.class_count || payload.classCount || 5)
-  const duration = Number(payload.class_duration_minutes || payload.classDurationMinutes || 60)
+  const classCount = Number(payload.class_count || payload.classCount) || 0
+  const duration = Number(payload.class_duration_minutes || payload.classDurationMinutes) || 0
 
   if (classCount > 0) {
     tags.push(`包含${classCount}节课`)
@@ -368,10 +368,67 @@ const formatPackageDateTimeText = value => {
   return `${formatMonthDay(date)} ${WEEKDAY_LABELS[date.getDay() === 0 ? 7 : date.getDay()]} ${formatHourMinute(date)}`
 }
 
-const formatScheduleList = scheduleList =>
+const addMinutesToTimeText = (timeText, durationMinutes) => {
+  const normalized = `${timeText || ''}`.trim()
+  const matched = normalized.match(/^(\d{1,2}):(\d{2})$/)
+  const minutesToAdd = Math.max(0, Number(durationMinutes) || 0)
+
+  if (!matched || !minutesToAdd) {
+    return normalized
+  }
+
+  const totalMinutes = Number(matched[1]) * 60 + Number(matched[2]) + minutesToAdd
+  const hour = Math.floor(totalMinutes / 60) % 24
+  const minute = totalMinutes % 60
+  return `${`${hour}`.padStart(2, '0')}:${`${minute}`.padStart(2, '0')}`
+}
+
+const formatFullScheduleDateTimeText = (value, durationMinutes = 0) => {
+  const normalized = `${value || ''}`.trim()
+  const weekdayMatched = normalized.match(
+    /^(\d{4}-\d{2}-\d{2})\s+(周[一二三四五六日天])[\s—–-]*(\d{1,2}):(\d{2})(?:\s*[—–-]\s*(\d{1,2}:\d{2}))?$/
+  )
+  if (weekdayMatched) {
+    const startTime = `${weekdayMatched[3].padStart(2, '0')}:${weekdayMatched[4]}`
+    const endTime = weekdayMatched[5] || addMinutesToTimeText(startTime, durationMinutes)
+    return endTime && endTime !== startTime
+      ? `${weekdayMatched[1]} ${weekdayMatched[2]}${startTime} - ${endTime}`
+      : `${weekdayMatched[1]} ${weekdayMatched[2]}${startTime}`
+  }
+
+  const matched = normalized.match(/^(\d{4}-\d{2}-\d{2})[\sT]+(\d{1,2}):(\d{2})(?::\d{2})?$/)
+  if (!matched) {
+    return ''
+  }
+
+  const date = new Date(`${matched[1]}T12:00:00`)
+  const weekday = WEEKDAY_LABELS[date.getDay() === 0 ? 7 : date.getDay()] || ''
+  const startTime = `${matched[2].padStart(2, '0')}:${matched[3]}`
+  const endTime = addMinutesToTimeText(startTime, durationMinutes)
+
+  return endTime && endTime !== startTime
+    ? `${matched[1]} ${weekday}${startTime} - ${endTime}`
+    : `${matched[1]} ${weekday}${startTime}`
+}
+
+const normalizeScheduleDisplayText = (value, durationMinutes = 0) => {
+  const formattedDateTime = formatFullScheduleDateTimeText(value, durationMinutes)
+  if (formattedDateTime) {
+    return formattedDateTime
+  }
+
+  return `${value || ''}`
+    .trim()
+    .replace(/(周[一二三四五六日天])\s+(\d{1,2}:\d{2})/g, '$1$2')
+}
+
+const formatPackageGroupScheduleList = (scheduleList, durationMinutes = 0) =>
   (scheduleList || []).map(item => ({
     ...item,
-    display_text: item.display_text || formatPackageDateTimeText(item.class_time)
+    display_text: normalizeScheduleDisplayText(
+      item.display_text || item.displayText || item.class_time || item.classTime || formatPackageDateTimeText(item.class_time),
+      durationMinutes
+    )
   }))
 
 const formatScheduleDisplayText = value => {
@@ -520,67 +577,85 @@ const normalizePackageDetail = payload => ({
     : []
 })
 
-const normalizePackageGroupDetail = payload => ({
-  id: payload.id || '',
-  status: payload.status || 'active',
-  packageInfo: {
-    id: payload.package && payload.package.id ? payload.package.id : '',
-    name: payload.package && payload.package.name ? payload.package.name : '',
-    cover: payload.package && payload.package.cover ? payload.package.cover : '',
-    wechatShareCover: payload.package && payload.package.wechat_share_cover ? payload.package.wechat_share_cover : '',
-    classCount: Number(payload.package && payload.package.class_count) || 0,
-    ageRange: payload.package && payload.package.age_range ? payload.package.age_range : '',
-    showLimitedTimeOfferTag: !!(payload.package && payload.package.show_limited_time_offer_tag),
-    featureTags: payload.package ? buildPackageFeatureTags(payload.package) : [],
-    supportedGroupPriceList: payload.package ? buildSupportedGroupPriceList(payload.package) : [],
-    description: normalizeRichTextImages(payload.package && payload.package.description ? payload.package.description : ''),
-    coachName: payload.package && payload.package.coach_name ? payload.package.coach_name : '',
-    coachIntro: normalizeRichTextImages(payload.package && payload.package.coach_intro ? payload.package.coach_intro : ''),
-    coachCertificates:
-      payload.package && Array.isArray(payload.package.coach_certificates)
-        ? payload.package.coach_certificates
-        : [],
-    locationText: payload.package ? formatPackageLocationText(payload.package) : '',
-    locationDisplayText: payload.package ? formatPackageLocationText(payload.package) : ''
-  },
-  targetCount: Number(payload.target_count) || 0,
-  currentCount: Number(payload.current_count) || 0,
-  remainingSeconds: Math.max(0, Number(payload.remaining_seconds) || 0),
-  remainingText: formatCountdownText(payload.remaining_seconds),
-  remainingPlainText: formatCountdownPlainText(payload.remaining_seconds),
-  memberAmountFen: Number(payload.member_amount_fen) || 0,
-  memberAmountText: `${payload.member_amount_text || formatFenText(payload.member_amount_fen)}`,
-  memberAmountDisplayText: formatDisplayAmount(payload.member_amount_text || formatFenText(payload.member_amount_fen)),
-  scheduleMode: payload.schedule_mode || 'pending',
-  scheduleText: payload.schedule_text || '',
-  scheduleDisplayText: formatScheduleDisplayText(payload.schedule_text),
-  firstClassTime: payload.first_class_time || '',
-  firstClassTimeText: payload.first_class_time ? formatPackageDateTimeText(payload.first_class_time) : '',
-  scheduleList: formatScheduleList(payload.schedule_list),
-  childNickname: payload.child_nickname || '',
-  childAge: payload.child_age === null || payload.child_age === undefined ? null : Number(payload.child_age) || 0,
-  members: Array.isArray(payload.members)
-    ? payload.members.map(member => ({
-        ...member,
-        orderId: member.order_id || member.orderId || '',
-        avatar_url: member.avatar_url || DEFAULT_MEMBER_AVATAR,
-        childAge: member.child_age === null || member.child_age === undefined ? null : Number(member.child_age) || 0,
-        displayNameMasked: member.display_name_masked || '',
-        displayName: member.display_name || member.child_nickname || member.nickname || '孩子昵称未填写',
-        displayText: [
-          member.display_name_masked || member.display_name || member.child_nickname || member.nickname || '孩子昵称未填写',
-          member.child_age === null || member.child_age === undefined || !Number(member.child_age)
-            ? ''
-            : `${Number(member.child_age)}岁`
-        ].filter(Boolean).join('   ')
-      }))
-    : [],
-  userJoined: !!payload.user_joined,
-  progressPercent:
-    Number(payload.target_count) > 0
-      ? `${Math.min(100, Math.round((Number(payload.current_count) / Number(payload.target_count)) * 100))}%`
-      : '0%'
-})
+const normalizePackageGroupDetail = payload => {
+  const packagePayload = payload.package || {}
+  const classDurationMinutes = Number(packagePayload.class_duration_minutes || packagePayload.classDurationMinutes) || 0
+  const scheduleList = formatPackageGroupScheduleList(payload.schedule_list, classDurationMinutes)
+  const classCount = Number(packagePayload.class_count || packagePayload.classCount) || scheduleList.length || 0
+  const hasFirstClassTime = !!payload.first_class_time
+  const rawScheduleMode = payload.schedule_mode || 'pending'
+  const scheduleMode = rawScheduleMode === 'locked' && !hasFirstClassTime ? 'pending' : rawScheduleMode
+  const rawScheduleText = `${payload.schedule_text || ''}`.trim()
+  const scheduleText = /^首课时间\s*，/.test(rawScheduleText) ? '' : rawScheduleText
+  const packageFeaturePayload = {
+    ...packagePayload,
+    class_count: classCount,
+    classDurationMinutes
+  }
+
+  return {
+    id: payload.id || '',
+    status: payload.status || 'active',
+    packageInfo: {
+      id: payload.package && payload.package.id ? payload.package.id : '',
+      name: payload.package && payload.package.name ? payload.package.name : '',
+      cover: payload.package && payload.package.cover ? payload.package.cover : '',
+      wechatShareCover: payload.package && payload.package.wechat_share_cover ? payload.package.wechat_share_cover : '',
+      classCount,
+      classDurationMinutes,
+      ageRange: payload.package && payload.package.age_range ? payload.package.age_range : '',
+      showLimitedTimeOfferTag: !!(payload.package && payload.package.show_limited_time_offer_tag),
+      featureTags: payload.package ? buildPackageFeatureTags(packageFeaturePayload) : [],
+      supportedGroupPriceList: payload.package ? buildSupportedGroupPriceList(payload.package) : [],
+      description: normalizeRichTextImages(payload.package && payload.package.description ? payload.package.description : ''),
+      coachName: payload.package && payload.package.coach_name ? payload.package.coach_name : '',
+      coachIntro: normalizeRichTextImages(payload.package && payload.package.coach_intro ? payload.package.coach_intro : ''),
+      coachCertificates:
+        payload.package && Array.isArray(payload.package.coach_certificates)
+          ? payload.package.coach_certificates
+          : [],
+      locationText: payload.package ? formatPackageLocationText(payload.package) : '',
+      locationDisplayText: payload.package ? formatPackageLocationText(payload.package) : ''
+    },
+    targetCount: Number(payload.target_count) || 0,
+    currentCount: Number(payload.current_count) || 0,
+    remainingSeconds: Math.max(0, Number(payload.remaining_seconds) || 0),
+    remainingText: formatCountdownText(payload.remaining_seconds),
+    remainingPlainText: formatCountdownPlainText(payload.remaining_seconds),
+    memberAmountFen: Number(payload.member_amount_fen) || 0,
+    memberAmountText: `${payload.member_amount_text || formatFenText(payload.member_amount_fen)}`,
+    memberAmountDisplayText: formatDisplayAmount(payload.member_amount_text || formatFenText(payload.member_amount_fen)),
+    scheduleMode,
+    scheduleText,
+    scheduleDisplayText: formatScheduleDisplayText(scheduleText),
+    firstClassTime: payload.first_class_time || '',
+    firstClassTimeText: payload.first_class_time ? formatPackageDateTimeText(payload.first_class_time) : '',
+    scheduleList,
+    childNickname: payload.child_nickname || '',
+    childAge: payload.child_age === null || payload.child_age === undefined ? null : Number(payload.child_age) || 0,
+    members: Array.isArray(payload.members)
+      ? payload.members.map(member => ({
+          ...member,
+          orderId: member.order_id || member.orderId || '',
+          avatar_url: member.avatar_url || DEFAULT_MEMBER_AVATAR,
+          childAge: member.child_age === null || member.child_age === undefined ? null : Number(member.child_age) || 0,
+          displayNameMasked: member.display_name_masked || '',
+          displayName: member.display_name || member.child_nickname || member.nickname || '孩子昵称未填写',
+          displayText: [
+            member.display_name_masked || member.display_name || member.child_nickname || member.nickname || '孩子昵称未填写',
+            member.child_age === null || member.child_age === undefined || !Number(member.child_age)
+              ? ''
+              : `${Number(member.child_age)}岁`
+          ].filter(Boolean).join('   ')
+        }))
+      : [],
+    userJoined: !!payload.user_joined,
+    progressPercent:
+      Number(payload.target_count) > 0
+        ? `${Math.min(100, Math.round((Number(payload.current_count) / Number(payload.target_count)) * 100))}%`
+        : '0%'
+  }
+}
 
 const normalizeUserPackageGroupListItem = item => ({
   orderId: item.order_id || item.orderId || '',
@@ -634,7 +709,8 @@ const fetchPackageList = async ({
   }
 }
 
-const fetchPackageDetail = async packageId => normalizePackageDetail(await get(`/api/packages/${packageId}`))
+const fetchPackageDetail = async (packageId, options = {}) =>
+  normalizePackageDetail(await get(`/api/packages/${packageId}`, {}, options))
 
 const fetchPackageGroupDetail = async packageGroupId =>
   normalizePackageGroupDetail(
@@ -827,6 +903,7 @@ module.exports = {
   formatCountdownText,
   formatDisplayAmount,
   formatFenText,
+  formatPackageGroupScheduleList,
   formatPackageLocationText,
   formatPackageDateTimeText,
   mockPaymentSuccess,

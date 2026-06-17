@@ -174,3 +174,52 @@ test('miniprogram payment confirm page: mock payment success redirects to group 
   packageUtils.fetchPackageGroupDetail = originalFetchPackageGroupDetail
   authUtils.loginAndStoreSession = originalLoginAndStoreSession
 })
+
+test('miniprogram payment confirm page: join flow builds multi-class schedule preview and compact summary', async () => {
+  const originalFetchPackageDetail = packageUtils.fetchPackageDetail
+  const originalFetchPackageGroupDetail = packageUtils.fetchPackageGroupDetail
+  const originalLoginAndStoreSession = authUtils.loginAndStoreSession
+
+  const { wx, storage } = createWxMock()
+  global.wx = wx
+  global.getApp = () => ({})
+  storage.set('token', 'seed-token')
+
+  packageUtils.fetchPackageDetail = async () => ({
+    ...buildPackageDetail(),
+    classDurationMinutes: 90
+  })
+  packageUtils.fetchPackageGroupDetail = async () => ({
+    id: 'PG-20260428-00001',
+    targetCount: 4,
+    currentCount: 2,
+    memberAmountFen: 49500,
+    status: 'active',
+    scheduleList: [
+      { index: 1, class_time: '2026-06-19 09:00:00' },
+      { index: 2, display_text: '2026-06-24 周三 13:30' }
+    ],
+    packageInfo: {
+      id: 'package_seed_active_002',
+      name: '课包',
+      classCount: 5
+    }
+  })
+  authUtils.loginAndStoreSession = async () => ({ token: 'seed-token' })
+
+  const page = createPageHarness(loadPageDefinition('pages/payment/confirm/index.js'))
+  await page.onLoad({
+    action: 'join',
+    packageId: 'package_seed_active_002',
+    packageGroupId: 'PG-20260428-00001'
+  })
+
+  assert.equal(page.data.joinScheduleSummaryText, '5节课，详见课表')
+  assert.equal(page.data.paymentScheduleList.length, 2)
+  assert.equal(page.data.paymentScheduleList[0].displayText, '2026-06-19 周五09:00 - 10:30')
+  assert.equal(page.data.paymentScheduleList[1].displayText, '2026-06-24 周三 13:30')
+
+  packageUtils.fetchPackageDetail = originalFetchPackageDetail
+  packageUtils.fetchPackageGroupDetail = originalFetchPackageGroupDetail
+  authUtils.loginAndStoreSession = originalLoginAndStoreSession
+})

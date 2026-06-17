@@ -66,6 +66,14 @@ const normalizePackageGroup = row => {
   }
 }
 
+const AUTO_ID_DUPLICATE_RETRY_LIMIT = 3
+
+const isDuplicatePrimaryError = error =>
+  !!error &&
+  (error.code === 'ER_DUP_ENTRY' ||
+    Number(error.errno) === 1062 ||
+    `${error.message || ''}`.includes('Duplicate entry'))
+
 const createPackageGroup = async ({
   id,
   package_id,
@@ -82,34 +90,49 @@ const createPackageGroup = async ({
   coach_assignment = null,
   schedule_config = null
 }) => {
-  const resolvedId = id || (await buildPackageGroupId(created_at || deadline || new Date()))
+  const shouldRetryAutoId = !id
+  const maxAttempts = shouldRetryAutoId ? AUTO_ID_DUPLICATE_RETRY_LIMIT : 1
+  let lastError = null
 
-  await execute(
-    `
-      insert into package_groups (
-        id, package_id, creator_id, target_count, current_count, status,
-        weekday, hour, first_class_time, deadline, created_at, success_time, coach_assignment, schedule_config
-      ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `,
-    [
-      resolvedId,
-      package_id,
-      creator_id || null,
-      Number(target_count) || 0,
-      Number(current_count) || 0,
-      status,
-      Number(weekday) || 0,
-      Number(hour) || 0,
-      first_class_time ? toDbDateTime(first_class_time) : null,
-      toDbDateTime(deadline),
-      toDbDateTime(created_at) || toDbDateTime(new Date()),
-      success_time ? toDbDateTime(success_time) : null,
-      coach_assignment ? JSON.stringify(coach_assignment) : null,
-      schedule_config ? JSON.stringify(schedule_config) : null
-    ]
-  )
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const resolvedId = id || (await buildPackageGroupId(created_at || deadline || new Date()))
 
-  return findPackageGroupById(resolvedId)
+    try {
+      await execute(
+        `
+          insert into package_groups (
+            id, package_id, creator_id, target_count, current_count, status,
+            weekday, hour, first_class_time, deadline, created_at, success_time, coach_assignment, schedule_config
+          ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          resolvedId,
+          package_id,
+          creator_id || null,
+          Number(target_count) || 0,
+          Number(current_count) || 0,
+          status,
+          Number(weekday) || 0,
+          Number(hour) || 0,
+          first_class_time ? toDbDateTime(first_class_time) : null,
+          toDbDateTime(deadline),
+          toDbDateTime(created_at) || toDbDateTime(new Date()),
+          success_time ? toDbDateTime(success_time) : null,
+          coach_assignment ? JSON.stringify(coach_assignment) : null,
+          schedule_config ? JSON.stringify(schedule_config) : null
+        ]
+      )
+
+      return findPackageGroupById(resolvedId)
+    } catch (error) {
+      lastError = error
+      if (!shouldRetryAutoId || !isDuplicatePrimaryError(error) || attempt >= maxAttempts - 1) {
+        throw error
+      }
+    }
+  }
+
+  throw lastError
 }
 
 const findPackageGroupById = async id => {

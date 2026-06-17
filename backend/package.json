@@ -12,6 +12,7 @@
     "console:start": "node console-api-service/console-api/server.js",
     "console:dev": "node console-api-service/console-api/server.js",
     "ensure:bootstrap-admin": "node scripts/ensure-bootstrap-admin.js",
+    "test:package-flows": "node --test tests/package-orders.test.js tests/package-group-repository.test.js",
     "verify:course-lifecycle": "node scripts/verify-course-lifecycle.js",
     "verify:group-rules": "node scripts/verify-group-rules.js",
     "verify:console-api-smoke": "node --test tests/console-api.smoke.test.js"

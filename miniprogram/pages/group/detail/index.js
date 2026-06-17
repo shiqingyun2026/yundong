@@ -1,4 +1,9 @@
-const { fetchPackageDetail, fetchPackageGroupDetail, resolveShareImageUrl } = require('../../../utils/package')
+const {
+  fetchPackageDetail,
+  fetchPackageGroupDetail,
+  formatPackageGroupScheduleList,
+  resolveShareImageUrl
+} = require('../../../utils/package')
 const { loginAndStoreSession } = require('../../../utils/auth')
 const {
   requestGroupResultSubscription,
@@ -161,16 +166,11 @@ Page({
       },
       groupOverviewExtraInfoRows: [
         {
-          label: '拼团课时',
-          value: groupDetail.scheduleMode === 'locked' ? groupDetail.firstClassTimeText : groupDetail.scheduleText
-        },
-        {
           label: '拼团状态',
-          value: `${groupDetail.targetCount}人成团，每人 ¥${groupDetail.memberAmountDisplayText || groupDetail.memberAmountText}`,
-          subvalue:
-            groupDetail.status === 'active' && groupDetail.remainingSeconds > 0
-              ? `拼团剩余时间：${groupDetail.remainingPlainText}`
-              : ''
+          value: `${groupDetail.targetCount}人成团 ¥${groupDetail.memberAmountDisplayText || groupDetail.memberAmountText}`,
+          countdownLabel: '拼团剩余时间：',
+          countdownValue:
+            groupDetail.status === 'active' && groupDetail.remainingSeconds > 0 ? groupDetail.remainingPlainText : ''
         }
       ],
       statusText: statusInfo.text,
@@ -193,6 +193,33 @@ Page({
             ? '拼团失败，已退款'
             : '邀请好友一起参团'
     })
+  },
+
+  async enrichGroupPackageInfo(groupDetail) {
+    const packageInfo = (groupDetail && groupDetail.packageInfo) || {}
+    const packageId = packageInfo.id || this.data.packageId
+
+    if (!groupDetail || !packageId || Number(packageInfo.classDurationMinutes) > 0) {
+      return groupDetail
+    }
+
+    try {
+      const packageDetail = await fetchPackageDetail(packageId, { showErrorToast: false })
+      const classDurationMinutes =
+        Number(packageDetail.classDurationMinutes) || Number(packageInfo.classDurationMinutes) || 0
+      return {
+        ...groupDetail,
+        scheduleList: formatPackageGroupScheduleList(groupDetail.scheduleList, classDurationMinutes),
+        packageInfo: {
+          ...packageInfo,
+          ...packageDetail,
+          id: packageDetail.id || packageInfo.id,
+          wechatShareCover: packageDetail.wechatShareCover || packageInfo.wechatShareCover
+        }
+      }
+    } catch (error) {
+      return groupDetail
+    }
   },
 
   resolveSubscribeEnabled() {
@@ -249,7 +276,8 @@ Page({
         return
       }
 
-      this.updateGroupPresentation(groupDetail)
+      const enrichedGroupDetail = await this.enrichGroupPackageInfo(groupDetail)
+      this.updateGroupPresentation(enrichedGroupDetail)
     } catch (error) {
       const errorCode = resolveErrorCode(error)
       if (errorCode === 2002 || errorCode === 2006) {

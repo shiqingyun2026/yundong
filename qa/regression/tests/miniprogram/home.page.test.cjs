@@ -14,9 +14,9 @@ test('miniprogram home page: share to friend uses default home share title and h
   const { wx } = createWxMock()
   global.wx = {
     ...wx,
-    getLocation({ fail }) {
+    getFuzzyLocation({ fail }) {
       fail({
-        errMsg: 'getLocation:fail auth deny'
+        errMsg: 'getFuzzyLocation:fail auth deny'
       })
     },
     getSetting() {},
@@ -59,9 +59,9 @@ test('miniprogram home page: share to timeline uses default home share title', a
   const { wx } = createWxMock()
   global.wx = {
     ...wx,
-    getLocation({ fail }) {
+    getFuzzyLocation({ fail }) {
       fail({
-        errMsg: 'getLocation:fail auth deny'
+        errMsg: 'getFuzzyLocation:fail auth deny'
       })
     },
     getSetting() {},

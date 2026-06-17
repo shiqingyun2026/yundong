@@ -7,7 +7,7 @@
     "test:headed": "playwright test --headed",
     "test:update": "playwright test --update-snapshots",
     "codegen": "playwright codegen http://127.0.0.1:3000",
-    "test:miniprogram": "node --test tests/miniprogram/*.test.cjs",
+    "test:miniprogram": "node --test tests/miniprogram/*.test.cjs ../miniprogram/tests/*.test.cjs",
     "test:all": "npm run test:miniprogram && npm test",
     "test:console-live": "playwright test -c playwright.live.config.ts --project=console-live-chromium",
     "test:console-prod": "playwright test -c playwright.prod.config.ts --project=console-prod-chromium"

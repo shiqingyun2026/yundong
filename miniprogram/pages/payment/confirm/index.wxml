@@ -13,12 +13,9 @@
           <view class="order-label">上课地点</view>
           <view class="order-value">{{packageDetail.locationDisplayText || packageDetail.locationText}}</view>
         </view>
-        <view wx:if="{{action === 'join' && packageGroupDetail && packageGroupDetail.scheduleDisplayText}}" class="order-item">
+        <view wx:if="{{action === 'join' && packageGroupDetail && joinScheduleSummaryText}}" class="order-item">
           <view class="order-label">上课时间</view>
-          <view class="order-value">{{packageGroupDetail.scheduleDisplayText}}</view>
-        </view>
-        <view wx:if="{{action === 'join' && packageGroupDetail && packageGroupDetail.scheduleDisplayText}}" class="order-note">
-          系统会在成团后自动锁定首课日期
+          <view class="order-value">{{joinScheduleSummaryText}}</view>
         </view>
         <view class="order-item">
           <view class="order-label">上课人数</view>
@@ -67,6 +64,19 @@
             bindinput="handleParentMobileInput"
             bindconfirm="handleStudentInputConfirm"
           />
+        </view>
+      </view>
+
+      <view
+        wx:if="{{packageGroupDetail && paymentScheduleList.length > 1}}"
+        class="weui-panel weui-ext-card page-section card-shadow"
+      >
+        <view class="section-title">课时安排</view>
+        <view class="schedule-preview-list">
+          <view wx:for="{{paymentScheduleList}}" wx:key="index" class="schedule-preview-item">
+            <view class="schedule-preview-index">第{{item.index}}节</view>
+            <view class="schedule-preview-text">{{item.displayText}}</view>
+          </view>
         </view>
       </view>
 
@@ -144,9 +154,6 @@
           <view class="notice-item">
             <view class="notice-dot"></view>
             <view class="notice-text">每次上课，至少要求一个家长全程在场。</view>
-          </view>
-          <view class="notice-item">
-            <view class="notice-dot"></view>
           </view>
         </view>
       </view>

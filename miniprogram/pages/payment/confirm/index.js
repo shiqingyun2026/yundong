@@ -13,6 +13,73 @@ const {
 } = require('../../../utils/package')
 const { ensureSilentLogin } = require('../../../utils/auth')
 
+const WEEKDAY_LABELS = {
+  1: '周一',
+  2: '周二',
+  3: '周三',
+  4: '周四',
+  5: '周五',
+  6: '周六',
+  7: '周日'
+}
+
+const addMinutesToTimeText = (timeText, durationMinutes) => {
+  const normalized = `${timeText || ''}`.trim()
+  const matched = normalized.match(/^(\d{2}):(\d{2})$/)
+  const minutesToAdd = Math.max(0, Number(durationMinutes) || 0)
+
+  if (!matched || !minutesToAdd) {
+    return normalized
+  }
+
+  const totalMinutes = Number(matched[1]) * 60 + Number(matched[2]) + minutesToAdd
+  const hour = Math.floor(totalMinutes / 60) % 24
+  const minute = totalMinutes % 60
+  return `${`${hour}`.padStart(2, '0')}:${`${minute}`.padStart(2, '0')}`
+}
+
+const formatPaymentScheduleDisplayText = ({ classTime, fallbackText = '', durationMinutes = 90 }) => {
+  const source = `${classTime || fallbackText || ''}`.trim()
+  const matched = source.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}):(\d{2})(?::\d{2})?/)
+  if (!matched) {
+    return fallbackText || source
+  }
+
+  const date = new Date(`${matched[1]}T12:00:00`)
+  const weekday = WEEKDAY_LABELS[date.getDay() === 0 ? 7 : date.getDay()] || ''
+  const startTime = `${matched[2]}:${matched[3]}`
+  const endTime = addMinutesToTimeText(startTime, durationMinutes)
+  return `${matched[1]} ${weekday}${startTime} - ${endTime}`
+}
+
+const buildPaymentScheduleList = ({ packageGroupDetail, packageDetail }) => {
+  const durationMinutes = Number(packageDetail && packageDetail.classDurationMinutes) || 90
+  return (packageGroupDetail && Array.isArray(packageGroupDetail.scheduleList) ? packageGroupDetail.scheduleList : []).map((item, index) => ({
+    ...item,
+    index: Number(item && item.index) || index + 1,
+    displayText: formatPaymentScheduleDisplayText({
+      classTime: item && (item.class_time || item.classTime),
+      fallbackText: item && (item.display_text || item.displayText),
+      durationMinutes
+    })
+  }))
+}
+
+const buildJoinScheduleSummaryText = packageGroupDetail => {
+  const detail = packageGroupDetail || null
+  if (!detail) {
+    return ''
+  }
+
+  const hasScheduleList = Array.isArray(detail.scheduleList) && detail.scheduleList.length > 0
+  const classCount = Number(detail.packageInfo && detail.packageInfo.classCount) || (hasScheduleList ? detail.scheduleList.length : 0)
+  if (classCount > 1 && hasScheduleList) {
+    return `${classCount}节课，详见课表`
+  }
+
+  return detail.firstClassTimeText || detail.scheduleDisplayText || detail.scheduleText || ''
+}
+
 const invokeWechatPayment = paymentParams =>
   new Promise((resolve, reject) => {
     if (!wx.requestPayment) {
@@ -80,6 +147,8 @@ Page({
     parentMobile: '',
     packageDetail: null,
     packageGroupDetail: null,
+    paymentScheduleList: [],
+    joinScheduleSummaryText: '',
     paymentAmountText: '0.00',
     paymentAmountButtonText: '0元',
     agreementChecked: true,
@@ -150,6 +219,11 @@ Page({
       this.safeSetData({
         packageDetail,
         packageGroupDetail: packageGroupDetail || null,
+        paymentScheduleList: buildPaymentScheduleList({
+          packageGroupDetail,
+          packageDetail
+        }),
+        joinScheduleSummaryText: buildJoinScheduleSummaryText(packageGroupDetail),
         targetCount: nextTargetCount,
         paymentAmountText: (amountFen / 100).toFixed(2),
         paymentAmountButtonText: `${formatDisplayAmount((amountFen / 100).toFixed(2))}元`

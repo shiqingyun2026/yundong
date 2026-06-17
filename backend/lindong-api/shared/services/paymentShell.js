@@ -87,6 +87,29 @@ const getOrderById = async ({ supabase, orderId }) => {
   return data
 }
 
+const getOrderByOrderNo = async ({ supabase, orderNo }) => {
+  const normalizedOrderNo = `${orderNo || ''}`.trim()
+  if (!normalizedOrderNo) {
+    return null
+  }
+
+  if (env.useMySqlRepositories) {
+    return ordersRepository.findOrderByOrderNo(normalizedOrderNo)
+  }
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('id, order_no, user_id, order_type, course_id, group_id, package_id, package_group_id, package_action, amount, status, created_at, pay_time, refund_time, refund_reason')
+    .eq('order_no', normalizedOrderNo)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
 const getUserById = async ({ supabase, userId }) => {
   if (env.useMySqlRepositories) {
     return usersRepository.findUserById(userId)
@@ -156,6 +179,49 @@ const getPaymentRecordByOutTradeNo = async ({ supabase, outTradeNo }) => {
     .select('*')
     .eq('out_trade_no', outTradeNo)
     .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+const createPaymentRecordFromOrder = async ({ supabase, order, outTradeNo, now = new Date() }) => {
+  if (!order || !order.id) {
+    return null
+  }
+
+  const timestamp = now.toISOString()
+  const payload = {
+    order_id: order.id,
+    user_id: order.user_id,
+    course_id: order.course_id,
+    group_id: order.group_id,
+    package_id: order.package_id,
+    package_group_id: order.package_group_id,
+    provider: 'wechat',
+    channel: 'mini_program',
+    payment_mode: PAYMENT_MODE_WECHAT,
+    out_trade_no: `${outTradeNo || order.order_no || order.id || ''}`.trim(),
+    amount: Number(order.amount) || 0,
+    status: order.status === 'success' ? 'paid' : 'pending',
+    prepare_payload: {
+      recoveredFromCallback: true
+    },
+    created_at: timestamp,
+    updated_at: timestamp
+  }
+
+  if (env.useMySqlRepositories) {
+    return paymentRecordsRepository.createPaymentRecord(payload)
+  }
+
+  const { data, error } = await supabase
+    .from('payment_records')
+    .insert(payload)
+    .select('*')
+    .single()
 
   if (error) {
     throw error
@@ -692,6 +758,29 @@ const handleWechatPaymentCallback = async ({ supabase, payload, now = new Date()
       supabase,
       outTradeNo
     })
+  }
+
+  if (!paymentRecord) {
+    const matchedOrder = outTradeNo
+      ? await getOrderByOrderNo({
+          supabase,
+          orderNo: outTradeNo
+        })
+      : null
+
+    if (matchedOrder) {
+      paymentRecord = await createPaymentRecordFromOrder({
+        supabase,
+        order: matchedOrder,
+        outTradeNo,
+        now
+      })
+      console.warn('[paymentShell/handleWechatPaymentCallback] recreated missing payment record from order_no', {
+        orderId: matchedOrder.id,
+        orderNo: matchedOrder.order_no || '',
+        outTradeNo
+      })
+    }
   }
 
   if (!paymentRecord) {

@@ -125,6 +125,20 @@ const findOrderById = async id => {
   return normalizeOrder(rows[0])
 }
 
+const findOrderByOrderNo = async orderNo => {
+  const rows = await query(
+    `
+      select ${ORDER_SELECT_FIELDS}
+      from orders
+      where order_no = ?
+      limit 1
+    `,
+    [orderNo]
+  )
+
+  return normalizeOrder(rows[0])
+}
+
 const findOrderForUser = async ({ userId, orderId }) => {
   const rows = await query(
     `
@@ -334,6 +348,7 @@ module.exports = {
   closeOrdersByIds,
   createOrder,
   findOrderById,
+  findOrderByOrderNo,
   findOrderForUser,
   listOrders,
   listOrdersByGroupId,

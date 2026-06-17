@@ -1,12 +1,36 @@
 <block wx:if="{{packageInfo}}">
-  <view class="weui-panel weui-ext-card page-section card-shadow shared-course-info-card">
+  <view wx:if="{{showCourseInfoCard}}" class="weui-panel weui-ext-card page-section card-shadow shared-course-info-card">
     <view class="shared-course-title">{{packageInfo.name}}</view>
 
     <view wx:if="{{packageInfo.featureTags.length}}" class="shared-feature-tag-list">
       <view wx:for="{{packageInfo.featureTags}}" wx:key="*this" class="shared-feature-tag">{{item}}</view>
     </view>
 
-    <view class="shared-info-list">
+    <view wx:if="{{detailLayoutVariant === 'group-detail'}}" class="shared-info-list shared-info-list--group-detail">
+      <view class="shared-info-item">
+        <view class="shared-info-label">上课地点</view>
+        <view class="shared-info-value">{{packageInfo.locationDisplayText || packageInfo.locationText}}</view>
+      </view>
+
+      <view class="shared-group-detail-info-grid">
+        <view wx:if="{{packageInfo.ageRange}}" class="shared-group-detail-info-cell">
+          <view class="shared-info-label">适用年龄</view>
+          <view class="shared-info-value shared-info-value--compact">{{packageInfo.ageRange}}</view>
+        </view>
+
+        <view wx:if="{{extraInfoRows.length}}" class="shared-group-detail-info-cell">
+          <view class="shared-info-label">{{extraInfoRows[0].label}}</view>
+          <view class="shared-info-value shared-info-value--compact">{{extraInfoRows[0].value}}</view>
+        </view>
+      </view>
+
+      <view wx:if="{{extraInfoRows.length && extraInfoRows[0].countdownValue}}" class="shared-group-detail-countdown">
+        <text class="shared-group-detail-countdown-label">{{extraInfoRows[0].countdownLabel || '拼团剩余时间：'}}</text>
+        <text class="shared-group-detail-countdown-value">{{extraInfoRows[0].countdownValue}}</text>
+      </view>
+    </view>
+
+    <view wx:else class="shared-info-list">
       <view class="shared-info-item">
         <view class="shared-info-label">上课地点</view>
         <view class="shared-info-value">{{packageInfo.locationDisplayText || packageInfo.locationText}}</view>
@@ -17,7 +41,7 @@
         <view class="shared-info-value">{{packageInfo.ageRange}}</view>
       </view>
 
-      <view wx:if="{{packageInfo.supportedGroupPriceList.length}}" class="shared-info-item">
+      <view wx:if="{{showSupportedGroupPrices && packageInfo.supportedGroupPriceList.length}}" class="shared-info-item">
         <view class="shared-info-label-row">
           <view class="shared-info-label">支持拼团</view>
           <view wx:if="{{packageInfo.showLimitedTimeOfferTag}}" class="shared-limited-offer-tag">限时特惠</view>
@@ -40,15 +64,15 @@
     </view>
   </view>
 
-  <insurance-banner />
+  <insurance-banner wx:if="{{showInsuranceBanner}}" />
 
-  <view wx:if="{{packageInfo.description}}" class="weui-panel weui-ext-card page-section card-shadow shared-intro-card">
+  <view wx:if="{{showCourseContentSections && packageInfo.description}}" class="weui-panel weui-ext-card page-section card-shadow shared-intro-card">
     <view class="section-title">课程介绍</view>
     <rich-text class="shared-rich-text" nodes="{{packageInfo.description}}"></rich-text>
   </view>
 
   <view
-    wx:if="{{packageInfo.coachName || packageInfo.coachIntro || packageInfo.coachCertificates.length}}"
+    wx:if="{{showCourseContentSections && (packageInfo.coachName || packageInfo.coachIntro || packageInfo.coachCertificates.length)}}"
     class="weui-panel weui-ext-card page-section card-shadow shared-intro-card"
   >
     <view class="section-title">教练信息</view>

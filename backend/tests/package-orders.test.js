@@ -367,6 +367,148 @@ test('package start payment creates group with configured deadline hours', async
   assert.equal(state.paymentRecord.package_group_id, 'PG-20260422-00002')
 })
 
+test('package start payment reuses existing group for the same order on retry', async () => {
+  clearModules([
+    'config/env.js',
+    'repositories/index.js',
+    'shared/services/packageGroupStore.js',
+    'shared/services/groupResultNotifications.js',
+    'shared/services/paymentShell.js',
+    'shared/services/packageOrders.js'
+  ])
+
+  const state = {
+    createdGroupCount: 0,
+    paymentRecord: {
+      id: 'payment-start-2',
+      order_id: 'order-start-2',
+      package_group_id: null,
+      status: 'pending'
+    },
+    existingGroup: {
+      id: 'PG-20260422-00003',
+      package_id: 'PKG-20260422-0001',
+      creator_id: 'user-2',
+      target_count: 4,
+      current_count: 1,
+      status: 'active',
+      hour: 10,
+      deadline: new Date('2026-04-24T07:00:00.000Z'),
+      first_class_time: null,
+      success_time: null,
+      schedule_config: {
+        schedule_type: 'weekly',
+        schedule_date: '2026-04-24',
+        schedule_time: '10:00',
+        schedule_days: [6],
+        class_count: 5,
+        source_order_id: 'order-start-2',
+        source_order_no: 'LDPKG-20260422-000002'
+      }
+    },
+    orders: [
+      {
+        id: 'order-start-2',
+        order_no: 'LDPKG-20260422-000002',
+        user_id: 'user-2',
+        order_type: 2,
+        package_id: 'PKG-20260422-0001',
+        package_group_id: null,
+        package_action: 'start',
+        package_context: {
+          target_count: 4,
+          child_nickname: '小北',
+          child_age: 7,
+          parent_mobile: '13800138002',
+          schedule_config: {
+            schedule_type: 'weekly',
+            schedule_date: '2026-04-24',
+            schedule_time: '10:00',
+            schedule_days: [6],
+            class_count: 5
+          }
+        },
+        status: 'pending'
+      }
+    ]
+  }
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true
+    }
+  })
+
+  mockModule('repositories/index.js', {
+    coursePackagesRepository: {
+      findPackageById: async () => ({
+        id: 'PKG-20260422-0001',
+        status: 1,
+        class_count: 5,
+        total_price: 12000,
+        supported_people: [4],
+        group_price_config: [{ target_count: 4, price_fen: 3000 }],
+        deadline_hours: 48
+      })
+    },
+    ordersRepository: {
+      findOrderForUser: async ({ orderId }) => {
+        const order = state.orders.find(item => item.id === orderId)
+        return order ? { ...order } : null
+      },
+      updateOrder: async (orderId, patch) => {
+        const order = state.orders.find(item => item.id === orderId)
+        Object.assign(order, patch)
+        return { ...order }
+      }
+    },
+    paymentRecordsRepository: {
+      findPaymentRecordByOrderId: async orderId => (orderId === state.paymentRecord.order_id ? { ...state.paymentRecord } : null),
+      updatePaymentRecord: async (id, patch) => {
+        if (id === state.paymentRecord.id) {
+          Object.assign(state.paymentRecord, patch)
+        }
+        return { ...state.paymentRecord }
+      }
+    },
+    packageGroupsRepository: {
+      createPackageGroup: async () => {
+        state.createdGroupCount += 1
+        throw new Error('createPackageGroup should not be called when an order-scoped group already exists')
+      },
+      listPackageGroups: async () => [{ ...state.existingGroup }]
+    }
+  })
+
+  mockModule('shared/services/packageGroupStore.js', {
+    cleanupExpiredPackageGroups: async () => ({ groupIds: [], refundedOrderIds: [], closedOrderIds: [] }),
+    closePendingPackageOrdersByIds: async () => [],
+    listPendingOrderIdsForPackage: async () => []
+  })
+
+  mockModule('shared/services/groupResultNotifications.js', {
+    enqueueGroupResultNotifications: async () => ({})
+  })
+
+  mockModule('shared/services/paymentShell.js', {
+    markPaymentRecordRefunded: async () => ({})
+  })
+
+  const { markPackageOrderPaymentSuccess } = require(path.join(backendRoot, 'shared/services/packageOrders.js'))
+  const result = await markPackageOrderPaymentSuccess({
+    userId: 'user-2',
+    orderId: 'order-start-2',
+    now: new Date('2026-04-22T10:00:00.000Z')
+  })
+
+  assert.equal(state.createdGroupCount, 0)
+  assert.equal(state.orders[0].status, 'success')
+  assert.equal(state.orders[0].package_group_id, 'PG-20260422-00003')
+  assert.equal(state.paymentRecord.package_group_id, 'PG-20260422-00003')
+  assert.equal(result.packageGroupId, 'PG-20260422-00003')
+  assert.equal(result.orderStatus, undefined)
+})
+
 test('trial package start rejects class dates earlier than three days after group start', async () => {
   clearModules([
     'config/env.js',
@@ -1153,6 +1295,109 @@ test('getOrderPaymentStatus reconciles pending wechat package payment via order 
   assert.equal(state.packagePaymentSuccessCalls.length, 1)
   assert.equal(result.orderStatus, 'success')
   assert.equal(result.paymentRecordStatus, 'paid')
+})
+
+test('wechat payment callback recreates missing payment record from order number', async () => {
+  clearModules([
+    'config/env.js',
+    'repositories/index.js',
+    'shared/services/wechatMiniProgram.js',
+    'shared/services/groupOrders.js',
+    'shared/services/packageOrders.js',
+    'shared/services/paymentShell.js'
+  ])
+
+  const state = {
+    packagePaymentSuccessCalls: [],
+    createdPaymentRecords: [],
+    paymentRecord: null,
+    order: {
+      id: 'package-order-3',
+      order_no: 'LDPKG-20260616-000123',
+      user_id: 'user-3',
+      order_type: 2,
+      package_id: 'PKG-20260616-0003',
+      package_group_id: 'PG-20260616-00003',
+      course_id: '',
+      group_id: '',
+      amount: 39800,
+      status: 'pending'
+    }
+  }
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true
+    }
+  })
+
+  mockModule('repositories/index.js', {
+    paymentRecordsRepository: {
+      findPaymentRecordByOrderId: async () => (state.paymentRecord ? { ...state.paymentRecord } : null),
+      findPaymentRecordByOutTradeNo: async () => null,
+      createPaymentRecord: async payload => {
+        state.createdPaymentRecords.push(payload)
+        state.paymentRecord = {
+          id: payload.id || 'payment-record-3',
+          ...payload
+        }
+        return { ...state.paymentRecord }
+      },
+      updatePaymentRecord: async (id, patch) => {
+        assert.equal(id, state.paymentRecord.id)
+        Object.assign(state.paymentRecord, patch)
+        return { ...state.paymentRecord }
+      }
+    },
+    ordersRepository: {
+      findOrderById: async orderId => (orderId === state.order.id ? { ...state.order } : null),
+      findOrderByOrderNo: async orderNo => (orderNo === state.order.order_no ? { ...state.order } : null)
+    },
+    usersRepository: {}
+  })
+
+  mockModule('shared/services/wechatMiniProgram.js', {
+    createMiniProgramPayment: async () => ({}),
+    buildMiniProgramPaymentParams: () => ({}),
+    decryptWechatPayResource: resource => resource
+  })
+
+  mockModule('shared/services/groupOrders.js', {
+    markOrderPaymentSuccess: async () => {
+      throw new Error('group payment flow should not be used for package order')
+    }
+  })
+
+  mockModule('shared/services/packageOrders.js', {
+    markPackageOrderPaymentSuccess: async payload => {
+      state.packagePaymentSuccessCalls.push(payload)
+      state.order.status = 'success'
+      return {
+        order: { ...state.order },
+        status: 'success',
+        packageGroupId: state.order.package_group_id
+      }
+    }
+  })
+
+  const { handleWechatPaymentCallback } = require(path.join(backendRoot, 'shared/services/paymentShell.js'))
+  const result = await handleWechatPaymentCallback({
+    payload: {
+      out_trade_no: 'LDPKG-20260616-000123',
+      transaction_id: 'wx-transaction-3',
+      trade_state: 'SUCCESS'
+    },
+    now: new Date('2026-06-16T08:00:00.000Z')
+  })
+
+  assert.equal(state.createdPaymentRecords.length, 1)
+  assert.equal(state.createdPaymentRecords[0].order_id, state.order.id)
+  assert.equal(state.createdPaymentRecords[0].out_trade_no, state.order.order_no)
+  assert.equal(state.paymentRecord.status, 'paid')
+  assert.equal(state.paymentRecord.transaction_id, 'wx-transaction-3')
+  assert.equal(state.packagePaymentSuccessCalls.length, 1)
+  assert.equal(result.orderId, state.order.id)
+  assert.equal(result.orderStatus, 'success')
 })
 
 test('payment shell resolves cloudpay provider mode', async () => {

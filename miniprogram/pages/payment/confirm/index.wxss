@@ -111,6 +111,36 @@
   margin-top: 20rpx;
 }
 
+.schedule-preview-list {
+  margin-top: 12rpx;
+  padding: 0 32rpx;
+}
+
+.schedule-preview-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
+  min-height: 88rpx;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.schedule-preview-index {
+  flex-shrink: 0;
+  font-size: 28rpx;
+  color: #111827;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.schedule-preview-text {
+  flex: 1;
+  font-size: 28rpx;
+  color: #111827;
+  text-align: right;
+  line-height: 1.4;
+}
+
 .member-item {
   display: flex;
   align-items: center;

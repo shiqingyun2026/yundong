@@ -56,25 +56,14 @@
         </view>
       </view>
 
-      <course-overview-sections packageInfo="{{groupDetail.packageInfo}}" extraInfoRows="{{groupOverviewExtraInfoRows}}" />
-
-      <view class="weui-panel weui-ext-card page-section card-shadow group-rules-card">
-        <view class="section-title">拼团说明</view>
-        <view class="rule-list">
-          <view class="rule-item">
-            <view class="rule-dot"></view>
-            <view class="rule-text">满员即成团</view>
-          </view>
-          <view class="rule-item">
-            <view class="rule-dot"></view>
-            <view class="rule-text">拼团截止时间：开团后 48 小时</view>
-          </view>
-          <view class="rule-item">
-            <view class="rule-dot"></view>
-            <view class="rule-text">未成团退款规则：48 小时内未成团将自动原路退款</view>
-          </view>
-        </view>
-      </view>
+      <course-overview-sections
+        packageInfo="{{groupDetail.packageInfo}}"
+        extraInfoRows="{{groupOverviewExtraInfoRows}}"
+        detailLayoutVariant="{{'group-detail'}}"
+        showInsuranceBanner="{{false}}"
+        showSupportedGroupPrices="{{false}}"
+        showCourseContentSections="{{false}}"
+      />
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">成员列表</view>
@@ -92,12 +81,38 @@
         <view wx:else class="section-desc">暂未获取到成员信息</view>
       </view>
 
-      <view wx:if="{{(groupDetail.scheduleMode === 'locked' || groupDetail.scheduleMode === 'single_session') && groupDetail.scheduleList.length}}" class="weui-panel weui-ext-card page-section card-shadow">
-        <view class="section-title">{{groupDetail.scheduleMode === 'single_session' ? '单次课程安排' : (groupDetail.packageInfo.classCount + '次课时安排')}}</view>
+      <view wx:if="{{groupDetail.scheduleList.length}}" class="weui-panel weui-ext-card page-section card-shadow">
+        <view class="section-title">课时安排</view>
         <view class="schedule-list">
           <view wx:for="{{groupDetail.scheduleList}}" wx:key="index" class="schedule-item">
             <view class="schedule-index">{{groupDetail.scheduleMode === 'single_session' ? '上课时间' : ('第' + item.index + '次')}}</view>
             <view class="schedule-text">{{item.display_text}}</view>
+          </view>
+        </view>
+      </view>
+
+      <insurance-banner />
+
+      <course-overview-sections
+        packageInfo="{{groupDetail.packageInfo}}"
+        showCourseInfoCard="{{false}}"
+        showInsuranceBanner="{{false}}"
+      />
+
+      <view class="weui-panel weui-ext-card page-section card-shadow group-rules-card">
+        <view class="section-title">拼团说明</view>
+        <view class="rule-list">
+          <view class="rule-item">
+            <view class="rule-dot"></view>
+            <view class="rule-text">满员即成团</view>
+          </view>
+          <view class="rule-item">
+            <view class="rule-dot"></view>
+            <view class="rule-text">拼团截止时间：开团后 48 小时</view>
+          </view>
+          <view class="rule-item">
+            <view class="rule-dot"></view>
+            <view class="rule-text">未成团退款规则：48 小时内未成团将自动原路退款</view>
           </view>
         </view>
       </view>

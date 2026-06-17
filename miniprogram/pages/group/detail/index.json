@@ -4,6 +4,7 @@
     "mp-toptips": "../../../vendor/weui-miniprogram/toptips/toptips",
     "mp-badge": "../../../vendor/weui-miniprogram/badge/badge",
     "mp-loading": "../../../vendor/weui-miniprogram/loading/loading",
-    "course-overview-sections": "../../../components/course-overview-sections/index"
+    "course-overview-sections": "../../../components/course-overview-sections/index",
+    "insurance-banner": "../../../components/insurance-banner/index"
   }
 }

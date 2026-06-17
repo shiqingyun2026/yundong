@@ -29,8 +29,25 @@
   margin-top: 28rpx;
 }
 
+.shared-info-list--group-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 22rpx;
+}
+
 .shared-info-item + .shared-info-item {
   margin-top: 18rpx;
+}
+
+.shared-group-detail-info-grid {
+  display: flex;
+  align-items: stretch;
+  gap: 24rpx;
+}
+
+.shared-group-detail-info-cell {
+  flex: 1;
+  min-width: 0;
 }
 
 .shared-info-label {
@@ -52,11 +69,39 @@
   line-height: 1.7;
 }
 
+.shared-info-value--compact {
+  line-height: 1.5;
+  font-weight: 600;
+}
+
 .shared-info-subvalue {
   margin-top: 8rpx;
   font-size: 24rpx;
   line-height: 1.5;
   color: #8a94a6;
+}
+
+.shared-group-detail-countdown {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  min-height: 56rpx;
+  padding: 12rpx 18rpx;
+  border-radius: 20rpx;
+  background: #f3f5f7;
+}
+
+.shared-group-detail-countdown-label {
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: #8a94a6;
+}
+
+.shared-group-detail-countdown-value {
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: #ff8a1f;
+  font-weight: 600;
 }
 
 .shared-group-price-list {

@@ -9,9 +9,29 @@ Component({
       type: Object,
       value: null
     },
+    detailLayoutVariant: {
+      type: String,
+      value: ''
+    },
+    showCourseInfoCard: {
+      type: Boolean,
+      value: true
+    },
     extraInfoRows: {
       type: Array,
       value: []
+    },
+    showSupportedGroupPrices: {
+      type: Boolean,
+      value: true
+    },
+    showInsuranceBanner: {
+      type: Boolean,
+      value: true
+    },
+    showCourseContentSections: {
+      type: Boolean,
+      value: true
     }
   },
 

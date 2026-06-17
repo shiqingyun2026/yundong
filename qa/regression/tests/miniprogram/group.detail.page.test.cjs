@@ -268,3 +268,59 @@ test('miniprogram group detail page: shared refunded-viewer error redirects by n
   packageUtils.fetchPackageDetail = originalFetchPackageDetail
   authUtils.loginAndStoreSession = originalLoginAndStoreSession
 })
+
+test('miniprogram group detail page: enriches fetched schedule rows with package duration before rendering', async () => {
+  const originalFetchPackageGroupDetail = packageUtils.fetchPackageGroupDetail
+  const originalFetchPackageDetail = packageUtils.fetchPackageDetail
+  const originalLoginAndStoreSession = authUtils.loginAndStoreSession
+
+  const { wx, storage } = createWxMock()
+  global.wx = wx
+  global.getApp = () => ({})
+  storage.set('token', 'seed-token')
+
+  packageUtils.fetchPackageGroupDetail = async () => ({
+    id: 'pkg-group-active-2',
+    status: 'active',
+    targetCount: 6,
+    currentCount: 2,
+    userJoined: true,
+    target_count: 6,
+    current_count: 2,
+    member_amount_fen: 39800,
+    remaining_seconds: 166463,
+    scheduleList: [
+      { index: 1, display_text: '2026-06-19 09:00:00' },
+      { index: 2, display_text: '2026-06-24 周三 13:30' }
+    ],
+    members: [],
+    packageInfo: {
+      id: 'package_seed_active_002',
+      name: '[测试] 深圳宝安体能进阶·等待上课',
+      wechatShareCover: 'https://example.com/original-cover.png'
+    }
+  })
+  packageUtils.fetchPackageDetail = async () => ({
+    id: 'package_seed_active_002',
+    classDurationMinutes: 90,
+    wechatShareCover: 'https://example.com/enriched-cover.png'
+  })
+  authUtils.loginAndStoreSession = async () => ({ token: 'seed-token' })
+
+  const page = createPageHarness(loadPageDefinition('pages/group/detail/index.js'))
+  await page.onLoad({
+    packageGroupId: 'pkg-group-active-2',
+    packageId: 'package_seed_active_002',
+    entry: 'paymentSuccess',
+    action: 'join'
+  })
+
+  assert.equal(page.data.groupDetail.scheduleList[0].display_text, '2026-06-19 周五09:00 - 10:30')
+  assert.equal(page.data.groupDetail.scheduleList[1].display_text, '2026-06-24 周三13:30 - 15:00')
+  assert.equal(page.data.groupDetail.packageInfo.classDurationMinutes, 90)
+  assert.equal(page.data.groupDetail.packageInfo.wechatShareCover, 'https://example.com/enriched-cover.png')
+
+  packageUtils.fetchPackageGroupDetail = originalFetchPackageGroupDetail
+  packageUtils.fetchPackageDetail = originalFetchPackageDetail
+  authUtils.loginAndStoreSession = originalLoginAndStoreSession
+})

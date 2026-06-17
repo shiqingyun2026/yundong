@@ -13,7 +13,7 @@
     </mp-navigation-bar>
     <view class="header-content">
       <view class="search-shell card-shadow">
-        <view class="city-pill">{{city}} <text class="city-arrow">▼</text></view>
+        <view class="city-pill">{{city}}</view>
         <view class="search-box">
           <mp-icon extClass="search-icon" icon="search" type="outline" color="#A0A7B4" size="{{18}}" />
           <input
