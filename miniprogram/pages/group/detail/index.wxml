@@ -60,6 +60,7 @@
         packageInfo="{{groupDetail.packageInfo}}"
         extraInfoRows="{{groupOverviewExtraInfoRows}}"
         detailLayoutVariant="{{'group-detail'}}"
+        showFeatureTags="{{false}}"
         showInsuranceBanner="{{false}}"
         showSupportedGroupPrices="{{false}}"
         showCourseContentSections="{{false}}"

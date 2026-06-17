@@ -38,6 +38,13 @@
 - 不要手改生成产物，尤其是小程序图标资产、`tabBar` 图标、自动生成注册表；应修改源文件后运行生成脚本。
 - `console/dist/` 是构建产物；除非任务明确要求，否则不要直接改，也不要把它作为主修改目标。
 - 环境变量、密钥、生产账号、支付证书等敏感信息不得写入代码或文档。
+- 小程序后端环境切换看 `miniprogram/config/env.js`，不要到页面、`utils/request.js` 或业务代码里散改接口地址。
+- 当前小程序后端走 CloudBase 云托管容器映射：
+  - `ENV_API_TRANSPORTS` 默认使用 `container`
+  - `ENV_CLOUD_CONTAINER_SERVICE_NAMES.release = 'lindong-api'` 表示生产后端
+  - `ENV_CLOUD_CONTAINER_SERVICE_NAMES.develop / trial` 可按需要切到 `lindong-api` 或 `lindong-api-test`
+- 如果要把小程序切到生产后端，优先改 `ENV_CLOUD_CONTAINER_SERVICE_NAMES.develop`、`trial` 为 `lindong-api`；如果要切回测试后端，则改回 `lindong-api-test`。
+- 改完小程序后端环境映射后，至少补或更新一个最小测试，确认 `resolveCloudContainerServiceNameByEnv()` 对应环境返回的是预期服务名。
 - 涉及数据库变更时，默认按用户在腾讯云 DMS / SQL 窗口中手动执行的方式提供操作指引，而不是优先提供 terminal 命令；说明顺序应为：先确认当前库名与环境，再给执行前检查 SQL，再给正式 migration SQL，再给执行后回查 SQL。除非用户明确要求，否则不要默认代替用户直接执行生产或测试环境数据库变更。
 - 未指定数据库时，默认测试环境数据库为 `tiyubao-pre`；提供给用户的 SQL 语句应默认以 `USE \`tiyubao-pre\`;` 开头，避免出现 `No database selected`。
 - 详细模块规范与命令索引见：

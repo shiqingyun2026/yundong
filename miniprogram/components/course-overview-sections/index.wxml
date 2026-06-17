@@ -2,7 +2,7 @@
   <view wx:if="{{showCourseInfoCard}}" class="weui-panel weui-ext-card page-section card-shadow shared-course-info-card">
     <view class="shared-course-title">{{packageInfo.name}}</view>
 
-    <view wx:if="{{packageInfo.featureTags.length}}" class="shared-feature-tag-list">
+    <view wx:if="{{showFeatureTags && packageInfo.featureTags.length}}" class="shared-feature-tag-list">
       <view wx:for="{{packageInfo.featureTags}}" wx:key="*this" class="shared-feature-tag">{{item}}</view>
     </view>
 

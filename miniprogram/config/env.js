@@ -27,8 +27,8 @@ const ENV_CLOUD_ENVS = {
 }
 
 const ENV_CLOUD_CONTAINER_SERVICE_NAMES = {
-  develop: 'lindong-api-test',
-  trial: 'lindong-api-test',
+  develop: 'lindong-api',
+  trial: 'lindong-api',
   release: 'lindong-api'
 }
 

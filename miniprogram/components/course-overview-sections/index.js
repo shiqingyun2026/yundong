@@ -17,6 +17,10 @@ Component({
       type: Boolean,
       value: true
     },
+    showFeatureTags: {
+      type: Boolean,
+      value: true
+    },
     extraInfoRows: {
       type: Array,
       value: []

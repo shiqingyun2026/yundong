@@ -45,10 +45,14 @@ test('group detail removes empty package group schedule info row', () => {
 test('group detail uses its own overview card layout variant', () => {
   const groupDetailWxmlSource = fs.readFileSync(groupDetailWxmlPath, 'utf8')
   const overviewSource = fs.readFileSync(courseOverviewComponentWxmlPath, 'utf8')
+  const groupDetailJsSource = fs.readFileSync(groupDetailJsPath, 'utf8')
 
   assert.match(groupDetailWxmlSource, /detailLayoutVariant="{{'group-detail'}}"/)
+  assert.match(groupDetailWxmlSource, /showFeatureTags="{{false}}"/)
   assert.match(overviewSource, /shared-group-detail-info-grid/)
   assert.match(overviewSource, /shared-group-detail-countdown/)
+  assert.match(groupDetailJsSource, /label:\s*'拼团类型'/)
+  assert.match(groupDetailJsSource, /value:\s*`\$\{groupDetail\.targetCount\}人团，每人 ¥\$\{groupDetail\.memberAmountDisplayText \|\| groupDetail\.memberAmountText\}`/)
 })
 
 test('group detail formats schedule rows without a gap between weekday and time', () => {
