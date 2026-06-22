@@ -355,6 +355,13 @@ const fetchMiniProgramPackageList = async ({
         return leftDistance - rightDistance
       }
 
+      const leftMinPriceFen = resolveLowestGroupPriceFen(left)
+      const rightMinPriceFen = resolveLowestGroupPriceFen(right)
+
+      if (leftMinPriceFen !== rightMinPriceFen) {
+        return leftMinPriceFen - rightMinPriceFen
+      }
+
       return (parseShanghaiDate(right.created_at || 0)?.getTime() || 0) - (parseShanghaiDate(left.created_at || 0)?.getTime() || 0)
     })
 

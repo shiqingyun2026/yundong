@@ -497,6 +497,145 @@ test('package readers treat MySQL DATETIME publish window as Shanghai time under
   })
 })
 
+test('package readers sort home packages by distance asc, then price asc, then created time desc', async () => {
+  clearModules([
+    'config/env.js',
+    'config/storage.js',
+    'repositories/index.js',
+    'shared/domain/packageGroupRules.js',
+    'shared/services/packageGroupStore.js',
+    'shared/services/cosSignedUrl.js',
+    'shared/services/packageReaders.js'
+  ])
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true
+    }
+  })
+
+  mockModule('config/storage.js', {
+    getStorageProviderName: () => 'supabase',
+    getCosStorageConfig: () => ({
+      bucket: '',
+      region: '',
+      secretId: '',
+      secretKey: '',
+      expiresSeconds: 900
+    })
+  })
+
+  mockModule('repositories/index.js', {
+    coursePackagesRepository: {
+      listPackages: async () => [
+        {
+          id: 'pkg-near-expensive',
+          name: '近距离高价课包',
+          cover: 'https://example.com/near-expensive.jpg',
+          package_category: '体适能',
+          class_count: 5,
+          class_duration_minutes: 60,
+          group_price_config: [{ target_count: 4, price_fen: 6000 }],
+          supported_people: [4],
+          location_district: '南山区',
+          location_community: '社区A',
+          location_detail: 'A场地',
+          latitude: 22.6000,
+          longitude: 114.2000,
+          status: 1,
+          publish_time: '2026-04-21T00:00:00.000Z',
+          unpublish_time: null,
+          created_at: '2026-04-21T08:00:00.000Z'
+        },
+        {
+          id: 'pkg-near-cheap-old',
+          name: '近距离低价旧课包',
+          cover: 'https://example.com/near-cheap-old.jpg',
+          package_category: '体适能',
+          class_count: 5,
+          class_duration_minutes: 60,
+          group_price_config: [{ target_count: 4, price_fen: 4000 }],
+          supported_people: [4],
+          location_district: '南山区',
+          location_community: '社区B',
+          location_detail: 'B场地',
+          latitude: 22.6000,
+          longitude: 114.2000,
+          status: 1,
+          publish_time: '2026-04-21T00:00:00.000Z',
+          unpublish_time: null,
+          created_at: '2026-04-21T07:00:00.000Z'
+        },
+        {
+          id: 'pkg-near-cheap-new',
+          name: '近距离低价新课包',
+          cover: 'https://example.com/near-cheap-new.jpg',
+          package_category: '体适能',
+          class_count: 5,
+          class_duration_minutes: 60,
+          group_price_config: [{ target_count: 4, price_fen: 4000 }],
+          supported_people: [4],
+          location_district: '南山区',
+          location_community: '社区C',
+          location_detail: 'C场地',
+          latitude: 22.6000,
+          longitude: 114.2000,
+          status: 1,
+          publish_time: '2026-04-21T00:00:00.000Z',
+          unpublish_time: null,
+          created_at: '2026-04-21T09:00:00.000Z'
+        },
+        {
+          id: 'pkg-far-cheapest',
+          name: '远距离最低价课包',
+          cover: 'https://example.com/far-cheapest.jpg',
+          package_category: '体适能',
+          class_count: 5,
+          class_duration_minutes: 60,
+          group_price_config: [{ target_count: 4, price_fen: 3000 }],
+          supported_people: [4],
+          location_district: '宝安区',
+          location_community: '社区D',
+          location_detail: 'D场地',
+          latitude: 22.6100,
+          longitude: 114.2100,
+          status: 1,
+          publish_time: '2026-04-21T00:00:00.000Z',
+          unpublish_time: null,
+          created_at: '2026-04-21T10:00:00.000Z'
+        }
+      ]
+    },
+    ordersRepository: {},
+    packageGroupsRepository: {
+      listPackageGroups: async () => []
+    },
+    usersRepository: {}
+  })
+
+  mockModule('shared/domain/packageGroupRules.js', {
+    calculatePackageMemberAmountFen: ({ groupPriceConfig = [] }) => Number(groupPriceConfig[0] && groupPriceConfig[0].price_fen) || 0
+  })
+
+  mockModule('shared/services/packageGroupStore.js', {
+    cleanupExpiredPackageGroups: async () => {}
+  })
+
+  const { fetchMiniProgramPackageList } = require(path.join(backendRoot, 'shared/services/packageReaders.js'))
+  const result = await fetchMiniProgramPackageList({
+    latitude: 22.6000,
+    longitude: 114.2000,
+    now: new Date('2026-04-21T12:00:00.000Z')
+  })
+
+  assert.deepEqual(result.list.map(item => item.id), [
+    'pkg-near-cheap-new',
+    'pkg-near-cheap-old',
+    'pkg-near-expensive',
+    'pkg-far-cheapest'
+  ])
+})
+
 test('package group detail returns leader child profile, default member avatars and countdown', async () => {
   clearModules([
     'config/env.js',
