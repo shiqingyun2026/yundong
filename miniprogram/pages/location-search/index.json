@@ -3,7 +3,6 @@
   "usingComponents": {
     "mp-navigation-bar": "../../components/navigation-bar/index",
     "mp-toptips": "../../vendor/weui-miniprogram/toptips/toptips",
-    "mp-searchbar": "../../vendor/weui-miniprogram/searchbar/searchbar",
     "mp-icon": "../../vendor/weui-miniprogram/icon/icon",
     "mp-badge": "../../vendor/weui-miniprogram/badge/badge"
   }
