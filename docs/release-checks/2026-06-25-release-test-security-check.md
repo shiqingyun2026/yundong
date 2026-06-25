@@ -6,9 +6,9 @@ Prepare the Lindong project for release by running local regression, build, depe
 
 ## Current Status
 
-Status: local remediation complete; live smoke remains environment-blocked.
+Status: local remediation complete; production console smoke passed; local direct MySQL smoke remains environment-blocked.
 
-This document records the release check started on 2026-06-25. It has been updated after dependency remediation, console regression fixes, and a second live-smoke attempt.
+This document records the release check started on 2026-06-25. It has been updated after dependency remediation, console regression fixes, CloudBase API checks, and production console smoke verification.
 
 ## Verified Passing Checks
 
@@ -21,6 +21,7 @@ This document records the release check started on 2026-06-25. It has been updat
 - `console`: `npm run build:cloudbase` passed.
 - `qa/regression`: `npm run test:miniprogram` passed with 31 tests.
 - `qa/regression`: `PW_PROJECTS=console-chromium npx playwright test --project=console-chromium --reporter=list` passed with 16 tests after remediation.
+- `qa/regression`: production console smoke against `https://tiantiantiyubao.cn/console/` passed with 4 tests after production selector updates.
 - `miniprogram`: `npm audit --omit=dev --audit-level=moderate` found 0 vulnerabilities.
 - `backend`: `npm audit --omit=dev --audit-level=moderate` found 0 vulnerabilities after remediation.
 - `console`: `npm audit --omit=dev --audit-level=moderate` found 0 vulnerabilities after remediation.
@@ -69,9 +70,9 @@ Next action:
 - Moved Banner create/copy/error test dates to 2027.
 - Re-ran console Playwright project; 16 tests passed.
 
-### B3: Console Live Smoke Blocked By Stale Legacy Database Config
+### B3: Local Console Live Smoke Blocked By CloudBase Internal MySQL Network
 
-Severity: high for release confidence, environment-config-blocked.
+Severity: medium for local confidence, environment-network-blocked.
 
 Evidence:
 
@@ -85,19 +86,42 @@ Evidence:
   - `127.0.0.1:3306`: connection refused.
   - `localhost:3306`: connection refused.
 - `docker` is not available in the current shell, so local container port mappings could not be inspected from here.
+- User confirmed the database is CloudBase MySQL. The CloudBase service VPC shown in console uses the `172.17.0.0/16` private network, which explains why `172.17.0.3:3306` is not reachable from the local Codex shell.
+- CloudBase deployed console API health checks passed:
+  - `/health` returned `ok: true` for `lindong-console-api`.
+  - `/health/package-refund-flow` returned `ok: true` and `use_mysql_repositories: true`.
 
 Interpretation:
 
 - This is an environment configuration mismatch, not the intended release architecture.
 - Per `AGENTS.md`, the current main chain is WeChat native miniprogram + Node.js/Express + CloudBase container identity + MySQL data layer. Supabase is not the active production data path for this release.
 - The live smoke reached the real local integration layer, but the local console API was started with stale legacy database configuration. The failures are chained from login/session setup not completing.
+- The deployed CloudBase console API is already running in MySQL mode. Local direct-DB smoke should not use the private CloudBase MySQL address unless the shell is inside the same VPC or a tunnel/proxy is provided.
 
 Next action:
 
-- Make the MySQL test database reachable from the current host. The provided `172.17.0.3` address appears unreachable from this shell.
-- If the database runs in Docker, expose/map port 3306 to the host and use the host-reachable address, usually `127.0.0.1` with the mapped port.
+- For local `npm run test:console-live`, provide a host-reachable MySQL endpoint, or run the live smoke from an environment inside the CloudBase VPC.
 - Ensure the seeded regression records described in `qa/regression/README.md` exist in that MySQL database.
 - Re-run `npm run test:console-live` after MySQL connectivity succeeds.
+
+### B5: Production Console Smoke Selectors Were Stale
+
+Severity: resolved.
+
+Evidence:
+
+- Production custom domain is `https://tiantiantiyubao.cn/console/`.
+- The production app loads its API from the same custom domain under `/api/admin`, which matches the current deployed frontend bundle.
+- Initial production smoke could log in, but failed on stale selectors and labels:
+  - Dashboard had both sidebar and quick-access links named `课包管理`; the assertion needed an exact sidebar link match.
+  - Package search placeholder is now `按课包编号或名称搜索`.
+  - Package detail uses `团型人数` under pricing instead of the older `支持人数` label.
+  - Package group table header is now `拼团编号`.
+
+Next action:
+
+- Updated `qa/regression/tests/console.prod.spec.ts` to use current production labels and exact link matching.
+- Re-ran production console smoke against `https://tiantiantiyubao.cn/console/`; 4 tests passed.
 
 ### B4: Frontend Regression Project Points To Missing Directory
 
@@ -122,8 +146,6 @@ Next action:
 
 ## Manual Release Checks Still Needed
 
-- Production console read-only smoke with production URL and credentials:
-  - `CONSOLE_PROD_BASE_URL=... CONSOLE_PROD_USERNAME=... CONSOLE_PROD_PASSWORD=... npm run test:console-prod`
 - WeChat miniprogram real device or developer-tool smoke for login, package detail, start/join group, payment cancel, and post-payment result views.
 - Production CloudBase route check for console SPA fallback to `index.html`.
 - Production environment variable review for `JWT_SECRET`, admin bootstrap credentials, WeChat Pay keys, mini program app secret, internal payment secret, and cron secret.
@@ -136,3 +158,5 @@ Next action:
 - 2026-06-25: Console mock Playwright regression updated and rerun successfully with 16 passing tests.
 - 2026-06-25: Console live smoke rerun; still blocked because local `backend/.env` uses stale legacy Supabase config instead of the current MySQL test database path.
 - 2026-06-25: Local `backend/.env` switched to the provided MySQL test configuration; direct MySQL connection still timed out/refused from this shell.
+- 2026-06-25: CloudBase console API health checks passed and confirmed deployed API is using MySQL repositories.
+- 2026-06-25: Production console smoke against `https://tiantiantiyubao.cn/console/` updated and passed with 4 tests.
