@@ -1,4 +1,4 @@
-import { expect, test, type Route } from '@playwright/test'
+import { expect, test, type Page, type Route } from '@playwright/test'
 
 const dashboardOverview = {
   range: {
@@ -125,6 +125,27 @@ const bootstrapSession = async (
   }, user)
 }
 
+const packageRichTextSection = (page: Page, heading: string) =>
+  page
+    .getByRole('heading', { name: heading, exact: true })
+    .locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " stack ")][1]')
+
+const fillPackageRichText = async (page: Page, heading: string, value: string) => {
+  const editor = packageRichTextSection(page, heading).locator('[contenteditable="true"]').first()
+  await editor.fill(value)
+  await expect(editor).toContainText(value)
+}
+
+const uploadPackageRichTextImage = async (
+  page: Page,
+  heading: string,
+  file: { name: string; mimeType: string; buffer: Buffer }
+) => {
+  const section = packageRichTextSection(page, heading)
+  await section.locator('input[type="file"]').setInputFiles(file)
+  return section
+}
+
 test.beforeEach(async ({ page }) => {
   await page.route(adminApiPattern('\\/dashboard\\/overview.*'), async route => {
     await fulfillJson(route, dashboardOverview)
@@ -206,11 +227,12 @@ test('console package create page can submit a new package and redirect back to 
   await packageForm.getByLabel(/经度/).fill('113.9304')
   await packageForm.getByLabel(/纬度/).fill('22.5333')
   await packageForm.getByLabel(/封面图 URL/).fill('https://example.com/package-cover.jpg')
+  await packageForm.getByLabel(/微信分享封面 URL/).fill('https://example.com/package-share-cover.jpg')
   await packageForm.getByRole('button', { name: '新增团型' }).click()
   await packageForm.getByLabel(/团型人数/).fill('4')
   await packageForm.getByLabel(/人均售价（分）/).fill('49950')
-  await packageForm.locator('textarea').nth(0).fill('用于课包页面回归的教练简介')
-  await packageForm.locator('textarea').nth(2).fill('用于课包运营后台页面回归的介绍文案')
+  await fillPackageRichText(page, '教练简介', '用于课包页面回归的教练简介')
+  await fillPackageRichText(page, '课包介绍', '用于课包运营后台页面回归的介绍文案')
 
   await packageForm.getByRole('button', { name: '创建课包' }).click()
 
@@ -311,6 +333,7 @@ test('console package edit page can update a pending package and view linked pac
         latitude: 22.5333,
         coach_intro: '原始教练简介',
         coach_certificates: ['https://example.com/cert-1.jpg'],
+        wechat_share_cover: 'https://example.com/package-share.jpg',
         description: '原始课包介绍'
       })
       return
@@ -423,7 +446,7 @@ test('console package edit page can update a pending package and view linked pac
   const editForm = page.locator('form').first()
 
   await editForm.getByLabel(/课包名称/).fill('[回归] 课包编辑页-已更新')
-  await editForm.locator('textarea').nth(0).fill('更新后的课包教练简介')
+  await fillPackageRichText(page, '教练简介', '更新后的课包教练简介')
   await editForm.getByRole('button', { name: '保存课包' }).click()
 
   await expect(page).toHaveURL(/\/packages$/)
@@ -817,8 +840,8 @@ test('console banner list page can query create and edit banners', async ({ page
   await page.getByLabel('跳转类型').selectOption('customUrl')
   await page.getByLabel('跳转目标').fill('https://example.com/summer')
   await page.getByLabel('排序（数字越小，越靠前）').fill('20')
-  await page.getByLabel('上线时间').fill('2026-05-01T09:00')
-  await page.getByLabel('下线时间').fill('2026-05-31T23:00')
+  await page.getByLabel('上线时间').fill('2027-05-01T09:00')
+  await page.getByLabel('下线时间').fill('2027-05-31T23:00')
   await page.getByLabel('上传图片').setInputFiles({
     name: 'banner-create.png',
     mimeType: 'image/png',
@@ -830,12 +853,12 @@ test('console banner list page can query create and edit banners', async ({ page
 
   await expect(page).toHaveURL(/\/banners\/banner-created-1$/)
   await expect(page.getByRole('heading', { name: 'Banner 详情' })).toBeVisible()
-  await expect(page.getByLabel('上线时间')).toHaveValue('2026-05-01T09:00')
-  await expect(page.getByLabel('下线时间')).toHaveValue('2026-05-31T23:00')
+  await expect(page.getByLabel('上线时间')).toHaveValue('2027-05-01T09:00')
+  await expect(page.getByLabel('下线时间')).toHaveValue('2027-05-31T23:00')
 
   await page.getByRole('link', { name: '编辑 Banner' }).click()
-  await expect(page.getByLabel('上线时间')).toHaveValue('2026-05-01T09:00')
-  await expect(page.getByLabel('下线时间')).toHaveValue('2026-05-31T23:00')
+  await expect(page.getByLabel('上线时间')).toHaveValue('2027-05-01T09:00')
+  await expect(page.getByLabel('下线时间')).toHaveValue('2027-05-31T23:00')
   await expect(page.getByText('排序（数字越小，越靠前）')).toBeVisible()
   await expect(page.getByText('状态')).toHaveCount(0)
   await page.getByLabel('Banner 标题').fill('首页夏季活动-已更新')
@@ -878,7 +901,7 @@ test('console banner create page shows backend save error', async ({ page }) => 
   await page.goto('/banners/new')
   await page.getByLabel('Banner 标题').fill('首页活动 Banner')
   await page.getByLabel('跳转类型').selectOption('none')
-  await page.getByLabel('上线时间').fill('2026-04-30T10:00')
+  await page.getByLabel('上线时间').fill('2027-04-30T10:00')
 
   await page.setInputFiles('input[type="file"]', {
     name: 'banner.png',
@@ -995,14 +1018,14 @@ test('console banner list page can offline an active banner and copy it as a new
   await expect(page.getByLabel('Banner 标题')).toHaveValue('首页限时活动 - 副本')
   await expect(page.getByLabel('上线时间')).toHaveValue('')
   await expect(page.getByLabel('下线时间')).toHaveValue('')
-  await page.getByLabel('上线时间').fill('2026-05-03T09:00')
-  await page.getByLabel('下线时间').fill('2026-05-10T23:00')
+  await page.getByLabel('上线时间').fill('2027-05-03T09:00')
+  await page.getByLabel('下线时间').fill('2027-05-10T23:00')
   await page.locator('form').getByRole('button', { name: '保存' }).click()
 
   await expect(page).toHaveURL(/\/banners\/banner-copy-1$/)
   expect(copiedPayload?.title).toBe('首页限时活动 - 副本')
   expect(copiedPayload?.image_url).toBe('https://example.com/banner-active.png')
-  expect(copiedPayload?.online_time).toBe('2026-05-03T09:00')
+  expect(copiedPayload?.online_time).toBe('2027-05-03T09:00')
 })
 
 test('console package edit page can offline a package and return to the list', async ({ page }) => {
@@ -1225,27 +1248,26 @@ test('console package create page can insert uploaded images into rich text fiel
   await packageForm.getByLabel(/经度/).fill('113.9304')
   await packageForm.getByLabel(/纬度/).fill('22.5333')
   await packageForm.getByLabel(/封面图 URL/).fill('https://example.com/package-rich-cover.jpg')
+  await packageForm.getByLabel(/微信分享封面 URL/).fill('https://example.com/package-rich-share-cover.jpg')
   await packageForm.getByRole('button', { name: '新增团型' }).click()
   await packageForm.getByLabel(/团型人数/).fill('4')
   await packageForm.getByLabel(/人均售价（分）/).fill('38800')
-  await packageForm.locator('textarea').nth(0).fill('教练基础简介')
-  await packageForm.locator('textarea').nth(2).fill('课包基础介绍')
+  await fillPackageRichText(page, '教练简介', '教练基础简介')
+  await fillPackageRichText(page, '课包介绍', '课包基础介绍')
 
-  await page.locator('label.file-button', { hasText: '上传图片并插入简介' }).locator('input[type="file"]').setInputFiles({
+  const coachIntroSection = await uploadPackageRichTextImage(page, '教练简介', {
     name: 'coach-intro.png',
     mimeType: 'image/png',
     buffer: Buffer.from('fake-coach-intro-image')
   })
-  await expect(packageForm.locator('textarea').nth(0)).toContainText('<img src="https://example.com/uploads/course-detail/coach-intro.png" alt="教练简介图" />')
-  await expect(page.getByRole('img', { name: '教练简介图' })).toBeVisible()
+  await expect(coachIntroSection.locator('img[src="https://example.com/uploads/course-detail/coach-intro.png"]')).toBeVisible()
 
-  await page.locator('label.file-button', { hasText: '上传图片并插入介绍' }).locator('input[type="file"]').setInputFiles({
+  const packageIntroSection = await uploadPackageRichTextImage(page, '课包介绍', {
     name: 'package-intro.png',
     mimeType: 'image/png',
     buffer: Buffer.from('fake-package-intro-image')
   })
-  await expect(packageForm.locator('textarea').nth(2)).toContainText('<img src="https://example.com/uploads/course-detail/package-intro.png" alt="课包介绍图" />')
-  await expect(page.getByRole('img', { name: '课包介绍图' })).toBeVisible()
+  await expect(packageIntroSection.locator('img[src="https://example.com/uploads/course-detail/package-intro.png"]')).toBeVisible()
 
   await packageForm.getByRole('button', { name: '创建课包' }).click()
 
