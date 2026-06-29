@@ -80,6 +80,24 @@ const buildJoinScheduleSummaryText = packageGroupDetail => {
   return detail.firstClassTimeText || detail.scheduleDisplayText || detail.scheduleText || ''
 }
 
+const buildGroupTypeText = ({ packageDetail, packageGroupDetail, targetCount }) => {
+  const detailMinSuccessCount = Number(packageGroupDetail && packageGroupDetail.minSuccessCount) || 0
+  const detailTargetCount = Number(packageGroupDetail && packageGroupDetail.targetCount) || 0
+  const finalTargetCount = detailTargetCount || Number(targetCount) || 0
+  const matchedConfig = packageDetail && Array.isArray(packageDetail.groupPriceConfig)
+    ? packageDetail.groupPriceConfig.find(item => Number(item.targetCount) === finalTargetCount)
+    : null
+  const minSuccessCount = detailMinSuccessCount || Number(matchedConfig && matchedConfig.minSuccessCount) || finalTargetCount
+
+  if (minSuccessCount <= 1 && finalTargetCount <= 1) {
+    return '1对1私教'
+  }
+
+  return minSuccessCount && finalTargetCount && minSuccessCount !== finalTargetCount
+    ? `${minSuccessCount}～${finalTargetCount}人团`
+    : `${finalTargetCount}人团`
+}
+
 const invokeWechatPayment = paymentParams =>
   new Promise((resolve, reject) => {
     if (!wx.requestPayment) {
@@ -149,6 +167,7 @@ Page({
     packageGroupDetail: null,
     paymentScheduleList: [],
     joinScheduleSummaryText: '',
+    groupTypeText: '',
     paymentAmountText: '0.00',
     paymentAmountButtonText: '0元',
     agreementChecked: true,
@@ -224,6 +243,11 @@ Page({
           packageDetail
         }),
         joinScheduleSummaryText: buildJoinScheduleSummaryText(packageGroupDetail),
+        groupTypeText: buildGroupTypeText({
+          packageDetail,
+          packageGroupDetail,
+          targetCount: nextTargetCount
+        }),
         targetCount: nextTargetCount,
         paymentAmountText: (amountFen / 100).toFixed(2),
         paymentAmountButtonText: `${formatDisplayAmount((amountFen / 100).toFixed(2))}元`

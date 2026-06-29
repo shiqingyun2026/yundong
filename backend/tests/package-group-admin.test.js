@@ -456,10 +456,14 @@ const loadPackageServicesWithState = (options = {}) => {
   }
   const normalizeGroupPriceConfig = value =>
     (Array.isArray(value) ? value : [])
-      .map(item => ({
-        target_count: Number(item && item.target_count) || 0,
-        price_fen: Number(item && item.price_fen) || 0
-      }))
+      .map(item => {
+        const targetCount = Number(item && item.target_count) || 0
+        return {
+          min_success_count: Number(item && item.min_success_count) || targetCount,
+          target_count: targetCount,
+          price_fen: Number(item && item.price_fen) || 0
+        }
+      })
       .filter(item => item.target_count > 0 && item.price_fen > 0)
       .sort((left, right) => left.target_count - right.target_count)
 
@@ -855,6 +859,21 @@ test('admin package group detail returns leader, members, orders, and anomalies'
   assert.deepEqual(result.anomalies, [])
 })
 
+test('admin package list uses persisted package status instead of publish-time computed status', async () => {
+  const { packageAdminService, state } = loadPackageServicesWithState()
+  state.packages[0].status = 2
+  state.packages[0].publish_time = '2026-04-21T10:00:00.000Z'
+  state.packages[0].unpublish_time = null
+
+  const result = await packageAdminService.listAdminPackages({
+    query: {},
+    now: new Date('2026-04-21T10:00:01.000Z')
+  })
+
+  assert.equal(result.list[0].status, 'pending')
+  assert.equal(result.list[0].status_text, '待上架')
+})
+
 test('admin package group coach assignment persists default coach and per-lesson overrides', async () => {
   const { packageAdminService, state } = loadPackageServicesWithState()
 
@@ -878,10 +897,10 @@ test('admin package group coach assignment persists default coach and per-lesson
   })
 
   assert.equal(result.coach_assignment.default_coach_name, '王教练')
-  assert.equal(result.schedule_list.length, 5)
+  assert.equal(result.schedule_list.length, 10)
   assert.equal(result.schedule_list[0].coach_name, '王教练')
   assert.equal(result.schedule_list[1].coach_name, '李教练')
-  assert.equal(result.schedule_list[4].coach_name, '王教练')
+  assert.equal(result.schedule_list[9].coach_name, '王教练')
   assert.equal(state.groups.find(item => item.id === 'pg-success').coach_assignment.default_coach_name, '王教练')
   assert.equal(state.adminLogWrites.at(-1).action, 'package_group_assign_coach')
 })
@@ -1238,8 +1257,8 @@ test('admin package create derives supported people from group price config', as
   assert.deepEqual(created.supported_people, [4, 6])
   assert.equal(created.age_range, '4-8岁')
   assert.deepEqual(created.group_price_config, [
-    { target_count: 4, price_fen: 45000 },
-    { target_count: 6, price_fen: 30000 }
+    { min_success_count: 4, target_count: 4, price_fen: 45000 },
+    { min_success_count: 6, target_count: 6, price_fen: 30000 }
   ])
   assert.equal(created.status, 2)
   assert.equal(result.status, 'pending')
@@ -1312,7 +1331,7 @@ test('admin package create requires wechat share cover', async () => {
   )
 })
 
-test('admin package detail auto switches pending package to active after publish time', async () => {
+test('admin package detail uses persisted pending status after publish time', async () => {
   const { packageAdminService, state } = loadPackageServicesWithState()
   state.packages[0].status = 2
   state.packages[0].publish_time = '2026-04-21T10:00:00.000Z'
@@ -1323,11 +1342,11 @@ test('admin package detail auto switches pending package to active after publish
     now: new Date('2026-04-21T10:00:01.000Z')
   })
 
-  assert.equal(result.status, 'active')
-  assert.equal(result.status_text, '已上架')
+  assert.equal(result.status, 'pending')
+  assert.equal(result.status_text, '待上架')
 })
 
-test('admin package detail auto switches active package to inactive after unpublish time', async () => {
+test('admin package detail uses persisted active status after unpublish time', async () => {
   const { packageAdminService, state } = loadPackageServicesWithState()
   state.packages[0].status = 1
   state.packages[0].publish_time = '2026-04-19T10:00:00.000Z'
@@ -1338,8 +1357,8 @@ test('admin package detail auto switches active package to inactive after unpubl
     now: new Date('2026-04-21T10:00:01.000Z')
   })
 
-  assert.equal(result.status, 'inactive')
-  assert.equal(result.status_text, '已下架')
+  assert.equal(result.status, 'active')
+  assert.equal(result.status_text, '已上架')
 })
 
 test('admin package detail formats MySQL DATETIME publish time consistently under UTC runtime', async () => {
@@ -1429,6 +1448,9 @@ test('expired package group cleanup starts real refunds for success orders and p
       supabase: null,
       groupIds: ['pg-expired'],
       resultType: 'failed',
+      recipientUserIdsByGroupId: {
+        'pg-expired': ['user-1', 'user-2']
+      },
       now: new Date('2026-04-19T08:00:00.000Z')
     }
   ])

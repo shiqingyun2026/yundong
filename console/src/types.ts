@@ -282,6 +282,7 @@ export interface PackageListItem {
   class_duration_minutes: number
   show_limited_time_offer_tag: boolean
   group_price_config: Array<{
+    min_success_count: number
     target_count: number
     price_fen: number
   }>
@@ -322,6 +323,7 @@ export interface PackageGroupListItem {
   package_name: string
   creator_id: string
   status: 'active' | 'success' | 'failed' | 'refund_pending' | 'refund_failed' | 'canceled'
+  min_success_count: number
   target_count: number
   current_count: number
   member_amount_fen: number
@@ -387,6 +389,7 @@ export interface PackageGroupDetail {
   package_status_text: string
   status: 'active' | 'success' | 'failed' | 'refund_pending' | 'refund_failed' | 'canceled'
   creator_id: string
+  min_success_count: number
   target_count: number
   current_count: number
   member_amount_fen: number

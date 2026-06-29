@@ -10,10 +10,16 @@ const normalizeGroupPriceConfig = value => {
   const items = Array.isArray(value) ? value : []
 
   return items
-    .map(item => ({
-      target_count: Number(item && item.target_count) || 0,
-      price_fen: Number(item && item.price_fen) || 0
-    }))
+    .map(item => {
+      const targetCount = Number(item && item.target_count) || 0
+      const minSuccessCount = Number(item && item.min_success_count) || targetCount
+
+      return {
+        min_success_count: minSuccessCount,
+        target_count: targetCount,
+        price_fen: Number(item && item.price_fen) || 0
+      }
+    })
     .filter(item => item.target_count > 0 && item.price_fen > 0)
     .sort((left, right) => left.target_count - right.target_count)
 }
@@ -26,6 +32,16 @@ const findGroupPriceFen = ({ groupPriceConfig = [], targetCount }) => {
 
   const matched = normalizeGroupPriceConfig(groupPriceConfig).find(item => item.target_count === normalizedTargetCount)
   return matched ? matched.price_fen : 0
+}
+
+const findMinSuccessCount = ({ groupPriceConfig = [], targetCount }) => {
+  const normalizedTargetCount = Number(targetCount) || 0
+  if (normalizedTargetCount <= 0) {
+    return 0
+  }
+
+  const matched = normalizeGroupPriceConfig(groupPriceConfig).find(item => item.target_count === normalizedTargetCount)
+  return matched ? matched.min_success_count : normalizedTargetCount
 }
 
 const calculatePackageMemberAmountFen = ({ totalPrice, targetCount, groupPriceConfig = [] }) => {
@@ -113,10 +129,38 @@ const computePackageGroupNextStatus = ({ currentCount, targetCount, deadline, no
   return PACKAGE_GROUP_STATUS.ACTIVE
 }
 
+const computePackageGroupDeadlineStatus = ({
+  currentCount,
+  targetCount,
+  minSuccessCount,
+  deadline,
+  now = new Date()
+}) => {
+  const normalizedCurrentCount = Number(currentCount) || 0
+  const normalizedTargetCount = Number(targetCount) || 0
+  const normalizedMinSuccessCount = Number(minSuccessCount) || normalizedTargetCount
+  const deadlineTime = deadline instanceof Date ? deadline : new Date(deadline)
+
+  if (normalizedTargetCount > 0 && normalizedCurrentCount >= normalizedTargetCount) {
+    return PACKAGE_GROUP_STATUS.SUCCESS
+  }
+
+  if (Number.isNaN(deadlineTime.getTime()) || deadlineTime.getTime() > now.getTime()) {
+    return PACKAGE_GROUP_STATUS.ACTIVE
+  }
+
+  if (normalizedMinSuccessCount > 0 && normalizedCurrentCount >= normalizedMinSuccessCount) {
+    return PACKAGE_GROUP_STATUS.SUCCESS
+  }
+
+  return PACKAGE_GROUP_STATUS.FAILED
+}
+
 const buildPackageGroupCreationPayload = ({
   packageId,
   creatorId,
   targetCount,
+  minSuccessCount,
   weekday,
   hour,
   scheduleConfig = null,
@@ -130,6 +174,7 @@ const buildPackageGroupCreationPayload = ({
   package_id: packageId,
   creator_id: creatorId,
   target_count: Number(targetCount) || 0,
+  min_success_count: Number(minSuccessCount) || Number(targetCount) || 0,
   current_count: Number(currentCount) || 0,
   status,
   weekday: Number(weekday) || 0,
@@ -155,8 +200,11 @@ module.exports = {
   buildPackageGroupCreationPayload,
   calculatePackageMemberAmountFen,
   calculatePackagePlatformSubsidyFen,
+  computePackageGroupDeadlineStatus,
   computePackageGroupNextStatus,
+  findMinSuccessCount,
   findGroupPriceFen,
   isPackageGroupJoinable,
+  normalizeGroupPriceConfig,
   resolvePackageDeadlineHours
 }

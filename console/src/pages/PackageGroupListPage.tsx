@@ -282,6 +282,7 @@ export function PackageGroupListPage() {
                       <td>{getStatusText(item.status)}</td>
                       <td>
                         {item.current_count}/{item.target_count}
+                        <p className="table-subtext">最低成团：{item.min_success_count || item.target_count}人</p>
                         <p className="table-subtext">创建人：{item.creator_id || '-'}</p>
                       </td>
                       <td>{item.member_amount_text || '-'}</td>

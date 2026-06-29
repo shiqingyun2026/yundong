@@ -100,6 +100,7 @@ CREATE TABLE IF NOT EXISTS package_groups (
   package_id VARCHAR(64) NOT NULL,
   creator_id VARCHAR(64) NULL,
   target_count INT NOT NULL DEFAULT 0,
+  min_success_count INT NOT NULL DEFAULT 0,
   current_count INT NOT NULL DEFAULT 0,
   status VARCHAR(32) NOT NULL DEFAULT 'active',
   weekday INT NOT NULL DEFAULT 0,
@@ -386,13 +387,14 @@ INSERT INTO course_packages (
   );
 
 INSERT INTO package_groups (
-  id, package_id, creator_id, target_count, current_count, status, weekday, hour,
+  id, package_id, creator_id, target_count, min_success_count, current_count, status, weekday, hour,
   first_class_time, schedule_config, deadline, created_at, success_time
 ) VALUES
   (
     'pg_test_001',
     'pkg_test_001',
     'user_test_001',
+    4,
     4,
     2,
     'active',

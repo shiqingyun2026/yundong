@@ -1,7 +1,9 @@
 const { env } = require('../../config/env')
 const { ordersRepository, packageGroupsRepository, paymentRecordsRepository } = require('../../repositories')
 const { AUTO_REFUND_REASON } = require('../constants/refunds')
+const { PACKAGE_GROUP_STATUS, computePackageGroupDeadlineStatus } = require('../domain/packageGroupRules')
 const { enqueueNotificationsForGroups } = require('./groupResultNotifications')
+const { computeFirstPackageClassTime } = require('./packageSchedule')
 
 const markPaymentRecordRefundPending = async ({ orderId, outRefundNo = '', now = new Date() }) => {
   const paymentRecord = await paymentRecordsRepository.findPaymentRecordByOrderId(orderId)
@@ -128,6 +130,7 @@ const cleanupExpiredPackageGroups = async ({ packageId, packageIds = [], now = n
   if (!env.useMySqlRepositories) {
     return {
       groupIds: [],
+      successGroupIds: [],
       refundedOrderIds: [],
       refundPendingOrderIds: [],
       refundFailedOrderIds: [],
@@ -146,6 +149,7 @@ const cleanupExpiredPackageGroups = async ({ packageId, packageIds = [], now = n
   if (!groupIds.length) {
     return {
       groupIds: [],
+      successGroupIds: [],
       refundedOrderIds: [],
       refundPendingOrderIds: [],
       refundFailedOrderIds: [],
@@ -153,22 +157,51 @@ const cleanupExpiredPackageGroups = async ({ packageId, packageIds = [], now = n
     }
   }
 
-  await packageGroupsRepository.bulkUpdatePackageGroupStatus({
-    packageGroupIds: groupIds,
-    status: 'failed'
-  })
-  await Promise.all(
-    groupIds.map(groupId =>
-      packageGroupsRepository.updatePackageGroup(groupId, {
-        current_count: 0,
-        status: 'failed'
-      })
-    )
+  const successGroups = expiredGroups.filter(group =>
+    computePackageGroupDeadlineStatus({
+      currentCount: group.current_count,
+      targetCount: group.target_count,
+      minSuccessCount: group.min_success_count,
+      deadline: group.deadline,
+      now
+    }) === PACKAGE_GROUP_STATUS.SUCCESS
   )
+  const successGroupIds = successGroups.map(item => item.id).filter(Boolean)
+  const failedGroupIds = groupIds.filter(groupId => !successGroupIds.includes(groupId))
+
+  await Promise.all(
+    successGroups.map(group => {
+      const firstClassTime = computeFirstPackageClassTime({
+        successTime: now,
+        scheduleConfig: group.schedule_config
+      })
+
+      return packageGroupsRepository.updatePackageGroup(group.id, {
+        status: 'success',
+        success_time: now,
+        first_class_time: firstClassTime || group.first_class_time || null
+      })
+    })
+  )
+
+  if (failedGroupIds.length) {
+    await packageGroupsRepository.bulkUpdatePackageGroupStatus({
+      packageGroupIds: failedGroupIds,
+      status: 'failed'
+    })
+    await Promise.all(
+      failedGroupIds.map(groupId =>
+        packageGroupsRepository.updatePackageGroup(groupId, {
+          current_count: 0,
+          status: 'failed'
+        })
+      )
+    )
+  }
 
   const pendingOrders = (
     await Promise.all(
-      groupIds.map(groupId =>
+      failedGroupIds.map(groupId =>
         ordersRepository.listOrdersByPackageGroupId({
           packageGroupId: groupId,
           status: 'pending'
@@ -223,14 +256,48 @@ const cleanupExpiredPackageGroups = async ({ packageId, packageIds = [], now = n
 
   await enqueueNotificationsForGroups({
     supabase: null,
-    groupIds,
+    groupIds: failedGroupIds,
     resultType: 'failed',
     recipientUserIdsByGroupId,
     now
   })
 
+  if (successGroupIds.length) {
+    const deadlineSuccessOrders = (
+      await Promise.all(
+        successGroupIds.map(groupId =>
+          ordersRepository.listOrdersByPackageGroupId({
+            packageGroupId: groupId,
+            status: 'success'
+          })
+        )
+      )
+    ).flat()
+    const successRecipientUserIdsByGroupId = deadlineSuccessOrders.reduce((result, order) => {
+      if (!order || !order.package_group_id || !order.user_id) {
+        return result
+      }
+
+      if (!result[order.package_group_id]) {
+        result[order.package_group_id] = []
+      }
+
+      result[order.package_group_id].push(order.user_id)
+      return result
+    }, {})
+
+    await enqueueNotificationsForGroups({
+      supabase: null,
+      groupIds: successGroupIds,
+      resultType: 'success',
+      recipientUserIdsByGroupId: successRecipientUserIdsByGroupId,
+      now
+    })
+  }
+
   return {
-    groupIds,
+    groupIds: failedGroupIds,
+    successGroupIds,
     refundedOrderIds: [],
     refundPendingOrderIds,
     refundFailedOrderIds,

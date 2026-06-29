@@ -87,6 +87,7 @@ export function PackageGroupDetailPage() {
               <p>
                 拼团进度：{detail.current_count}/{detail.target_count}
               </p>
+              <p>最低成团人数：{detail.min_success_count || detail.target_count}</p>
               <p>单人金额：{detail.member_amount_text || '-'}</p>
             </div>
 

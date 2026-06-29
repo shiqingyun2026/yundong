@@ -19,7 +19,7 @@
         </view>
         <view class="order-item">
           <view class="order-label">上课人数</view>
-          <view class="order-value">{{targetCount}} 人团</view>
+          <view class="order-value">{{groupTypeText || targetCount + '人团'}}</view>
         </view>
         <view class="order-item">
           <view class="order-label">学生昵称</view>
@@ -107,7 +107,7 @@
         <view class="notice-list">
           <view class="notice-item">
             <view class="notice-dot"></view>
-            <view class="notice-text">满员即成团</view>
+            <view class="notice-text">{{packageGroupDetail.groupRuleText || '满员立即成团；区间团到截止时间达到最低成团人数也可成团'}}</view>
           </view>
           <view class="notice-item">
             <view class="notice-dot"></view>
@@ -115,7 +115,7 @@
           </view>
           <view class="notice-item">
             <view class="notice-dot"></view>
-            <view class="notice-text">未成团退款规则：48小时内未成团将自动原路退款</view>
+            <view class="notice-text">未达到最低成团人数将自动原路退款</view>
           </view>
         </view>
       </view>

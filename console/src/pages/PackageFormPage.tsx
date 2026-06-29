@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { PageBackButton } from '../components/PageBackButton'
 import { api, uploadImage } from '../lib/api'
+import { formatGroupConfigLabels } from '../lib/packageGroupLabels'
 import type { CourseLocationSuggestion, PackageDetail, PackageGroupLessonItem, PackageGroupListItem, PackageGroupListResponse } from '../types'
 import { REGION_OPTIONS, toDateTimeLocal } from './courseFormHelpers'
 
@@ -28,6 +29,7 @@ const FIXED_PACKAGE_DEADLINE_HOURS = 48
 
 const createGroupPriceRow = (value?: Partial<GroupPriceConfigRow>): GroupPriceConfigRow => ({
   _rowId: value?._rowId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  min_success_count: Number(value?.min_success_count) || Number(value?.target_count) || 0,
   target_count: Number(value?.target_count) || 0,
   price_fen: Number(value?.price_fen) || 0
 })
@@ -72,22 +74,33 @@ const splitLines = (value: string) =>
 const normalizeGroupPriceConfig = (value: PackageDetail['group_price_config']) =>
   [...(value || [])]
     .map(item => ({
+      min_success_count: Number(item.min_success_count) || Number(item.target_count) || 0,
       target_count: Number(item.target_count) || 0,
       price_fen: Number(item.price_fen) || 0
     }))
-    .filter(item => item.target_count > 0 || item.price_fen > 0)
+    .filter(item => item.min_success_count > 0 || item.target_count > 0 || item.price_fen > 0)
     .sort((a, b) => a.target_count - b.target_count)
 
 const normalizeGroupPriceConfigRows = (value: PackageDetail['group_price_config'] | GroupPriceConfigRow[]) =>
   [...(value || [])]
     .map(item => createGroupPriceRow(item))
-    .filter(item => item.target_count > 0 || item.price_fen > 0)
+    .filter(item => item.min_success_count > 0 || item.target_count > 0 || item.price_fen > 0)
 
 const deriveSupportedPeople = (config: PackageDetail['group_price_config']) =>
   [...new Set(normalizeGroupPriceConfig(config).map(item => item.target_count).filter(item => item > 0))]
 
-const formatSupportedPeople = (supportedPeople: number[]) =>
-  supportedPeople.length ? supportedPeople.map(item => `${item}人团`).join(' / ') : '-'
+const formatGroupConfigLabel = (item: PackageDetail['group_price_config'][number]) => {
+  const minSuccessCount = Number(item.min_success_count) || Number(item.target_count) || 0
+  const targetCount = Number(item.target_count) || 0
+
+  if (minSuccessCount <= 1 && targetCount <= 1) {
+    return '1对1私教'
+  }
+
+  return minSuccessCount && targetCount && minSuccessCount !== targetCount
+    ? `${minSuccessCount}～${targetCount}人团`
+    : `${targetCount}人团`
+}
 
 const getStatusText = (status: PackageDetail['status']) => {
   if (status === 'pending') return '待上架'
@@ -506,8 +519,14 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
       return
     }
 
-    if (normalizedConfig.some(item => item.target_count <= 0 || item.price_fen <= 0)) {
-      setError('团型人数和人均售价都必须大于 0')
+    if (normalizedConfig.some(item => item.min_success_count <= 0 || item.target_count <= 0 || item.price_fen <= 0)) {
+      setError('最低成团人数、满员人数和人均售价都必须大于 0')
+      setSaving(false)
+      return
+    }
+
+    if (normalizedConfig.some(item => item.min_success_count > item.target_count)) {
+      setError('最低成团人数不能超过满员人数')
       setSaving(false)
       return
     }
@@ -569,7 +588,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
   }
 
   const supportedPeopleText = useMemo(
-    () => formatSupportedPeople(deriveSupportedPeople(form.group_price_config)),
+    () => formatGroupConfigLabels({ groupPriceConfig: form.group_price_config, supportedPeople: deriveSupportedPeople(form.group_price_config) }),
     [form.group_price_config]
   )
 
@@ -878,7 +897,17 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 {form.group_price_config.map((item, index) => (
                   <div key={(item as GroupPriceConfigRow)._rowId || `group-price-${index}`} className="group-price-row">
                     <label>
-                      <span>团型人数<RequiredMark /></span>
+                      <span>最低成团人数<RequiredMark /></span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.min_success_count}
+                        onChange={event => handleGroupConfigChange(index, 'min_success_count', Number(event.target.value))}
+                        disabled={!isEditable}
+                      />
+                    </label>
+                    <label>
+                      <span>满员人数<RequiredMark /></span>
                       <input
                         type="number"
                         min="1"
@@ -911,7 +940,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
             <div className="detail-card">
               <strong>派生结果</strong>
               <p>支持团型：{supportedPeopleText}</p>
-              <p>最大团型人均价：{maxGroupConfig ? `¥${(maxGroupConfig.price_fen / 100).toFixed(2)} / ${maxGroupConfig.target_count}人团` : '-'}</p>
+              <p>最大团型人均价：{maxGroupConfig ? `¥${(maxGroupConfig.price_fen / 100).toFixed(2)} / ${formatGroupConfigLabel(maxGroupConfig)}` : '-'}</p>
             </div>
           </section>
 

@@ -167,7 +167,7 @@ Page({
       groupOverviewExtraInfoRows: [
         {
           label: '拼团类型',
-          value: `${groupDetail.targetCount}人团，每人 ¥${groupDetail.memberAmountDisplayText || groupDetail.memberAmountText}`,
+          value: `${groupDetail.minSuccessCount && groupDetail.minSuccessCount !== groupDetail.targetCount ? `${groupDetail.minSuccessCount}～${groupDetail.targetCount}人团` : groupDetail.targetCount === 1 ? '1对1私教' : `${groupDetail.targetCount}人团`}，每人 ¥${groupDetail.memberAmountDisplayText || groupDetail.memberAmountText}`,
           countdownLabel: '拼团剩余时间：',
           countdownValue:
             groupDetail.status === 'active' && groupDetail.remainingSeconds > 0 ? groupDetail.remainingPlainText : ''

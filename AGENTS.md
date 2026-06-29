@@ -37,6 +37,11 @@
 - 开始和结束前都看 `git status --short`，避免覆盖用户已有改动。
 - 不要手改生成产物，尤其是小程序图标资产、`tabBar` 图标、自动生成注册表；应修改源文件后运行生成脚本。
 - `console/dist/` 是构建产物；除非任务明确要求，否则不要直接改，也不要把它作为主修改目标。
+- Console 前端 CloudBase 静态网站托管部署：
+  - 推荐上传 `console/` 目录本身；表单填写：目标目录 `./`，安装命令 `npm install`，构建命令 `npm run build:cloudbase`，构建产物目录 `dist`，部署路径 `/console`。
+  - 如果上传整个仓库根目录，则表单填写：目标目录 `./console`，安装命令 `npm install`，构建命令 `npm run build:cloudbase`，构建产物目录 `dist`，部署路径 `/console`。
+  - 生产环境变量优先使用同域网关：`VITE_API_BASE_URL=/api/admin`；只有未配置 HTTP 网关时，才填 `https://<console-api-cloudbase-domain>/api/admin`。
+  - 如果日志出现 `Could not read package.json`，优先检查上传目录与目标目录是否匹配：执行 `npm install` 的目录下必须直接存在 `package.json`。
 - 环境变量、密钥、生产账号、支付证书等敏感信息不得写入代码或文档。
 - 小程序后端环境切换看 `miniprogram/config/env.js`，不要到页面、`utils/request.js` 或业务代码里散改接口地址。
 - 当前小程序后端走 CloudBase 云托管容器映射：
@@ -45,6 +50,7 @@
   - `ENV_CLOUD_CONTAINER_SERVICE_NAMES.develop / trial` 可按需要切到 `lindong-api` 或 `lindong-api-test`
 - 如果要把小程序切到生产后端，优先改 `ENV_CLOUD_CONTAINER_SERVICE_NAMES.develop`、`trial` 为 `lindong-api`；如果要切回测试后端，则改回 `lindong-api-test`。
 - 改完小程序后端环境映射后，至少补或更新一个最小测试，确认 `resolveCloudContainerServiceNameByEnv()` 对应环境返回的是预期服务名。
+- 本地启动小程序后端用于课包/拼团联调时，注意本地 `backend/lindong-api/miniprogram-container/server.js` 入口只提供接口，不会自动执行课包生命周期同步；启动 `8000` 服务后，应手动触发 `/api/internal/package-lifecycle/sync` 或直接运行 `syncAllPackageLifecycles()`，确认已到上架时间的 `course_packages.status` 从 `2` 同步为 `1`，再判断小程序展示问题。
 - 涉及数据库变更时，默认按用户在腾讯云 DMS / SQL 窗口中手动执行的方式提供操作指引，而不是优先提供 terminal 命令；说明顺序应为：先确认当前库名与环境，再给执行前检查 SQL，再给正式 migration SQL，再给执行后回查 SQL。除非用户明确要求，否则不要默认代替用户直接执行生产或测试环境数据库变更。
 - 未指定数据库时，默认测试环境数据库为 `tiyubao-pre`；提供给用户的 SQL 语句应默认以 `USE \`tiyubao-pre\`;` 开头，避免出现 `No database selected`。
 - 详细模块规范与命令索引见：

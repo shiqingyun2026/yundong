@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS `package_groups` (
   `package_id` VARCHAR(64) NOT NULL,
   `creator_id` VARCHAR(64) NULL,
   `target_count` INT NOT NULL,
+  `min_success_count` INT NOT NULL,
   `current_count` INT NOT NULL,
   `status` VARCHAR(32) NOT NULL,
   `weekday` INT NOT NULL,

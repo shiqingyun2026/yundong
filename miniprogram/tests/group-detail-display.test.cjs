@@ -3,11 +3,12 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 
-const { formatPackageGroupScheduleList, normalizePackageGroupDetail } = require('../utils/package')
+const { formatPackageGroupScheduleList, normalizePackageDetail, normalizePackageGroupDetail } = require('../utils/package')
 
 const groupDetailJsPath = path.resolve(__dirname, '..', 'pages/group/detail/index.js')
 const groupDetailWxmlPath = path.resolve(__dirname, '..', 'pages/group/detail/index.wxml')
 const courseOverviewComponentWxmlPath = path.resolve(__dirname, '..', 'components/course-overview-sections/index.wxml')
+const paymentConfirmJsPath = path.resolve(__dirname, '..', 'pages/payment/confirm/index.js')
 
 test('group detail keeps schedule and member sections above insurance banner', () => {
   const wxmlSource = fs.readFileSync(groupDetailWxmlPath, 'utf8')
@@ -52,7 +53,8 @@ test('group detail uses its own overview card layout variant', () => {
   assert.match(overviewSource, /shared-group-detail-info-grid/)
   assert.match(overviewSource, /shared-group-detail-countdown/)
   assert.match(groupDetailJsSource, /label:\s*'拼团类型'/)
-  assert.match(groupDetailJsSource, /value:\s*`\$\{groupDetail\.targetCount\}人团，每人 ¥\$\{groupDetail\.memberAmountDisplayText \|\| groupDetail\.memberAmountText\}`/)
+  assert.match(groupDetailJsSource, /groupDetail\.minSuccessCount.*groupDetail\.targetCount/)
+  assert.match(groupDetailJsSource, /每人 ¥\$\{groupDetail\.memberAmountDisplayText \|\| groupDetail\.memberAmountText\}/)
 })
 
 test('group detail formats schedule rows without a gap between weekday and time', () => {
@@ -95,6 +97,33 @@ test('group detail can reformat fetched schedule rows after package duration is 
   assert.equal(scheduleList[2].display_text, '2026-06-22 周一13:30 - 15:00')
   assert.equal(scheduleList[3].display_text, '2026-06-24 周三13:30 - 15:00')
   assert.match(jsSource, /formatPackageGroupScheduleList/)
+})
+
+test('course overview package prices render configured group type labels', () => {
+  const overviewSource = fs.readFileSync(courseOverviewComponentWxmlPath, 'utf8')
+
+  assert.match(overviewSource, /item\.label/)
+  assert.doesNotMatch(overviewSource, /\{\{item\.count\}\}人团/)
+})
+
+test('package group type labels use 1-to-1 private coaching copy', () => {
+  const groupDetailJsSource = fs.readFileSync(groupDetailJsPath, 'utf8')
+  const paymentConfirmJsSource = fs.readFileSync(paymentConfirmJsPath, 'utf8')
+  const detail = normalizePackageDetail({
+    id: 'PKG-20260629-0011',
+    total_price_fen: 110000,
+    supported_people: [1, 2],
+    group_price_config: [
+      { min_success_count: 1, target_count: 1, price_fen: 110000 },
+      { min_success_count: 2, target_count: 2, price_fen: 66000 }
+    ]
+  })
+
+  assert.equal(detail.supportedGroupPriceList[0].label, '1对1私教')
+  assert.match(groupDetailJsSource, /1对1私教/)
+  assert.match(paymentConfirmJsSource, /1对1私教/)
+  assert.doesNotMatch(groupDetailJsSource, /1人私教/)
+  assert.doesNotMatch(paymentConfirmJsSource, /1人私教/)
 })
 
 test('group detail does not invent a 60 minute duration tag when API omits duration', () => {

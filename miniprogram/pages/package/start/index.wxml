@@ -17,13 +17,13 @@
         <view class="section-title">选择拼团人数</view>
         <view class="target-grid">
           <view
-            wx:for="{{packageDetail.supportedPeople}}"
-            wx:key="*this"
-            class="target-chip {{selectedTargetCount === item ? 'target-chip--active' : ''}}"
-            data-value="{{item}}"
+            wx:for="{{packageDetail.supportedGroupPriceList}}"
+            wx:key="count"
+            class="target-chip {{selectedTargetCount === item.count ? 'target-chip--active' : ''}}"
+            data-value="{{item.count}}"
             bindtap="handleTargetSelect"
           >
-            {{item}} 人团
+            {{item.label || item.count + '人团'}}
           </view>
         </view>
       </view>
@@ -207,9 +207,9 @@
       <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">拼团说明</view>
         <view class="notice-list">
-          <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">满员即成团</view></view>
+          <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">满员立即成团；区间团到截止时间达到最低成团人数也可成团</view></view>
           <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">拼团截止时间：开团后48小时</view></view>
-          <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">未成团退款规则：48小时内未成团将自动原路退款</view></view>
+          <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">未达到最低成团人数将自动原路退款</view></view>
         </view>
       </view>
 

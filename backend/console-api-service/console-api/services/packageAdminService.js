@@ -502,6 +502,12 @@ const validatePackagePayload = (payload = {}, { partial = false } = {}) => {
       statusCode: 400,
       message: '团型人数不能重复'
     })
+
+    ensureCondition(config.every(item => item.min_success_count > 0 && item.min_success_count <= item.target_count), {
+      responseCode: 1001,
+      statusCode: 400,
+      message: '最低成团人数必须大于 0 且不能超过满员人数'
+    })
   }
 }
 
@@ -604,13 +610,8 @@ const mapPackagePayloadToDb = ({ payload = {}, admin = {}, create = false, exist
   return dbPayload
 }
 
-const mapPackageListItem = (item, { now = new Date() } = {}) => {
-  const resolvedStatus = resolvePackageStatus({
-    status: item.status,
-    publishTime: item.publish_time,
-    unpublishTime: item.unpublish_time,
-    now
-  })
+const mapPackageListItem = item => {
+  const persistedStatus = normalizePackageStatus(item.status)
 
   return {
     id: item.id,
@@ -633,16 +634,16 @@ const mapPackageListItem = (item, { now = new Date() } = {}) => {
     coach_name: item.coach_name || '',
     publish_time: formatDateTime(item.publish_time),
     unpublish_time: formatDateTime(item.unpublish_time),
-    status: mapPackageStatus(resolvedStatus),
-    status_text: mapPackageStatusText(resolvedStatus),
+    status: mapPackageStatus(persistedStatus),
+    status_text: mapPackageStatusText(persistedStatus),
     deadline_hours: Number(item.deadline_hours) || 48,
     create_time: formatDateTime(item.created_at),
     update_time: formatDateTime(item.updated_at)
   }
 }
 
-const mapPackageDetail = (item, { now = new Date() } = {}) => ({
-  ...mapPackageListItem(item, { now }),
+const mapPackageDetail = item => ({
+  ...mapPackageListItem(item),
   images: item.images || [],
   longitude: item.longitude,
   latitude: item.latitude,
@@ -669,12 +670,7 @@ const listAdminPackages = async ({ query = {}, now = new Date() }) => {
       return true
     }
 
-    return resolvePackageStatus({
-      status: item.status,
-      publishTime: item.publish_time,
-      unpublishTime: item.unpublish_time,
-      now
-    }) === status
+    return normalizePackageStatus(item.status) === status
   })
 
   return {
@@ -682,7 +678,7 @@ const listAdminPackages = async ({ query = {}, now = new Date() }) => {
     page,
     size,
     total_pages: Math.max(1, Math.ceil(filteredPackages.length / size)),
-    list: filteredPackages.slice(from, to + 1).map(item => mapPackageListItem(item, { now }))
+    list: filteredPackages.slice(from, to + 1).map(item => mapPackageListItem(item))
   }
 }
 
@@ -936,6 +932,7 @@ const listAdminPackageGroups = async ({ query = {}, now = new Date() }) => {
       package_name: pkg.name || '',
       creator_id: group.creator_id || '',
       status: group.status || 'active',
+      min_success_count: Number(group.min_success_count) || Number(group.target_count) || 0,
       target_count: Number(group.target_count) || 0,
       current_count: Number(group.current_count) || 0,
       member_amount_fen: memberAmountFen,
@@ -1087,6 +1084,7 @@ const getAdminPackageGroupDetail = async ({ packageGroupId, now = new Date() }) 
     ),
     status: group.status || 'active',
     creator_id: group.creator_id || '',
+    min_success_count: Number(group.min_success_count) || Number(group.target_count) || 0,
     target_count: Number(group.target_count) || 0,
     current_count: Number(group.current_count) || 0,
     member_amount_fen: memberAmountFen,

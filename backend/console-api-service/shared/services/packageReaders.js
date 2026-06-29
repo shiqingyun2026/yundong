@@ -411,6 +411,7 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
 
         return {
           id: group.id,
+          min_success_count: Number(group.min_success_count) || Number(group.target_count) || 0,
           target_count: Number(group.target_count) || 0,
           current_count: Number(group.current_count) || 0,
           status: group.status,
@@ -498,6 +499,7 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
       location_text: buildMiniProgramLocationText(pkg)
     },
     target_count: Number(latestGroup.target_count) || 0,
+    min_success_count: Number(latestGroup.min_success_count) || Number(latestGroup.target_count) || 0,
     current_count: Number(latestGroup.current_count) || 0,
     remaining_seconds:
       latestGroup.status === 'active' && parseShanghaiDate(latestGroup.deadline)

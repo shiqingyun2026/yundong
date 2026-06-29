@@ -7,6 +7,7 @@ const {
   buildPackageGroupCreationPayload,
   calculatePackageMemberAmountFen,
   computePackageGroupNextStatus,
+  findMinSuccessCount,
   isPackageGroupJoinable
 } = require('../domain/packageGroupRules')
 
@@ -479,6 +480,10 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
           packageId: pkg.id,
           creatorId: userId,
           targetCount,
+          minSuccessCount: findMinSuccessCount({
+            groupPriceConfig: pkg.group_price_config,
+            targetCount
+          }),
           weekday:
             normalizedScheduleConfig.schedule_type === SCHEDULE_TYPES.WEEKLY && normalizedScheduleConfig.schedule_days.length === 1
               ? normalizedScheduleConfig.schedule_days[0]

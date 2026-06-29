@@ -208,6 +208,135 @@ test('package orders allow the same user to join the same package group multiple
   assert.equal(secondPayment.packageGroupId, 'PG-20260422-00001')
 })
 
+test('expired package group succeeds at deadline when minimum success count is reached', async () => {
+  clearModules([
+    'config/env.js',
+    'repositories/index.js',
+    'shared/services/groupResultNotifications.js',
+    'shared/services/paymentShell.js',
+    'shared/services/wechatMiniProgram.js',
+    'shared/services/packageGroupStore.js'
+  ])
+
+  const state = {
+    group: {
+      id: 'PG-20260422-00004',
+      package_id: 'PKG-20260422-0001',
+      creator_id: 'user-1',
+      target_count: 4,
+      min_success_count: 3,
+      current_count: 3,
+      status: 'active',
+      weekday: 6,
+      hour: 10,
+      schedule_config: {
+        schedule_type: 'weekly',
+        schedule_date: '2026-04-24',
+        schedule_time: '10:00',
+        schedule_days: [6],
+        class_count: 5
+      },
+      first_class_time: null,
+      deadline: '2026-04-22T10:00:00.000Z',
+      success_time: null
+    },
+    successNotifications: [],
+    failedNotifications: [],
+    refundStarted: false,
+    closedOrderIds: []
+  }
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true
+    }
+  })
+
+  mockModule('repositories/index.js', {
+    groupsRepository: {},
+    ordersRepository: {
+      listOrdersByPackageGroupId: async ({ status }) => {
+        if (status === 'pending') {
+          return [{ id: 'pending-order-1' }]
+        }
+        if (status === 'success') {
+          return [
+            { id: 'paid-order-1', user_id: 'user-1', package_group_id: state.group.id },
+            { id: 'paid-order-2', user_id: 'user-2', package_group_id: state.group.id },
+            { id: 'paid-order-3', user_id: 'user-3', package_group_id: state.group.id }
+          ]
+        }
+        return []
+      },
+      closeOrdersByIds: async ({ orderIds }) => {
+        state.closedOrderIds.push(...orderIds)
+        return orderIds.map(id => ({ id }))
+      },
+      updateOrder: async () => {
+        state.refundStarted = true
+        return {}
+      }
+    },
+    packageGroupsRepository: {
+      listPackageGroups: async () => [{ ...state.group }],
+      updatePackageGroup: async (groupId, patch) => {
+        if (groupId === state.group.id) {
+          Object.assign(state.group, patch)
+        }
+        return { ...state.group }
+      },
+      bulkUpdatePackageGroupStatus: async ({ status }) => {
+        state.group.status = status
+        return [{ ...state.group }]
+      }
+    },
+    paymentRecordsRepository: {
+      findPaymentRecordByOrderId: async () => null
+    }
+  })
+
+  mockModule('shared/services/groupResultNotifications.js', {
+    enqueueNotificationsForGroups: async ({ groupIds, resultType }) => {
+      if (resultType === 'success') {
+        state.successNotifications.push(...groupIds)
+      }
+      if (resultType === 'failed') {
+        state.failedNotifications.push(...groupIds)
+      }
+    }
+  })
+
+  mockModule('shared/services/paymentShell.js', {
+    prepareCloudPayRefund: async () => {
+      state.refundStarted = true
+      return {}
+    }
+  })
+
+  mockModule('shared/services/wechatMiniProgram.js', {
+    createWechatPayRefund: async () => {
+      state.refundStarted = true
+      return {}
+    }
+  })
+
+  const { cleanupExpiredPackageGroups } = require(path.join(backendRoot, 'shared/services/packageGroupStore.js'))
+  const result = await cleanupExpiredPackageGroups({
+    packageId: 'PKG-20260422-0001',
+    now: new Date('2026-04-22T10:01:00.000Z')
+  })
+
+  assert.equal(state.group.status, 'success')
+  assert.equal(state.group.success_time.toISOString(), '2026-04-22T10:01:00.000Z')
+  assert.equal(state.group.first_class_time.toISOString(), '2026-04-25T02:00:00.000Z')
+  assert.deepEqual(state.successNotifications, ['PG-20260422-00004'])
+  assert.deepEqual(state.failedNotifications, [])
+  assert.equal(state.refundStarted, false)
+  assert.deepEqual(state.closedOrderIds, ['pending-order-1'])
+  assert.deepEqual(result.successGroupIds, ['PG-20260422-00004'])
+  assert.deepEqual(result.groupIds, [])
+})
+
 test('package start payment creates group with configured deadline hours', async () => {
   clearModules([
     'config/env.js',
@@ -1762,7 +1891,8 @@ test('expired package group cleanup starts wechat refunds and marks orders pendi
       package_id: 'PKG-EXPIRED-REFUND',
       status: 'active',
       target_count: 2,
-      current_count: 2,
+      min_success_count: 2,
+      current_count: 1,
       deadline: '2026-05-08T10:00:00.000Z'
     },
     orders: [

@@ -240,6 +240,7 @@ const normalizeGroupPriceConfig = value => {
 
   return items
     .map(item => ({
+      minSuccessCount: Number(item && (item.min_success_count || item.minSuccessCount || item.target_count || item.targetCount)) || 0,
       targetCount: Number(item && (item.target_count || item.targetCount)) || 0,
       priceFen: Number(item && (item.price_fen || item.priceFen)) || 0
     }))
@@ -306,6 +307,10 @@ const buildSupportedGroupPriceList = payload => {
   return supportedPeople
     .map(count => ({
       count,
+      minSuccessCount: (() => {
+        const matched = groupPriceConfig.find(item => item.targetCount === count)
+        return matched ? matched.minSuccessCount : count
+      })(),
       memberAmountFen: calculatePackageMemberAmountFen({
         totalPriceFen,
         targetCount: count,
@@ -315,6 +320,8 @@ const buildSupportedGroupPriceList = payload => {
     .filter(item => item.memberAmountFen > 0)
     .map(item => ({
       count: item.count,
+      minSuccessCount: item.minSuccessCount,
+      label: item.minSuccessCount && item.minSuccessCount !== item.count ? `${item.minSuccessCount}～${item.count}人团` : item.count === 1 ? '1对1私教' : `${item.count}人团`,
       memberAmountFen: item.memberAmountFen,
       memberAmountText: formatFenText(item.memberAmountFen),
       memberAmountDisplayText: formatDisplayAmount(formatFenText(item.memberAmountFen)),
@@ -518,12 +525,14 @@ const normalizePackageCard = item => ({
 
 const normalizeActiveGroup = item => {
   const targetCount = Number(item.target_count) || 0
+  const minSuccessCount = Number(item.min_success_count) || targetCount
   const currentCount = Number(item.current_count) || 0
   const missingCount = Math.max(0, targetCount - currentCount)
   const canJoin = (item.status || 'active') === 'active' && currentCount < targetCount
 
   return {
     id: item.id || '',
+    minSuccessCount,
     targetCount,
     currentCount,
     status: item.status || 'active',
@@ -535,6 +544,9 @@ const normalizeActiveGroup = item => {
     memberAmountDisplayText: formatDisplayAmount(item.member_amount_text || formatFenText(item.member_amount_fen)),
     scheduleText: item.schedule_text || '时间待定',
     progressText: `${currentCount}/${targetCount}`,
+    ruleText: minSuccessCount && minSuccessCount !== targetCount
+      ? `满${targetCount}人立即成团，截止满${minSuccessCount}人也成团`
+      : `满${targetCount}人成团`,
     missingCount,
     joinButtonText: canJoin ? `还缺${missingCount}人，立即拼` : '已满员',
     canJoin
@@ -581,6 +593,8 @@ const normalizePackageGroupDetail = payload => {
   const packagePayload = payload.package || {}
   const classDurationMinutes = Number(packagePayload.class_duration_minutes || packagePayload.classDurationMinutes) || 0
   const scheduleList = formatPackageGroupScheduleList(payload.schedule_list, classDurationMinutes)
+  const targetCount = Number(payload.target_count) || 0
+  const minSuccessCount = Number(payload.min_success_count) || targetCount
   const classCount = Number(packagePayload.class_count || packagePayload.classCount) || scheduleList.length || 0
   const hasFirstClassTime = !!payload.first_class_time
   const rawScheduleMode = payload.schedule_mode || 'pending'
@@ -617,8 +631,12 @@ const normalizePackageGroupDetail = payload => {
       locationText: payload.package ? formatPackageLocationText(payload.package) : '',
       locationDisplayText: payload.package ? formatPackageLocationText(payload.package) : ''
     },
-    targetCount: Number(payload.target_count) || 0,
+    targetCount,
+    minSuccessCount,
     currentCount: Number(payload.current_count) || 0,
+    groupRuleText: minSuccessCount && minSuccessCount !== targetCount
+      ? `满${targetCount}人立即成团，截止满${minSuccessCount}人也成团`
+      : `满${targetCount}人成团`,
     remainingSeconds: Math.max(0, Number(payload.remaining_seconds) || 0),
     remainingText: formatCountdownText(payload.remaining_seconds),
     remainingPlainText: formatCountdownPlainText(payload.remaining_seconds),
@@ -675,6 +693,7 @@ const normalizeUserPackageGroupListItem = item => ({
   canOpenDetail: item.can_open_detail !== false,
   locationText: formatPackageLocationText(item),
   currentCount: Number(item.current_count) || 0,
+  minSuccessCount: Number(item.min_success_count) || Number(item.target_count) || 0,
   targetCount: Number(item.target_count) || 0,
   missingCount: Math.max(0, Number(item.missing_count) || 0),
   firstClassTime: item.first_class_time || '',

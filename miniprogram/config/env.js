@@ -1,11 +1,11 @@
 const ENV_API_BASE_URLS = {
-  develop: '',
+  develop: 'http://127.0.0.1:8000',
   trial: '',
   release: ''
 }
 
 const ENV_API_TRANSPORTS = {
-  develop: 'container',
+  develop: 'http',
   trial: 'container',
   release: 'container'
 }

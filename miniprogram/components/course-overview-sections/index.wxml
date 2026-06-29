@@ -49,7 +49,7 @@
         <view class="shared-group-price-list">
           <view wx:for="{{packageInfo.supportedGroupPriceList}}" wx:key="count" class="shared-group-price-row">
             <view class="shared-group-price-item">
-              <text>{{item.count}}人团</text>
+              <text>{{item.label || item.count + '人团'}}</text>
               <text>，每人¥{{item.memberAmountDisplayText || item.memberAmountText}}</text>
             </view>
           </view>

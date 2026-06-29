@@ -105,7 +105,7 @@
         <view class="rule-list">
           <view class="rule-item">
             <view class="rule-dot"></view>
-            <view class="rule-text">满员即成团</view>
+            <view class="rule-text">{{groupDetail.groupRuleText || '满员即成团'}}</view>
           </view>
           <view class="rule-item">
             <view class="rule-dot"></view>
@@ -113,7 +113,7 @@
           </view>
           <view class="rule-item">
             <view class="rule-dot"></view>
-            <view class="rule-text">未成团退款规则：48 小时内未成团将自动原路退款</view>
+            <view class="rule-text">未达到最低成团人数将自动原路退款</view>
           </view>
         </view>
       </view>

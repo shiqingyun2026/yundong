@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 
 import { PaginationBar } from '../components/PaginationBar'
 import { api } from '../lib/api'
+import { formatGroupConfigLabels } from '../lib/packageGroupLabels'
 import type { PackageListItem, PackageListResponse } from '../types'
 
 const getStatusText = (status: PackageListItem['status']) => {
@@ -10,9 +11,6 @@ const getStatusText = (status: PackageListItem['status']) => {
   if (status === 'active') return '已上架'
   return '已下架'
 }
-
-const formatSupportedPeople = (supportedPeople: number[]) =>
-  supportedPeople.length ? supportedPeople.map(item => `${item}人团`).join(' / ') : '-'
 
 const getDistrictTail = (value: string) => {
   const normalized = `${value || ''}`
@@ -205,7 +203,7 @@ export function PackageListPage() {
                     <td>{item.package_category || '-'}</td>
                     <td>{item.age_range || '-'}</td>
                     <td>{item.class_count > 0 && item.class_duration_minutes > 0 ? `${item.class_count}节 / ${item.class_duration_minutes}分钟` : '-'}</td>
-                    <td>{formatSupportedPeople(item.supported_people)}</td>
+                    <td>{formatGroupConfigLabels({ groupPriceConfig: item.group_price_config, supportedPeople: item.supported_people })}</td>
                     <td>{getListLocationText(item)}</td>
                     <td>{getStatusText(item.status)}</td>
                     <td>{item.publish_time || '-'}</td>

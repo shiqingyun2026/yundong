@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS package_groups (
   package_id VARCHAR(64) NOT NULL,
   creator_id VARCHAR(64) NULL,
   target_count INT NOT NULL DEFAULT 0,
+  min_success_count INT NOT NULL DEFAULT 0,
   current_count INT NOT NULL DEFAULT 0,
   status VARCHAR(32) NOT NULL DEFAULT 'active',
   weekday INT NOT NULL DEFAULT 0,
@@ -200,10 +201,10 @@ INSERT INTO course_packages (
 ('pkg_test_003', '[测试] 少儿体适能进阶课', 'https://dummyimage.com/960x540/e7f8ef/1f9d63.png&text=Fitness+Advanced', '', '["https://dummyimage.com/1280x720/e7f8ef/1f9d63.png&text=Fitness+01"]', 29900, '体适能', '6-9岁', 6, 75, 1, '3,5', '[{"target_count":3,"price_fen":10900},{"target_count":5,"price_fen":7900}]', '宝安区', '新安社区', '宝安青少年活动中心', 113.8834567, 22.5556789, '陈教练', '进阶体能与团队协作训练。', '["https://dummyimage.com/800x1200/f3f4f6/374151.png&text=Coach+Cert+C"]', '<p>用于测试环境的进阶课详情内容。</p>', 96, '2026-01-10 10:00:00', '2027-12-31 23:59:59', 1, '2026-06-01 10:22:00', '2026-06-01 10:22:00', 'seed', 'seed');
 
 INSERT INTO package_groups (
-  id, package_id, creator_id, target_count, current_count, status, weekday, hour,
+  id, package_id, creator_id, target_count, min_success_count, current_count, status, weekday, hour,
   first_class_time, schedule_config, deadline, created_at, success_time
 ) VALUES
-('pg_test_001', 'pkg_test_001', 'user_test_001', 4, 2, 'active', 6, 10, '2026-06-15 10:00:00', '{"schedule_type":"weekly","schedule_date":"2026-06-15","schedule_time":"10:00","schedule_days":[6],"class_count":1,"schedule_list":[{"index":1,"class_time":"2026-06-15 10:00:00","display_text":"2026-06-15 10:00:00"}]}', '2027-12-31 23:59:59', '2026-06-01 11:00:00', NULL);
+('pg_test_001', 'pkg_test_001', 'user_test_001', 4, 4, 2, 'active', 6, 10, '2026-06-15 10:00:00', '{"schedule_type":"weekly","schedule_date":"2026-06-15","schedule_time":"10:00","schedule_days":[6],"class_count":1,"schedule_list":[{"index":1,"class_time":"2026-06-15 10:00:00","display_text":"2026-06-15 10:00:00"}]}', '2027-12-31 23:59:59', '2026-06-01 11:00:00', NULL);
 
 INSERT INTO orders (
   id, order_no, user_id, order_type, course_id, group_id, package_id, package_group_id,

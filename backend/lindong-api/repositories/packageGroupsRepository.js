@@ -23,6 +23,7 @@ const PACKAGE_GROUP_SELECT_FIELDS = `
   package_id,
   creator_id,
   target_count,
+  min_success_count,
   current_count,
   status,
   weekday,
@@ -52,6 +53,7 @@ const normalizePackageGroup = row => {
     package_id: row.package_id,
     creator_id: row.creator_id || '',
     target_count: Number(row.target_count) || 0,
+    min_success_count: Number(row.min_success_count) || Number(row.target_count) || 0,
     current_count: Number(row.current_count) || 0,
     status: normalizePackageGroupStatus(row.status),
     weekday: Number(row.weekday) || 0,
@@ -77,6 +79,7 @@ const createPackageGroup = async ({
   package_id,
   creator_id,
   target_count = 0,
+  min_success_count = 0,
   current_count = 0,
   status = 'active',
   weekday,
@@ -98,15 +101,16 @@ const createPackageGroup = async ({
       await execute(
         `
           insert into package_groups (
-            id, package_id, creator_id, target_count, current_count, status,
+            id, package_id, creator_id, target_count, min_success_count, current_count, status,
             weekday, hour, first_class_time, deadline, created_at, success_time, schedule_config
-          ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           resolvedId,
           package_id,
           creator_id || null,
           Number(target_count) || 0,
+          Number(min_success_count) || Number(target_count) || 0,
           Number(current_count) || 0,
           status,
           Number(weekday) || 0,
@@ -263,6 +267,7 @@ const updatePackageGroup = async (id, payload = {}) => {
   assign('package_id', payload.package_id)
   assign('creator_id', payload.creator_id)
   assign('target_count', payload.target_count, value => Number(value) || 0)
+  assign('min_success_count', payload.min_success_count, value => Number(value) || 0)
   assign('current_count', payload.current_count, value => Number(value) || 0)
   assign('status', payload.status)
   assign('weekday', payload.weekday, value => Number(value) || 0)

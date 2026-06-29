@@ -9,6 +9,7 @@ const {
   buildPackageGroupCreationPayload,
   calculatePackageMemberAmountFen,
   calculatePackagePlatformSubsidyFen,
+  computePackageGroupDeadlineStatus,
   computePackageGroupNextStatus,
   findGroupPriceFen,
   isPackageGroupJoinable
@@ -97,6 +98,39 @@ test('package group rules build deadline and next status', () => {
   )
 })
 
+test('package group rules allow deadline success at configured minimum count', () => {
+  assert.equal(
+    computePackageGroupDeadlineStatus({
+      currentCount: 3,
+      targetCount: 4,
+      minSuccessCount: 3,
+      deadline: '2026-04-18T10:00:00.000Z',
+      now: new Date('2026-04-19T10:00:00.000Z')
+    }),
+    PACKAGE_GROUP_STATUS.SUCCESS
+  )
+  assert.equal(
+    computePackageGroupDeadlineStatus({
+      currentCount: 2,
+      targetCount: 4,
+      minSuccessCount: 3,
+      deadline: '2026-04-18T10:00:00.000Z',
+      now: new Date('2026-04-19T10:00:00.000Z')
+    }),
+    PACKAGE_GROUP_STATUS.FAILED
+  )
+  assert.equal(
+    computePackageGroupDeadlineStatus({
+      currentCount: 5,
+      targetCount: 6,
+      minSuccessCount: 5,
+      deadline: '2026-04-20T10:00:00.000Z',
+      now: new Date('2026-04-19T10:00:00.000Z')
+    }),
+    PACKAGE_GROUP_STATUS.ACTIVE
+  )
+})
+
 test('package group rules validate joinability and payload creation', () => {
   assert.equal(
     isPackageGroupJoinable(
@@ -127,6 +161,7 @@ test('package group rules validate joinability and payload creation', () => {
     packageId: 'pkg-1',
     creatorId: 'user-1',
     targetCount: 4,
+    minSuccessCount: 3,
     weekday: 6,
     hour: 10,
     deadline: '2026-04-21T10:00:00.000Z'
@@ -135,10 +170,12 @@ test('package group rules validate joinability and payload creation', () => {
     package_id: 'pkg-1',
     creator_id: 'user-1',
     target_count: 4,
+    min_success_count: 3,
     current_count: 1,
     status: 'active',
     weekday: 6,
     hour: 10,
+    schedule_config: null,
     first_class_time: null,
     deadline: '2026-04-21T10:00:00.000Z',
     created_at: payload.created_at,
@@ -169,7 +206,7 @@ test('package schedule normalizes and formats weekday/hour labels', () => {
   assert.equal(formatPackageWeekdayLabel(6), '周六')
   assert.equal(formatPackageHourLabel(10), '10:00')
   assert.equal(formatPendingPackageScheduleText({ weekday: 6, hour: 10 }), '每周六 10:00，共5次')
-  assert.equal(formatScheduleTextWithLockNote({ weekday: 6, hour: 10 }), '每周六 10:00，共5次，成团后锁定首课日期')
+  assert.equal(formatScheduleTextWithLockNote({ weekday: 6, hour: 10 }), '每周六 10:00，共5次，成团后锁定课表')
   assert.equal(formatPendingPackageScheduleText({ weekday: 0, hour: 99 }), '时间待定')
 })
 
@@ -185,7 +222,7 @@ test('package schedule computes first class time for same day and next week roll
     hour: 10
   })
 
-  assert.equal(formatPackageDateTime(sameDay), '2026-04-18 10:00:00')
+  assert.equal(formatPackageDateTime(sameDay), '2026-04-25 10:00:00')
   assert.equal(formatPackageDateTime(nextWeek), '2026-04-25 10:00:00')
   assert.equal(
     computeFirstPackageClassTime({

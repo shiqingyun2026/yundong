@@ -271,13 +271,6 @@ const createRouter = () => {
     const url = new URL(request.url)
     const path = normalizePath(url.pathname)
 
-    if (request.method.toUpperCase() === 'OPTIONS') {
-      return new Response(null, {
-        status: 204,
-        headers: {}
-      })
-    }
-
     const parsedBody = await parseBody(request)
 
     const req = {
@@ -397,6 +390,24 @@ function express() {
 
 express.Router = () => createRouter()
 express.json = () => (req, res, next) => next()
-express.cors = () => (req, res, next) => next()
+express.cors = () => (req, res, next) => {
+  const origin = req.headers.origin || '*'
+
+  res.set('Access-Control-Allow-Origin', origin)
+  res.set('Access-Control-Allow-Credentials', 'true')
+  res.set('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS')
+  res.set(
+    'Access-Control-Allow-Headers',
+    req.headers['access-control-request-headers'] || 'content-type, authorization'
+  )
+  res.set('Vary', 'Origin')
+
+  if (req.method === 'OPTIONS') {
+    res.status(204).end()
+    return
+  }
+
+  return next()
+}
 
 module.exports = express

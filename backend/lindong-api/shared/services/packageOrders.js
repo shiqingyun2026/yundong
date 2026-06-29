@@ -8,6 +8,7 @@ const {
   buildPackageGroupCreationPayload,
   calculatePackageMemberAmountFen,
   computePackageGroupNextStatus,
+  findMinSuccessCount,
   isPackageGroupJoinable
 } = require('../domain/packageGroupRules')
 
@@ -81,7 +82,7 @@ const loadPackageGroupForUpdate = async ({ transaction, packageGroupId }) => {
   const rows = await transaction.query(
     `
       select
-        id, package_id, creator_id, target_count, current_count, status, weekday, hour,
+        id, package_id, creator_id, target_count, min_success_count, current_count, status, weekday, hour,
         first_class_time, deadline, created_at, success_time, schedule_config
       from package_groups
       where id = ?
@@ -99,6 +100,7 @@ const loadPackageGroupForUpdate = async ({ transaction, packageGroupId }) => {
   return {
     ...row,
     target_count: Number(row.target_count) || 0,
+    min_success_count: Number(row.min_success_count) || Number(row.target_count) || 0,
     current_count: Number(row.current_count) || 0,
     weekday: Number(row.weekday) || 0,
     hour: Number(row.hour) || 0,
@@ -902,6 +904,10 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
           packageId: pkg.id,
           creatorId: userId,
           targetCount,
+          minSuccessCount: findMinSuccessCount({
+            groupPriceConfig: pkg.group_price_config,
+            targetCount
+          }),
           weekday:
             normalizedScheduleConfig.schedule_type === SCHEDULE_TYPES.WEEKLY && normalizedScheduleConfig.schedule_days.length === 1
               ? normalizedScheduleConfig.schedule_days[0]

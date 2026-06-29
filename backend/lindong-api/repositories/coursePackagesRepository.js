@@ -59,10 +59,16 @@ const normalizeGroupPriceConfig = value => {
   const items = Array.isArray(rawItems) ? rawItems : []
 
   const normalized = items
-    .map(item => ({
-      target_count: Number(item && item.target_count) || 0,
-      price_fen: Number(item && item.price_fen) || 0
-    }))
+    .map(item => {
+      const targetCount = Number(item && item.target_count) || 0
+      const minSuccessCount = Number(item && item.min_success_count) || targetCount
+
+      return {
+        min_success_count: minSuccessCount,
+        target_count: targetCount,
+        price_fen: Number(item && item.price_fen) || 0
+      }
+    })
     .filter(item => item.target_count > 0 && item.price_fen > 0)
     .sort((left, right) => left.target_count - right.target_count)
 
