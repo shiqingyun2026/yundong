@@ -8,11 +8,13 @@ const {
   formatPackageGroupScheduleList,
   normalizePackageDetail,
   normalizePackageGroupDetail,
+  normalizeUserPackageGroupListItem,
   resolvePackageGroupProgressCopy
 } = require('../utils/package')
 
 const groupDetailJsPath = path.resolve(__dirname, '..', 'pages/group/detail/index.js')
 const groupDetailWxmlPath = path.resolve(__dirname, '..', 'pages/group/detail/index.wxml')
+const courseDetailWxmlPath = path.resolve(__dirname, '..', 'pages/course/detail/index.wxml')
 const courseOverviewComponentWxmlPath = path.resolve(__dirname, '..', 'components/course-overview-sections/index.wxml')
 const paymentConfirmJsPath = path.resolve(__dirname, '..', 'pages/payment/confirm/index.js')
 
@@ -136,9 +138,20 @@ test('package active group progress copy uses minimum success count for range gr
   const detail = normalizePackageDetail({
     id: 'PKG-20260629-0011',
     total_price_fen: 120000,
-    supported_people: [4],
-    group_price_config: [{ min_success_count: 3, target_count: 4, price_fen: 30000 }],
+    supported_people: [2, 4],
+    group_price_config: [
+      { min_success_count: 1, target_count: 2, price_fen: 60000 },
+      { min_success_count: 3, target_count: 4, price_fen: 30000 }
+    ],
     active_groups: [
+      {
+        id: 'PG-20260630-0000',
+        min_success_count: 1,
+        target_count: 2,
+        current_count: 1,
+        remaining_seconds: 600,
+        member_amount_fen: 60000
+      },
       {
         id: 'PG-20260630-0001',
         min_success_count: 3,
@@ -157,11 +170,18 @@ test('package active group progress copy uses minimum success count for range gr
       }
     ]
   })
+  const courseDetailWxmlSource = fs.readFileSync(courseDetailWxmlPath, 'utf8')
 
-  assert.equal(detail.activeGroups[0].missingCount, 1)
-  assert.equal(detail.activeGroups[0].joinButtonText, '还缺1人，立即拼')
-  assert.equal(detail.activeGroups[1].missingCount, 0)
-  assert.equal(detail.activeGroups[1].joinButtonText, '已成团，可加1人')
+  assert.equal(detail.activeGroups[0].groupTypeLabel, '1～2人团')
+  assert.equal(detail.activeGroups[0].joinButtonText, '可加1人')
+  assert.equal(detail.activeGroups[1].groupTypeLabel, '3～4人团')
+  assert.equal(detail.activeGroups[1].missingCount, 1)
+  assert.equal(detail.activeGroups[1].joinButtonText, '还缺1人，立即拼')
+  assert.equal(detail.activeGroups[2].groupTypeLabel, '3～4人团')
+  assert.equal(detail.activeGroups[2].missingCount, 0)
+  assert.equal(detail.activeGroups[2].joinButtonText, '可加1人')
+  assert.match(courseDetailWxmlSource, /item\.groupTypeLabel/)
+  assert.doesNotMatch(courseDetailWxmlSource, /item\.targetCount\}\}人成团/)
   assert.deepEqual(resolvePackageGroupProgressCopy({
     minSuccessCount: 3,
     targetCount: 4,
@@ -170,8 +190,8 @@ test('package active group progress copy uses minimum success count for range gr
     missingCount: 0,
     extraSeatCount: 1,
     reachedMinSuccess: true,
-    missingText: '已成团，可加1人',
-    sharePrefix: '已成团，可加1人'
+    missingText: '可加1人',
+    sharePrefix: '可加1人'
   })
   assert.equal(
     buildPackageGroupShareTitle({
@@ -180,8 +200,25 @@ test('package active group progress copy uses minimum success count for range gr
       currentCount: 3,
       packageName: '青少年体适能'
     }),
-    '已成团，可加1人，来拼「青少年体适能」'
+    '可加1人，来拼「青少年体适能」'
   )
+})
+
+test('user package group list shows addable copy for active range groups that reached minimum count', () => {
+  const item = normalizeUserPackageGroupListItem({
+    order_id: 'order-1',
+    package_group_id: 'PG-20260630-0003',
+    package_name: '青少年体适能',
+    status: 'active',
+    group_status: 'active',
+    min_success_count: 1,
+    target_count: 2,
+    current_count: 1
+  })
+
+  assert.equal(item.status, 'active')
+  assert.equal(item.displayStatusText, '可加1人')
+  assert.equal(item.missingCount, 0)
 })
 
 test('package start and payment rule copy explains full group or deadline minimum success', () => {

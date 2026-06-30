@@ -36,8 +36,8 @@ const resolvePackageGroupProgressCopy = ({ minSuccessCount, targetCount, current
       missingCount,
       extraSeatCount,
       reachedMinSuccess,
-      missingText: `已成团，可加${extraSeatCount}人`,
-      sharePrefix: `已成团，可加${extraSeatCount}人`
+      missingText: `可加${extraSeatCount}人`,
+      sharePrefix: `可加${extraSeatCount}人`
     }
   }
 
@@ -57,6 +57,19 @@ const buildPackageGroupShareTitle = ({ minSuccessCount, targetCount, currentCoun
     currentCount
   })
   return `${progressCopy.sharePrefix}，来拼「${packageName || '邻动体适能课程'}」`
+}
+
+const buildPackageGroupTypeLabel = ({ minSuccessCount, targetCount }) => {
+  const normalizedTargetCount = Math.max(0, Number(targetCount) || 0)
+  const normalizedMinSuccessCount = Math.max(0, Number(minSuccessCount) || normalizedTargetCount)
+
+  if (normalizedMinSuccessCount <= 1 && normalizedTargetCount <= 1) {
+    return '1对1私教'
+  }
+
+  return normalizedMinSuccessCount && normalizedTargetCount && normalizedMinSuccessCount !== normalizedTargetCount
+    ? `${normalizedMinSuccessCount}～${normalizedTargetCount}人团`
+    : `${normalizedTargetCount}人团`
 }
 
 const pickFirstNonEmptyString = values => {
@@ -575,6 +588,10 @@ const normalizeActiveGroup = item => {
     id: item.id || '',
     minSuccessCount,
     targetCount,
+    groupTypeLabel: buildPackageGroupTypeLabel({
+      minSuccessCount,
+      targetCount
+    }),
     currentCount,
     status: item.status || 'active',
     remainingSeconds: Math.max(0, Number(item.remaining_seconds) || 0),
@@ -733,36 +750,47 @@ const normalizePackageGroupDetail = payload => {
   }
 }
 
-const normalizeUserPackageGroupListItem = item => ({
-  orderId: item.order_id || item.orderId || '',
-  packageGroupId: item.package_group_id || '',
-  packageId: item.package_id || '',
-  packageName: item.package_name || '',
-  childNicknameMasked: item.child_nickname_masked || '',
-  childNickname: item.child_nickname || item.childNickname || '',
-  childAge:
-    item.child_age === null || item.child_age === undefined
-      ? null
-      : Number(item.child_age) || 0,
-  status: item.status || 'active',
-  groupStatus: item.group_status || item.status || 'active',
-  orderStatus: item.order_status || '',
-  displayStatusText: STATUS_TEXT_MAP[item.status] || '进行中',
-  canOpenDetail: item.can_open_detail !== false,
-  locationText: formatPackageLocationText(item),
-  currentCount: Number(item.current_count) || 0,
-  minSuccessCount: Number(item.min_success_count) || Number(item.target_count) || 0,
-  targetCount: Number(item.target_count) || 0,
-  missingCount: resolvePackageGroupProgressCopy({
-    minSuccessCount: Number(item.min_success_count) || Number(item.target_count) || 0,
-    targetCount: Number(item.target_count) || 0,
-    currentCount: Number(item.current_count) || 0
-  }).missingCount,
-  firstClassTime: item.first_class_time || '',
-  displayTimeText: item.display_time_text || '',
-  memberAmountText: `${item.member_amount_text || '0.00'}`,
-  memberAmountDisplayText: formatDisplayAmount(item.member_amount_text || '0.00')
-})
+const normalizeUserPackageGroupListItem = item => {
+  const status = item.status || 'active'
+  const currentCount = Number(item.current_count) || 0
+  const minSuccessCount = Number(item.min_success_count) || Number(item.target_count) || 0
+  const targetCount = Number(item.target_count) || 0
+  const progressCopy = resolvePackageGroupProgressCopy({
+    minSuccessCount,
+    targetCount,
+    currentCount
+  })
+
+  return {
+    orderId: item.order_id || item.orderId || '',
+    packageGroupId: item.package_group_id || '',
+    packageId: item.package_id || '',
+    packageName: item.package_name || '',
+    childNicknameMasked: item.child_nickname_masked || '',
+    childNickname: item.child_nickname || item.childNickname || '',
+    childAge:
+      item.child_age === null || item.child_age === undefined
+        ? null
+        : Number(item.child_age) || 0,
+    status,
+    groupStatus: item.group_status || status,
+    orderStatus: item.order_status || '',
+    displayStatusText:
+      status === 'active' && progressCopy.reachedMinSuccess && progressCopy.extraSeatCount > 0
+        ? progressCopy.missingText
+        : STATUS_TEXT_MAP[status] || '进行中',
+    canOpenDetail: item.can_open_detail !== false,
+    locationText: formatPackageLocationText(item),
+    currentCount,
+    minSuccessCount,
+    targetCount,
+    missingCount: progressCopy.missingCount,
+    firstClassTime: item.first_class_time || '',
+    displayTimeText: item.display_time_text || '',
+    memberAmountText: `${item.member_amount_text || '0.00'}`,
+    memberAmountDisplayText: formatDisplayAmount(item.member_amount_text || '0.00')
+  }
+}
 
 const fetchPackageList = async ({
   page = 1,
@@ -991,6 +1019,7 @@ module.exports = {
   mockPaymentSuccess,
   normalizePackageDetail,
   normalizePackageGroupDetail,
+  normalizeUserPackageGroupListItem,
   prepareCloudPayment,
   preparePayment,
   resolvePackageGroupProgressCopy,
