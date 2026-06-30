@@ -3,7 +3,13 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 
-const { formatPackageGroupScheduleList, normalizePackageDetail, normalizePackageGroupDetail } = require('../utils/package')
+const {
+  buildPackageGroupShareTitle,
+  formatPackageGroupScheduleList,
+  normalizePackageDetail,
+  normalizePackageGroupDetail,
+  resolvePackageGroupProgressCopy
+} = require('../utils/package')
 
 const groupDetailJsPath = path.resolve(__dirname, '..', 'pages/group/detail/index.js')
 const groupDetailWxmlPath = path.resolve(__dirname, '..', 'pages/group/detail/index.wxml')
@@ -124,6 +130,71 @@ test('package group type labels use 1-to-1 private coaching copy', () => {
   assert.match(paymentConfirmJsSource, /1对1私教/)
   assert.doesNotMatch(groupDetailJsSource, /1人私教/)
   assert.doesNotMatch(paymentConfirmJsSource, /1人私教/)
+})
+
+test('package active group progress copy uses minimum success count for range groups', () => {
+  const detail = normalizePackageDetail({
+    id: 'PKG-20260629-0011',
+    total_price_fen: 120000,
+    supported_people: [4],
+    group_price_config: [{ min_success_count: 3, target_count: 4, price_fen: 30000 }],
+    active_groups: [
+      {
+        id: 'PG-20260630-0001',
+        min_success_count: 3,
+        target_count: 4,
+        current_count: 2,
+        remaining_seconds: 600,
+        member_amount_fen: 30000
+      },
+      {
+        id: 'PG-20260630-0002',
+        min_success_count: 3,
+        target_count: 4,
+        current_count: 3,
+        remaining_seconds: 600,
+        member_amount_fen: 30000
+      }
+    ]
+  })
+
+  assert.equal(detail.activeGroups[0].missingCount, 1)
+  assert.equal(detail.activeGroups[0].joinButtonText, '还缺1人，立即拼')
+  assert.equal(detail.activeGroups[1].missingCount, 0)
+  assert.equal(detail.activeGroups[1].joinButtonText, '已成团，可加1人')
+  assert.deepEqual(resolvePackageGroupProgressCopy({
+    minSuccessCount: 3,
+    targetCount: 4,
+    currentCount: 3
+  }), {
+    missingCount: 0,
+    extraSeatCount: 1,
+    reachedMinSuccess: true,
+    missingText: '已成团，可加1人',
+    sharePrefix: '已成团，可加1人'
+  })
+  assert.equal(
+    buildPackageGroupShareTitle({
+      minSuccessCount: 3,
+      targetCount: 4,
+      currentCount: 3,
+      packageName: '青少年体适能'
+    }),
+    '已成团，可加1人，来拼「青少年体适能」'
+  )
+})
+
+test('package start and payment rule copy explains full group or deadline minimum success', () => {
+  const packageStartWxmlPath = path.resolve(__dirname, '..', 'pages/package/start/index.wxml')
+  const paymentConfirmWxmlPath = path.resolve(__dirname, '..', 'pages/payment/confirm/index.wxml')
+  const groupDetailWxmlSource = fs.readFileSync(groupDetailWxmlPath, 'utf8')
+  const packageStartWxmlSource = fs.readFileSync(packageStartWxmlPath, 'utf8')
+  const paymentConfirmWxmlSource = fs.readFileSync(paymentConfirmWxmlPath, 'utf8')
+
+  assert.match(packageStartWxmlSource, /满员或到截止时间达到最低成团人数都可成团/)
+  assert.match(paymentConfirmWxmlSource, /满员或到截止时间达到最低成团人数都可成团/)
+  assert.match(groupDetailWxmlSource, /满员或到截止时间达到最低成团人数都可成团/)
+  assert.doesNotMatch(packageStartWxmlSource, /满员立即成团；区间团到截止时间达到最低成团人数也可成团/)
 })
 
 test('group detail does not invent a 60 minute duration tag when API omits duration', () => {

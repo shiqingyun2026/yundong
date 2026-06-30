@@ -98,6 +98,28 @@ test('package group rules build deadline and next status', () => {
   )
 })
 
+test('package group deadline uses 5 minutes for lindong api test service', () => {
+  const previousServiceName = process.env.CLOUDBASE_SERVICE_NAME
+
+  process.env.CLOUDBASE_SERVICE_NAME = 'lindong-api-test'
+  try {
+    const deadline = buildPackageDeadlineFromPackage({
+      createdAt: '2026-04-19T10:00:00.000Z',
+      pkg: {
+        deadline_hours: 48
+      }
+    })
+
+    assert.equal(deadline.toISOString(), '2026-04-19T10:05:00.000Z')
+  } finally {
+    if (previousServiceName === undefined) {
+      delete process.env.CLOUDBASE_SERVICE_NAME
+    } else {
+      process.env.CLOUDBASE_SERVICE_NAME = previousServiceName
+    }
+  }
+})
+
 test('package group rules allow deadline success at configured minimum count', () => {
   assert.equal(
     computePackageGroupDeadlineStatus({

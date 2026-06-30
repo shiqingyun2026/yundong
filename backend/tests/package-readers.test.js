@@ -689,6 +689,7 @@ test('package group detail returns leader child profile, default member avatars 
         package_id: 'PKG-20260421-0001',
         status: 'active',
         target_count: 4,
+        min_success_count: 3,
         current_count: 2,
         weekday: 6,
         hour: 10,
@@ -820,6 +821,7 @@ test('user package group list returns missing count for active groups', async ()
         package_id: 'PKG-20260421-0001',
         status: 'active',
         target_count: 4,
+        min_success_count: 3,
         current_count: 2,
         weekday: 6,
         hour: 10,
@@ -870,8 +872,9 @@ test('user package group list returns missing count for active groups', async ()
   assert.equal(result.list.length, 1)
   assert.equal(result.list[0].order_id, 'order-1')
   assert.equal(result.list[0].target_count, 4)
+  assert.equal(result.list[0].min_success_count, 3)
   assert.equal(result.list[0].current_count, 2)
-  assert.equal(result.list[0].missing_count, 2)
+  assert.equal(result.list[0].missing_count, 1)
   assert.equal(result.list[0].location_text, '深圳市 / 南山区 / 科技园社区')
   assert.equal(result.list[0].child_nickname, '小满')
   assert.equal(result.list[0].child_nickname_masked, '小*')

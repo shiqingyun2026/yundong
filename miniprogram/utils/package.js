@@ -22,6 +22,43 @@ const STATUS_TEXT_MAP = {
   refund_failed: '退款失败'
 }
 
+const resolvePackageGroupProgressCopy = ({ minSuccessCount, targetCount, currentCount }) => {
+  const normalizedTargetCount = Math.max(0, Number(targetCount) || 0)
+  const normalizedMinSuccessCount = Math.max(0, Number(minSuccessCount) || normalizedTargetCount)
+  const normalizedCurrentCount = Math.max(0, Number(currentCount) || 0)
+  const successThreshold = normalizedMinSuccessCount || normalizedTargetCount
+  const missingCount = Math.max(0, successThreshold - normalizedCurrentCount)
+  const extraSeatCount = Math.max(0, normalizedTargetCount - normalizedCurrentCount)
+  const reachedMinSuccess = successThreshold > 0 && normalizedCurrentCount >= successThreshold
+
+  if (reachedMinSuccess && extraSeatCount > 0) {
+    return {
+      missingCount,
+      extraSeatCount,
+      reachedMinSuccess,
+      missingText: `已成团，可加${extraSeatCount}人`,
+      sharePrefix: `已成团，可加${extraSeatCount}人`
+    }
+  }
+
+  return {
+    missingCount,
+    extraSeatCount,
+    reachedMinSuccess,
+    missingText: `还差${missingCount}人成团`,
+    sharePrefix: `还差${missingCount}人`
+  }
+}
+
+const buildPackageGroupShareTitle = ({ minSuccessCount, targetCount, currentCount, packageName }) => {
+  const progressCopy = resolvePackageGroupProgressCopy({
+    minSuccessCount,
+    targetCount,
+    currentCount
+  })
+  return `${progressCopy.sharePrefix}，来拼「${packageName || '邻动体适能课程'}」`
+}
+
 const pickFirstNonEmptyString = values => {
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index]
@@ -527,7 +564,11 @@ const normalizeActiveGroup = item => {
   const targetCount = Number(item.target_count) || 0
   const minSuccessCount = Number(item.min_success_count) || targetCount
   const currentCount = Number(item.current_count) || 0
-  const missingCount = Math.max(0, targetCount - currentCount)
+  const progressCopy = resolvePackageGroupProgressCopy({
+    minSuccessCount,
+    targetCount,
+    currentCount
+  })
   const canJoin = (item.status || 'active') === 'active' && currentCount < targetCount
 
   return {
@@ -547,8 +588,15 @@ const normalizeActiveGroup = item => {
     ruleText: minSuccessCount && minSuccessCount !== targetCount
       ? `满${targetCount}人立即成团，截止满${minSuccessCount}人也成团`
       : `满${targetCount}人成团`,
-    missingCount,
-    joinButtonText: canJoin ? `还缺${missingCount}人，立即拼` : '已满员',
+    missingCount: progressCopy.missingCount,
+    extraSeatCount: progressCopy.extraSeatCount,
+    reachedMinSuccess: progressCopy.reachedMinSuccess,
+    missingText: progressCopy.missingText,
+    joinButtonText: canJoin
+      ? progressCopy.reachedMinSuccess
+        ? progressCopy.missingText
+        : `还缺${progressCopy.missingCount}人，立即拼`
+      : '已满员',
     canJoin
   }
 }
@@ -595,6 +643,12 @@ const normalizePackageGroupDetail = payload => {
   const scheduleList = formatPackageGroupScheduleList(payload.schedule_list, classDurationMinutes)
   const targetCount = Number(payload.target_count) || 0
   const minSuccessCount = Number(payload.min_success_count) || targetCount
+  const currentCount = Number(payload.current_count) || 0
+  const progressCopy = resolvePackageGroupProgressCopy({
+    minSuccessCount,
+    targetCount,
+    currentCount
+  })
   const classCount = Number(packagePayload.class_count || packagePayload.classCount) || scheduleList.length || 0
   const hasFirstClassTime = !!payload.first_class_time
   const rawScheduleMode = payload.schedule_mode || 'pending'
@@ -633,7 +687,11 @@ const normalizePackageGroupDetail = payload => {
     },
     targetCount,
     minSuccessCount,
-    currentCount: Number(payload.current_count) || 0,
+    currentCount,
+    missingCount: progressCopy.missingCount,
+    extraSeatCount: progressCopy.extraSeatCount,
+    reachedMinSuccess: progressCopy.reachedMinSuccess,
+    missingText: progressCopy.missingText,
     groupRuleText: minSuccessCount && minSuccessCount !== targetCount
       ? `满${targetCount}人立即成团，截止满${minSuccessCount}人也成团`
       : `满${targetCount}人成团`,
@@ -695,7 +753,11 @@ const normalizeUserPackageGroupListItem = item => ({
   currentCount: Number(item.current_count) || 0,
   minSuccessCount: Number(item.min_success_count) || Number(item.target_count) || 0,
   targetCount: Number(item.target_count) || 0,
-  missingCount: Math.max(0, Number(item.missing_count) || 0),
+  missingCount: resolvePackageGroupProgressCopy({
+    minSuccessCount: Number(item.min_success_count) || Number(item.target_count) || 0,
+    targetCount: Number(item.target_count) || 0,
+    currentCount: Number(item.current_count) || 0
+  }).missingCount,
   firstClassTime: item.first_class_time || '',
   displayTimeText: item.display_time_text || '',
   memberAmountText: `${item.member_amount_text || '0.00'}`,
@@ -925,10 +987,12 @@ module.exports = {
   formatPackageGroupScheduleList,
   formatPackageLocationText,
   formatPackageDateTimeText,
+  buildPackageGroupShareTitle,
   mockPaymentSuccess,
   normalizePackageDetail,
   normalizePackageGroupDetail,
   prepareCloudPayment,
   preparePayment,
+  resolvePackageGroupProgressCopy,
   resolveShareImageUrl
 }

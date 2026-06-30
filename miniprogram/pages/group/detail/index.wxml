@@ -19,7 +19,7 @@
             <view class="success-progress-count">{{groupDetail.currentCount}}/{{groupDetail.targetCount}}</view>
           </view>
           <view class="success-countdown-row">
-            <view class="success-countdown-text">还差{{missingCount}}人成团，剩余{{groupDetail.remainingPlainText}}</view>
+            <view class="success-countdown-text">{{groupDetail.missingText}}，剩余{{groupDetail.remainingPlainText}}</view>
           </view>
         </view>
 
@@ -109,7 +109,7 @@
           </view>
           <view class="rule-item">
             <view class="rule-dot"></view>
-            <view class="rule-text">拼团截止时间：开团后 48 小时</view>
+            <view class="rule-text">满员或到截止时间达到最低成团人数都可成团</view>
           </view>
           <view class="rule-item">
             <view class="rule-dot"></view>

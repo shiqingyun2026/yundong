@@ -80,10 +80,33 @@ const resolvePackageDeadlineHours = pkg => {
   return normalizedHours > 0 ? normalizedHours : 48
 }
 
-const buildPackageDeadline = ({ createdAt, deadlineHours = 48 }) => {
+const resolvePackageDeadlineMinutesOverride = () => {
+  const explicitMinutes = Number(process.env.PACKAGE_GROUP_DEADLINE_MINUTES)
+  if (explicitMinutes > 0) {
+    return explicitMinutes
+  }
+
+  const serviceNames = [
+    process.env.CLOUDBASE_SERVICE_NAME,
+    process.env.TCB_SERVICE_NAME,
+    process.env.K_SERVICE,
+    process.env.WX_CLOUD_RUN_SERVICE_NAME,
+    process.env.LINDONG_API_SERVICE_NAME
+  ].map(value => `${value || ''}`.trim())
+
+  return serviceNames.includes('lindong-api-test') ? 5 : 0
+}
+
+const buildPackageDeadline = ({ createdAt, deadlineHours = 48, deadlineMinutes = 0 }) => {
   const date = createdAt instanceof Date ? new Date(createdAt.getTime()) : new Date(createdAt)
   if (Number.isNaN(date.getTime())) {
     return null
+  }
+
+  const minutesOverride = Number(deadlineMinutes) || resolvePackageDeadlineMinutesOverride()
+  if (minutesOverride > 0) {
+    date.setMinutes(date.getMinutes() + minutesOverride)
+    return date
   }
 
   date.setHours(date.getHours() + (Number(deadlineHours) || 48))
@@ -206,5 +229,6 @@ module.exports = {
   findGroupPriceFen,
   isPackageGroupJoinable,
   normalizeGroupPriceConfig,
+  resolvePackageDeadlineMinutesOverride,
   resolvePackageDeadlineHours
 }

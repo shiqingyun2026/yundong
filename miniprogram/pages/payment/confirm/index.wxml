@@ -107,7 +107,7 @@
         <view class="notice-list">
           <view class="notice-item">
             <view class="notice-dot"></view>
-            <view class="notice-text">{{packageGroupDetail.groupRuleText || '满员立即成团；区间团到截止时间达到最低成团人数也可成团'}}</view>
+            <view class="notice-text">{{packageGroupDetail.groupRuleText || '满员或到截止时间达到最低成团人数都可成团'}}</view>
           </view>
           <view class="notice-item">
             <view class="notice-dot"></view>

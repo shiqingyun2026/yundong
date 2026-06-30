@@ -655,8 +655,12 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
       location_detail: pkg ? pkg.location_detail || '' : '',
       location_text: pkg ? buildLocationText(pkg) : '',
       current_count: Number(group.current_count) || 0,
+      min_success_count: Number(group.min_success_count) || Number(group.target_count) || 0,
       target_count: Number(group.target_count) || 0,
-      missing_count: Math.max(0, Number(group.target_count) - Number(group.current_count)),
+      missing_count: Math.max(
+        0,
+        (Number(group.min_success_count) || Number(group.target_count) || 0) - (Number(group.current_count) || 0)
+      ),
       first_class_time: group.first_class_time ? formatPackageDateTime(group.first_class_time) : null,
       display_time_text: group.first_class_time
         ? formatPackageDateTime(group.first_class_time)

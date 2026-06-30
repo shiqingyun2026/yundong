@@ -1,7 +1,9 @@
 const {
+  buildPackageGroupShareTitle,
   fetchPackageDetail,
   fetchPackageGroupDetail,
   formatPackageGroupScheduleList,
+  resolvePackageGroupProgressCopy,
   resolveShareImageUrl
 } = require('../../../utils/package')
 const { loginAndStoreSession } = require('../../../utils/auth')
@@ -134,7 +136,8 @@ Page({
 
   updateGroupPresentation(groupDetail) {
     const statusInfo = STATUS_MAP[groupDetail.status] || STATUS_MAP.active
-    const missingCount = Math.max(0, (groupDetail.targetCount || 0) - (groupDetail.currentCount || 0))
+    const progressCopy = resolvePackageGroupProgressCopy(groupDetail)
+    const missingCount = progressCopy.missingCount
     const isPaymentSuccessEntry = this.data.entry === 'paymentSuccess'
     const isShareEntry = this.data.entry === 'share'
     const isActive = groupDetail.status === 'active'
@@ -162,6 +165,9 @@ Page({
     this.safeSetData({
       groupDetail: {
         ...groupDetail,
+        missingText: progressCopy.missingText,
+        extraSeatCount: progressCopy.extraSeatCount,
+        reachedMinSuccess: progressCopy.reachedMinSuccess,
         members
       },
       groupOverviewExtraInfoRows: [
@@ -237,7 +243,7 @@ Page({
     }
 
     const prefix = this.data.action === 'join' ? '已参团' : '已开团'
-    return missingCount > 0 ? `${prefix} · 还差${missingCount}人成团` : `${prefix} · 即将成团`
+    return missingCount > 0 ? `${prefix} · 还差${missingCount}人成团` : `${prefix} · ${groupDetail.missingText || '已成团'}`
   },
 
   resolveSuccessEntryTitle(groupDetail) {
@@ -349,7 +355,12 @@ Page({
     return {
       title:
         groupDetail.status === 'active'
-          ? `还差${Math.max(0, groupDetail.targetCount - groupDetail.currentCount)}人，来拼「${groupDetail.packageInfo.name}」`
+          ? buildPackageGroupShareTitle({
+              minSuccessCount: groupDetail.minSuccessCount,
+              targetCount: groupDetail.targetCount,
+              currentCount: groupDetail.currentCount,
+              packageName: groupDetail.packageInfo.name
+            })
           : `邀请你查看「${groupDetail.packageInfo.name}」拼团详情`,
       path:
         `/pages/group/detail/index?packageGroupId=${encodeURIComponent(groupDetail.id)}` +

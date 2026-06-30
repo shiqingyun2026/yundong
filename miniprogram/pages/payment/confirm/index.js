@@ -7,6 +7,7 @@ const {
   fetchPackageDetail,
   fetchPackageGroupDetail,
   formatDisplayAmount,
+  buildPackageGroupShareTitle,
   mockPaymentSuccess,
   preparePayment,
   resolveShareImageUrl
@@ -518,13 +519,15 @@ Page({
       }
     }
 
-    const currentCount = Number(packageGroupDetail && packageGroupDetail.currentCount) || 0
-    const targetCount = Number(packageGroupDetail && packageGroupDetail.targetCount) || 0
-    const remainingCount = Math.max(0, targetCount - currentCount)
     const packageName = (packageDetail && packageDetail.name) || '邻动体适能课程'
 
     return {
-      title: `还差${remainingCount}人，来拼「${packageName}」`,
+      title: buildPackageGroupShareTitle({
+        minSuccessCount: packageGroupDetail && packageGroupDetail.minSuccessCount,
+        targetCount: packageGroupDetail && packageGroupDetail.targetCount,
+        currentCount: packageGroupDetail && packageGroupDetail.currentCount,
+        packageName
+      }),
       path:
         `/pages/group/detail/index?packageGroupId=${encodeURIComponent(currentGroupId)}` +
         `&packageId=${encodeURIComponent(packageId || '')}` +
