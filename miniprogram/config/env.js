@@ -1,11 +1,11 @@
 const ENV_API_BASE_URLS = {
-  develop: 'http://127.0.0.1:8000',
+  develop: '',
   trial: '',
   release: ''
 }
 
 const ENV_API_TRANSPORTS = {
-  develop: 'http',
+  develop: 'container',
   trial: 'container',
   release: 'container'
 }
@@ -27,8 +27,8 @@ const ENV_CLOUD_ENVS = {
 }
 
 const ENV_CLOUD_CONTAINER_SERVICE_NAMES = {
-  develop: 'lindong-api',
-  trial: 'lindong-api',
+  develop: 'lindong-api-test',
+  trial: 'lindong-api-test',
   release: 'lindong-api'
 }
 

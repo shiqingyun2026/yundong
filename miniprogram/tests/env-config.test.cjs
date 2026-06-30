@@ -7,18 +7,20 @@ const {
   resolveCloudContainerServiceNameByEnv
 } = require('../config/env')
 
-test('develop env points to local HTTP API for local mini program debugging', () => {
-  assert.equal(resolveApiTransportByEnv('develop'), 'http')
-  assert.equal(resolveBaseURLByEnv('develop'), 'http://127.0.0.1:8000')
+test('develop env points to test cloud container for WeChat devtools debugging', () => {
+  assert.equal(resolveApiTransportByEnv('develop'), 'container')
+  assert.equal(resolveBaseURLByEnv('develop'), '')
+  assert.equal(resolveCloudContainerServiceNameByEnv('develop'), 'lindong-api-test')
 })
 
-test('miniprogram envs point to production cloud container service', () => {
-  assert.equal(resolveCloudContainerServiceNameByEnv('develop'), 'lindong-api')
-  assert.equal(resolveCloudContainerServiceNameByEnv('trial'), 'lindong-api')
+test('non-release miniprogram envs point to test cloud container service', () => {
+  assert.equal(resolveCloudContainerServiceNameByEnv('develop'), 'lindong-api-test')
+  assert.equal(resolveCloudContainerServiceNameByEnv('trial'), 'lindong-api-test')
   assert.equal(resolveCloudContainerServiceNameByEnv('release'), 'lindong-api')
 })
 
-test('trial and release envs keep using cloud container transport', () => {
+test('all miniprogram envs keep using cloud container transport', () => {
+  assert.equal(resolveApiTransportByEnv('develop'), 'container')
   assert.equal(resolveApiTransportByEnv('trial'), 'container')
   assert.equal(resolveApiTransportByEnv('release'), 'container')
 })
