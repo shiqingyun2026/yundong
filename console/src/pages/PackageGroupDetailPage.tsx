@@ -82,6 +82,7 @@ export function PackageGroupDetailPage() {
               <p>拼团编号：{detail.id}</p>
               <p>所属课包：{detail.package_name || '-'}</p>
               <p>课包编号：{detail.package_id || '-'}</p>
+              <p>开团地点：{detail.location_text || '-'}</p>
               <p>拼团状态：{getGroupStatusText(detail.status)}</p>
               <p>课包状态：{detail.package_status_text || '-'}</p>
               <p>
@@ -272,6 +273,7 @@ export function PackageGroupDetailPage() {
                       <strong>{item.child_nickname || '-'}</strong>
                       <p className="table-subtext">年龄：{item.child_age ?? '未补录'}</p>
                       <p className="table-subtext">手机号：{item.phone || '未补录'}</p>
+                      <p className="table-subtext">地点：{item.location_text || detail.location_text || '-'}</p>
                       <p className="table-subtext">
                         用户：{item.nickname || '-'} / {getActionText(item.action)}
                       </p>

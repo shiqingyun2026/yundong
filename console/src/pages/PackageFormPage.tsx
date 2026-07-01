@@ -5,7 +5,14 @@ import { RichTextEditor } from '../components/RichTextEditor'
 import { PageBackButton } from '../components/PageBackButton'
 import { api, uploadImage } from '../lib/api'
 import { formatGroupConfigLabels } from '../lib/packageGroupLabels'
-import type { CourseLocationSuggestion, PackageDetail, PackageGroupLessonItem, PackageGroupListItem, PackageGroupListResponse } from '../types'
+import type {
+  CourseLocationSuggestion,
+  PackageDetail,
+  PackageGroupLessonItem,
+  PackageGroupListItem,
+  PackageGroupListResponse,
+  PackageLocation
+} from '../types'
 import { REGION_OPTIONS, toDateTimeLocal } from './courseFormHelpers'
 
 type PackagePageMode = 'create' | 'edit' | 'view'
@@ -34,6 +41,62 @@ const createGroupPriceRow = (value?: Partial<GroupPriceConfigRow>): GroupPriceCo
   price_fen: Number(value?.price_fen) || 0
 })
 
+const createPackageLocation = (value?: Partial<PackageLocation>): PackageLocation => ({
+  id: value?.id || '',
+  location_district: value?.location_district || '',
+  location_community: value?.location_community || '',
+  location_detail: value?.location_detail || '',
+  longitude: value?.longitude ?? null,
+  latitude: value?.latitude ?? null,
+  sort_order: Number(value?.sort_order) || 0,
+  status: Number(value?.status) === 0 ? 0 : 1,
+  location_text: value?.location_text || ''
+})
+
+const normalizePackageLocations = (pkg: Partial<PackageDetail>): PackageLocation[] => {
+  const locations = pkg.locations?.length
+    ? pkg.locations
+    : [
+        {
+          id: '',
+          location_district: pkg.location_district || '',
+          location_community: pkg.location_community || '',
+          location_detail: pkg.location_detail || '',
+          longitude: pkg.longitude ?? null,
+          latitude: pkg.latitude ?? null,
+          sort_order: 0,
+          status: 1 as const,
+          location_text: pkg.location_text || ''
+        }
+      ]
+
+  return locations.map((item, index) => createPackageLocation({ ...item, sort_order: index }))
+}
+
+const getPrimaryLocation = (locations: PackageLocation[]) =>
+  locations.find(item => item.status === 1) || locations[0] || createPackageLocation()
+
+const withPrimaryLocationFields = <T extends Partial<PackageDetail>>(pkg: T, locations = normalizePackageLocations(pkg)): T & {
+  locations: PackageLocation[]
+  location_district: string
+  location_community: string
+  location_detail: string
+  longitude: number | null
+  latitude: number | null
+} => {
+  const primaryLocation = getPrimaryLocation(locations)
+
+  return {
+    ...pkg,
+    locations,
+    location_district: primaryLocation.location_district,
+    location_community: primaryLocation.location_community,
+    location_detail: primaryLocation.location_detail,
+    longitude: primaryLocation.longitude,
+    latitude: primaryLocation.latitude
+  }
+}
+
 const emptyPackage: PackageDetail = {
   id: '',
   name: '',
@@ -50,6 +113,7 @@ const emptyPackage: PackageDetail = {
   location_district: '',
   location_community: '',
   location_detail: '',
+  locations: [createPackageLocation()],
   coach_name: '',
   publish_time: '',
   unpublish_time: '',
@@ -122,6 +186,17 @@ const formatScheduleList = (scheduleList: PackageGroupLessonItem[]) =>
 const buildPayload = (form: PackageDetail) => {
   const groupPriceConfig = normalizeGroupPriceConfig(form.group_price_config)
   const isTrialPackage = form.package_category === '体验课'
+  const locations = normalizePackageLocations(form).map((item, index) => ({
+    id: item.id,
+    location_district: item.location_district.trim(),
+    location_community: item.location_community.trim(),
+    location_detail: item.location_detail.trim(),
+    longitude: item.longitude,
+    latitude: item.latitude,
+    sort_order: index,
+    status: item.status
+  }))
+  const primaryLocation = getPrimaryLocation(locations)
 
   return {
     name: form.name.trim(),
@@ -135,11 +210,12 @@ const buildPayload = (form: PackageDetail) => {
     show_limited_time_offer_tag: !!form.show_limited_time_offer_tag,
     group_price_config: groupPriceConfig,
     supported_people: deriveSupportedPeople(groupPriceConfig),
-    location_district: form.location_district.trim(),
-    location_community: form.location_community.trim(),
-    location_detail: form.location_detail.trim(),
-    longitude: form.longitude,
-    latitude: form.latitude,
+    locations,
+    location_district: primaryLocation.location_district.trim(),
+    location_community: primaryLocation.location_community.trim(),
+    location_detail: primaryLocation.location_detail.trim(),
+    longitude: primaryLocation.longitude,
+    latitude: primaryLocation.latitude,
     coach_intro: form.coach_intro.trim(),
     coach_certificates: form.coach_certificates.filter(Boolean),
     description: form.description.trim(),
@@ -165,6 +241,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
   const [locationSuggestions, setLocationSuggestions] = useState<CourseLocationSuggestion[]>([])
   const [searchingLocations, setSearchingLocations] = useState(false)
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false)
+  const [editingLocationIndex, setEditingLocationIndex] = useState(0)
   const [packageGroupsLoading, setPackageGroupsLoading] = useState(false)
   const [packageGroupsError, setPackageGroupsError] = useState('')
   const [packageGroups, setPackageGroups] = useState<PackageGroupListItem[]>([])
@@ -182,17 +259,20 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
       try {
         const data = await api.get<PackageDetail>(`/packages/${targetId}`)
         const normalizedConfig = normalizeGroupPriceConfigRows(data.group_price_config || [])
-        const districtParts = `${data.location_district || ''}`
+        const normalizedLocations = normalizePackageLocations(data)
+        const primaryLocation = getPrimaryLocation(normalizedLocations)
+        const districtParts = `${primaryLocation.location_district || ''}`
           .split(/[\/\s-]+/)
           .map(item => item.trim())
           .filter(Boolean)
 
+        setEditingLocationIndex(0)
         setProvince(districtParts[0] || '广东省')
         setCity(districtParts[1] || '深圳市')
         setDistrict(districtParts[2] || districtParts[1] || '')
 
         if (mode === 'create' && copyFrom) {
-          setForm({
+          setForm(withPrimaryLocationFields({
             ...data,
             id: '',
             name: data.name ? `${data.name} - 副本` : '',
@@ -202,18 +282,18 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
             publish_time: '',
             unpublish_time: '',
             images: data.images?.length ? data.images : data.cover ? [data.cover] : []
-          })
+          }, normalizedLocations.map(item => ({ ...item, id: '' }))))
           return
         }
 
-        setForm({
+        setForm(withPrimaryLocationFields({
           ...data,
           group_price_config: normalizedConfig,
           supported_people: deriveSupportedPeople(normalizedConfig),
           publish_time: toDateTimeLocal(data.publish_time),
           unpublish_time: toDateTimeLocal(data.unpublish_time),
           images: data.images?.length ? data.images : data.cover ? [data.cover] : []
-        })
+        }, normalizedLocations))
       } catch (fetchError) {
         setError(fetchError instanceof Error ? fetchError.message : '获取课包详情失败')
       } finally {
@@ -254,6 +334,54 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
     setForm(current => ({ ...current, [key]: value }))
   }
 
+  const locationRows = form.locations?.length ? form.locations : normalizePackageLocations(form)
+  const safeEditingLocationIndex = Math.min(editingLocationIndex, locationRows.length - 1)
+  const currentLocation = locationRows[safeEditingLocationIndex] || createPackageLocation()
+
+  const setLocationRows = (updater: (locations: PackageLocation[]) => PackageLocation[]) => {
+    setForm(current => {
+      const nextLocations = updater(normalizePackageLocations(current)).map((item, index) => ({ ...item, sort_order: index }))
+      return withPrimaryLocationFields(current, nextLocations)
+    })
+  }
+
+  const updateLocationField = <K extends keyof PackageLocation>(key: K, value: PackageLocation[K]) => {
+    setLocationRows(locations => {
+      const nextLocations = [...locations]
+      const targetIndex = Math.min(editingLocationIndex, nextLocations.length - 1)
+      nextLocations[targetIndex] = {
+        ...nextLocations[targetIndex],
+        [key]: value
+      }
+      return nextLocations
+    })
+  }
+
+  const addLocationRow = () => {
+    setLocationRows(locations => [...locations, createPackageLocation({ sort_order: locations.length })])
+    setEditingLocationIndex(locationRows.length)
+  }
+
+  const removeLocationRow = (index: number) => {
+    setLocationRows(locations => (locations.length > 1 ? locations.filter((_, currentIndex) => currentIndex !== index) : locations))
+    setEditingLocationIndex(current => Math.max(0, Math.min(current, locationRows.length - 2)))
+  }
+
+  const selectLocationRow = (index: number) => {
+    const nextLocation = locationRows[index] || createPackageLocation()
+    const districtParts = `${nextLocation.location_district || ''}`
+      .split(/[\/\s-]+/)
+      .map(item => item.trim())
+      .filter(Boolean)
+
+    setEditingLocationIndex(index)
+    setProvince(districtParts[0] || province || '广东省')
+    setCity(districtParts[1] || city || '深圳市')
+    setDistrict(districtParts[2] || districtParts[1] || '')
+    setLocationSuggestions([])
+    setShowLocationSuggestions(false)
+  }
+
   const canOfflinePackage = mode !== 'create' && form.status === 'active'
   const isReadOnly = mode === 'view'
   const isEditable = !isReadOnly && (mode === 'create' || canEditPackage(form.status))
@@ -262,7 +390,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
   const cityOptions = REGION_OPTIONS.find(item => item.value === province)?.cities || []
   const districtOptions = cityOptions.find(item => item.value === city)?.districts || []
   const locationSearchDistrict =
-    mode === 'create' ? [province, city, district].filter(Boolean).join(' / ') : form.location_district
+    mode === 'create' ? [province, city, district].filter(Boolean).join(' / ') : currentLocation.location_district
 
   useEffect(() => {
     if (isReadOnly) {
@@ -272,7 +400,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
       return
     }
 
-    const keyword = form.location_detail.trim()
+    const keyword = currentLocation.location_detail.trim()
     if (!keyword) {
       setLocationSuggestions([])
       setShowLocationSuggestions(false)
@@ -317,13 +445,13 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [form.location_detail, isReadOnly, locationSearchDistrict])
+  }, [currentLocation.location_detail, isReadOnly, locationSearchDistrict])
 
   const updateRegionField = (nextProvince: string, nextCity: string, nextDistrict: string) => {
     setProvince(nextProvince)
     setCity(nextCity)
     setDistrict(nextDistrict)
-    updateField('location_district', [nextProvince, nextCity, nextDistrict].filter(Boolean).join(' / '))
+    updateLocationField('location_district', [nextProvince, nextCity, nextDistrict].filter(Boolean).join(' / '))
   }
 
   const syncResolvedRegion = (nextProvince?: string, nextCity?: string, nextDistrict?: string) => {
@@ -336,7 +464,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
       return
     }
 
-    updateField('location_district', [provinceValue, cityValue, districtValue].filter(Boolean).join(' / '))
+    updateLocationField('location_district', [provinceValue, cityValue, districtValue].filter(Boolean).join(' / '))
   }
 
   const setGroupPriceConfig = (nextConfig: PackageDetail['group_price_config']) => {
@@ -448,13 +576,18 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
   }
 
   const applyLocationSuggestion = (suggestion: CourseLocationSuggestion) => {
-    setForm(current => ({
-      ...current,
-      location_community: suggestion.title || current.location_community,
-      location_detail: suggestion.address || suggestion.title,
-      longitude: suggestion.longitude,
-      latitude: suggestion.latitude
-    }))
+    setLocationRows(locations => {
+      const nextLocations = [...locations]
+      const targetIndex = Math.min(editingLocationIndex, nextLocations.length - 1)
+      nextLocations[targetIndex] = {
+        ...nextLocations[targetIndex],
+        location_community: suggestion.title || nextLocations[targetIndex].location_community,
+        location_detail: suggestion.address || suggestion.title,
+        longitude: suggestion.longitude,
+        latitude: suggestion.latitude
+      }
+      return nextLocations
+    })
     syncResolvedRegion(suggestion.province, suggestion.city, suggestion.district)
     setLocationSuggestions([])
     setShowLocationSuggestions(false)
@@ -466,15 +599,12 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
 
     try {
       const data = await api.post<PackageGeocodeResponse>('/packages/geocode', {
-        district: mode === 'create' ? [province, city, district].filter(Boolean).join(' / ') : form.location_district,
-        detail: form.location_detail
+        district: mode === 'create' ? [province, city, district].filter(Boolean).join(' / ') : currentLocation.location_district,
+        detail: currentLocation.location_detail
       })
 
-      setForm(current => ({
-        ...current,
-        longitude: data.longitude,
-        latitude: data.latitude
-      }))
+      updateLocationField('longitude', data.longitude)
+      updateLocationField('latitude', data.latitude)
       syncResolvedRegion(data.province, data.city, data.district)
     } catch (resolveError) {
       setError(resolveError instanceof Error ? resolveError.message : '解析坐标失败')
@@ -563,6 +693,12 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
 
     if (mode === 'create' && (!province || !city || !district)) {
       setError('新建课包时，请先完成省 / 市 / 区三级选择')
+      setSaving(false)
+      return
+    }
+
+    if (!normalizePackageLocations(form).some(item => item.status === 1 && item.location_community.trim() && item.location_detail.trim())) {
+      setError('请至少配置一个启用地点')
       setSaving(false)
       return
     }
@@ -733,6 +869,49 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 disabled={!isEditable}
               />
             </label>
+            <div className="detail-card">
+              <strong>服务地点</strong>
+              <div className="button-row">
+                {locationRows.map((item, index) => (
+                  <button
+                    key={`${item.id || 'new'}-${index}`}
+                    className={index === safeEditingLocationIndex ? 'primary-button compact-button' : 'secondary-button compact-button'}
+                    type="button"
+                    onClick={() => selectLocationRow(index)}
+                  >
+                    {item.location_community || `地点 ${index + 1}`}
+                    {item.status === 0 ? '（停用）' : ''}
+                  </button>
+                ))}
+              </div>
+              {isEditable ? (
+                <div className="button-row">
+                  <button className="secondary-button compact-button" type="button" onClick={addLocationRow}>
+                    新增地点
+                  </button>
+                  <button
+                    className="ghost-button compact-button"
+                    type="button"
+                    onClick={() => removeLocationRow(safeEditingLocationIndex)}
+                    disabled={locationRows.length <= 1}
+                  >
+                    删除当前地点
+                  </button>
+                </div>
+              ) : null}
+            </div>
+            <label className="checkbox-field">
+              <span>当前地点状态</span>
+              <span className="checkbox-field__control">
+                <input
+                  type="checkbox"
+                  checked={currentLocation.status === 1}
+                  onChange={event => updateLocationField('status', event.target.checked ? 1 : 0)}
+                  disabled={!isEditable}
+                />
+                <span>启用该地点</span>
+              </span>
+            </label>
             {mode === 'create' ? (
               <>
                 <label>
@@ -787,8 +966,8 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
               <label>
                 <span>所在区域<RequiredMark /></span>
                 <input
-                  value={form.location_district}
-                  onChange={event => updateField('location_district', event.target.value)}
+                  value={currentLocation.location_district}
+                  onChange={event => updateLocationField('location_district', event.target.value)}
                   disabled={!isEditable}
                 />
               </label>
@@ -796,8 +975,8 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
             <label>
               <span>小区 / 场地名称<RequiredMark /></span>
               <input
-                value={form.location_community}
-                onChange={event => updateField('location_community', event.target.value)}
+                value={currentLocation.location_community}
+                onChange={event => updateLocationField('location_community', event.target.value)}
                 disabled={!isEditable}
               />
             </label>
@@ -812,9 +991,9 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 }}
               >
                 <input
-                  value={form.location_detail}
+                  value={currentLocation.location_detail}
                   onChange={event => {
-                    updateField('location_detail', event.target.value)
+                    updateLocationField('location_detail', event.target.value)
                     setShowLocationSuggestions(true)
                   }}
                   onFocus={() => {
@@ -855,8 +1034,8 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
               <span>经度</span>
               <input
                 type="number"
-                value={form.longitude ?? ''}
-                onChange={event => updateField('longitude', event.target.value ? Number(event.target.value) : null)}
+                value={currentLocation.longitude ?? ''}
+                onChange={event => updateLocationField('longitude', event.target.value ? Number(event.target.value) : null)}
                 disabled={!isEditable}
               />
             </label>
@@ -864,8 +1043,8 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
               <span>纬度</span>
               <input
                 type="number"
-                value={form.latitude ?? ''}
-                onChange={event => updateField('latitude', event.target.value ? Number(event.target.value) : null)}
+                value={currentLocation.latitude ?? ''}
+                onChange={event => updateLocationField('latitude', event.target.value ? Number(event.target.value) : null)}
                 disabled={!isEditable}
               />
             </label>
@@ -1085,15 +1264,18 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                 <strong>地点与上架</strong>
                 <p>上架时间：{form.publish_time || '-'}</p>
                 <p>下架时间：{form.unpublish_time || '-'}</p>
-                <p>所在区域：{form.location_district || '-'}</p>
-                <p>小区 / 场地：{form.location_community || '-'}</p>
-                <p>详细地点：{form.location_detail || '-'}</p>
+                <p>启用地点数：{locationRows.filter(item => item.status === 1).length}</p>
+                {locationRows.map((item, index) => (
+                  <p key={`${item.id || 'location'}-${index}`}>
+                    {index + 1}. {item.location_community || '-'}：{item.location_detail || '-'} {item.status === 0 ? '（停用）' : ''}
+                  </p>
+                ))}
               </div>
               <div className="detail-card">
                 <strong>维护信息</strong>
                 <p>创建时间：{form.create_time || '-'}</p>
                 <p>更新时间：{form.update_time || '-'}</p>
-                <p>经纬度：{form.longitude && form.latitude ? `${form.longitude}, ${form.latitude}` : '-'}</p>
+                <p>当前地点经纬度：{currentLocation.longitude && currentLocation.latitude ? `${currentLocation.longitude}, ${currentLocation.latitude}` : '-'}</p>
               </div>
             </div>
           </section>
@@ -1139,6 +1321,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
                           <td>
                             <div>
                               <span>{item.schedule_text || '-'}</span>
+                              <p className="table-subtext">地点：{item.location_text || '-'}</p>
                               {item.schedule_list.length ? (
                                 <p className="table-subtext">{formatScheduleList(item.schedule_list).join(' / ')}</p>
                               ) : null}

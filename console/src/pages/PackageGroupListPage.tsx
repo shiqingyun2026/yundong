@@ -289,6 +289,7 @@ export function PackageGroupListPage() {
                       <td>
                         <div>
                           <span>{item.schedule_text || '-'}</span>
+                          <p className="table-subtext">地点：{item.location_text || '-'}</p>
                           {item.schedule_list.length ? (
                             <p className="table-subtext">{formatScheduleList(item.schedule_list).join(' / ')}</p>
                           ) : null}

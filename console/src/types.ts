@@ -300,8 +300,21 @@ export interface PackageListItem {
   update_time: string
 }
 
+export interface PackageLocation {
+  id: string
+  location_district: string
+  location_community: string
+  location_detail: string
+  longitude: number | null
+  latitude: number | null
+  sort_order: number
+  status: 0 | 1
+  location_text?: string
+}
+
 export interface PackageDetail extends PackageListItem {
   images: string[]
+  locations: PackageLocation[]
   longitude: number | null
   latitude: number | null
   coach_intro: string
@@ -336,6 +349,8 @@ export interface PackageGroupListItem {
   first_class_time: string | null
   schedule_list: PackageGroupLessonItem[]
   coach_assignment: PackageGroupCoachAssignment | null
+  location_text?: string
+  location_snapshot?: PackageLocation | null
   create_time: string
   success_time: string
 }
@@ -376,6 +391,8 @@ export interface PackageGroupDetailOrder {
   action: '' | 'start' | 'join'
   refund_reason: string
   refund_type: '' | 'system' | 'manual'
+  location_text?: string
+  location_snapshot?: PackageLocation | null
   create_time: string
   pay_time: string
   refund_time: string
@@ -400,6 +417,8 @@ export interface PackageGroupDetail {
   first_class_time: string | null
   schedule_list: PackageGroupLessonItem[]
   coach_assignment: PackageGroupCoachAssignment | null
+  location_text?: string
+  location_snapshot?: PackageLocation | null
   create_time: string
   deadline: string
   success_time: string
@@ -456,6 +475,8 @@ export interface PackageOrderListItem {
   status: string
   order_type: number
   action: '' | 'start' | 'join'
+  location_text?: string
+  location_snapshot?: PackageLocation | null
   refund_reason: string
   refund_type: '' | 'system' | 'manual'
   create_time: string

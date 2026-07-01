@@ -273,6 +273,7 @@ export function PackageOrderListPage() {
                       <div>
                         <span>{item.package_group_id || '-'}</span>
                         <p className="table-subtext">{getGroupStatusText(item.package_group_status)}</p>
+                        <p className="table-subtext">地点：{item.location_text || '-'}</p>
                       </div>
                     </td>
                     <td>{item.amount_text || `¥${(item.amount_fen / 100).toFixed(2)}`}</td>
@@ -383,6 +384,7 @@ export function PackageOrderListPage() {
                 <strong>拼团信息</strong>
                 <p>拼团编号：{selectedOrder.package_group_id || '-'}</p>
                 <p>拼团状态：{getGroupStatusText(selectedOrder.package_group_status)}</p>
+                <p>拼团地点：{selectedOrder.location_text || '-'}</p>
                 <p>退款原因：{selectedOrder.refund_reason || '-'}</p>
                 <p>更新时间：{selectedOrder.update_time || '-'}</p>
               </div>

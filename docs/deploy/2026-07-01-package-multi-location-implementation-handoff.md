@@ -65,6 +65,13 @@
    - Console API 课包详情返回 `locations`。
    - Console API 团列表、团详情、订单列表返回地点字段与 `location_text`。
 
+9. `feat: edit package locations in console`
+   - Console 前端类型新增 `PackageLocation`、`PackageDetail.locations` 与团/订单地点字段。
+   - 课包表单支持多个服务地点，支持新增、删除、启停、地点联想与经纬度解析。
+   - 创建/编辑课包提交 `locations` 数组，并继续用第一个启用地点回填 legacy 单地点字段。
+   - 编辑旧数据时，如果后端只返回 legacy 单地点字段，前端会初始化为一个地点。
+   - 课包内嵌拼团记录、拼团列表、拼团详情、课包订单列表展示团地点。
+
 ## 已运行验证
 
 在 `/Users/yun/lindong/.worktrees/package-multi-location`：
@@ -74,28 +81,23 @@ node --test backend/console-api-service/tests/package-schedule-rules.test.cjs
 node --test backend/console-api-service/tests/package-location-rules.test.cjs
 node -e "require('./backend/lindong-api/shared/services/packageOrders'); require('./backend/console-api-service/shared/services/packageOrders'); console.log('package orders loaded')"
 node -e "require('./backend/console-api-service/console-api/services/packageAdminService.js'); console.log('package admin service loaded')"
+cd console && npm run lint
 ```
 
 说明：
 - worktree 内为了跑后端 require/test，已经分别在 `backend/lindong-api` 和 `backend/console-api-service` 执行过 `npm install`。
+- 为了跑 Console 前端 typecheck，已经在 `console/` 执行过 `npm install`。
 - `npm audit` 报过既有依赖漏洞，本次未处理。
 
 ## 当前状态
 
-- 实现进度停在实施计划的 Task 6：Console 前端。
-- Task 6 只做过少量代码阅读尝试，没有产生前端代码改动。
-- worktree 当前状态应为干净，只新增本交接文档后会出现未提交变更。
+- 实现进度停在实施计划的 Task 7：小程序前端。
+- Task 6：Console 前端已完成实现与验证。
+- worktree 当前提交后应为干净状态。
 
 ## 剩余任务
 
-1. Console 前端
-   - 更新 `console/src/types.ts` 中课包、团、订单相关类型，加入 `locations` 与团地点字段。
-   - 更新 `console/src/pages/PackageFormPage.tsx`，把地点从单个表单改为可增删的多地点列表。
-   - 创建/编辑提交 `locations` 数组。
-   - 编辑旧数据时，如果后端只有 legacy 单地点字段，需要初始化为一个地点。
-   - 更新团列表、团详情、订单列表展示团地点。
-
-2. 小程序前端
+1. 小程序前端
    - 更新课包列表 transform，使用后端最近地点距离。
    - 首页不展示小区名。
    - 详情页展示支持的小区列表。
@@ -103,7 +105,7 @@ node -e "require('./backend/console-api-service/console-api/services/packageAdmi
    - 详情团列表卡片展示团地点。
    - 加团流程继承已有团地点，不提供地点选择。
 
-3. 回归与验证
+2. 回归与验证
    - 至少跑已新增/受影响的 Node 测试。
    - 若改 Console 前端，跑对应 typecheck/build。
    - 若改小程序，补或更新最小 transform 单测。
@@ -116,11 +118,11 @@ node -e "require('./backend/console-api-service/console-api/services/packageAdmi
 ```bash
 cd /Users/yun/lindong/.worktrees/package-multi-location
 git status --short
-sed -n '1,220p' console/src/types.ts
-sed -n '1,220p' console/src/pages/PackageFormPage.tsx
+sed -n '1,220p' miniprogram/utils/package.js
+sed -n '1,220p' miniprogram/pages/course/detail/index.js
 ```
 
-然后按实施计划 Task 6 做 Console 前端。
+然后按实施计划 Task 7 做小程序前端。
 
 ## 需要留意的问题
 
