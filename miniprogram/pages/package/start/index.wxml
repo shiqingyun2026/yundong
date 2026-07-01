@@ -10,7 +10,6 @@
     <view class="page-shell">
       <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">{{packageDetail.name}}</view>
-        <view class="section-desc">{{packageDetail.locationDisplayText || packageDetail.locationText}}</view>
       </view>
 
       <view wx:if="{{packageDetail.locations.length}}" class="weui-panel weui-ext-card page-section card-shadow location-select-card">

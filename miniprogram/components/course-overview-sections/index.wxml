@@ -7,7 +7,7 @@
     </view>
 
     <view wx:if="{{detailLayoutVariant === 'group-detail'}}" class="shared-info-list shared-info-list--group-detail">
-      <view class="shared-info-item">
+      <view wx:if="{{showLocationInfo}}" class="shared-info-item">
         <view class="shared-info-label">上课地点</view>
         <view class="shared-info-value">{{packageInfo.locationDisplayText || packageInfo.locationText}}</view>
       </view>
@@ -31,7 +31,7 @@
     </view>
 
     <view wx:else class="shared-info-list">
-      <view class="shared-info-item">
+      <view wx:if="{{showLocationInfo}}" class="shared-info-item">
         <view class="shared-info-label">上课地点</view>
         <view class="shared-info-value">{{packageInfo.locationDisplayText || packageInfo.locationText}}</view>
       </view>

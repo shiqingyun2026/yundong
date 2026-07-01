@@ -22,7 +22,7 @@
     </view>
 
     <view class="detail-content">
-      <course-overview-sections packageInfo="{{packageDetail}}" />
+      <course-overview-sections packageInfo="{{packageDetail}}" showLocationInfo="{{false}}" />
 
       <view wx:if="{{packageDetail.locations.length}}" class="weui-panel weui-ext-card page-section card-shadow supported-location-card">
         <view class="section-title">支持小区/场地</view>
