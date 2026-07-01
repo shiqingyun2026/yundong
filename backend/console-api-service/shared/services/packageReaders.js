@@ -115,16 +115,55 @@ const formatLocationFallbackText = (value, province = '') => {
   return stripKnownLocationSegments(normalized, [province])
 }
 
+const extractLocationLeafPart = (value, province = '') => {
+  const normalized = formatLocationFallbackText(value, province)
+  if (!normalized) {
+    return ''
+  }
+
+  const slashParts = normalized
+    .split('/')
+    .map(part => collapseLocationText(part))
+    .filter(Boolean)
+
+  return slashParts.length ? slashParts[slashParts.length - 1] : normalized
+}
+
+const extractLocationPathParts = (value, province = '') => {
+  const normalized = formatLocationFallbackText(value, province)
+  if (!normalized) {
+    return []
+  }
+
+  return normalized
+    .split('/')
+    .map(part => collapseLocationText(part))
+    .filter(Boolean)
+}
+
 const formatMiniProgramLocationText = pkg => {
   const source = pkg || {}
   const province = pickFirstNonEmptyString([source.location_province, source.locationProvince])
-  const city = pickFirstNonEmptyString([source.location_city, source.locationCity])
-  const district = pickFirstNonEmptyString([source.location_district, source.locationDistrict])
+  const city = extractLocationLeafPart(
+    pickFirstNonEmptyString([source.location_city, source.locationCity]),
+    province
+  )
+  const districtPathParts = extractLocationPathParts(
+    pickFirstNonEmptyString([source.location_district, source.locationDistrict]),
+    province
+  )
+  const district = districtPathParts.length ? districtPathParts[districtPathParts.length - 1] : ''
+  const fallbackCity = !city && districtPathParts.length > 1 ? districtPathParts[districtPathParts.length - 2] : ''
   const community = pickFirstNonEmptyString([source.location_community, source.locationCommunity])
   const fallbackText = pickFirstNonEmptyString([source.location_text, source.locationText])
+  const resolvedCity = city || fallbackCity
 
-  const normalizedCommunity = collapseLocationText(community)
-  const formatted = dedupeOrderedParts([collapseLocationText(city), collapseLocationText(district), normalizedCommunity])
+  const normalizedCommunity = extractLocationLeafPart(community, province)
+  const formatted = dedupeOrderedParts([
+    collapseLocationText(resolvedCity),
+    collapseLocationText(district),
+    normalizedCommunity
+  ])
 
   if (formatted.length) {
     return formatted.join(' / ')
@@ -137,7 +176,35 @@ const buildLocationText = pkg => formatMiniProgramLocationText(pkg)
 
 const buildMiniProgramLocationText = pkg => formatMiniProgramLocationText(pkg)
 
+const buildPackageLocationText = location => buildMiniProgramLocationText(location || {})
+
 const buildAdminLocationText = pkg => [pkg.location_district, pkg.location_community, pkg.location_detail].filter(Boolean).join(' / ')
+
+const resolveGroupLocationSnapshot = ({ group = {}, pkg = {}, location = null }) => {
+  if (group.location_snapshot && typeof group.location_snapshot === 'object') {
+    return group.location_snapshot
+  }
+
+  if (location) {
+    return {
+      id: location.id || '',
+      location_district: location.location_district || '',
+      location_community: location.location_community || '',
+      location_detail: location.location_detail || '',
+      longitude: location.longitude ?? null,
+      latitude: location.latitude ?? null
+    }
+  }
+
+  return {
+    id: '',
+    location_district: pkg.location_district || '',
+    location_community: pkg.location_community || '',
+    location_detail: pkg.location_detail || '',
+    longitude: pkg.longitude ?? null,
+    latitude: pkg.latitude ?? null
+  }
+}
 
 const resolveLowestGroupPriceFen = pkg => {
   const priceList = (pkg.group_price_config || [])
@@ -182,6 +249,22 @@ const calculateDistanceMeters = ({ latitude, longitude }, target) => {
 
   return Math.round(2 * EARTH_RADIUS_METERS * Math.asin(Math.sqrt(a)))
 }
+
+const sortPackageGroupsByLocationDistanceAndDeadline = ({ groups = [], latitude = null, longitude = null }) =>
+  [...(groups || [])]
+    .map(group => ({
+      ...group,
+      distance_meters: calculateDistanceMeters({ latitude, longitude }, group.location_snapshot || group.location || {})
+    }))
+    .sort((left, right) => {
+      const leftDistance = Number.isFinite(left.distance_meters) ? left.distance_meters : Number.MAX_SAFE_INTEGER
+      const rightDistance = Number.isFinite(right.distance_meters) ? right.distance_meters : Number.MAX_SAFE_INTEGER
+      if (leftDistance !== rightDistance) {
+        return leftDistance - rightDistance
+      }
+
+      return (parseShanghaiDate(left.deadline)?.getTime() || 0) - (parseShanghaiDate(right.deadline)?.getTime() || 0)
+    })
 
 const ensureMySqlMode = () => {
   if (!env.useMySqlRepositories) {
@@ -687,9 +770,12 @@ module.exports = {
   buildAdminLocationText,
   buildLocationText,
   buildMiniProgramLocationText,
+  buildPackageLocationText,
   fetchMiniProgramPackageDetail,
   fetchMiniProgramPackageGroupDetail,
   fetchMiniProgramPackageList,
   fetchMiniProgramUserPackageGroupList,
-  formatFenText
+  formatFenText,
+  resolveGroupLocationSnapshot,
+  sortPackageGroupsByLocationDistanceAndDeadline
 }

@@ -176,7 +176,35 @@ const buildLocationText = pkg => formatMiniProgramLocationText(pkg)
 
 const buildMiniProgramLocationText = pkg => formatMiniProgramLocationText(pkg)
 
+const buildPackageLocationText = location => buildMiniProgramLocationText(location || {})
+
 const buildAdminLocationText = pkg => [pkg.location_district, pkg.location_community, pkg.location_detail].filter(Boolean).join(' / ')
+
+const resolveGroupLocationSnapshot = ({ group = {}, pkg = {}, location = null }) => {
+  if (group.location_snapshot && typeof group.location_snapshot === 'object') {
+    return group.location_snapshot
+  }
+
+  if (location) {
+    return {
+      id: location.id || '',
+      location_district: location.location_district || '',
+      location_community: location.location_community || '',
+      location_detail: location.location_detail || '',
+      longitude: location.longitude ?? null,
+      latitude: location.latitude ?? null
+    }
+  }
+
+  return {
+    id: '',
+    location_district: pkg.location_district || '',
+    location_community: pkg.location_community || '',
+    location_detail: pkg.location_detail || '',
+    longitude: pkg.longitude ?? null,
+    latitude: pkg.latitude ?? null
+  }
+}
 
 const resolveLowestGroupPriceFen = pkg => {
   const priceList = (pkg.group_price_config || [])
@@ -221,6 +249,22 @@ const calculateDistanceMeters = ({ latitude, longitude }, target) => {
 
   return Math.round(2 * EARTH_RADIUS_METERS * Math.asin(Math.sqrt(a)))
 }
+
+const sortPackageGroupsByLocationDistanceAndDeadline = ({ groups = [], latitude = null, longitude = null }) =>
+  [...(groups || [])]
+    .map(group => ({
+      ...group,
+      distance_meters: calculateDistanceMeters({ latitude, longitude }, group.location_snapshot || group.location || {})
+    }))
+    .sort((left, right) => {
+      const leftDistance = Number.isFinite(left.distance_meters) ? left.distance_meters : Number.MAX_SAFE_INTEGER
+      const rightDistance = Number.isFinite(right.distance_meters) ? right.distance_meters : Number.MAX_SAFE_INTEGER
+      if (leftDistance !== rightDistance) {
+        return leftDistance - rightDistance
+      }
+
+      return (parseShanghaiDate(left.deadline)?.getTime() || 0) - (parseShanghaiDate(right.deadline)?.getTime() || 0)
+    })
 
 const ensureMySqlMode = () => {
   if (!env.useMySqlRepositories) {
@@ -774,9 +818,12 @@ module.exports = {
   buildAdminLocationText,
   buildLocationText,
   buildMiniProgramLocationText,
+  buildPackageLocationText,
   fetchMiniProgramPackageDetail,
   fetchMiniProgramPackageGroupDetail,
   fetchMiniProgramPackageList,
   fetchMiniProgramUserPackageGroupList,
-  formatFenText
+  formatFenText,
+  resolveGroupLocationSnapshot,
+  sortPackageGroupsByLocationDistanceAndDeadline
 }
