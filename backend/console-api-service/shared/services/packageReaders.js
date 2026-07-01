@@ -266,6 +266,24 @@ const sortPackageGroupsByLocationDistanceAndDeadline = ({ groups = [], latitude 
       return (parseShanghaiDate(left.deadline)?.getTime() || 0) - (parseShanghaiDate(right.deadline)?.getTime() || 0)
     })
 
+const resolveNearestPackageLocation = ({ locations = [], latitude = null, longitude = null }) => {
+  const enabledLocations = (locations || []).filter(item => Number(item.status) !== 0)
+  const scored = enabledLocations.map(item => ({
+    ...item,
+    distance_meters: calculateDistanceMeters({ latitude, longitude }, item)
+  }))
+
+  return scored.sort((left, right) => {
+    const leftDistance = Number.isFinite(left.distance_meters) ? left.distance_meters : Number.MAX_SAFE_INTEGER
+    const rightDistance = Number.isFinite(right.distance_meters) ? right.distance_meters : Number.MAX_SAFE_INTEGER
+    if (leftDistance !== rightDistance) {
+      return leftDistance - rightDistance
+    }
+
+    return (Number(left.sort_order) || 0) - (Number(right.sort_order) || 0)
+  })[0] || null
+}
+
 const ensureMySqlMode = () => {
   if (!env.useMySqlRepositories) {
     throw createPackageServiceError(501, 5000, 'package group is only supported in mysql mode')
@@ -776,6 +794,7 @@ module.exports = {
   fetchMiniProgramPackageList,
   fetchMiniProgramUserPackageGroupList,
   formatFenText,
+  resolveNearestPackageLocation,
   resolveGroupLocationSnapshot,
   sortPackageGroupsByLocationDistanceAndDeadline
 }

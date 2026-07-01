@@ -34,4 +34,18 @@ for (const [name, readers] of [
 
     assert.deepEqual(sorted.map(item => item.id), ['early-near', 'late-near', 'early-far'])
   })
+
+  test(`${name} resolves nearest package location`, () => {
+    const nearest = readers.resolveNearestPackageLocation({
+      locations: [
+        { id: 'far', latitude: 23.0000, longitude: 113.9000 },
+        { id: 'near', latitude: 22.5201, longitude: 113.9001 }
+      ],
+      latitude: 22.5200,
+      longitude: 113.9000
+    })
+
+    assert.equal(nearest.id, 'near')
+    assert.equal(Number.isFinite(nearest.distance_meters), true)
+  })
 }

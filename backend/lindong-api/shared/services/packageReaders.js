@@ -1,5 +1,11 @@
 const { env } = require('../../config/env')
-const { coursePackagesRepository, ordersRepository, packageGroupsRepository, usersRepository } = require('../../repositories')
+const {
+  coursePackageLocationsRepository,
+  coursePackagesRepository,
+  ordersRepository,
+  packageGroupsRepository,
+  usersRepository
+} = require('../../repositories')
 const { calculatePackageMemberAmountFen } = require('../domain/packageGroupRules')
 const { createPackageServiceError } = require('./packageServiceError')
 const {
@@ -266,6 +272,49 @@ const sortPackageGroupsByLocationDistanceAndDeadline = ({ groups = [], latitude 
       return (parseShanghaiDate(left.deadline)?.getTime() || 0) - (parseShanghaiDate(right.deadline)?.getTime() || 0)
     })
 
+const resolveNearestPackageLocation = ({ locations = [], latitude = null, longitude = null }) => {
+  const enabledLocations = (locations || []).filter(item => Number(item.status) !== 0)
+  const scored = enabledLocations.map(item => ({
+    ...item,
+    distance_meters: calculateDistanceMeters({ latitude, longitude }, item)
+  }))
+
+  return scored.sort((left, right) => {
+    const leftDistance = Number.isFinite(left.distance_meters) ? left.distance_meters : Number.MAX_SAFE_INTEGER
+    const rightDistance = Number.isFinite(right.distance_meters) ? right.distance_meters : Number.MAX_SAFE_INTEGER
+    if (leftDistance !== rightDistance) {
+      return leftDistance - rightDistance
+    }
+
+    return (Number(left.sort_order) || 0) - (Number(right.sort_order) || 0)
+  })[0] || null
+}
+
+const groupLocationsByPackageId = locations =>
+  (locations || []).reduce((result, item) => {
+    if (!item || !item.package_id) {
+      return result
+    }
+
+    if (!result[item.package_id]) {
+      result[item.package_id] = []
+    }
+
+    result[item.package_id].push(item)
+    return result
+  }, {})
+
+const mapMiniProgramLocation = ({ location, latitude = null, longitude = null }) => ({
+  id: location.id || '',
+  location_district: location.location_district || '',
+  location_community: location.location_community || '',
+  location_detail: location.location_detail || '',
+  longitude: location.longitude ?? null,
+  latitude: location.latitude ?? null,
+  location_text: buildPackageLocationText(location),
+  distance_meters: calculateDistanceMeters({ latitude, longitude }, location)
+})
+
 const ensureMySqlMode = () => {
   if (!env.useMySqlRepositories) {
     throw createPackageServiceError(501, 5000, 'package group is only supported in mysql mode')
@@ -375,20 +424,26 @@ const fetchMiniProgramPackageList = async ({
     result[item.package_id] = (result[item.package_id] || 0) + 1
     return result
   }, {})
+  const packageLocations = packageIds.length
+    ? await coursePackageLocationsRepository.listLocationsByPackageIds(packageIds)
+    : []
+  const locationsByPackageId = groupLocationsByPackageId(packageLocations)
 
   const sortedPackages = visiblePackages
     .map(item => {
-      const distanceMeters = calculateDistanceMeters(
-        {
-          latitude,
-          longitude
-        },
-        item
-      )
+      const nearestLocation = resolveNearestPackageLocation({
+        locations: locationsByPackageId[item.id] || [],
+        latitude,
+        longitude
+      })
+      const fallbackDistanceMeters = calculateDistanceMeters({ latitude, longitude }, item)
 
       return {
         ...item,
-        distance_meters: distanceMeters
+        nearest_location_id: nearestLocation ? nearestLocation.id : '',
+        distance_meters: nearestLocation && Number.isFinite(nearestLocation.distance_meters)
+          ? nearestLocation.distance_meters
+          : fallbackDistanceMeters
       }
     })
     .sort((left, right) => {
@@ -434,6 +489,7 @@ const fetchMiniProgramPackageList = async ({
       location_district: item.location_district,
       location_community: item.location_community,
       location_detail: item.location_detail,
+      nearest_location_id: item.nearest_location_id || '',
       active_group_count: Number(activeGroupCountMap[item.id]) || 0,
       distance_meters: Number.isFinite(item.distance_meters) ? item.distance_meters : null,
       created_at: item.created_at || null
@@ -448,7 +504,7 @@ const fetchMiniProgramPackageList = async ({
   }
 }
 
-const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) => {
+const fetchMiniProgramPackageDetail = async ({ packageId, latitude = null, longitude = null, now = new Date() }) => {
   ensureMySqlMode()
 
   const pkg = await coursePackagesRepository.findPackageById(packageId)
@@ -474,6 +530,40 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
     statuses: ['active'],
     afterDeadline: now
   })
+  const packageLocations = await coursePackageLocationsRepository.listLocationsByPackageId(packageId)
+  const enabledLocations = packageLocations.filter(item => Number(item.status) !== 0)
+  const locationById = packageLocations.reduce((result, item) => {
+    result[item.id] = item
+    return result
+  }, {})
+  const activeGroupList = sortPackageGroupsByLocationDistanceAndDeadline({
+    groups: (activeGroups || [])
+      .filter(group => {
+        const deadline = parseShanghaiDate(group && group.deadline)
+        return (
+          group &&
+          group.status === 'active' &&
+          Number(group.current_count) > 0 &&
+          !!deadline &&
+          deadline.getTime() > now.getTime()
+        )
+      })
+      .map(group => {
+        const locationSnapshot = resolveGroupLocationSnapshot({
+          group,
+          pkg,
+          location: group.location_id ? locationById[group.location_id] : null
+        })
+
+        return {
+          ...group,
+          location_snapshot: locationSnapshot,
+          location_text: buildPackageLocationText(locationSnapshot)
+        }
+      }),
+    latitude,
+    longitude
+  })
 
   return {
     id: pkg.id,
@@ -494,27 +584,13 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
     location_district: pkg.location_district,
     location_community: pkg.location_community,
     location_detail: pkg.location_detail,
+    locations: enabledLocations.map(location => mapMiniProgramLocation({ location, latitude, longitude })),
     coach_name: pkg.coach_name,
     coach_intro: signCosUrlsInText(pkg.coach_intro || ''),
     coach_certificates: signCosImageList(pkg.coach_certificates || []),
     description: signCosUrlsInText(pkg.description || ''),
     insurance_desc: '课程期间统一赠送基础运动意外险，具体保障范围以投保说明为准。',
-    active_groups: (activeGroups || [])
-      .filter(group => {
-        const deadline = parseShanghaiDate(group && group.deadline)
-        return (
-          group &&
-          group.status === 'active' &&
-          Number(group.current_count) > 0 &&
-          !!deadline &&
-          deadline.getTime() > now.getTime()
-        )
-      })
-      .sort((left, right) => {
-        const leftDeadline = parseShanghaiDate(left.deadline)
-        const rightDeadline = parseShanghaiDate(right.deadline)
-        return (leftDeadline ? leftDeadline.getTime() : 0) - (rightDeadline ? rightDeadline.getTime() : 0)
-      })
+    active_groups: activeGroupList
       .map(group => {
         const deadline = parseShanghaiDate(group.deadline)
         const memberAmountFen = calculatePackageMemberAmountFen({
@@ -529,6 +605,10 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
           target_count: Number(group.target_count) || 0,
           current_count: Number(group.current_count) || 0,
           status: group.status,
+          location_id: group.location_id || '',
+          location_snapshot: group.location_snapshot || null,
+          location_text: group.location_text || '',
+          distance_meters: Number.isFinite(group.distance_meters) ? group.distance_meters : null,
           remaining_seconds: deadline ? Math.max(0, Math.floor((deadline.getTime() - now.getTime()) / 1000)) : 0,
           member_amount_fen: memberAmountFen,
           member_amount_text: formatFenText(memberAmountFen),
@@ -824,6 +904,7 @@ module.exports = {
   fetchMiniProgramPackageList,
   fetchMiniProgramUserPackageGroupList,
   formatFenText,
+  resolveNearestPackageLocation,
   resolveGroupLocationSnapshot,
   sortPackageGroupsByLocationDistanceAndDeadline
 }
