@@ -98,6 +98,8 @@ CREATE TABLE IF NOT EXISTS course_packages (
 CREATE TABLE IF NOT EXISTS package_groups (
   id VARCHAR(64) NOT NULL,
   package_id VARCHAR(64) NOT NULL,
+  location_id VARCHAR(64) NULL,
+  location_snapshot JSON NULL,
   creator_id VARCHAR(64) NULL,
   target_count INT NOT NULL DEFAULT 0,
   min_success_count INT NOT NULL DEFAULT 0,
@@ -114,6 +116,24 @@ CREATE TABLE IF NOT EXISTS package_groups (
   KEY idx_package_groups_package_id (package_id),
   KEY idx_package_groups_status (status),
   KEY idx_package_groups_deadline (deadline)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS course_package_locations (
+  id VARCHAR(64) NOT NULL,
+  package_id VARCHAR(64) NOT NULL,
+  location_district VARCHAR(255) NOT NULL DEFAULT '',
+  location_community VARCHAR(255) NOT NULL DEFAULT '',
+  location_detail VARCHAR(500) NOT NULL DEFAULT '',
+  longitude DECIMAL(10,6) NULL,
+  latitude DECIMAL(10,6) NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  status TINYINT NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_course_package_locations_package_id (package_id),
+  KEY idx_course_package_locations_status (status),
+  KEY idx_course_package_locations_package_status (package_id, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS orders (
@@ -186,6 +206,7 @@ CREATE TABLE IF NOT EXISTS biz_serial_counters (
 DELETE FROM payment_records WHERE id IN ('pay_test_001', 'pay_test_002');
 DELETE FROM orders WHERE id IN ('order_test_001', 'order_test_002');
 DELETE FROM package_groups WHERE id IN ('pg_test_001');
+DELETE FROM course_package_locations WHERE id IN ('pkg_test_001_loc_a', 'pkg_test_001_loc_b');
 DELETE FROM course_packages WHERE id IN ('pkg_test_001', 'pkg_test_002', 'pkg_test_003');
 DELETE FROM mini_program_banners WHERE id IN ('banner_test_001', 'banner_test_002');
 DELETE FROM user_identities WHERE id IN ('identity_test_u01', 'identity_test_u02');
@@ -386,13 +407,53 @@ INSERT INTO course_packages (
     'seed'
   );
 
+INSERT INTO course_package_locations (
+  id, package_id, location_district, location_community, location_detail,
+  longitude, latitude, sort_order, status, created_at, updated_at
+) VALUES
+  (
+    'pkg_test_001_loc_a',
+    'pkg_test_001',
+    '广东省 / 深圳市 / 南山区',
+    '前海花园',
+    '前海花园中心草坪',
+    113.900000,
+    22.520000,
+    0,
+    1,
+    '2026-06-01 10:30:00',
+    '2026-06-01 10:30:00'
+  ),
+  (
+    'pkg_test_001_loc_b',
+    'pkg_test_001',
+    '广东省 / 深圳市 / 南山区',
+    '后海社区',
+    '后海社区活动场',
+    113.940000,
+    22.510000,
+    1,
+    1,
+    '2026-06-01 10:31:00',
+    '2026-06-01 10:31:00'
+  );
+
 INSERT INTO package_groups (
-  id, package_id, creator_id, target_count, min_success_count, current_count, status, weekday, hour,
+  id, package_id, location_id, location_snapshot, creator_id, target_count, min_success_count, current_count, status, weekday, hour,
   first_class_time, schedule_config, deadline, created_at, success_time
 ) VALUES
   (
     'pg_test_001',
     'pkg_test_001',
+    'pkg_test_001_loc_a',
+    JSON_OBJECT(
+      'id', 'pkg_test_001_loc_a',
+      'location_district', '广东省 / 深圳市 / 南山区',
+      'location_community', '前海花园',
+      'location_detail', '前海花园中心草坪',
+      'longitude', 113.9,
+      'latitude', 22.52
+    ),
     'user_test_001',
     4,
     4,

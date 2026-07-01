@@ -83,9 +83,30 @@ CREATE INDEX `idx_course_packages_publish_time` ON `course_packages` (`publish_t
 CREATE INDEX `idx_course_packages_category` ON `course_packages` (`package_category`);
 CREATE INDEX `idx_course_packages_location_district` ON `course_packages` (`location_district`);
 
+CREATE TABLE IF NOT EXISTS `course_package_locations` (
+  `id` VARCHAR(64) NOT NULL,
+  `package_id` VARCHAR(64) NOT NULL,
+  `location_district` VARCHAR(255) NOT NULL,
+  `location_community` VARCHAR(255) NOT NULL,
+  `location_detail` VARCHAR(500) NOT NULL,
+  `longitude` DECIMAL(10,6) NULL,
+  `latitude` DECIMAL(10,6) NULL,
+  `sort_order` INT NOT NULL,
+  `status` TINYINT NOT NULL,
+  `created_at` DATETIME NULL,
+  `updated_at` DATETIME NULL,
+  PRIMARY KEY (`id`)
+);
+
+CREATE INDEX `idx_course_package_locations_package_id` ON `course_package_locations` (`package_id`);
+CREATE INDEX `idx_course_package_locations_status` ON `course_package_locations` (`status`);
+CREATE INDEX `idx_course_package_locations_package_status` ON `course_package_locations` (`package_id`, `status`);
+
 CREATE TABLE IF NOT EXISTS `package_groups` (
   `id` VARCHAR(64) NOT NULL,
   `package_id` VARCHAR(64) NOT NULL,
+  `location_id` VARCHAR(64) NULL,
+  `location_snapshot` LONGTEXT NULL,
   `creator_id` VARCHAR(64) NULL,
   `target_count` INT NOT NULL,
   `min_success_count` INT NOT NULL,
