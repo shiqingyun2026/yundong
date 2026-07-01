@@ -237,6 +237,7 @@ Page({
     timeOptions: buildTimeOptions(90),
     scheduleTypeOptions: [],
     selectedTargetCount: 0,
+    selectedLocationId: '',
     classCount: 1,
     minScheduleDate: '',
     selectedScheduleTypeValue: SCHEDULE_TYPES.SINGLE,
@@ -343,12 +344,20 @@ Page({
             : ''
       const selectedTimeIndex = timeOptions.findIndex(item => item.value === selectedScheduleTime)
       const selectedTimeOption = selectedTimeIndex >= 0 ? timeOptions[selectedTimeIndex] : null
+      const enabledLocations = Array.isArray(packageDetail.locations) ? packageDetail.locations : []
+      const selectedLocationId =
+        this.data.selectedLocationId && enabledLocations.some(item => item.id === this.data.selectedLocationId)
+          ? this.data.selectedLocationId
+          : enabledLocations.length === 1
+            ? enabledLocations[0].id
+            : ''
 
       this.setData({
         packageDetail,
         classCount,
         timeOptions,
         selectedTargetCount: defaultTargetCount,
+        selectedLocationId,
         minScheduleDate,
         scheduleTypeOptions,
         selectedScheduleTypeValue: defaultScheduleTypeValue,
@@ -460,6 +469,13 @@ Page({
       selectedTargetCount
     })
     this.updateAmountPreview(this.data.packageDetail, selectedTargetCount)
+  },
+
+  handleLocationSelect(event) {
+    const { locationId } = event.currentTarget.dataset
+    this.setData({
+      selectedLocationId: locationId || ''
+    })
   },
 
   handleScheduleTypeSelect(event) {
@@ -848,6 +864,15 @@ Page({
       return
     }
 
+    const packageLocations = (this.data.packageDetail && this.data.packageDetail.locations) || []
+    if (packageLocations.length && !this.data.selectedLocationId) {
+      wx.showToast({
+        title: '请选择上课地点',
+        icon: 'none'
+      })
+      return
+    }
+
     const scheduleError = this.validateScheduleSelection()
     if (scheduleError) {
       wx.showToast({
@@ -908,6 +933,7 @@ Page({
         scheduleDays: schedulePayload.scheduleDays,
         scheduleTime: schedulePayload.scheduleTime,
         scheduleList: schedulePayload.scheduleList,
+        locationId: this.data.selectedLocationId,
         childNickname: this.data.childNickname.trim(),
         childAge: this.data.childAge,
         parentMobile: this.data.parentMobile

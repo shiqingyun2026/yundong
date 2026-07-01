@@ -13,6 +13,22 @@
         <view class="section-desc">{{packageDetail.locationDisplayText || packageDetail.locationText}}</view>
       </view>
 
+      <view wx:if="{{packageDetail.locations.length}}" class="weui-panel weui-ext-card page-section card-shadow location-select-card">
+        <view class="section-title">选择上课地点</view>
+        <view class="location-option-list">
+          <view
+            wx:for="{{packageDetail.locations}}"
+            wx:key="id"
+            class="location-option {{selectedLocationId === item.id ? 'location-option--active' : ''}}"
+            data-location-id="{{item.id}}"
+            bindtap="handleLocationSelect"
+          >
+            <view class="location-option-title">{{item.locationCommunity || item.locationText}}</view>
+            <view class="location-option-desc">{{item.locationDetail || item.locationDistrict}}</view>
+          </view>
+        </view>
+      </view>
+
       <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">选择拼团人数</view>
         <view class="target-grid">

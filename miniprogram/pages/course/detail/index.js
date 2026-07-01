@@ -67,7 +67,18 @@ Page({
     })
 
     try {
-      const packageDetail = await fetchPackageDetail(packageId)
+      const app = getApp()
+      const currentLocation = app && typeof app.getCurrentLocation === 'function' ? app.getCurrentLocation() : null
+      const requestData =
+        currentLocation &&
+        Number.isFinite(Number(currentLocation.latitude)) &&
+        Number.isFinite(Number(currentLocation.longitude))
+          ? {
+              lat: currentLocation.latitude,
+              lng: currentLocation.longitude
+            }
+          : {}
+      const packageDetail = await fetchPackageDetail(packageId, { data: requestData })
       const heroImages = (packageDetail.images || []).map((url, index) => ({
         id: `hero-${index}`,
         url,

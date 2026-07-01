@@ -171,6 +171,12 @@ Page({
         members
       },
       groupOverviewExtraInfoRows: [
+        groupDetail.locationText
+          ? {
+              label: '上课地点',
+              value: groupDetail.locationText
+            }
+          : null,
         {
           label: '拼团类型',
           value: `${groupDetail.minSuccessCount && groupDetail.minSuccessCount !== groupDetail.targetCount ? `${groupDetail.minSuccessCount}～${groupDetail.targetCount}人团` : groupDetail.targetCount === 1 ? '1对1私教' : `${groupDetail.targetCount}人团`}，每人 ¥${groupDetail.memberAmountDisplayText || groupDetail.memberAmountText}`,
@@ -178,7 +184,7 @@ Page({
           countdownValue:
             groupDetail.status === 'active' && groupDetail.remainingSeconds > 0 ? groupDetail.remainingPlainText : ''
         }
-      ],
+      ].filter(Boolean),
       statusText: statusInfo.text,
       statusClassName: statusInfo.className,
       showSuccessEntry,

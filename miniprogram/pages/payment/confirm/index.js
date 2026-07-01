@@ -155,6 +155,7 @@ Page({
     action: 'start',
     packageId: '',
     packageGroupId: '',
+    locationId: '',
     orderId: '',
     targetCount: 0,
     scheduleType: '',
@@ -182,6 +183,7 @@ Page({
       action: options.action || 'start',
       packageId: options.packageId || '',
       packageGroupId: options.packageGroupId || '',
+      locationId: options.locationId || '',
       orderId: options.orderId || '',
       targetCount: Number(options.targetCount) || 0,
       scheduleType: decodeURIComponent(options.scheduleType || ''),
@@ -365,6 +367,7 @@ Page({
         }
       })(),
       scheduleTime: this.data.scheduleTime,
+      locationId: this.data.locationId,
       childNickname: this.data.childNickname.trim(),
       childAge: this.data.childAge,
       parentMobile: this.data.parentMobile

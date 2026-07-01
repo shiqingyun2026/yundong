@@ -24,6 +24,16 @@
     <view class="detail-content">
       <course-overview-sections packageInfo="{{packageDetail}}" />
 
+      <view wx:if="{{packageDetail.locations.length}}" class="weui-panel weui-ext-card page-section card-shadow supported-location-card">
+        <view class="section-title">支持小区/场地</view>
+        <view class="location-chip-list">
+          <view wx:for="{{packageDetail.locations}}" wx:key="id" class="location-chip">
+            <view class="location-chip-title">{{item.locationCommunity || item.locationText}}</view>
+            <view class="location-chip-desc">{{item.locationDistrict}}</view>
+          </view>
+        </view>
+      </view>
+
       <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">当前进行中的拼团</view>
         <view wx:if="{{packageDetail.activeGroups.length}}" class="group-panel">
@@ -41,6 +51,7 @@
                   <text>{{item.groupTypeLabel}}</text>
                   <text>，每人¥{{item.memberAmountDisplayText || item.memberAmountText}}</text>
                 </view>
+                <view class="group-progress-caption group-location">地点：{{item.locationText || '待确认'}}</view>
                 <view class="group-progress-caption group-schedule">{{item.scheduleText}}</view>
               </view>
 

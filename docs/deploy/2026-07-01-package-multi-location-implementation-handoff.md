@@ -72,6 +72,14 @@
    - 编辑旧数据时，如果后端只返回 legacy 单地点字段，前端会初始化为一个地点。
    - 课包内嵌拼团记录、拼团列表、拼团详情、课包订单列表展示团地点。
 
+10. `feat: select and display package locations`
+   - 小程序课包详情 transform 返回 `locations`，活跃团返回团地点字段。
+   - 课包详情页按当前定位请求详情，用于后端按团地点距离排序。
+   - 首页课包卡片不再展示具体小区名，距离仍使用后端最近地点距离。
+   - 课包详情页展示支持小区/场地，活跃团卡片展示团地点。
+   - 开团页增加地点选择，只有一个地点时自动选中，提交开团订单时传 `locationId`。
+   - 支付确认页和拼团详情页展示锁定后的上课地点。
+
 ## 已运行验证
 
 在 `/Users/yun/lindong/.worktrees/package-multi-location`：
@@ -82,6 +90,8 @@ node --test backend/console-api-service/tests/package-location-rules.test.cjs
 node -e "require('./backend/lindong-api/shared/services/packageOrders'); require('./backend/console-api-service/shared/services/packageOrders'); console.log('package orders loaded')"
 node -e "require('./backend/console-api-service/console-api/services/packageAdminService.js'); console.log('package admin service loaded')"
 cd console && npm run lint
+node --test miniprogram/tests/package-location-transform.test.cjs
+node --test miniprogram/tests/*.test.cjs
 ```
 
 说明：
@@ -91,24 +101,18 @@ cd console && npm run lint
 
 ## 当前状态
 
-- 实现进度停在实施计划的 Task 7：小程序前端。
+- 实现进度停在实施计划的 Task 8：Verification And Build。
 - Task 6：Console 前端已完成实现与验证。
+- Task 7：小程序前端已完成实现与验证。
+- Task 8：最终验证已按计划执行；Console build 产生过 `console/dist` 生成物，本次未纳入提交。
 - worktree 当前提交后应为干净状态。
 
 ## 剩余任务
 
-1. 小程序前端
-   - 更新课包列表 transform，使用后端最近地点距离。
-   - 首页不展示小区名。
-   - 详情页展示支持的小区列表。
-   - 开团页增加地点选择，提交开团订单时传 `locationId`。
-   - 详情团列表卡片展示团地点。
-   - 加团流程继承已有团地点，不提供地点选择。
-
-2. 回归与验证
+1. 回归与验证
    - 至少跑已新增/受影响的 Node 测试。
-   - 若改 Console 前端，跑对应 typecheck/build。
-   - 若改小程序，补或更新最小 transform 单测。
+   - Console 前端已跑 `cd console && npm run lint`。
+   - 小程序已新增并通过 `miniprogram/tests/package-location-transform.test.cjs`，并已通过 `node --test miniprogram/tests/*.test.cjs`。
    - 视时间补充 Playwright 回归种子或手动回归记录。
 
 ## 继续入口建议
@@ -118,11 +122,12 @@ cd console && npm run lint
 ```bash
 cd /Users/yun/lindong/.worktrees/package-multi-location
 git status --short
-sed -n '1,220p' miniprogram/utils/package.js
-sed -n '1,220p' miniprogram/pages/course/detail/index.js
+node --test backend/console-api-service/tests/package-location-rules.test.cjs
+node --test backend/console-api-service/tests/package-schedule-rules.test.cjs
+node --test miniprogram/tests/*.test.cjs
 ```
 
-然后按实施计划 Task 7 做小程序前端。
+然后按实施计划 Task 8 做最终验证与提交。
 
 ## 需要留意的问题
 

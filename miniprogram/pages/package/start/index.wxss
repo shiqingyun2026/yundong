@@ -84,6 +84,42 @@
   margin-top: 20rpx;
 }
 
+.location-option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  margin-top: 20rpx;
+  padding: 0 32rpx;
+}
+
+.location-option {
+  min-height: 96rpx;
+  padding: 18rpx 20rpx;
+  border: 2rpx solid #e5e5e5;
+  border-radius: 16rpx;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.location-option--active {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-soft);
+}
+
+.location-option-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #111827;
+}
+
+.location-option-desc {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: #6b7280;
+}
+
 .schedule-type-section {
   padding: 0 32rpx;
 }
