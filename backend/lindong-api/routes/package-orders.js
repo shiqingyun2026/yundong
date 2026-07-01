@@ -14,10 +14,12 @@ const resolveSupabase = () => (env.useMySqlRepositories ? null : getSupabaseClie
 router.post('/start', authenticate, async (req, res) => {
   try {
     const { packageId, targetCount, scheduleType, scheduleDate, scheduleDays, scheduleTime, scheduleList, childNickname, childAge, parentMobile } = req.body || {}
+    const locationId = req.body.locationId || req.body.location_id || ''
     const result = await createPackageStartOrder({
       supabase: resolveSupabase(),
       userId: req.userId,
       packageId,
+      locationId,
       targetCount,
       scheduleType,
       scheduleDate,

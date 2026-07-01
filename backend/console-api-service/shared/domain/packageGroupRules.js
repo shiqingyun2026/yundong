@@ -181,6 +181,8 @@ const computePackageGroupDeadlineStatus = ({
 
 const buildPackageGroupCreationPayload = ({
   packageId,
+  locationId = null,
+  locationSnapshot = null,
   creatorId,
   targetCount,
   minSuccessCount,
@@ -195,6 +197,8 @@ const buildPackageGroupCreationPayload = ({
   createdAt = new Date()
 }) => ({
   package_id: packageId,
+  location_id: locationId || null,
+  location_snapshot: locationSnapshot || null,
   creator_id: creatorId,
   target_count: Number(targetCount) || 0,
   min_success_count: Number(minSuccessCount) || Number(targetCount) || 0,
