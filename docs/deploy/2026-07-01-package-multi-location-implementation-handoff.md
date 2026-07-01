@@ -101,19 +101,193 @@ node --test miniprogram/tests/*.test.cjs
 
 ## 当前状态
 
-- 实现进度停在实施计划的 Task 8：Verification And Build。
+- 实现进度：实施计划 Task 1-8 已完成。
 - Task 6：Console 前端已完成实现与验证。
 - Task 7：小程序前端已完成实现与验证。
 - Task 8：最终验证已按计划执行；Console build 产生过 `console/dist` 生成物，本次未纳入提交。
-- worktree 当前提交后应为干净状态。
+- `tiyubao-pre` 测试库 migration 已由本地 Node + `mysql2` 执行完成。
+- 本地 Console 前后端已启动用于联调。
+- worktree 当前应为干净状态；如只更新本文档，会出现本文档未提交变更。
+
+## 2026-07-01 本地联调记录
+
+### 测试库 migration
+
+目标库：`tiyubao-pre`。
+
+执行前回查：
+
+```json
+{
+  "database": "tiyubao-pre",
+  "hasCoursePackageLocations": false,
+  "hasPackageGroupsLocationId": false,
+  "hasPackageGroupsLocationSnapshot": false,
+  "coursePackages": 13
+}
+```
+
+执行后回查：
+
+```json
+{
+  "database": "tiyubao-pre",
+  "insertedRows": 13,
+  "hasCoursePackageLocations": true,
+  "hasPackageGroupsLocationId": true,
+  "hasPackageGroupsLocationSnapshot": true,
+  "coursePackageLocations": 13,
+  "packagesWithoutLocation": 0
+}
+```
+
+独立二次回查：
+
+```json
+{
+  "database": "tiyubao-pre",
+  "packageGroupColumns": ["location_id", "location_snapshot"],
+  "coursePackageLocations": 13,
+  "packagesWithoutLocation": 0
+}
+```
+
+### 本地服务
+
+Console API：
+
+```bash
+cd /Users/yun/lindong/.worktrees/package-multi-location/backend/console-api-service
+env CONSOLE_API_PORT=8100 CONSOLE_API_ENABLE_COURSE_LIFECYCLE_SYNC=true \
+  node -r dotenv/config console-api/server.js dotenv_config_path=/Users/yun/lindong/backend/.env
+```
+
+说明：
+- `/Users/yun/lindong/backend/.env` 当前连接 `MYSQL_DATABASE=tiyubao-pre`。
+- `CONSOLE_API_ENABLE_COURSE_LIFECYCLE_SYNC=true` 必须显式设置，否则本地 console-api 不会启动课程/课包生命周期同步定时任务。
+- 健康检查已通过：`curl -s http://127.0.0.1:8100/health` 返回 `{"ok":true,"service":"lindong-console-api"}`。
+
+Console 前端：
+
+```bash
+cd /Users/yun/lindong/.worktrees/package-multi-location/console
+env VITE_API_BASE_URL=http://localhost:8100/api/admin npm run dev
+```
+
+访问地址：
+
+```txt
+http://localhost:3100/dashboard
+```
+
+### 已配置课包状态
+
+课包：
+
+```txt
+PKG-20260701-0000
+儿童体适能（启蒙班）多地址测试
+```
+
+曾出现问题：到达上架时间后仍为待上线。根因是本地 console-api 启动时未开启生命周期同步。
+
+已手动执行一次：
+
+```js
+syncAllPackageLifecycles()
+```
+
+回查结果：
+
+```json
+{
+  "database": "tiyubao-pre",
+  "package": [
+    {
+      "id": "PKG-20260701-0000",
+      "name": "儿童体适能（启蒙班）多地址测试",
+      "status": 1,
+      "publish_time": "2026-07-01T11:05:00.000Z"
+    }
+  ]
+}
+```
+
+该课包在 `course_package_locations` 中已有 3 个启用地点：
+
+```txt
+PKG-20260701-0000-loc-001 聚龙花园
+PKG-20260701-0000-loc-002 大世纪水山缘
+PKG-20260701-0000-loc-003 佳兆业·可园
+```
+
+可用 SQL 回查：
+
+```sql
+USE `tiyubao-pre`;
+
+SELECT *
+FROM course_package_locations
+WHERE package_id = 'PKG-20260701-0000'
+ORDER BY sort_order;
+```
+
+### 微信开发者工具
+
+本机存在微信开发者工具：
+
+```txt
+/Applications/wechatwebdevtools.app
+```
+
+项目应打开 worktree 根目录，而不是主工作区：
+
+```txt
+/Users/yun/lindong/.worktrees/package-multi-location
+```
+
+尝试使用 CLI：
+
+```bash
+/Applications/wechatwebdevtools.app/Contents/MacOS/cli open \
+  --project /Users/yun/lindong/.worktrees/package-multi-location \
+  --port 9420
+```
+
+阻塞点：
+
+```txt
+IDE service port disabled.
+```
+
+需要在微信开发者工具中手动开启：
+
+```txt
+设置 -> 安全设置 -> 服务端口：开启
+```
+
+或者在 CLI 提示时输入 `y` 确认开启。此前未擅自开启，已中断该 CLI 调用。
+
+小程序当前 `develop` 环境配置：
+
+```txt
+ENV_API_TRANSPORTS.develop = 'container'
+ENV_CLOUD_CONTAINER_SERVICE_NAMES.develop = 'lindong-api-test'
+```
+
+因此微信开发者工具里的小程序默认请求云托管测试服务 `lindong-api-test`，不是本地 `8100` 的 console-api。若要在开发者工具里看到 `PKG-20260701-0000`，需要确保：
+
+1. 打开的代码目录是 `/Users/yun/lindong/.worktrees/package-multi-location`。
+2. 云托管测试服务 `lindong-api-test` 已部署本分支小程序 API 代码，且连接 `tiyubao-pre`。
+3. 或临时把小程序后端 transport/baseURL 切到本地小程序 API 服务，但这会涉及 `miniprogram/config/env.js` 改动，应单独确认后再做。
 
 ## 剩余任务
 
-1. 回归与验证
-   - 至少跑已新增/受影响的 Node 测试。
-   - Console 前端已跑 `cd console && npm run lint`。
-   - 小程序已新增并通过 `miniprogram/tests/package-location-transform.test.cjs`，并已通过 `node --test miniprogram/tests/*.test.cjs`。
-   - 视时间补充 Playwright 回归种子或手动回归记录。
+1. 微信开发者工具手动回归
+   - 开启微信开发者工具服务端口，或手动打开 worktree 根目录。
+   - 确认开发版小程序是否能从 `lindong-api-test` 看到 `PKG-20260701-0000`。
+   - 如果看不到，优先确认 `lindong-api-test` 是否已部署本分支后端代码并连接 `tiyubao-pre`。
+2. 视时间补充 Playwright 回归种子或手动回归记录。
 
 ## 继续入口建议
 
@@ -122,12 +296,10 @@ node --test miniprogram/tests/*.test.cjs
 ```bash
 cd /Users/yun/lindong/.worktrees/package-multi-location
 git status --short
-node --test backend/console-api-service/tests/package-location-rules.test.cjs
-node --test backend/console-api-service/tests/package-schedule-rules.test.cjs
-node --test miniprogram/tests/*.test.cjs
+curl -s http://127.0.0.1:8100/health
 ```
 
-然后按实施计划 Task 8 做最终验证与提交。
+然后继续微信开发者工具回归。
 
 ## 需要留意的问题
 
