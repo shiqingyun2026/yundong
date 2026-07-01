@@ -1,5 +1,6 @@
 const { env } = require('../../config/env')
 const {
+  coursePackageLocationsRepository,
   coursePackagesRepository,
   ordersRepository,
   packageGroupsRepository,
@@ -21,7 +22,7 @@ const {
   formatPackageDateTime,
   formatPendingPackageScheduleText
 } = require('../../shared/services/packageSchedule')
-const { buildAdminLocationText, formatFenText } = require('../../shared/services/packageReaders')
+const { buildAdminLocationText, buildPackageLocationText, formatFenText } = require('../../shared/services/packageReaders')
 const { parseShanghaiDate } = require('../../shared/utils/dateTime')
 const { writeAdminLog } = require('../../utils/adminStore')
 const { formatDateTime, getPagination, parseShanghaiDateTimeInput } = require('../routes/_helpers')
@@ -314,6 +315,94 @@ const normalizeOptionalNumber = value => {
 
   const number = Number(value)
   return Number.isFinite(number) ? number : null
+}
+
+const normalizePackageLocationPayload = (locations = [], fallbackPayload = {}) => {
+  const source = Array.isArray(locations) && locations.length
+    ? locations
+    : [
+        {
+          id: '',
+          location_district: fallbackPayload.location_district,
+          location_community: fallbackPayload.location_community,
+          location_detail: fallbackPayload.location_detail,
+          longitude: fallbackPayload.longitude,
+          latitude: fallbackPayload.latitude,
+          status: 1,
+          sort_order: 0
+        }
+      ]
+
+  return source.map((item, index) => ({
+    id: normalizeText(item && item.id),
+    location_district: normalizeText(item && item.location_district),
+    location_community: normalizeText(item && item.location_community),
+    location_detail: normalizeText(item && item.location_detail),
+    longitude: normalizeOptionalNumber(item && item.longitude),
+    latitude: normalizeOptionalNumber(item && item.latitude),
+    sort_order: Number(item && item.sort_order) || index,
+    status: Number(item && item.status) === 0 ? 0 : 1
+  }))
+}
+
+const ensureValidPackageLocations = locations => {
+  ensureCondition(
+    (locations || []).some(item => item.status === 1 && item.location_community && item.location_detail),
+    {
+      responseCode: 2001,
+      statusCode: 400,
+      message: '请至少配置一个启用地点'
+    }
+  )
+}
+
+const pickPrimaryPackageLocation = locations =>
+  (locations || []).find(item => item.status === 1) || (locations || [])[0] || {
+    location_district: '',
+    location_community: '',
+    location_detail: '',
+    longitude: null,
+    latitude: null
+  }
+
+const applyPrimaryLocationToPayload = ({ payload = {}, locations = [] }) => {
+  const primaryLocation = pickPrimaryPackageLocation(locations)
+
+  return {
+    ...payload,
+    location_district: primaryLocation.location_district || '',
+    location_community: primaryLocation.location_community || '',
+    location_detail: primaryLocation.location_detail || '',
+    longitude: primaryLocation.longitude ?? null,
+    latitude: primaryLocation.latitude ?? null
+  }
+}
+
+const mapAdminPackageLocation = location => ({
+  id: location.id || '',
+  location_district: location.location_district || '',
+  location_community: location.location_community || '',
+  location_detail: location.location_detail || '',
+  longitude: location.longitude ?? null,
+  latitude: location.latitude ?? null,
+  sort_order: Number(location.sort_order) || 0,
+  status: Number(location.status) === 0 ? 0 : 1,
+  location_text: buildPackageLocationText(location)
+})
+
+const resolveAdminLocationSnapshot = ({ group = {}, pkg = {} }) => {
+  if (group.location_snapshot && typeof group.location_snapshot === 'object') {
+    return group.location_snapshot
+  }
+
+  return {
+    id: group.location_id || '',
+    location_district: pkg.location_district || '',
+    location_community: pkg.location_community || '',
+    location_detail: pkg.location_detail || '',
+    longitude: pkg.longitude ?? null,
+    latitude: pkg.latitude ?? null
+  }
 }
 
 const normalizeDateTimeValue = value => {
@@ -642,11 +731,12 @@ const mapPackageListItem = item => {
   }
 }
 
-const mapPackageDetail = item => ({
+const mapPackageDetail = (item, { locations = [] } = {}) => ({
   ...mapPackageListItem(item),
   images: item.images || [],
   longitude: item.longitude,
   latitude: item.latitude,
+  locations: (locations || []).map(mapAdminPackageLocation),
   coach_intro: item.coach_intro || '',
   coach_certificates: item.coach_certificates || [],
   description: item.description || '',
@@ -690,22 +780,34 @@ const getAdminPackageDetail = async ({ packageId, now = new Date() }) => {
     responseCode: 2001,
     message: '课包不存在'
   })
+  const locations = await coursePackageLocationsRepository.listLocationsByPackageId(packageId)
 
-  return mapPackageDetail(pkg, { now })
+  return mapPackageDetail(pkg, { now, locations })
 }
 
 const createAdminPackage = async ({ payload = {}, admin = {}, ip = null, now = new Date() }) => {
   ensureMySqlMode()
-  validatePackagePayload(payload)
+  const normalizedLocations = normalizePackageLocationPayload(payload.locations, payload)
+  ensureValidPackageLocations(normalizedLocations)
+  const payloadWithPrimaryLocation = applyPrimaryLocationToPayload({
+    payload,
+    locations: normalizedLocations
+  })
+  validatePackagePayload(payloadWithPrimaryLocation)
 
   const created = await coursePackagesRepository.createPackage(
     mapPackagePayloadToDb({
-      payload,
+      payload: payloadWithPrimaryLocation,
       admin,
       create: true,
       now
     })
   )
+  const locations = await coursePackageLocationsRepository.replaceLocationsForPackage({
+    packageId: created.id,
+    locations: normalizedLocations,
+    now
+  })
 
   await safeWriteAdminLog({
     adminId: admin.id,
@@ -735,7 +837,7 @@ const createAdminPackage = async ({ payload = {}, admin = {}, ip = null, now = n
     ip
   })
 
-  return mapPackageDetail(created, { now })
+  return mapPackageDetail(created, { now, locations })
 }
 
 const updateAdminPackage = async ({ packageId, payload = {}, admin = {}, ip = null, now = new Date() }) => {
@@ -757,10 +859,23 @@ const updateAdminPackage = async ({ packageId, payload = {}, admin = {}, ip = nu
     statusCode: 400,
     message: '已上架课包不可编辑'
   })
+  const normalizedLocations = normalizePackageLocationPayload(payload.locations, {
+    location_district: payload.location_district ?? existing.location_district,
+    location_community: payload.location_community ?? existing.location_community,
+    location_detail: payload.location_detail ?? existing.location_detail,
+    longitude: payload.longitude ?? existing.longitude,
+    latitude: payload.latitude ?? existing.latitude
+  })
+  ensureValidPackageLocations(normalizedLocations)
+  const payloadWithPrimaryLocation = applyPrimaryLocationToPayload({
+    payload,
+    locations: normalizedLocations
+  })
+
   validatePackagePayload(
     {
       ...existing,
-      ...payload
+      ...payloadWithPrimaryLocation
     },
     { partial: false }
   )
@@ -768,12 +883,17 @@ const updateAdminPackage = async ({ packageId, payload = {}, admin = {}, ip = nu
   const updated = await coursePackagesRepository.updatePackage(
     packageId,
     mapPackagePayloadToDb({
-      payload,
+      payload: payloadWithPrimaryLocation,
       admin,
       existing,
       now
     })
   )
+  const locations = await coursePackageLocationsRepository.replaceLocationsForPackage({
+    packageId,
+    locations: normalizedLocations,
+    now
+  })
 
   await safeWriteAdminLog({
     adminId: admin.id,
@@ -804,7 +924,7 @@ const updateAdminPackage = async ({ packageId, payload = {}, admin = {}, ip = nu
     ip
   })
 
-  return mapPackageDetail(updated, { now })
+  return mapPackageDetail(updated, { now, locations })
 }
 
 const offlineAdminPackage = async ({ packageId, admin = {}, ip = null, now = new Date() }) => {
@@ -909,6 +1029,10 @@ const listAdminPackageGroups = async ({ query = {}, now = new Date() }) => {
 
   const list = groups.map(group => {
     const pkg = packagesById[group.package_id] || {}
+    const locationSnapshot = resolveAdminLocationSnapshot({
+      group,
+      pkg
+    })
     const deadline = parseShanghaiDate(group.deadline)
     const memberAmountFen = calculatePackageMemberAmountFen({
       totalPrice: pkg.total_price,
@@ -930,6 +1054,9 @@ const listAdminPackageGroups = async ({ query = {}, now = new Date() }) => {
       id: group.id,
       package_id: group.package_id || '',
       package_name: pkg.name || '',
+      location_id: group.location_id || '',
+      location_snapshot: locationSnapshot,
+      location_text: buildPackageLocationText(locationSnapshot),
       creator_id: group.creator_id || '',
       status: group.status || 'active',
       min_success_count: Number(group.min_success_count) || Number(group.target_count) || 0,
@@ -995,6 +1122,10 @@ const getAdminPackageGroupDetail = async ({ packageGroupId, now = new Date() }) 
   })
 
   const usersById = toMap(users)
+  const locationSnapshot = resolveAdminLocationSnapshot({
+    group,
+    pkg
+  })
   const memberAmountFen = calculatePackageMemberAmountFen({
     totalPrice: pkg.total_price,
     targetCount: group.target_count,
@@ -1066,6 +1197,9 @@ const getAdminPackageGroupDetail = async ({ packageGroupId, now = new Date() }) 
     id: group.id,
     package_id: group.package_id || '',
     package_name: pkg.name || '',
+    location_id: group.location_id || '',
+    location_snapshot: locationSnapshot,
+    location_text: buildPackageLocationText(locationSnapshot),
     package_status: mapPackageStatus(
       resolvePackageStatus({
         status: pkg.status,
@@ -1126,6 +1260,7 @@ const getAdminPackageGroupDetail = async ({ packageGroupId, now = new Date() }) 
     orders: sortedOrders.map(order => {
       const context = normalizePackageContext(order.package_context)
       const user = usersById[order.user_id] || {}
+      const orderLocationSnapshot = context.location_snapshot || locationSnapshot
 
       return {
         id: order.id,
@@ -1139,6 +1274,9 @@ const getAdminPackageGroupDetail = async ({ packageGroupId, now = new Date() }) 
         amount_text: formatFenText(order.amount),
         status: mapOrderStatus(order.status),
         action: order.package_action || '',
+        location_id: context.location_id || group.location_id || '',
+        location_snapshot: orderLocationSnapshot,
+        location_text: buildPackageLocationText(orderLocationSnapshot),
         refund_reason: order.refund_reason || '',
         refund_type: order.refund_reason === AUTO_REFUND_REASON ? 'system' : order.refund_reason ? 'manual' : '',
         create_time: formatDateTime(order.created_at),
@@ -1260,20 +1398,25 @@ const listAdminPackageOrders = async ({ query = {} }) => {
       const user = usersById[order.user_id] || {}
       const pkg = packagesById[order.package_id] || {}
       const group = groupsById[order.package_group_id] || {}
+      const context = normalizePackageContext(order.package_context)
+      const locationSnapshot = context.location_snapshot || resolveAdminLocationSnapshot({ group, pkg })
 
       return {
         id: order.id,
         order_no: order.order_no || order.id,
         user_id: order.user_id || '',
         nickname: user.nickname || '',
-        child_nickname: pickChildNickname(normalizePackageContext(order.package_context)),
-        child_age: pickChildAge(normalizePackageContext(order.package_context)),
-        phone: pickParentMobile(normalizePackageContext(order.package_context)),
+        child_nickname: pickChildNickname(context),
+        child_age: pickChildAge(context),
+        phone: pickParentMobile(context),
         avatar_url: user.avatar_url || '',
         package_id: order.package_id || '',
         package_name: pkg.name || '',
         package_group_id: order.package_group_id || '',
         package_group_status: group.status || '',
+        location_id: context.location_id || group.location_id || '',
+        location_snapshot: locationSnapshot,
+        location_text: buildPackageLocationText(locationSnapshot),
         amount_fen: Number(order.amount) || 0,
         amount_text: formatFenText(order.amount),
         status: mapOrderStatus(order.status),
