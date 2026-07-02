@@ -56,6 +56,15 @@
         </view>
       </view>
 
+      <view wx:if="{{packageInfo.locations.length}}" class="shared-info-item">
+        <view class="shared-info-label">支持场地</view>
+        <view class="shared-supported-location-list">
+          <view wx:for="{{packageInfo.locations}}" wx:key="id" class="shared-info-value shared-supported-location-item">
+            {{item.supportedLocationText}}
+          </view>
+        </view>
+      </view>
+
       <view wx:for="{{extraInfoRows}}" wx:key="label" class="shared-info-item">
         <view class="shared-info-label">{{item.label}}</view>
         <view class="shared-info-value">{{item.value}}</view>

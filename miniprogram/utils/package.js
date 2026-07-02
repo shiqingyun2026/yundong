@@ -216,6 +216,28 @@ const formatPackageLocationText = payload => {
   return formatLocationFallbackText(fallbackText, province)
 }
 
+const formatSupportedLocationText = payload => {
+  const source = payload || {}
+  const province = pickFirstNonEmptyString([source.location_province, source.locationProvince])
+  const districtParts = extractLocationPathParts(
+    pickFirstNonEmptyString([source.location_district, source.locationDistrict]),
+    province
+  )
+  const district = districtParts.length ? districtParts[districtParts.length - 1] : ''
+  const community = extractLocationLeafPart(
+    pickFirstNonEmptyString([source.location_community, source.locationCommunity]),
+    province
+  )
+  const fallbackText = pickFirstNonEmptyString([source.location_text, source.locationText])
+  const formatted = dedupeOrderedParts([district, community])
+
+  if (formatted.length) {
+    return formatted.join(' ')
+  }
+
+  return formatLocationFallbackText(fallbackText, province)
+}
+
 const normalizeListPayload = payload => {
   const data = payload || {}
   const list = Array.isArray(data.list) ? data.list : []
@@ -581,6 +603,7 @@ const normalizePackageLocation = item => ({
   locationCommunity: item.location_community || item.locationCommunity || '',
   locationDetail: item.location_detail || item.locationDetail || '',
   locationText: item.location_text || item.locationText || formatPackageLocationText(item),
+  supportedLocationText: formatSupportedLocationText(item),
   distanceMeters: Number.isFinite(Number(item.distance_meters)) ? Number(item.distance_meters) : null
 })
 

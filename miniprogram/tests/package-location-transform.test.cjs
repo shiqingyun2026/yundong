@@ -20,6 +20,32 @@ test('normalizePackageDetail keeps supported locations', () => {
 
   assert.equal(detail.locations.length, 1)
   assert.equal(detail.locations[0].locationCommunity, '前海花园')
+  assert.equal(detail.locations[0].supportedLocationText, '南山区 前海花园')
+})
+
+test('normalizePackageDetail formats supported locations as district and venue name', () => {
+  const detail = pkg.normalizePackageDetail({
+    id: 'pkg_test_001',
+    name: '体适能',
+    locations: [
+      {
+        id: 'loc_a',
+        location_district: '广东省 / 深圳市 / 坪山区',
+        location_community: '聚龙花园'
+      },
+      {
+        id: 'loc_b',
+        location_district: '广东省 / 深圳市 / 龙岗区',
+        location_community: '大世纪水山缘'
+      }
+    ],
+    active_groups: []
+  })
+
+  assert.deepEqual(
+    detail.locations.map(item => item.supportedLocationText),
+    ['坪山区 聚龙花园', '龙岗区 大世纪水山缘']
+  )
 })
 
 test('normalizePackageDetail keeps group location text', () => {
