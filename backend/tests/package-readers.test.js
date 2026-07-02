@@ -688,6 +688,13 @@ test('package group detail returns leader child profile, default member avatars 
         id: 'PG-20260421-00001',
         package_id: 'PKG-20260421-0001',
         status: 'active',
+        location_id: 'PKG-20260421-0001-loc-002',
+        location_snapshot: {
+          id: 'PKG-20260421-0001-loc-002',
+          location_district: '广东省 / 深圳市 / 龙岗区',
+          location_community: '大世纪水山缘',
+          location_detail: '大世纪水山缘 广东省深圳市龙岗区龙山商业街1'
+        },
         target_count: 4,
         min_success_count: 3,
         current_count: 2,
@@ -836,6 +843,13 @@ test('user package group list returns missing count for active groups', async ()
         id: 'PG-20260421-00001',
         package_id: 'PKG-20260421-0001',
         status: 'active',
+        location_id: 'PKG-20260421-0001-loc-002',
+        location_snapshot: {
+          id: 'PKG-20260421-0001-loc-002',
+          location_district: '广东省 / 深圳市 / 龙岗区',
+          location_community: '大世纪水山缘',
+          location_detail: '大世纪水山缘 广东省深圳市龙岗区龙山商业街1'
+        },
         target_count: 4,
         min_success_count: 3,
         current_count: 2,
@@ -891,7 +905,7 @@ test('user package group list returns missing count for active groups', async ()
   assert.equal(result.list[0].min_success_count, 3)
   assert.equal(result.list[0].current_count, 2)
   assert.equal(result.list[0].missing_count, 1)
-  assert.equal(result.list[0].location_text, '深圳市 / 南山区 / 科技园社区')
+  assert.equal(result.list[0].location_text, '深圳市 / 龙岗区 / 大世纪水山缘')
   assert.equal(result.list[0].child_nickname, '小满')
   assert.equal(result.list[0].child_nickname_masked, '小*')
   assert.equal(result.list[0].child_age, 6)

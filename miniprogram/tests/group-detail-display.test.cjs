@@ -134,6 +134,19 @@ test('package group type labels use 1-to-1 private coaching copy', () => {
   assert.doesNotMatch(paymentConfirmJsSource, /1人私教/)
 })
 
+test('group detail overview renders one location row and a schedule time row', () => {
+  const groupDetailWxmlSource = fs.readFileSync(groupDetailWxmlPath, 'utf8')
+  const overviewSource = fs.readFileSync(courseOverviewComponentWxmlPath, 'utf8')
+  const groupDetailJsSource = fs.readFileSync(groupDetailJsPath, 'utf8')
+
+  assert.match(groupDetailWxmlSource, /showLocationInfo="{{false}}"/)
+  assert.match(overviewSource, /wx:for="{{extraInfoRows}}"/)
+  assert.doesNotMatch(overviewSource, /extraInfoRows\[0\]\.label/)
+  assert.match(groupDetailJsSource, /label:\s*'上课地点'/)
+  assert.match(groupDetailJsSource, /label:\s*'上课时间'/)
+  assert.match(groupDetailJsSource, /groupDetail\.scheduleDisplayText/)
+})
+
 test('package active group progress copy uses minimum success count for range groups', () => {
   const detail = normalizePackageDetail({
     id: 'PKG-20260629-0011',

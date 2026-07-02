@@ -61,6 +61,7 @@
         extraInfoRows="{{groupOverviewExtraInfoRows}}"
         detailLayoutVariant="{{'group-detail'}}"
         showFeatureTags="{{false}}"
+        showLocationInfo="{{false}}"
         showInsuranceBanner="{{false}}"
         showSupportedGroupPrices="{{false}}"
         showCourseContentSections="{{false}}"

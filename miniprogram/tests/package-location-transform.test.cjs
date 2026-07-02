@@ -87,6 +87,33 @@ test('normalizePackageDetail formats active group location from snapshot', () =>
   assert.equal(detail.activeGroups[0].locationText, '龙岗区 大世纪水山缘')
 })
 
+test('normalizePackageDetail hides class count in active group schedule text', () => {
+  const detail = pkg.normalizePackageDetail({
+    id: 'pkg_test_001',
+    active_groups: [
+      {
+        id: 'group_daily',
+        status: 'active',
+        target_count: 4,
+        current_count: 2,
+        remaining_seconds: 3600,
+        schedule_text: '每天 09:00，共7次'
+      },
+      {
+        id: 'group_weekly',
+        status: 'active',
+        target_count: 6,
+        current_count: 1,
+        remaining_seconds: 3600,
+        schedule_text: '每周二、周六、周日 10:00，共7次'
+      }
+    ]
+  })
+
+  assert.equal(detail.activeGroups[0].scheduleText, '每天 09:00')
+  assert.equal(detail.activeGroups[1].scheduleText, '每周二、周六、周日 10:00')
+})
+
 test('createPackageStartOrder passes selected location id', async () => {
   const calls = []
   pkg.__setPackageApiForTest({

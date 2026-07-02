@@ -750,6 +750,11 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
   const list = listSource.slice(from, from + safePageSize).map(order => {
     const group = refreshedGroupById[order.package_group_id]
     const pkg = packageById[group.package_id]
+    const locationSnapshot = resolveGroupLocationSnapshot({
+      group,
+      pkg
+    })
+    const locationText = buildLocationText(locationSnapshot)
     const memberAmountFen = calculatePackageMemberAmountFen({
       totalPrice: pkg ? pkg.total_price : 0,
       targetCount: group.target_count,
@@ -780,11 +785,11 @@ const fetchMiniProgramUserPackageGroupList = async ({ userId, status = 'all', pa
       order_status: order.status || '',
       group_status: group.status,
       can_open_detail: canOpenDetail,
-      location_city: pkg ? pkg.location_city || '' : '',
-      location_district: pkg ? pkg.location_district || '' : '',
-      location_community: pkg ? pkg.location_community || '' : '',
-      location_detail: pkg ? pkg.location_detail || '' : '',
-      location_text: pkg ? buildLocationText(pkg) : '',
+      location_city: locationSnapshot.location_city || (pkg ? pkg.location_city || '' : ''),
+      location_district: locationSnapshot.location_district || '',
+      location_community: locationSnapshot.location_community || '',
+      location_detail: locationSnapshot.location_detail || '',
+      location_text: locationText || (pkg ? buildLocationText(pkg) : ''),
       current_count: Number(group.current_count) || 0,
       min_success_count: Number(group.min_success_count) || Number(group.target_count) || 0,
       target_count: Number(group.target_count) || 0,

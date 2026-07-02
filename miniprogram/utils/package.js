@@ -630,6 +630,15 @@ const normalizePackageLocation = item => ({
   distanceMeters: Number.isFinite(Number(item.distance_meters)) ? Number(item.distance_meters) : null
 })
 
+const formatActiveGroupScheduleText = value => {
+  const normalized = `${value || ''}`.trim()
+  if (!normalized) {
+    return '时间待定'
+  }
+
+  return normalized.replace(/[，,]\s*共\d+次$/, '').replace(/\s*共\d+次$/, '').trim() || '时间待定'
+}
+
 const normalizeActiveGroup = item => {
   const targetCount = Number(item.target_count) || 0
   const minSuccessCount = Number(item.min_success_count) || targetCount
@@ -657,7 +666,7 @@ const normalizeActiveGroup = item => {
     memberAmountFen: Number(item.member_amount_fen) || 0,
     memberAmountText: `${item.member_amount_text || formatFenText(item.member_amount_fen)}`,
     memberAmountDisplayText: formatDisplayAmount(item.member_amount_text || formatFenText(item.member_amount_fen)),
-    scheduleText: item.schedule_text || '时间待定',
+    scheduleText: formatActiveGroupScheduleText(item.schedule_text),
     locationId: item.location_id || item.locationId || '',
     locationText: formatGroupLocationText(item),
     distanceMeters: Number.isFinite(Number(item.distance_meters)) ? Number(item.distance_meters) : null,

@@ -161,6 +161,11 @@ Page({
           })
         }))
       : []
+    const scheduleTimeText =
+      groupDetail.scheduleDisplayText ||
+      groupDetail.firstClassTimeText ||
+      groupDetail.scheduleText ||
+      ''
 
     this.safeSetData({
       groupDetail: {
@@ -175,6 +180,12 @@ Page({
           ? {
               label: '上课地点',
               value: groupDetail.locationText
+            }
+          : null,
+        scheduleTimeText
+          ? {
+              label: '上课时间',
+              value: scheduleTimeText
             }
           : null,
         {

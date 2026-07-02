@@ -13,15 +13,14 @@
       </view>
 
       <view class="shared-group-detail-info-grid">
-        <view wx:if="{{extraInfoRows.length}}" class="shared-group-detail-info-cell">
-          <view class="shared-info-label">{{extraInfoRows[0].label}}</view>
-          <view class="shared-info-value shared-info-value--compact">{{extraInfoRows[0].value}}</view>
+        <view wx:for="{{extraInfoRows}}" wx:key="label" class="shared-group-detail-info-cell">
+          <view class="shared-info-label">{{item.label}}</view>
+          <view class="shared-info-value shared-info-value--compact">{{item.value}}</view>
+          <view wx:if="{{item.countdownValue}}" class="shared-group-detail-countdown">
+            <text class="shared-group-detail-countdown-label">{{item.countdownLabel || '拼团剩余时间：'}}</text>
+            <text class="shared-group-detail-countdown-value">{{item.countdownValue}}</text>
+          </view>
         </view>
-      </view>
-
-      <view wx:if="{{extraInfoRows.length && extraInfoRows[0].countdownValue}}" class="shared-group-detail-countdown">
-        <text class="shared-group-detail-countdown-label">{{extraInfoRows[0].countdownLabel || '拼团剩余时间：'}}</text>
-        <text class="shared-group-detail-countdown-value">{{extraInfoRows[0].countdownValue}}</text>
       </view>
     </view>
 
