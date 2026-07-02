@@ -667,6 +667,16 @@ test('trial package start rejects class dates earlier than three days after grou
         deadline_hours: 48
       })
     },
+    coursePackageLocationsRepository: {
+      findLocationById: async id => ({
+        id,
+        package_id: 'PKG-TRIAL-0001',
+        location_district: '广东省 / 深圳市 / 坪山区',
+        location_community: '聚龙花园',
+        location_detail: '聚龙花园',
+        status: 1
+      })
+    },
     ordersRepository: {
       listPendingOrderIdsByUserAndPackage: async () => [],
       closeOrdersByIds: async () => [],
@@ -696,6 +706,7 @@ test('trial package start rejects class dates earlier than three days after grou
         userId: 'user-1',
         packageId: 'PKG-TRIAL-0001',
         targetCount: 4,
+        locationId: 'PKG-TRIAL-0001-loc-001',
         scheduleType: 'single',
         scheduleDate: '2026-04-21',
         scheduleTime: '10:00',
@@ -744,6 +755,16 @@ test('package start accepts the first valid Shanghai date after T+2 even under U
         deadline_hours: 48
       })
     },
+    coursePackageLocationsRepository: {
+      findLocationById: async id => ({
+        id,
+        package_id: 'PKG-TZ-0001',
+        location_district: '广东省 / 深圳市 / 坪山区',
+        location_community: '聚龙花园',
+        location_detail: '聚龙花园',
+        status: 1
+      })
+    },
     ordersRepository: {
       listPendingOrderIdsByUserAndPackage: async () => [],
       closeOrdersByIds: async () => [],
@@ -774,6 +795,7 @@ test('package start accepts the first valid Shanghai date after T+2 even under U
     userId: 'user-1',
     packageId: 'PKG-TZ-0001',
     targetCount: 4,
+    locationId: 'PKG-TZ-0001-loc-001',
     scheduleType: 'single',
     scheduleDate: '2026-04-24',
     scheduleTime: '10:00',
@@ -874,8 +896,7 @@ test('package start order stores selected package location snapshot', async () =
 
   assert.equal(state.createdOrder.package_context.location_id, 'PKG-LOC-0001-loc-002')
   assert.equal(state.createdOrder.package_context.location_snapshot.location_community, '大世纪水山缘')
-  assert.equal(state.createdOrder.package_context.schedule_config.location_id, 'PKG-LOC-0001-loc-002')
-  assert.equal(state.createdOrder.package_context.schedule_config.location_snapshot.location_district, '广东省 / 深圳市 / 龙岗区')
+  assert.equal(state.createdOrder.package_context.location_snapshot.location_district, '广东省 / 深圳市 / 龙岗区')
 })
 
 test('package start accepts schedule time ranges and stores the start time', async () => {
@@ -910,6 +931,16 @@ test('package start accepts schedule time ranges and stores the start time', asy
         deadline_hours: 48
       })
     },
+    coursePackageLocationsRepository: {
+      findLocationById: async id => ({
+        id,
+        package_id: 'PKG-RANGE-0001',
+        location_district: '广东省 / 深圳市 / 坪山区',
+        location_community: '聚龙花园',
+        location_detail: '聚龙花园',
+        status: 1
+      })
+    },
     ordersRepository: {
       listPendingOrderIdsByUserAndPackage: async () => [],
       closeOrdersByIds: async () => [],
@@ -940,6 +971,7 @@ test('package start accepts schedule time ranges and stores the start time', asy
     userId: 'user-1',
     packageId: 'PKG-RANGE-0001',
     targetCount: 4,
+    locationId: 'PKG-RANGE-0001-loc-001',
     scheduleType: 'daily',
     scheduleDate: '2026-04-24',
     scheduleTime: '09:00—10:30',
@@ -993,6 +1025,16 @@ test('package start order stores custom schedule list in schedule config', async
         deadline_hours: 48
       })
     },
+    coursePackageLocationsRepository: {
+      findLocationById: async id => ({
+        id,
+        package_id: 'PKG-START-0001',
+        location_district: '广东省 / 深圳市 / 坪山区',
+        location_community: '聚龙花园',
+        location_detail: '聚龙花园',
+        status: 1
+      })
+    },
     ordersRepository: {
       listPendingOrderIdsByUserAndPackage: async () => [],
       closeOrdersByIds: async () => [],
@@ -1023,6 +1065,7 @@ test('package start order stores custom schedule list in schedule config', async
     userId: 'user-1',
     packageId: 'PKG-START-0001',
     targetCount: 4,
+    locationId: 'PKG-START-0001-loc-001',
     scheduleType: 'weekly',
     scheduleDate: '2026-04-22',
     scheduleTime: '10:00',

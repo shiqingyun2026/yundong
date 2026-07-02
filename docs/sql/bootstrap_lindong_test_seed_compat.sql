@@ -1,6 +1,7 @@
 DELETE FROM `payment_records` WHERE `id` IN ('pay_test_001', 'pay_test_002');
 DELETE FROM `orders` WHERE `id` IN ('order_test_001', 'order_test_002');
 DELETE FROM `package_groups` WHERE `id` IN ('pg_test_001');
+DELETE FROM `course_package_locations` WHERE `id` IN ('pkg_test_001_loc_a', 'pkg_test_001_loc_b');
 DELETE FROM `course_packages` WHERE `id` IN ('pkg_test_001', 'pkg_test_002', 'pkg_test_003');
 DELETE FROM `mini_program_banners` WHERE `id` IN ('banner_test_001', 'banner_test_002');
 DELETE FROM `user_identities` WHERE `id` IN ('identity_test_u01', 'identity_test_u02');
@@ -29,11 +30,18 @@ INSERT INTO `course_packages` (
 ('pkg_test_002', '[测试] 少儿跳绳基础课', 'https://dummyimage.com/960x540/fff4d8/c79200.png&text=Jump+Rope', '', '["https://dummyimage.com/1280x720/fff4d8/c79200.png&text=Jump+01"]', 19900, '跳绳', '5-8岁', 4, 60, 0, '2,4', '[{"target_count":2,"price_fen":9900},{"target_count":4,"price_fen":5900}]', '福田区', '香蜜湖社区', '香蜜体育公园', 114.0401123, 22.5412234, '李教练', '专注跳绳基础动作与节奏训练。', '["https://dummyimage.com/800x1200/f3f4f6/374151.png&text=Coach+Cert+B"]', '<p>用于测试环境的跳绳课详情内容。</p>', 72, '2026-01-05 10:00:00', '2027-12-31 23:59:59', 1, '2026-06-01 10:21:00', '2026-06-01 10:21:00', 'seed', 'seed'),
 ('pkg_test_003', '[测试] 少儿体适能进阶课', 'https://dummyimage.com/960x540/e7f8ef/1f9d63.png&text=Fitness+Advanced', '', '["https://dummyimage.com/1280x720/e7f8ef/1f9d63.png&text=Fitness+01"]', 29900, '体适能', '6-9岁', 6, 75, 1, '3,5', '[{"target_count":3,"price_fen":10900},{"target_count":5,"price_fen":7900}]', '宝安区', '新安社区', '宝安青少年活动中心', 113.8834567, 22.5556789, '陈教练', '进阶体能与团队协作训练。', '["https://dummyimage.com/800x1200/f3f4f6/374151.png&text=Coach+Cert+C"]', '<p>用于测试环境的进阶课详情内容。</p>', 96, '2026-01-10 10:00:00', '2027-12-31 23:59:59', 1, '2026-06-01 10:22:00', '2026-06-01 10:22:00', 'seed', 'seed');
 
+INSERT INTO `course_package_locations` (
+  `id`, `package_id`, `location_district`, `location_community`, `location_detail`,
+  `longitude`, `latitude`, `sort_order`, `status`, `created_at`, `updated_at`
+) VALUES
+('pkg_test_001_loc_a', 'pkg_test_001', '广东省 / 深圳市 / 南山区', '前海花园', '前海花园中心草坪', 113.900000, 22.520000, 0, 1, '2026-06-01 10:30:00', '2026-06-01 10:30:00'),
+('pkg_test_001_loc_b', 'pkg_test_001', '广东省 / 深圳市 / 南山区', '后海社区', '后海社区活动场', 113.940000, 22.510000, 1, 1, '2026-06-01 10:31:00', '2026-06-01 10:31:00');
+
 INSERT INTO `package_groups` (
-  `id`, `package_id`, `creator_id`, `target_count`, `min_success_count`, `current_count`, `status`, `weekday`, `hour`,
+  `id`, `package_id`, `location_id`, `location_snapshot`, `creator_id`, `target_count`, `min_success_count`, `current_count`, `status`, `weekday`, `hour`,
   `first_class_time`, `schedule_config`, `deadline`, `created_at`, `success_time`
 ) VALUES
-('pg_test_001', 'pkg_test_001', 'user_test_001', 4, 4, 2, 'active', 6, 10, '2026-06-15 10:00:00', '{"schedule_type":"weekly","schedule_date":"2026-06-15","schedule_time":"10:00","schedule_days":[6],"class_count":1,"schedule_list":[{"index":1,"class_time":"2026-06-15 10:00:00","display_text":"2026-06-15 10:00:00"}]}', '2027-12-31 23:59:59', '2026-06-01 11:00:00', NULL);
+('pg_test_001', 'pkg_test_001', 'pkg_test_001_loc_a', '{"id":"pkg_test_001_loc_a","location_district":"广东省 / 深圳市 / 南山区","location_community":"前海花园","location_detail":"前海花园中心草坪","longitude":113.9,"latitude":22.52}', 'user_test_001', 4, 4, 2, 'active', 6, 10, '2026-06-15 10:00:00', '{"schedule_type":"weekly","schedule_date":"2026-06-15","schedule_time":"10:00","schedule_days":[6],"class_count":1,"schedule_list":[{"index":1,"class_time":"2026-06-15 10:00:00","display_text":"2026-06-15 10:00:00"}]}', '2027-12-31 23:59:59', '2026-06-01 11:00:00', NULL);
 
 INSERT INTO `orders` (
   `id`, `order_no`, `user_id`, `order_type`, `course_id`, `group_id`, `package_id`, `package_group_id`,

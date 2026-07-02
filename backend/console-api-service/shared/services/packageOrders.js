@@ -48,6 +48,41 @@ const getPackageByIdOrThrow = async packageId => {
   return pkg
 }
 
+const buildPackageOrderLocationContext = ({ location = null }) => {
+  if (!location) {
+    return {
+      location_id: '',
+      location_snapshot: null
+    }
+  }
+
+  return {
+    location_id: location.id || '',
+    location_snapshot: {
+      id: location.id || '',
+      location_district: location.location_district || '',
+      location_community: location.location_community || '',
+      location_detail: location.location_detail || '',
+      longitude: location.longitude ?? null,
+      latitude: location.latitude ?? null
+    }
+  }
+}
+
+const getPackageLocationOrThrow = async ({ packageId, locationId }) => {
+  const normalizedLocationId = `${locationId || ''}`.trim()
+  if (!normalizedLocationId) {
+    throw createPackageServiceError(400, 1001, '请选择上课地点')
+  }
+
+  const location = await coursePackageLocationsRepository.findLocationById(normalizedLocationId)
+  if (!location || location.package_id !== packageId || Number(location.status) !== 1) {
+    throw createPackageServiceError(400, 1001, '请选择上课地点')
+  }
+
+  return location
+}
+
 const resolvePackageClassCount = pkg => Math.max(1, Number(pkg && pkg.class_count) || 0)
 
 const normalizeLocationSnapshot = location => {
@@ -292,13 +327,13 @@ const buildScheduleConfigFromContext = ({ context = {}, pkg, now = new Date() })
 const createPackageStartOrder = async ({
   userId,
   packageId,
+  locationId,
   targetCount,
   scheduleType,
   scheduleDate,
   scheduleDays,
   scheduleTime,
   scheduleList,
-  locationId,
   childNickname,
   childAge,
   parentMobile,
@@ -311,6 +346,10 @@ const createPackageStartOrder = async ({
   if (Number(pkg.status) !== 1) {
     throw createPackageServiceError(404, 2001, '课包不存在')
   }
+  const selectedLocation = await getPackageLocationOrThrow({
+    packageId,
+    locationId
+  })
 
   const classCount = resolvePackageClassCount(pkg)
   const locationSnapshot = await resolvePackageLocationSnapshot({
@@ -351,6 +390,7 @@ const createPackageStartOrder = async ({
     package_id: packageId,
     package_action: 'start',
     package_context: {
+      ...buildPackageOrderLocationContext({ location: selectedLocation }),
       target_count: Number(targetCount),
       weekday:
         scheduleConfigWithLocation.schedule_type === SCHEDULE_TYPES.WEEKLY && scheduleConfigWithLocation.schedule_days.length === 1
@@ -417,6 +457,15 @@ const createPackageJoinOrder = async ({ userId, packageId, packageGroupId, child
     package_group_id: packageGroupId,
     package_action: 'join',
     package_context: {
+      ...buildPackageOrderLocationContext({
+        location:
+          group.location_snapshot && typeof group.location_snapshot === 'object'
+            ? {
+                id: group.location_id || group.location_snapshot.id || '',
+                ...group.location_snapshot
+              }
+            : null
+      }),
       child_nickname: normalizedChildProfile.childNickname,
       child_age: normalizedChildProfile.childAge,
       parent_mobile: normalizedChildProfile.parentMobile
@@ -551,6 +600,8 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
         buildPackageGroupCreationPayload({
           packageId: pkg.id,
           creatorId: userId,
+          locationId: context.location_id || null,
+          locationSnapshot: context.location_snapshot || null,
           targetCount,
           minSuccessCount: findMinSuccessCount({
             groupPriceConfig: pkg.group_price_config,
@@ -673,6 +724,7 @@ const markPackageOrderPaymentSuccess = async ({ userId, orderId, now = new Date(
 }
 
 module.exports = {
+  buildPackageOrderLocationContext,
   createPackageJoinOrder,
   createPackageStartOrder,
   isPackageServiceError,

@@ -30,9 +30,13 @@ router.get('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
+    const latitude = Number(req.query.lat ?? req.query.latitude)
+    const longitude = Number(req.query.lng ?? req.query.longitude)
     const data = await fetchMiniProgramPackageDetail({
       supabase: resolveSupabase(),
-      packageId: req.params.id
+      packageId: req.params.id,
+      latitude: Number.isFinite(latitude) ? latitude : null,
+      longitude: Number.isFinite(longitude) ? longitude : null
     })
 
     return ok(res, data)

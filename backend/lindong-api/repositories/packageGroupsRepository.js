@@ -21,6 +21,8 @@ const parseJsonField = value => {
 const PACKAGE_GROUP_SELECT_FIELDS = `
   id,
   package_id,
+  location_id,
+  location_snapshot,
   creator_id,
   target_count,
   min_success_count,
@@ -51,6 +53,8 @@ const normalizePackageGroup = row => {
   return {
     id: row.id,
     package_id: row.package_id,
+    location_id: row.location_id || '',
+    location_snapshot: parseJsonField(row.location_snapshot) || null,
     creator_id: row.creator_id || '',
     target_count: Number(row.target_count) || 0,
     min_success_count: Number(row.min_success_count) || Number(row.target_count) || 0,
@@ -77,6 +81,8 @@ const isDuplicatePrimaryError = error =>
 const createPackageGroup = async ({
   id,
   package_id,
+  location_id = null,
+  location_snapshot = null,
   creator_id,
   target_count = 0,
   min_success_count = 0,
@@ -101,13 +107,15 @@ const createPackageGroup = async ({
       await execute(
         `
           insert into package_groups (
-            id, package_id, creator_id, target_count, min_success_count, current_count, status,
+            id, package_id, location_id, location_snapshot, creator_id, target_count, min_success_count, current_count, status,
             weekday, hour, first_class_time, deadline, created_at, success_time, schedule_config
-          ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           resolvedId,
           package_id,
+          location_id || null,
+          location_snapshot ? JSON.stringify(location_snapshot) : null,
           creator_id || null,
           Number(target_count) || 0,
           Number(min_success_count) || Number(target_count) || 0,
@@ -265,6 +273,8 @@ const updatePackageGroup = async (id, payload = {}) => {
   }
 
   assign('package_id', payload.package_id)
+  assign('location_id', payload.location_id)
+  assign('location_snapshot', payload.location_snapshot, value => (value ? JSON.stringify(value) : null))
   assign('creator_id', payload.creator_id)
   assign('target_count', payload.target_count, value => Number(value) || 0)
   assign('min_success_count', payload.min_success_count, value => Number(value) || 0)

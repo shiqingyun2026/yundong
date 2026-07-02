@@ -1,5 +1,11 @@
 const { env } = require('../../config/env')
-const { coursePackagesRepository, ordersRepository, packageGroupsRepository, usersRepository } = require('../../repositories')
+const {
+  coursePackageLocationsRepository,
+  coursePackagesRepository,
+  ordersRepository,
+  packageGroupsRepository,
+  usersRepository
+} = require('../../repositories')
 const { calculatePackageMemberAmountFen } = require('../domain/packageGroupRules')
 const { createPackageServiceError } = require('./packageServiceError')
 const {
@@ -176,30 +182,65 @@ const buildLocationText = pkg => formatMiniProgramLocationText(pkg)
 
 const buildMiniProgramLocationText = pkg => formatMiniProgramLocationText(pkg)
 
-const normalizeLocationSnapshot = location => {
-  if (!location || typeof location !== 'object') {
-    return null
+const buildPackageLocationText = location => buildMiniProgramLocationText(location || {})
+
+const buildAdminLocationText = pkg => [pkg.location_district, pkg.location_community, pkg.location_detail].filter(Boolean).join(' / ')
+
+const listPackageLocationsByPackageIds = async packageIds => {
+  if (!coursePackageLocationsRepository || typeof coursePackageLocationsRepository.listLocationsByPackageIds !== 'function') {
+    return []
+  }
+
+  return coursePackageLocationsRepository.listLocationsByPackageIds(packageIds)
+}
+
+const listPackageLocationsByPackageId = async packageId => {
+  if (!coursePackageLocationsRepository || typeof coursePackageLocationsRepository.listLocationsByPackageId !== 'function') {
+    return []
+  }
+
+  return coursePackageLocationsRepository.listLocationsByPackageId(packageId)
+}
+
+const resolveGroupLocationSnapshot = ({ group = {}, pkg = {}, location = null }) => {
+  if (group.location_snapshot && typeof group.location_snapshot === 'object') {
+    return group.location_snapshot
+  }
+
+  const scheduleLocationSnapshot =
+    group.schedule_config &&
+    (group.schedule_config.location_snapshot || group.schedule_config.locationSnapshot)
+  if (scheduleLocationSnapshot && typeof scheduleLocationSnapshot === 'object') {
+    return {
+      id: scheduleLocationSnapshot.id || group.location_id || '',
+      location_district: scheduleLocationSnapshot.location_district || scheduleLocationSnapshot.locationDistrict || '',
+      location_community: scheduleLocationSnapshot.location_community || scheduleLocationSnapshot.locationCommunity || '',
+      location_detail: scheduleLocationSnapshot.location_detail || scheduleLocationSnapshot.locationDetail || '',
+      longitude: scheduleLocationSnapshot.longitude ?? null,
+      latitude: scheduleLocationSnapshot.latitude ?? null
+    }
+  }
+
+  if (location) {
+    return {
+      id: location.id || '',
+      location_district: location.location_district || '',
+      location_community: location.location_community || '',
+      location_detail: location.location_detail || '',
+      longitude: location.longitude ?? null,
+      latitude: location.latitude ?? null
+    }
   }
 
   return {
-    id: location.id || '',
-    package_id: location.package_id || location.packageId || '',
-    location_district: location.location_district || location.locationDistrict || '',
-    location_community: location.location_community || location.locationCommunity || '',
-    location_detail: location.location_detail || location.locationDetail || '',
-    longitude: location.longitude === null || location.longitude === undefined ? null : Number(location.longitude),
-    latitude: location.latitude === null || location.latitude === undefined ? null : Number(location.latitude)
+    id: '',
+    location_district: pkg.location_district || '',
+    location_community: pkg.location_community || '',
+    location_detail: pkg.location_detail || '',
+    longitude: pkg.longitude ?? null,
+    latitude: pkg.latitude ?? null
   }
 }
-
-const resolveGroupLocationSnapshot = ({ group = {}, pkg = {} }) =>
-  normalizeLocationSnapshot(
-    group &&
-      group.schedule_config &&
-      (group.schedule_config.location_snapshot || group.schedule_config.locationSnapshot)
-  ) || normalizeLocationSnapshot(pkg)
-
-const buildAdminLocationText = pkg => [pkg.location_district, pkg.location_community, pkg.location_detail].filter(Boolean).join(' / ')
 
 const resolveLowestGroupPriceFen = pkg => {
   const priceList = (pkg.group_price_config || [])
@@ -245,6 +286,65 @@ const calculateDistanceMeters = ({ latitude, longitude }, target) => {
   return Math.round(2 * EARTH_RADIUS_METERS * Math.asin(Math.sqrt(a)))
 }
 
+const sortPackageGroupsByLocationDistanceAndDeadline = ({ groups = [], latitude = null, longitude = null }) =>
+  [...(groups || [])]
+    .map(group => ({
+      ...group,
+      distance_meters: calculateDistanceMeters({ latitude, longitude }, group.location_snapshot || group.location || {})
+    }))
+    .sort((left, right) => {
+      const leftDistance = Number.isFinite(left.distance_meters) ? left.distance_meters : Number.MAX_SAFE_INTEGER
+      const rightDistance = Number.isFinite(right.distance_meters) ? right.distance_meters : Number.MAX_SAFE_INTEGER
+      if (leftDistance !== rightDistance) {
+        return leftDistance - rightDistance
+      }
+
+      return (parseShanghaiDate(left.deadline)?.getTime() || 0) - (parseShanghaiDate(right.deadline)?.getTime() || 0)
+    })
+
+const resolveNearestPackageLocation = ({ locations = [], latitude = null, longitude = null }) => {
+  const enabledLocations = (locations || []).filter(item => Number(item.status) !== 0)
+  const scored = enabledLocations.map(item => ({
+    ...item,
+    distance_meters: calculateDistanceMeters({ latitude, longitude }, item)
+  }))
+
+  return scored.sort((left, right) => {
+    const leftDistance = Number.isFinite(left.distance_meters) ? left.distance_meters : Number.MAX_SAFE_INTEGER
+    const rightDistance = Number.isFinite(right.distance_meters) ? right.distance_meters : Number.MAX_SAFE_INTEGER
+    if (leftDistance !== rightDistance) {
+      return leftDistance - rightDistance
+    }
+
+    return (Number(left.sort_order) || 0) - (Number(right.sort_order) || 0)
+  })[0] || null
+}
+
+const groupLocationsByPackageId = locations =>
+  (locations || []).reduce((result, item) => {
+    if (!item || !item.package_id) {
+      return result
+    }
+
+    if (!result[item.package_id]) {
+      result[item.package_id] = []
+    }
+
+    result[item.package_id].push(item)
+    return result
+  }, {})
+
+const mapMiniProgramLocation = ({ location, latitude = null, longitude = null }) => ({
+  id: location.id || '',
+  location_district: location.location_district || '',
+  location_community: location.location_community || '',
+  location_detail: location.location_detail || '',
+  longitude: location.longitude ?? null,
+  latitude: location.latitude ?? null,
+  location_text: buildPackageLocationText(location),
+  distance_meters: calculateDistanceMeters({ latitude, longitude }, location)
+})
+
 const ensureMySqlMode = () => {
   if (!env.useMySqlRepositories) {
     throw createPackageServiceError(501, 5000, 'package group is only supported in mysql mode')
@@ -286,27 +386,6 @@ const fetchUsersByIds = async userIds => {
     result[item.id] = item
     return result
   }, {})
-}
-
-const logMiniProgramPackageLocationDebug = packages => {
-  const list = Array.isArray(packages) ? packages : []
-  if (!list.length) {
-    return
-  }
-
-  console.info(
-    '[packageReaders] home package location debug',
-    list.slice(0, 10).map(item => ({
-      id: item.id,
-      name: item.name,
-      location_province: item.location_province || '',
-      location_city: item.location_city || '',
-      location_district: item.location_district || '',
-      location_community: item.location_community || '',
-      location_detail: item.location_detail || '',
-      location_text: buildMiniProgramLocationText(item)
-    }))
-  )
 }
 
 const fetchMiniProgramPackageList = async ({
@@ -354,20 +433,26 @@ const fetchMiniProgramPackageList = async ({
     result[item.package_id] = (result[item.package_id] || 0) + 1
     return result
   }, {})
+  const packageLocations = packageIds.length
+    ? await listPackageLocationsByPackageIds(packageIds)
+    : []
+  const locationsByPackageId = groupLocationsByPackageId(packageLocations)
 
   const sortedPackages = visiblePackages
     .map(item => {
-      const distanceMeters = calculateDistanceMeters(
-        {
-          latitude,
-          longitude
-        },
-        item
-      )
+      const nearestLocation = resolveNearestPackageLocation({
+        locations: locationsByPackageId[item.id] || [],
+        latitude,
+        longitude
+      })
+      const fallbackDistanceMeters = calculateDistanceMeters({ latitude, longitude }, item)
 
       return {
         ...item,
-        distance_meters: distanceMeters
+        nearest_location_id: nearestLocation ? nearestLocation.id : '',
+        distance_meters: nearestLocation && Number.isFinite(nearestLocation.distance_meters)
+          ? nearestLocation.distance_meters
+          : fallbackDistanceMeters
       }
     })
     .sort((left, right) => {
@@ -390,7 +475,6 @@ const fetchMiniProgramPackageList = async ({
 
   const from = (safePage - 1) * safePageSize
   const pagedPackages = sortedPackages.slice(from, from + safePageSize)
-  logMiniProgramPackageLocationDebug(pagedPackages)
   const list = pagedPackages.map(item => {
     const maxSupportedPeople = Math.max(...(item.supported_people || [0]))
     const minMemberAmountFen = resolveLowestGroupPriceFen(item)
@@ -413,6 +497,7 @@ const fetchMiniProgramPackageList = async ({
       location_district: item.location_district,
       location_community: item.location_community,
       location_detail: item.location_detail,
+      nearest_location_id: item.nearest_location_id || '',
       active_group_count: Number(activeGroupCountMap[item.id]) || 0,
       distance_meters: Number.isFinite(item.distance_meters) ? item.distance_meters : null,
       created_at: item.created_at || null
@@ -427,7 +512,7 @@ const fetchMiniProgramPackageList = async ({
   }
 }
 
-const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) => {
+const fetchMiniProgramPackageDetail = async ({ packageId, latitude = null, longitude = null, now = new Date() }) => {
   ensureMySqlMode()
 
   const pkg = await coursePackagesRepository.findPackageById(packageId)
@@ -453,6 +538,40 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
     statuses: ['active'],
     afterDeadline: now
   })
+  const packageLocations = await listPackageLocationsByPackageId(packageId)
+  const enabledLocations = packageLocations.filter(item => Number(item.status) !== 0)
+  const locationById = packageLocations.reduce((result, item) => {
+    result[item.id] = item
+    return result
+  }, {})
+  const activeGroupList = sortPackageGroupsByLocationDistanceAndDeadline({
+    groups: (activeGroups || [])
+      .filter(group => {
+        const deadline = parseShanghaiDate(group && group.deadline)
+        return (
+          group &&
+          group.status === 'active' &&
+          Number(group.current_count) > 0 &&
+          !!deadline &&
+          deadline.getTime() > now.getTime()
+        )
+      })
+      .map(group => {
+        const locationSnapshot = resolveGroupLocationSnapshot({
+          group,
+          pkg,
+          location: group.location_id ? locationById[group.location_id] : null
+        })
+
+        return {
+          ...group,
+          location_snapshot: locationSnapshot,
+          location_text: buildPackageLocationText(locationSnapshot)
+        }
+      }),
+    latitude,
+    longitude
+  })
 
   return {
     id: pkg.id,
@@ -473,30 +592,15 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
     location_district: pkg.location_district,
     location_community: pkg.location_community,
     location_detail: pkg.location_detail,
+    locations: enabledLocations.map(location => mapMiniProgramLocation({ location, latitude, longitude })),
     coach_name: pkg.coach_name,
     coach_intro: signCosUrlsInText(pkg.coach_intro || ''),
     coach_certificates: signCosImageList(pkg.coach_certificates || []),
     description: signCosUrlsInText(pkg.description || ''),
     insurance_desc: '课程期间统一赠送基础运动意外险，具体保障范围以投保说明为准。',
-    active_groups: (activeGroups || [])
-      .filter(group => {
-        const deadline = parseShanghaiDate(group && group.deadline)
-        return (
-          group &&
-          group.status === 'active' &&
-          Number(group.current_count) > 0 &&
-          !!deadline &&
-          deadline.getTime() > now.getTime()
-        )
-      })
-      .sort((left, right) => {
-        const leftDeadline = parseShanghaiDate(left.deadline)
-        const rightDeadline = parseShanghaiDate(right.deadline)
-        return (leftDeadline ? leftDeadline.getTime() : 0) - (rightDeadline ? rightDeadline.getTime() : 0)
-      })
+    active_groups: activeGroupList
       .map(group => {
         const deadline = parseShanghaiDate(group.deadline)
-        const locationSnapshot = resolveGroupLocationSnapshot({ group, pkg })
         const memberAmountFen = calculatePackageMemberAmountFen({
           totalPrice: pkg.total_price,
           targetCount: group.target_count,
@@ -509,12 +613,13 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
           target_count: Number(group.target_count) || 0,
           current_count: Number(group.current_count) || 0,
           status: group.status,
+          location_id: group.location_id || '',
+          location_snapshot: group.location_snapshot || null,
+          location_text: group.location_text || '',
+          distance_meters: Number.isFinite(group.distance_meters) ? group.distance_meters : null,
           remaining_seconds: deadline ? Math.max(0, Math.floor((deadline.getTime() - now.getTime()) / 1000)) : 0,
           member_amount_fen: memberAmountFen,
           member_amount_text: formatFenText(memberAmountFen),
-          location_id: locationSnapshot ? locationSnapshot.id : '',
-          location_text: buildMiniProgramLocationText(locationSnapshot || pkg),
-          location_snapshot: locationSnapshot,
           schedule_text: formatPendingPackageScheduleText({
             weekday: group.weekday,
             hour: group.hour,
@@ -572,8 +677,6 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
     groupPriceConfig: pkg.group_price_config
   })
   const scheduleConfig = latestGroup.schedule_config || null
-  const locationSnapshot = resolveGroupLocationSnapshot({ group: latestGroup, pkg })
-  const locationText = buildMiniProgramLocationText(locationSnapshot || pkg)
   const classCount = Math.max(1, Number(pkg.class_count) || 0)
   const scheduleList = buildPackageLessonSchedule({
     scheduleConfig,
@@ -589,13 +692,15 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
         : 'pending'
   const userJoined = !!(userId && successOrders.some(item => item.user_id === userId))
   const leaderOrder = successOrders.find(item => item.package_action === 'start') || successOrders[0] || null
+  const locationSnapshot = resolveGroupLocationSnapshot({
+    group: latestGroup,
+    pkg
+  })
+  const locationText = buildPackageLocationText(locationSnapshot)
 
   return {
     id: latestGroup.id,
     status: latestGroup.status,
-    location_id: locationSnapshot ? locationSnapshot.id : '',
-    location_text: locationText,
-    location_snapshot: locationSnapshot,
     package: {
       id: pkg.id,
       name: pkg.name,
@@ -606,12 +711,15 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
       coach_intro: signCosUrlsInText(pkg.coach_intro || ''),
       coach_certificates: signCosImageList(pkg.coach_certificates || []),
       description: signCosUrlsInText(pkg.description || ''),
-      location_city: locationSnapshot ? '' : pkg.location_city || '',
-      location_district: locationSnapshot ? locationSnapshot.location_district || '' : pkg.location_district || '',
-      location_community: locationSnapshot ? locationSnapshot.location_community || '' : pkg.location_community || '',
-      location_detail: locationSnapshot ? locationSnapshot.location_detail || '' : pkg.location_detail || '',
-      location_text: locationText
+      location_city: pkg.location_city || '',
+      location_district: pkg.location_district || '',
+      location_community: pkg.location_community || '',
+      location_detail: pkg.location_detail || '',
+      location_text: locationText || buildMiniProgramLocationText(pkg)
     },
+    location_id: latestGroup.location_id || locationSnapshot.id || '',
+    location_snapshot: locationSnapshot,
+    location_text: locationText,
     target_count: Number(latestGroup.target_count) || 0,
     min_success_count: Number(latestGroup.min_success_count) || Number(latestGroup.target_count) || 0,
     current_count: Number(latestGroup.current_count) || 0,
@@ -806,9 +914,13 @@ module.exports = {
   buildAdminLocationText,
   buildLocationText,
   buildMiniProgramLocationText,
+  buildPackageLocationText,
   fetchMiniProgramPackageDetail,
   fetchMiniProgramPackageGroupDetail,
   fetchMiniProgramPackageList,
   fetchMiniProgramUserPackageGroupList,
-  formatFenText
+  formatFenText,
+  resolveNearestPackageLocation,
+  resolveGroupLocationSnapshot,
+  sortPackageGroupsByLocationDistanceAndDeadline
 }

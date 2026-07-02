@@ -21,22 +21,22 @@ router.post('/start', authenticate, async (req, res) => {
       scheduleDays,
       scheduleTime,
       scheduleList,
-      locationId,
       childNickname,
       childAge,
       parentMobile
     } = req.body || {}
+    const locationId = req.body.locationId || req.body.location_id || ''
     const result = await createPackageStartOrder({
       supabase: resolveSupabase(),
       userId: req.userId,
       packageId,
+      locationId,
       targetCount,
       scheduleType,
       scheduleDate,
       scheduleDays,
       scheduleTime,
       scheduleList,
-      locationId,
       childNickname,
       childAge,
       parentMobile
