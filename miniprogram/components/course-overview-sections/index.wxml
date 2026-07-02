@@ -7,17 +7,12 @@
     </view>
 
     <view wx:if="{{detailLayoutVariant === 'group-detail'}}" class="shared-info-list shared-info-list--group-detail">
-      <view class="shared-info-item">
+      <view wx:if="{{showLocationInfo}}" class="shared-info-item">
         <view class="shared-info-label">上课地点</view>
         <view class="shared-info-value">{{packageInfo.locationDisplayText || packageInfo.locationText}}</view>
       </view>
 
       <view class="shared-group-detail-info-grid">
-        <view wx:if="{{packageInfo.ageRange}}" class="shared-group-detail-info-cell">
-          <view class="shared-info-label">适用年龄</view>
-          <view class="shared-info-value shared-info-value--compact">{{packageInfo.ageRange}}</view>
-        </view>
-
         <view wx:if="{{extraInfoRows.length}}" class="shared-group-detail-info-cell">
           <view class="shared-info-label">{{extraInfoRows[0].label}}</view>
           <view class="shared-info-value shared-info-value--compact">{{extraInfoRows[0].value}}</view>
@@ -31,14 +26,9 @@
     </view>
 
     <view wx:else class="shared-info-list">
-      <view class="shared-info-item">
+      <view wx:if="{{showLocationInfo}}" class="shared-info-item">
         <view class="shared-info-label">上课地点</view>
         <view class="shared-info-value">{{packageInfo.locationDisplayText || packageInfo.locationText}}</view>
-      </view>
-
-      <view wx:if="{{packageInfo.ageRange}}" class="shared-info-item">
-        <view class="shared-info-label">适用年龄</view>
-        <view class="shared-info-value">{{packageInfo.ageRange}}</view>
       </view>
 
       <view wx:if="{{showSupportedGroupPrices && packageInfo.supportedGroupPriceList.length}}" class="shared-info-item">
@@ -52,6 +42,15 @@
               <text>{{item.label || item.count + '人团'}}</text>
               <text>，每人¥{{item.memberAmountDisplayText || item.memberAmountText}}</text>
             </view>
+          </view>
+        </view>
+      </view>
+
+      <view wx:if="{{packageInfo.locations.length}}" class="shared-info-item">
+        <view class="shared-info-label">支持场地</view>
+        <view class="shared-supported-location-list">
+          <view wx:for="{{packageInfo.locations}}" wx:key="id" class="shared-info-value shared-supported-location-item">
+            {{item.supportedLocationText}}
           </view>
         </view>
       </view>

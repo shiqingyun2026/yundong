@@ -10,7 +10,6 @@
     <view class="page-shell">
       <view class="weui-panel weui-ext-card page-section card-shadow">
         <view class="section-title">{{packageDetail.name}}</view>
-        <view class="section-desc">{{packageDetail.locationDisplayText || packageDetail.locationText}}</view>
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
@@ -24,6 +23,20 @@
             bindtap="handleTargetSelect"
           >
             {{item.label || item.count + '人团'}}
+          </view>
+        </view>
+      </view>
+
+      <view wx:if="{{packageDetail.locations.length}}" class="weui-panel weui-ext-card page-section card-shadow">
+        <view class="start-location-row" bindtap="openLocationPopup">
+          <view class="start-form-label">上课地点</view>
+          <view class="start-form-picker start-location-picker">
+            <view class="start-form-picker-content">
+              <view class="start-form-value {{!selectedLocationDisplayText ? 'start-form-value--placeholder' : ''}}">
+                {{selectedLocationDisplayText || '请选择'}}
+              </view>
+              <view class="start-form-arrow {{!selectedLocationDisplayText ? 'start-form-arrow--placeholder' : ''}}">></view>
+            </view>
           </view>
         </view>
       </view>
@@ -137,10 +150,10 @@
       </view>
 
       <view class="weui-panel weui-ext-card page-section card-shadow">
-        <view class="section-title">学生信息</view>
+        <view class="section-title">学员信息</view>
         <mp-cells extClass="start-form-cells child-form-cells">
           <mp-cell extClass="start-form-cell child-form-cell" hasHeader="{{true}}" hasBody="{{true}}" hasFooter="{{false}}">
-            <view slot="title" class="start-form-label">学生昵称</view>
+            <view slot="title" class="start-form-label">学员昵称</view>
             <view class="start-form-input-wrapper">
               <input
                 class="start-form-input"
@@ -181,7 +194,7 @@
             </view>
           </mp-cell>
           <mp-cell extClass="start-form-cell child-form-cell" hasHeader="{{true}}" hasBody="{{true}}" hasFooter="{{false}}">
-            <view slot="title" class="start-form-label">家长手机号</view>
+            <view slot="title" class="start-form-label">联系手机号</view>
             <view class="start-form-input-wrapper">
               <input
                 class="start-form-input"
@@ -220,10 +233,9 @@
           <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">极端天气或请假人数过半，课程顺延至下周。</view></view>
           <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">个人请假，不退费不补课。</view></view>
           <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">上课期间，课程不得转让，不可更换学员。</view></view>
-          <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">饭后至少半个小时再运动，请家长提前做好安排。</view></view>
+          <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">饭后至少半个小时再运动，请提前做好安排。</view></view>
           <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">上课前替换换好运动服和运动鞋，并准备好饮用水。</view></view>
           <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">如学员有特殊情况，请提前告知。</view></view>
-          <view class="notice-item"><view class="notice-dot"></view><view class="notice-text">每次上课，至少要求一个家长全程在场。</view></view>
         </view>
       </view>
 
@@ -252,6 +264,25 @@
   </view>
 
   <view wx:if="{{showScheduleDaysPopup}}" class="schedule-popup-mask" bindtap="closeScheduleDaysPopup"></view>
+  <view wx:if="{{showLocationPopup}}" class="schedule-popup-mask" bindtap="closeLocationPopup"></view>
+  <view wx:if="{{showLocationPopup}}" class="schedule-sheet location-sheet">
+    <view class="schedule-sheet__grabber"></view>
+    <view class="schedule-sheet__header">
+      <view class="schedule-sheet__title">选择上课地点</view>
+    </view>
+    <view class="location-sheet-list">
+      <view
+        wx:for="{{packageDetail.locations}}"
+        wx:key="id"
+        class="location-sheet-item {{selectedLocationId === item.id ? 'location-sheet-item--active' : ''}}"
+        data-location-id="{{item.id}}"
+        bindtap="handleLocationSelect"
+      >
+        <view class="location-sheet-item__title">{{item.supportedLocationText}}</view>
+      </view>
+    </view>
+  </view>
+
   <view wx:if="{{showScheduleDaysPopup}}" class="schedule-sheet">
     <view class="schedule-sheet__grabber"></view>
     <view class="schedule-sheet__header">

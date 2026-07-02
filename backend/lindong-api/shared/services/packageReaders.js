@@ -176,6 +176,29 @@ const buildLocationText = pkg => formatMiniProgramLocationText(pkg)
 
 const buildMiniProgramLocationText = pkg => formatMiniProgramLocationText(pkg)
 
+const normalizeLocationSnapshot = location => {
+  if (!location || typeof location !== 'object') {
+    return null
+  }
+
+  return {
+    id: location.id || '',
+    package_id: location.package_id || location.packageId || '',
+    location_district: location.location_district || location.locationDistrict || '',
+    location_community: location.location_community || location.locationCommunity || '',
+    location_detail: location.location_detail || location.locationDetail || '',
+    longitude: location.longitude === null || location.longitude === undefined ? null : Number(location.longitude),
+    latitude: location.latitude === null || location.latitude === undefined ? null : Number(location.latitude)
+  }
+}
+
+const resolveGroupLocationSnapshot = ({ group = {}, pkg = {} }) =>
+  normalizeLocationSnapshot(
+    group &&
+      group.schedule_config &&
+      (group.schedule_config.location_snapshot || group.schedule_config.locationSnapshot)
+  ) || normalizeLocationSnapshot(pkg)
+
 const buildAdminLocationText = pkg => [pkg.location_district, pkg.location_community, pkg.location_detail].filter(Boolean).join(' / ')
 
 const resolveLowestGroupPriceFen = pkg => {
@@ -473,6 +496,7 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
       })
       .map(group => {
         const deadline = parseShanghaiDate(group.deadline)
+        const locationSnapshot = resolveGroupLocationSnapshot({ group, pkg })
         const memberAmountFen = calculatePackageMemberAmountFen({
           totalPrice: pkg.total_price,
           targetCount: group.target_count,
@@ -488,6 +512,9 @@ const fetchMiniProgramPackageDetail = async ({ packageId, now = new Date() }) =>
           remaining_seconds: deadline ? Math.max(0, Math.floor((deadline.getTime() - now.getTime()) / 1000)) : 0,
           member_amount_fen: memberAmountFen,
           member_amount_text: formatFenText(memberAmountFen),
+          location_id: locationSnapshot ? locationSnapshot.id : '',
+          location_text: buildMiniProgramLocationText(locationSnapshot || pkg),
+          location_snapshot: locationSnapshot,
           schedule_text: formatPendingPackageScheduleText({
             weekday: group.weekday,
             hour: group.hour,
@@ -545,6 +572,8 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
     groupPriceConfig: pkg.group_price_config
   })
   const scheduleConfig = latestGroup.schedule_config || null
+  const locationSnapshot = resolveGroupLocationSnapshot({ group: latestGroup, pkg })
+  const locationText = buildMiniProgramLocationText(locationSnapshot || pkg)
   const classCount = Math.max(1, Number(pkg.class_count) || 0)
   const scheduleList = buildPackageLessonSchedule({
     scheduleConfig,
@@ -564,6 +593,9 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
   return {
     id: latestGroup.id,
     status: latestGroup.status,
+    location_id: locationSnapshot ? locationSnapshot.id : '',
+    location_text: locationText,
+    location_snapshot: locationSnapshot,
     package: {
       id: pkg.id,
       name: pkg.name,
@@ -574,11 +606,11 @@ const fetchMiniProgramPackageGroupDetail = async ({ packageGroupId, userId = '',
       coach_intro: signCosUrlsInText(pkg.coach_intro || ''),
       coach_certificates: signCosImageList(pkg.coach_certificates || []),
       description: signCosUrlsInText(pkg.description || ''),
-      location_city: pkg.location_city || '',
-      location_district: pkg.location_district || '',
-      location_community: pkg.location_community || '',
-      location_detail: pkg.location_detail || '',
-      location_text: buildMiniProgramLocationText(pkg)
+      location_city: locationSnapshot ? '' : pkg.location_city || '',
+      location_district: locationSnapshot ? locationSnapshot.location_district || '' : pkg.location_district || '',
+      location_community: locationSnapshot ? locationSnapshot.location_community || '' : pkg.location_community || '',
+      location_detail: locationSnapshot ? locationSnapshot.location_detail || '' : pkg.location_detail || '',
+      location_text: locationText
     },
     target_count: Number(latestGroup.target_count) || 0,
     min_success_count: Number(latestGroup.min_success_count) || Number(latestGroup.target_count) || 0,

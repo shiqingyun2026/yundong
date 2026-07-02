@@ -1,6 +1,8 @@
 const { get, post } = require('./request')
 const { formatHourMinute, formatMonthDay } = require('./util')
 
+let packagePost = post
+
 const WEEKDAY_LABELS = {
   1: '周一',
   2: '周二',
@@ -212,6 +214,51 @@ const formatPackageLocationText = payload => {
   }
 
   return formatLocationFallbackText(fallbackText, province)
+}
+
+const formatSupportedLocationText = payload => {
+  const source = payload || {}
+  const province = pickFirstNonEmptyString([source.location_province, source.locationProvince])
+  const districtParts = extractLocationPathParts(
+    pickFirstNonEmptyString([source.location_district, source.locationDistrict]),
+    province
+  )
+  const district = districtParts.length ? districtParts[districtParts.length - 1] : ''
+  const community = extractLocationLeafPart(
+    pickFirstNonEmptyString([source.location_community, source.locationCommunity]),
+    province
+  )
+  const fallbackText = pickFirstNonEmptyString([source.location_text, source.locationText])
+  const formatted = dedupeOrderedParts([district, community])
+
+  if (formatted.length) {
+    return formatted.join(' ')
+  }
+
+  return formatLocationFallbackText(fallbackText, province)
+}
+
+const formatGroupLocationText = payload => {
+  const source = payload || {}
+  const snapshot = source.location_snapshot || source.locationSnapshot || {}
+  const hasSnapshot = Object.keys(snapshot || {}).length > 0
+  const sourceWithSnapshot = hasSnapshot ? snapshot : source
+  const hasStructuredLocation = hasSnapshot || !!pickFirstNonEmptyString([
+    source.location_district,
+    source.locationDistrict,
+    source.location_community,
+    source.locationCommunity
+  ])
+  const formatted = hasStructuredLocation ? formatSupportedLocationText(sourceWithSnapshot) : ''
+
+  if (formatted) {
+    return formatted
+  }
+
+  const fallbackText = pickFirstNonEmptyString([source.location_text, source.locationText])
+  const fallbackParts = extractLocationPathParts(fallbackText)
+
+  return fallbackParts.length > 1 ? fallbackParts.slice(-2).join(' ') : formatLocationFallbackText(fallbackText)
 }
 
 const normalizeListPayload = payload => {
@@ -573,6 +620,16 @@ const normalizePackageCard = item => ({
   createdAt: item.created_at || ''
 })
 
+const normalizePackageLocation = item => ({
+  id: item.id || item.location_id || item.locationId || '',
+  locationDistrict: item.location_district || item.locationDistrict || '',
+  locationCommunity: item.location_community || item.locationCommunity || '',
+  locationDetail: item.location_detail || item.locationDetail || '',
+  locationText: item.location_text || item.locationText || formatPackageLocationText(item),
+  supportedLocationText: formatSupportedLocationText(item),
+  distanceMeters: Number.isFinite(Number(item.distance_meters)) ? Number(item.distance_meters) : null
+})
+
 const normalizeActiveGroup = item => {
   const targetCount = Number(item.target_count) || 0
   const minSuccessCount = Number(item.min_success_count) || targetCount
@@ -601,6 +658,9 @@ const normalizeActiveGroup = item => {
     memberAmountText: `${item.member_amount_text || formatFenText(item.member_amount_fen)}`,
     memberAmountDisplayText: formatDisplayAmount(item.member_amount_text || formatFenText(item.member_amount_fen)),
     scheduleText: item.schedule_text || '时间待定',
+    locationId: item.location_id || item.locationId || '',
+    locationText: formatGroupLocationText(item),
+    distanceMeters: Number.isFinite(Number(item.distance_meters)) ? Number(item.distance_meters) : null,
     progressText: `${currentCount}/${targetCount}`,
     ruleText: minSuccessCount && minSuccessCount !== targetCount
       ? `满${targetCount}人立即成团，截止满${minSuccessCount}人也成团`
@@ -644,6 +704,7 @@ const normalizePackageDetail = payload => ({
   locationDetail: payload.location_detail || '',
   locationText: formatPackageLocationText(payload),
   locationDisplayText: formatPackageLocationText(payload),
+  locations: Array.isArray(payload.locations) ? payload.locations.map(normalizePackageLocation) : [],
   coachName: payload.coach_name || '',
   coachIntro: normalizeRichTextImages(payload.coach_intro || ''),
   coachCertificates: Array.isArray(payload.coach_certificates) ? payload.coach_certificates : [],
@@ -656,6 +717,8 @@ const normalizePackageDetail = payload => ({
 
 const normalizePackageGroupDetail = payload => {
   const packagePayload = payload.package || {}
+  const locationSnapshot = payload.location_snapshot || payload.locationSnapshot || {}
+  const locationText = payload.location_text || payload.locationText || formatPackageLocationText(locationSnapshot)
   const classDurationMinutes = Number(packagePayload.class_duration_minutes || packagePayload.classDurationMinutes) || 0
   const scheduleList = formatPackageGroupScheduleList(payload.schedule_list, classDurationMinutes)
   const targetCount = Number(payload.target_count) || 0
@@ -681,6 +744,9 @@ const normalizePackageGroupDetail = payload => {
   return {
     id: payload.id || '',
     status: payload.status || 'active',
+    locationId: payload.location_id || payload.locationId || '',
+    locationText,
+    locationSnapshot: Object.keys(locationSnapshot || {}).length ? normalizePackageLocation(locationSnapshot) : null,
     packageInfo: {
       id: payload.package && payload.package.id ? payload.package.id : '',
       name: payload.package && payload.package.name ? payload.package.name : '',
@@ -699,8 +765,8 @@ const normalizePackageGroupDetail = payload => {
         payload.package && Array.isArray(payload.package.coach_certificates)
           ? payload.package.coach_certificates
           : [],
-      locationText: payload.package ? formatPackageLocationText(payload.package) : '',
-      locationDisplayText: payload.package ? formatPackageLocationText(payload.package) : ''
+      locationText: locationText || (payload.package ? formatPackageLocationText(payload.package) : ''),
+      locationDisplayText: locationText || (payload.package ? formatPackageLocationText(payload.package) : '')
     },
     targetCount,
     minSuccessCount,
@@ -818,8 +884,16 @@ const fetchPackageList = async ({
   }
 }
 
-const fetchPackageDetail = async (packageId, options = {}) =>
-  normalizePackageDetail(await get(`/api/packages/${packageId}`, {}, options))
+const fetchPackageDetail = async (packageId, options = {}) => {
+  const params = options.data || options.params || {}
+  const requestOptions = {
+    ...options
+  }
+  delete requestOptions.data
+  delete requestOptions.params
+
+  return normalizePackageDetail(await get(`/api/packages/${packageId}`, params, requestOptions))
+}
 
 const fetchPackageGroupDetail = async packageGroupId =>
   normalizePackageGroupDetail(
@@ -834,11 +908,12 @@ const createPackageStartOrder = async ({
   scheduleDays,
   scheduleTime,
   scheduleList,
+  locationId,
   childNickname,
   childAge,
   parentMobile
 }) =>
-  post(
+  packagePost(
     '/api/package-orders/start',
     {
       packageId,
@@ -848,6 +923,7 @@ const createPackageStartOrder = async ({
       scheduleDays,
       scheduleTime,
       scheduleList,
+      locationId,
       childNickname,
       childAge,
       parentMobile
@@ -866,7 +942,7 @@ const createPackageJoinOrder = async ({
   childAge,
   parentMobile
 }) =>
-  post(
+  packagePost(
     '/api/package-orders/join',
     {
       packageId,
@@ -883,7 +959,7 @@ const createPackageJoinOrder = async ({
   )
 
 const preparePayment = async ({ orderId }) =>
-  post(
+  packagePost(
     '/api/payments/prepare',
     {
       orderId
@@ -952,7 +1028,7 @@ const fetchPaymentStatus = async ({ orderId }) =>
   )
 
 const closePaymentOrder = async ({ orderId }) =>
-  post(
+  packagePost(
     '/api/payments/close',
     {
       orderId
@@ -965,7 +1041,7 @@ const closePaymentOrder = async ({ orderId }) =>
   )
 
 const mockPaymentSuccess = async ({ orderId }) =>
-  post(
+  packagePost(
     '/api/payments/mock-success',
     {
       orderId
@@ -1014,6 +1090,7 @@ module.exports = {
   formatFenText,
   formatPackageGroupScheduleList,
   formatPackageLocationText,
+  normalizePackageLocation,
   formatPackageDateTimeText,
   buildPackageGroupShareTitle,
   mockPaymentSuccess,
@@ -1023,5 +1100,11 @@ module.exports = {
   prepareCloudPayment,
   preparePayment,
   resolvePackageGroupProgressCopy,
-  resolveShareImageUrl
+  resolveShareImageUrl,
+  __setPackageApiForTest(api = {}) {
+    packagePost = api.post || post
+  },
+  __resetPackageApiForTest() {
+    packagePost = post
+  }
 }

@@ -694,7 +694,20 @@ test('package group detail returns leader child profile, default member avatars 
         weekday: 6,
         hour: 10,
         deadline: '2026-04-23T10:00:00.000Z',
-        first_class_time: null
+        first_class_time: null,
+        schedule_config: {
+          schedule_type: 'weekly',
+          schedule_time: '10:00',
+          schedule_days: [6],
+          class_count: 5,
+          location_id: 'PKG-20260421-0001-loc-002',
+          location_snapshot: {
+            id: 'PKG-20260421-0001-loc-002',
+            location_district: '广东省 / 深圳市 / 龙岗区',
+            location_community: '大世纪水山缘',
+            location_detail: '大世纪水山缘 广东省深圳市龙岗区龙山商业街1'
+          }
+        }
       })
     },
     ordersRepository: {
@@ -750,7 +763,10 @@ test('package group detail returns leader child profile, default member avatars 
     now: new Date('2026-04-21T10:00:00.000Z')
   })
 
-  assert.equal(result.package.location_text, '深圳市 / 南山区 / 科技园社区')
+  assert.equal(result.location_id, 'PKG-20260421-0001-loc-002')
+  assert.equal(result.location_text, '深圳市 / 龙岗区 / 大世纪水山缘')
+  assert.equal(result.location_snapshot.location_community, '大世纪水山缘')
+  assert.equal(result.package.location_text, '深圳市 / 龙岗区 / 大世纪水山缘')
   assert.equal(result.package.wechat_share_cover, 'https://example.com/group-share-cover.png')
   assert.equal(result.package.description, '<p>课程介绍</p>')
   assert.equal(result.package.coach_name, '教练A')

@@ -119,6 +119,18 @@
   margin-top: 8rpx;
 }
 
+.shared-supported-location-list {
+  margin-top: 8rpx;
+}
+
+.shared-supported-location-item {
+  margin-top: 0;
+}
+
+.shared-supported-location-item + .shared-supported-location-item {
+  margin-top: 2rpx;
+}
+
 .shared-group-price-item {
   font-size: 28rpx;
   line-height: 1.8;

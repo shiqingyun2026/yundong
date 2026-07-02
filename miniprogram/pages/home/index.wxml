@@ -106,13 +106,11 @@
           <view class="course-title-row">
             <view class="course-title">{{item.name}}</view>
             <mp-badge
-              wx:if="{{item.distanceText || item.locationDistrict}}"
+              wx:if="{{item.distanceText}}"
               extClass="weui-ext-tag distance-text"
-              content="{{item.distanceText || item.locationDistrict}}"
+              content="{{item.distanceText}}"
             />
           </view>
-
-          <view class="course-meta">{{item.locationText}}</view>
 
           <view class="course-footer">
             <view class="price-group">

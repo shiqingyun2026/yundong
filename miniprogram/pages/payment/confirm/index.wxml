@@ -11,7 +11,7 @@
         <view class="order-title">{{packageDetail.name}}</view>
         <view class="order-item">
           <view class="order-label">上课地点</view>
-          <view class="order-value">{{packageDetail.locationDisplayText || packageDetail.locationText}}</view>
+          <view class="order-value">{{packageGroupDetail.locationText || packageDetail.locationDisplayText || packageDetail.locationText}}</view>
         </view>
         <view wx:if="{{action === 'join' && packageGroupDetail && joinScheduleSummaryText}}" class="order-item">
           <view class="order-label">上课时间</view>
@@ -22,12 +22,12 @@
           <view class="order-value">{{groupTypeText || targetCount + '人团'}}</view>
         </view>
         <view class="order-item">
-          <view class="order-label">学生昵称</view>
+          <view class="order-label">学员昵称</view>
           <input
             class="order-input"
             type="text"
             maxlength="20"
-            placeholder="请输入学生昵称"
+            placeholder="请输入学员昵称"
             cursor-spacing="24"
             confirm-type="done"
             value="{{childNickname}}"
@@ -51,13 +51,13 @@
           />
         </view>
         <view class="order-item">
-          <view class="order-label">家长手机号</view>
+          <view class="order-label">联系手机号</view>
           <input
             class="order-input"
             type="text"
             inputmode="numeric"
             maxlength="11"
-            placeholder="请输入家长手机号"
+            placeholder="请输入联系手机号"
             cursor-spacing="24"
             confirm-type="done"
             value="{{parentMobile}}"
@@ -141,7 +141,7 @@
           </view>
           <view class="notice-item">
             <view class="notice-dot"></view>
-            <view class="notice-text">饭后至少半个小时再运动，请家长提前做好安排。</view>
+            <view class="notice-text">饭后至少半个小时再运动，请提前做好安排。</view>
           </view>
           <view class="notice-item">
             <view class="notice-dot"></view>
@@ -150,10 +150,6 @@
           <view class="notice-item">
             <view class="notice-dot"></view>
             <view class="notice-text">如学员有特殊情况，请提前告知。</view>
-          </view>
-          <view class="notice-item">
-            <view class="notice-dot"></view>
-            <view class="notice-text">每次上课，至少要求一个家长全程在场。</view>
           </view>
         </view>
       </view>

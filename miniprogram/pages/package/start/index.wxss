@@ -212,6 +212,25 @@
   line-height: 1.4;
 }
 
+.start-location-row {
+  min-height: 88rpx;
+  padding: 0 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
+  box-sizing: border-box;
+}
+
+.start-location-row .start-form-label {
+  width: 160rpx;
+  flex-shrink: 0;
+}
+
+.start-location-picker {
+  flex: 1;
+}
+
 .start-form-value {
   flex: 1;
   width: 100%;
@@ -434,6 +453,33 @@
 .schedule-sheet__button--primary {
   background: var(--brand-primary);
   color: #ffffff;
+}
+
+.location-sheet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+}
+
+.location-sheet-item {
+  min-height: 88rpx;
+  padding: 20rpx 24rpx;
+  border: 2rpx solid #e5e7eb;
+  border-radius: 18rpx;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.location-sheet-item--active {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-soft);
+}
+
+.location-sheet-item__title {
+  font-size: 30rpx;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #111827;
 }
 
 .schedule-preview-item {

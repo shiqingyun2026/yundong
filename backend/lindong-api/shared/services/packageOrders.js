@@ -1,6 +1,12 @@
 const { env } = require('../../config/env')
 const { withTransaction } = require('../../config/db')
-const { coursePackagesRepository, ordersRepository, packageGroupsRepository, paymentRecordsRepository } = require('../../repositories')
+const {
+  coursePackageLocationsRepository,
+  coursePackagesRepository,
+  ordersRepository,
+  packageGroupsRepository,
+  paymentRecordsRepository
+} = require('../../repositories')
 const {
   PACKAGE_GROUP_STATUS,
   assertSupportedTargetCount,
@@ -289,6 +295,64 @@ const getPackageByIdOrThrow = async packageId => {
 
 const resolvePackageClassCount = pkg => Math.max(1, Number(pkg && pkg.class_count) || 0)
 
+const normalizeLocationSnapshot = location => {
+  if (!location) {
+    return null
+  }
+
+  return {
+    id: location.id || '',
+    package_id: location.package_id || location.packageId || '',
+    location_district: location.location_district || location.locationDistrict || '',
+    location_community: location.location_community || location.locationCommunity || '',
+    location_detail: location.location_detail || location.locationDetail || '',
+    longitude: location.longitude === null || location.longitude === undefined ? null : Number(location.longitude),
+    latitude: location.latitude === null || location.latitude === undefined ? null : Number(location.latitude)
+  }
+}
+
+const resolvePackageLocationSnapshot = async ({ packageId, locationId }) => {
+  const normalizedLocationId = `${locationId || ''}`.trim()
+  if (!normalizedLocationId) {
+    return null
+  }
+
+  if (!coursePackageLocationsRepository || typeof coursePackageLocationsRepository.findLocationById !== 'function') {
+    throw createPackageServiceError(400, 1001, '请选择正确的上课地点')
+  }
+
+  const location = await coursePackageLocationsRepository.findLocationById(normalizedLocationId)
+  if (!location || location.package_id !== packageId || Number(location.status) === 0) {
+    throw createPackageServiceError(400, 1001, '请选择正确的上课地点')
+  }
+
+  return normalizeLocationSnapshot(location)
+}
+
+const attachLocationToScheduleConfig = (scheduleConfig, locationSnapshot = null) => {
+  const normalizedScheduleConfig = scheduleConfig && typeof scheduleConfig === 'object' ? scheduleConfig : null
+  if (!normalizedScheduleConfig) {
+    return normalizedScheduleConfig
+  }
+
+  const snapshot = normalizeLocationSnapshot(
+    locationSnapshot ||
+      normalizedScheduleConfig.location_snapshot ||
+      normalizedScheduleConfig.locationSnapshot ||
+      null
+  )
+
+  if (!snapshot) {
+    return normalizedScheduleConfig
+  }
+
+  return {
+    ...normalizedScheduleConfig,
+    location_id: snapshot.id,
+    location_snapshot: snapshot
+  }
+}
+
 const buildScheduleMinDate = now => {
   const shanghaiDateText = formatShanghaiDateTime(now).slice(0, 10)
   const minDate = parseShanghaiDate(`${shanghaiDateText} 00:00:00`)
@@ -444,7 +508,13 @@ const buildScheduleSnapshotFields = scheduleConfig => {
     schedule_time: normalizedTime,
     schedule_days: normalizedDays,
     class_count: Math.max(1, Number(normalized.class_count || normalized.classCount) || 0),
-    schedule_list: normalizedScheduleList
+    schedule_list: normalizedScheduleList,
+    ...(normalized.location_id || normalized.locationId
+      ? {
+          location_id: normalized.location_id || normalized.locationId,
+          location_snapshot: normalizeLocationSnapshot(normalized.location_snapshot || normalized.locationSnapshot || null)
+        }
+      : {})
   }
 }
 
@@ -456,6 +526,14 @@ const buildPackageOrderContext = ({
 }) => {
   const snapshot = buildScheduleSnapshotFields(scheduleConfig)
   const hasScheduleSnapshot = !!snapshot.schedule_type
+  const locationSnapshot = normalizeLocationSnapshot(
+    snapshot.location_snapshot ||
+      existingContext.location_snapshot ||
+      existingContext.locationSnapshot ||
+      (existingContext.schedule_config && (existingContext.schedule_config.location_snapshot || existingContext.schedule_config.locationSnapshot)) ||
+      null
+  )
+  const locationId = (locationSnapshot && locationSnapshot.id) || snapshot.location_id || existingContext.location_id || existingContext.locationId || ''
 
   return {
     ...existingContext,
@@ -472,7 +550,9 @@ const buildPackageOrderContext = ({
     schedule_days: snapshot.schedule_days,
     class_count: snapshot.class_count,
     schedule_list: snapshot.schedule_list,
-    schedule_config: hasScheduleSnapshot ? snapshot : null,
+    location_id: locationId,
+    location_snapshot: locationSnapshot,
+    schedule_config: hasScheduleSnapshot ? attachLocationToScheduleConfig(snapshot, locationSnapshot) : null,
     child_nickname: childProfile.childNickname || '',
     child_age: childProfile.childAge === null || childProfile.childAge === undefined ? null : childProfile.childAge,
     parent_mobile: childProfile.parentMobile || ''
@@ -483,7 +563,7 @@ const buildScheduleConfigFromContext = ({ context = {}, pkg, now = new Date() })
   const totalCount = resolvePackageClassCount(pkg)
   const scheduleConfig = parseJsonObject(context.schedule_config)
   if (scheduleConfig && scheduleConfig.schedule_type) {
-    return normalizeScheduleConfig({
+    return attachLocationToScheduleConfig(normalizeScheduleConfig({
       classCount: totalCount,
       scheduleType: scheduleConfig.schedule_type,
       scheduleDate: scheduleConfig.schedule_date,
@@ -491,21 +571,21 @@ const buildScheduleConfigFromContext = ({ context = {}, pkg, now = new Date() })
       scheduleDays: scheduleConfig.schedule_days,
       scheduleList: scheduleConfig.schedule_list,
       now
-    })
+    }), scheduleConfig.location_snapshot || scheduleConfig.locationSnapshot || context.location_snapshot || context.locationSnapshot || null)
   }
 
   const weekday = normalizeWeekday(context.weekday || context.schedule_day)
   const legacyClassDate = `${context.class_date || context.classDate || ''}`.trim()
   const legacyTime = context.schedule_time || context.scheduleTime || (context.hour !== undefined ? `${context.hour}:00` : '')
 
-  return normalizeScheduleConfig({
+  return attachLocationToScheduleConfig(normalizeScheduleConfig({
     classCount: totalCount,
     scheduleType: totalCount === 1 ? SCHEDULE_TYPES.SINGLE : SCHEDULE_TYPES.WEEKLY,
     scheduleDate: totalCount === 1 ? legacyClassDate : formatDateOnly(buildScheduleMinDate(now)),
     scheduleTime: legacyTime,
     scheduleDays: weekday ? [weekday] : [],
     now
-  })
+  }), context.location_snapshot || context.locationSnapshot || null)
 }
 
 const normalizeChildNickname = value => `${value || ''}`.trim()
@@ -557,6 +637,7 @@ const createPackageStartOrder = async ({
   scheduleDays,
   scheduleTime,
   scheduleList,
+  locationId,
   childNickname,
   childAge,
   parentMobile,
@@ -574,6 +655,10 @@ const createPackageStartOrder = async ({
     throw createPackageServiceError(404, 2001, '课包不存在')
   }
   const classCount = resolvePackageClassCount(pkg)
+  const locationSnapshot = await resolvePackageLocationSnapshot({
+    packageId,
+    locationId
+  })
   const normalizedScheduleConfig = normalizeScheduleConfig({
     classCount,
     scheduleType,
@@ -583,6 +668,7 @@ const createPackageStartOrder = async ({
     scheduleList,
     now
   })
+  const scheduleConfigWithLocation = attachLocationToScheduleConfig(normalizedScheduleConfig, locationSnapshot)
 
   assertSupportedTargetCount({
     supportedPeople: pkg.supported_people,
@@ -615,7 +701,7 @@ const createPackageStartOrder = async ({
     package_action: 'start',
     package_context: buildPackageOrderContext({
       targetCount,
-      scheduleConfig: normalizedScheduleConfig,
+      scheduleConfig: scheduleConfigWithLocation,
       childProfile: normalizedChildProfile
     }),
     amount: memberAmountFen
@@ -625,7 +711,7 @@ const createPackageStartOrder = async ({
     order,
     package: pkg,
     memberAmountFen,
-    scheduleConfig: normalizedScheduleConfig,
+    scheduleConfig: scheduleConfigWithLocation,
     childNickname: normalizedChildProfile.childNickname,
     childAge: normalizedChildProfile.childAge,
     parentMobile: normalizedChildProfile.parentMobile
@@ -681,19 +767,22 @@ const createPackageJoinOrder = async ({
     groupPriceConfig: pkg.group_price_config
   })
   const normalizedScheduleConfig = group.schedule_config
-    ? normalizeScheduleConfig({
-        classCount: resolvePackageClassCount(pkg),
-        scheduleType: group.schedule_config.schedule_type,
-        scheduleDate: group.schedule_config.schedule_date,
-        scheduleTime: group.schedule_config.schedule_time,
-        scheduleDays: group.schedule_config.schedule_days,
-        scheduleList: buildPackageLessonSchedule({
-          scheduleConfig: group.schedule_config,
-          firstClassTime: group.first_class_time,
-          weeks: resolvePackageClassCount(pkg)
+    ? attachLocationToScheduleConfig(
+        normalizeScheduleConfig({
+          classCount: resolvePackageClassCount(pkg),
+          scheduleType: group.schedule_config.schedule_type,
+          scheduleDate: group.schedule_config.schedule_date,
+          scheduleTime: group.schedule_config.schedule_time,
+          scheduleDays: group.schedule_config.schedule_days,
+          scheduleList: buildPackageLessonSchedule({
+            scheduleConfig: group.schedule_config,
+            firstClassTime: group.first_class_time,
+            weeks: resolvePackageClassCount(pkg)
+          }),
+          now
         }),
-        now
-      })
+        group.schedule_config.location_snapshot || group.schedule_config.locationSnapshot || null
+      )
     : null
 
   const order = await ordersRepository.createOrder({

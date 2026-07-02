@@ -45,7 +45,7 @@ test('insurance intro page is registered and contains policy sections', () => {
   assert.match(appJsonSource, /pages\/insurance\/intro\/index/)
   assert.match(jsSource, /平安行·运动意外险（基础版）/)
   assert.doesNotMatch(jsSource, /为增强对学生的保障，课程包含本运动意外险/)
-  assert.match(jsSource, /为保护学生和家长的隐私/)
+  assert.match(jsSource, /为保护学员和家长的隐私/)
   assert.match(jsSource, /保单生效后/)
   assert.doesNotMatch(jsSource, /保单成效后/)
   assert.match(jsSource, /平安好生活/)

@@ -155,6 +155,7 @@ Page({
     action: 'start',
     packageId: '',
     packageGroupId: '',
+    locationId: '',
     orderId: '',
     targetCount: 0,
     scheduleType: '',
@@ -182,6 +183,7 @@ Page({
       action: options.action || 'start',
       packageId: options.packageId || '',
       packageGroupId: options.packageGroupId || '',
+      locationId: options.locationId || '',
       orderId: options.orderId || '',
       targetCount: Number(options.targetCount) || 0,
       scheduleType: decodeURIComponent(options.scheduleType || ''),
@@ -320,15 +322,15 @@ Page({
 
     if (this.data.action === 'join') {
       if (!`${this.data.childNickname || ''}`.trim()) {
-        throw new Error('请填写学生昵称')
+        throw new Error('请填写学员昵称')
       }
 
       if (!/^\d+$/.test(`${this.data.childAge || ''}`)) {
-        throw new Error('请填写学生年龄')
+        throw new Error('请填写学员年龄')
       }
 
       if (!/^1\d{10}$/.test(`${this.data.parentMobile || ''}`)) {
-        throw new Error('请填写正确的家长手机号')
+        throw new Error('请填写正确的联系手机号')
       }
 
       return createPackageJoinOrder({
@@ -341,15 +343,15 @@ Page({
     }
 
     if (!`${this.data.childNickname || ''}`.trim()) {
-      throw new Error('请填写学生昵称')
+      throw new Error('请填写学员昵称')
     }
 
     if (!/^\d+$/.test(`${this.data.childAge || ''}`)) {
-      throw new Error('请填写学生年龄')
+      throw new Error('请填写学员年龄')
     }
 
     if (!/^1\d{10}$/.test(`${this.data.parentMobile || ''}`)) {
-      throw new Error('请填写正确的家长手机号')
+      throw new Error('请填写正确的联系手机号')
     }
 
     return createPackageStartOrder({
@@ -365,6 +367,7 @@ Page({
         }
       })(),
       scheduleTime: this.data.scheduleTime,
+      locationId: this.data.locationId,
       childNickname: this.data.childNickname.trim(),
       childAge: this.data.childAge,
       parentMobile: this.data.parentMobile

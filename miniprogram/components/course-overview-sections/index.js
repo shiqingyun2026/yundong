@@ -21,6 +21,10 @@ Component({
       type: Boolean,
       value: true
     },
+    showLocationInfo: {
+      type: Boolean,
+      value: true
+    },
     extraInfoRows: {
       type: Array,
       value: []

@@ -13,7 +13,7 @@ test('develop env points to test cloud container for WeChat devtools debugging',
   assert.equal(resolveCloudContainerServiceNameByEnv('develop'), 'lindong-api-test')
 })
 
-test('non-release miniprogram envs point to test cloud container service', () => {
+test('develop and trial envs point to test cloud container service', () => {
   assert.equal(resolveCloudContainerServiceNameByEnv('develop'), 'lindong-api-test')
   assert.equal(resolveCloudContainerServiceNameByEnv('trial'), 'lindong-api-test')
   assert.equal(resolveCloudContainerServiceNameByEnv('release'), 'lindong-api')

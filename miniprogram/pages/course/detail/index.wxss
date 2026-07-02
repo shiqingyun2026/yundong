@@ -302,6 +302,10 @@
   line-height: 1.6;
 }
 
+.group-location {
+  color: #169ca3;
+}
+
 .group-item-side {
   flex-shrink: 0;
   display: flex;

@@ -787,6 +787,97 @@ test('package start accepts the first valid Shanghai date after T+2 even under U
   assert.equal(state.createdOrder.package_context.schedule_date, '2026-04-24')
 })
 
+test('package start order stores selected package location snapshot', async () => {
+  clearModules([
+    'config/env.js',
+    'repositories/index.js',
+    'shared/services/packageGroupStore.js',
+    'shared/services/groupResultNotifications.js',
+    'shared/services/paymentShell.js',
+    'shared/services/packageOrders.js'
+  ])
+
+  const state = {
+    createdOrder: null
+  }
+
+  mockModule('config/env.js', {
+    env: {
+      useMySqlRepositories: true
+    }
+  })
+
+  mockModule('repositories/index.js', {
+    coursePackagesRepository: {
+      findPackageById: async () => ({
+        id: 'PKG-LOC-0001',
+        status: 1,
+        class_count: 1,
+        total_price: 12000,
+        supported_people: [4],
+        group_price_config: [{ target_count: 4, price_fen: 3000 }],
+        deadline_hours: 48
+      })
+    },
+    coursePackageLocationsRepository: {
+      findLocationById: async id => ({
+        id,
+        package_id: 'PKG-LOC-0001',
+        location_district: '广东省 / 深圳市 / 龙岗区',
+        location_community: '大世纪水山缘',
+        location_detail: '大世纪水山缘 广东省深圳市龙岗区龙山商业街1',
+        longitude: 114.140977,
+        latitude: 22.599326,
+        status: 1
+      })
+    },
+    ordersRepository: {
+      listPendingOrderIdsByUserAndPackage: async () => [],
+      closeOrdersByIds: async () => [],
+      createOrder: async payload => {
+        state.createdOrder = payload
+        return payload
+      }
+    }
+  })
+
+  mockModule('shared/services/packageGroupStore.js', {
+    cleanupExpiredPackageGroups: async () => ({ groupIds: [], refundedOrderIds: [], closedOrderIds: [] }),
+    closePendingPackageOrdersByIds: async () => [],
+    listPendingOrderIdsForPackage: async () => []
+  })
+
+  mockModule('shared/services/groupResultNotifications.js', {
+    enqueueGroupResultNotifications: async () => ({})
+  })
+
+  mockModule('shared/services/paymentShell.js', {
+    markPaymentRecordRefunded: async () => ({})
+  })
+
+  const { createPackageStartOrder } = require(path.join(backendRoot, 'shared/services/packageOrders.js'))
+
+  await createPackageStartOrder({
+    userId: 'user-1',
+    packageId: 'PKG-LOC-0001',
+    targetCount: 4,
+    locationId: 'PKG-LOC-0001-loc-002',
+    scheduleType: 'single',
+    scheduleDate: '2026-04-24',
+    scheduleTime: '10:00',
+    scheduleDays: [],
+    childNickname: '小满',
+    childAge: 6,
+    parentMobile: '13800138000',
+    now: new Date('2026-04-20T16:30:00.000Z')
+  })
+
+  assert.equal(state.createdOrder.package_context.location_id, 'PKG-LOC-0001-loc-002')
+  assert.equal(state.createdOrder.package_context.location_snapshot.location_community, '大世纪水山缘')
+  assert.equal(state.createdOrder.package_context.schedule_config.location_id, 'PKG-LOC-0001-loc-002')
+  assert.equal(state.createdOrder.package_context.schedule_config.location_snapshot.location_district, '广东省 / 深圳市 / 龙岗区')
+})
+
 test('package start accepts schedule time ranges and stores the start time', async () => {
   clearModules([
     'config/env.js',

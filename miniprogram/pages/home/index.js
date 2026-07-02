@@ -101,7 +101,6 @@ const buildPackageCard = item => ({
   classCountTagText: item.classCount > 0 ? `包含${item.classCount}节课` : '',
   coverFallbackDesc: item.packageCategory === '体验课' ? '单次拼团体验课' : '5次连续训练计划',
   showLimitedTimeOfferTag: !!item.showLimitedTimeOfferTag,
-  locationText: item.locationDisplayText || item.locationText || '',
   perMemberText: `¥${item.minMemberAmountDisplayText || item.minMemberAmountText}`,
   coverLoadFailed: false,
   distanceText:

@@ -237,6 +237,8 @@ Page({
     timeOptions: buildTimeOptions(90),
     scheduleTypeOptions: [],
     selectedTargetCount: 0,
+    selectedLocationId: '',
+    selectedLocationDisplayText: '',
     classCount: 1,
     minScheduleDate: '',
     selectedScheduleTypeValue: SCHEDULE_TYPES.SINGLE,
@@ -250,6 +252,7 @@ Page({
     requiredScheduleDaysCount: 0,
     scheduleDaysDisplayText: '请选择',
     showScheduleDaysPopup: false,
+    showLocationPopup: false,
     showScheduleItemEditor: false,
     editingScheduleItemIndex: -1,
     editingScheduleDateOptions: [],
@@ -343,12 +346,22 @@ Page({
             : ''
       const selectedTimeIndex = timeOptions.findIndex(item => item.value === selectedScheduleTime)
       const selectedTimeOption = selectedTimeIndex >= 0 ? timeOptions[selectedTimeIndex] : null
+      const enabledLocations = Array.isArray(packageDetail.locations) ? packageDetail.locations : []
+      const selectedLocationId =
+        this.data.selectedLocationId && enabledLocations.some(item => item.id === this.data.selectedLocationId)
+          ? this.data.selectedLocationId
+          : enabledLocations.length === 1
+            ? enabledLocations[0].id
+            : ''
+      const selectedLocation = enabledLocations.find(item => item.id === selectedLocationId)
 
       this.setData({
         packageDetail,
         classCount,
         timeOptions,
         selectedTargetCount: defaultTargetCount,
+        selectedLocationId,
+        selectedLocationDisplayText: (selectedLocation && selectedLocation.supportedLocationText) || '',
         minScheduleDate,
         scheduleTypeOptions,
         selectedScheduleTypeValue: defaultScheduleTypeValue,
@@ -460,6 +473,35 @@ Page({
       selectedTargetCount
     })
     this.updateAmountPreview(this.data.packageDetail, selectedTargetCount)
+  },
+
+  handleLocationSelect(event) {
+    const { locationId } = event.currentTarget.dataset
+    const packageLocations = (this.data.packageDetail && this.data.packageDetail.locations) || []
+    const selectedLocation = packageLocations.find(item => item.id === locationId)
+
+    this.setData({
+      selectedLocationId: locationId || '',
+      selectedLocationDisplayText: (selectedLocation && selectedLocation.supportedLocationText) || '',
+      showLocationPopup: false
+    })
+  },
+
+  openLocationPopup() {
+    const packageLocations = (this.data.packageDetail && this.data.packageDetail.locations) || []
+    if (!packageLocations.length) {
+      return
+    }
+
+    this.setData({
+      showLocationPopup: true
+    })
+  },
+
+  closeLocationPopup() {
+    this.setData({
+      showLocationPopup: false
+    })
   },
 
   handleScheduleTypeSelect(event) {
@@ -848,6 +890,15 @@ Page({
       return
     }
 
+    const packageLocations = (this.data.packageDetail && this.data.packageDetail.locations) || []
+    if (packageLocations.length && !this.data.selectedLocationId) {
+      wx.showToast({
+        title: '请选择上课地点',
+        icon: 'none'
+      })
+      return
+    }
+
     const scheduleError = this.validateScheduleSelection()
     if (scheduleError) {
       wx.showToast({
@@ -868,7 +919,7 @@ Page({
 
     if (!`${this.data.childNickname || ''}`.trim()) {
       wx.showToast({
-        title: '请填写学生昵称',
+        title: '请填写学员昵称',
         icon: 'none'
       })
       return
@@ -876,7 +927,7 @@ Page({
 
     if (!/^\d+$/.test(`${this.data.childAge || ''}`)) {
       wx.showToast({
-        title: '请填写学生年龄',
+        title: '请填写学员年龄',
         icon: 'none'
       })
       return
@@ -884,7 +935,7 @@ Page({
 
     if (!/^1\d{10}$/.test(`${this.data.parentMobile || ''}`)) {
       wx.showToast({
-        title: '请填写正确的家长手机号',
+        title: '请填写正确的联系手机号',
         icon: 'none'
       })
       return
@@ -908,6 +959,7 @@ Page({
         scheduleDays: schedulePayload.scheduleDays,
         scheduleTime: schedulePayload.scheduleTime,
         scheduleList: schedulePayload.scheduleList,
+        locationId: this.data.selectedLocationId,
         childNickname: this.data.childNickname.trim(),
         childAge: this.data.childAge,
         parentMobile: this.data.parentMobile
