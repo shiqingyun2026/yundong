@@ -15,3 +15,13 @@ test('supported locations render inside the overview info list after group price
   assert.ok(overviewWxml.indexOf('支持拼团') < overviewWxml.indexOf('支持场地'))
   assert.ok(overviewWxml.includes('{{item.supportedLocationText}}'))
 })
+
+test('course detail renders age range as an optional overview info row', () => {
+  const overviewWxml = fs.readFileSync(overviewWxmlPath, 'utf8')
+
+  assert.match(overviewWxml, /wx:if="\{\{packageInfo\.ageRange\}\}"/)
+  assert.match(overviewWxml, /适用年龄/)
+  assert.match(overviewWxml, /\{\{packageInfo\.ageRange\}\}/)
+  assert.ok(overviewWxml.indexOf('上课地点') < overviewWxml.indexOf('适用年龄'))
+  assert.ok(overviewWxml.indexOf('适用年龄') < overviewWxml.indexOf('支持拼团'))
+})

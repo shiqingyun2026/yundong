@@ -33,9 +33,10 @@ test('miniprogram copy follows package wording requirements', () => {
   const startWxml = fs.readFileSync(path.join(rootDir, 'pages/package/start/index.wxml'), 'utf8')
   const paymentWxml = fs.readFileSync(path.join(rootDir, 'pages/payment/confirm/index.wxml'), 'utf8')
 
-  assert.doesNotMatch(overviewWxml, /适用年龄/)
+  assert.match(overviewWxml, /适用年龄/)
   assert.doesNotMatch(source, /学生/)
   assert.doesNotMatch(source, /家长手机号/)
+  assert.doesNotMatch(source, /上课时间家长定/)
   assert.doesNotMatch(source, /请家长提前做好安排/)
   assert.doesNotMatch(source, /每次上课，至少要求一个家长全程在场/)
 
@@ -44,5 +45,6 @@ test('miniprogram copy follows package wording requirements', () => {
   assert.match(startWxml, /联系手机号/)
   assert.match(paymentWxml, /学员昵称/)
   assert.match(paymentWxml, /联系手机号/)
+  assert.match(source, /上课时间自己定/)
   assert.match(source, /请提前做好安排/)
 })

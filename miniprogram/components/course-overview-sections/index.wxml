@@ -30,6 +30,11 @@
         <view class="shared-info-value">{{packageInfo.locationDisplayText || packageInfo.locationText}}</view>
       </view>
 
+      <view wx:if="{{packageInfo.ageRange}}" class="shared-info-item">
+        <view class="shared-info-label">适用年龄</view>
+        <view class="shared-info-value">{{packageInfo.ageRange}}</view>
+      </view>
+
       <view wx:if="{{showSupportedGroupPrices && packageInfo.supportedGroupPriceList.length}}" class="shared-info-item">
         <view class="shared-info-label-row">
           <view class="shared-info-label">支持拼团</view>

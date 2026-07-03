@@ -526,7 +526,6 @@ const validatePackagePayload = (payload = {}, { partial = false } = {}) => {
   const requiredFields = [
     ['name', '课包名称不能为空'],
     ['package_category', '课包类型不能为空'],
-    ['age_range', '适用年龄不能为空'],
     ['cover', '封面图不能为空'],
     ['wechat_share_cover', '微信分享封面不能为空'],
     ['location_district', '所在区域不能为空'],

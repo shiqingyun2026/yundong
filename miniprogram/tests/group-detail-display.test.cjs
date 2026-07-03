@@ -134,7 +134,7 @@ test('package group type labels use 1-to-1 private coaching copy', () => {
   assert.doesNotMatch(paymentConfirmJsSource, /1人私教/)
 })
 
-test('group detail overview renders one location row and a schedule time row', () => {
+test('group detail overview renders one location row and no schedule time row', () => {
   const groupDetailWxmlSource = fs.readFileSync(groupDetailWxmlPath, 'utf8')
   const overviewSource = fs.readFileSync(courseOverviewComponentWxmlPath, 'utf8')
   const groupDetailJsSource = fs.readFileSync(groupDetailJsPath, 'utf8')
@@ -143,8 +143,8 @@ test('group detail overview renders one location row and a schedule time row', (
   assert.match(overviewSource, /wx:for="{{extraInfoRows}}"/)
   assert.doesNotMatch(overviewSource, /extraInfoRows\[0\]\.label/)
   assert.match(groupDetailJsSource, /label:\s*'上课地点'/)
-  assert.match(groupDetailJsSource, /label:\s*'上课时间'/)
-  assert.match(groupDetailJsSource, /groupDetail\.scheduleDisplayText/)
+  assert.doesNotMatch(groupDetailJsSource, /label:\s*'上课时间'/)
+  assert.doesNotMatch(groupDetailJsSource, /groupDetail\.scheduleDisplayText/)
 })
 
 test('package active group progress copy uses minimum success count for range groups', () => {
@@ -272,7 +272,7 @@ test('group detail does not invent a 60 minute duration tag when API omits durat
   })
 
   assert.equal(detail.packageInfo.classCount, 5)
-  assert.deepEqual(detail.packageInfo.featureTags, ['包含5节课', '上课时间家长定'])
+  assert.deepEqual(detail.packageInfo.featureTags, ['包含5节课', '上课时间自己定'])
 })
 
 test('group detail uses provided class duration in feature tag', () => {

@@ -388,7 +388,7 @@ const buildPackageFeatureTags = payload => {
     tags.push(`课时长${duration}分钟`)
   }
 
-  tags.push('上课时间家长定')
+  tags.push('上课时间自己定')
 
   return tags
 }

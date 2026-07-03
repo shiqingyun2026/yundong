@@ -42,7 +42,6 @@
                   <text>，每人¥{{item.memberAmountDisplayText || item.memberAmountText}}</text>
                 </view>
                 <view class="group-progress-caption group-location">地点：{{item.locationText || '待确认'}}</view>
-                <view class="group-progress-caption group-schedule">时间：{{item.scheduleText}}</view>
               </view>
 
               <view class="group-item-side">

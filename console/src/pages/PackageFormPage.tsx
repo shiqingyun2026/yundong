@@ -667,12 +667,6 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
       return
     }
 
-    if (!form.age_range.trim()) {
-      setError('请填写适用年龄')
-      setSaving(false)
-      return
-    }
-
     if (!form.publish_time) {
       setError('请填写上架时间')
       setSaving(false)
@@ -803,7 +797,7 @@ export function PackageFormPage({ mode }: { mode: PackagePageMode }) {
               </select>
             </label>
             <label>
-              <span>适用年龄<RequiredMark /></span>
+              <span>适用年龄</span>
               <input
                 value={form.age_range}
                 onChange={event => updateField('age_range', event.target.value)}
